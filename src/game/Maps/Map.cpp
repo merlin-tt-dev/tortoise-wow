@@ -494,7 +494,10 @@ void Map::Add(Transport* obj)
 
     obj->SetMap(this);
     obj->AddToWorld();
-    _transports.insert(obj);
+    {
+        std::unique_lock<std::shared_mutex> lock(_transports_lock);
+        _transports.insert(obj);
+    }
 
     // Broadcast creation to players
     obj->SendCreateUpdateToMap();
@@ -1273,7 +1276,10 @@ void Map::Remove(Transport* obj, bool remove)
         obj->RemoveFromWorld();
 
     obj->SendOutOfRangeUpdateToMap();
-    _transports.erase(obj);
+    {
+        std::unique_lock<std::shared_mutex> lock(_transports_lock);
+        _transports.erase(obj);
+    }
 
     obj->ResetMap();
     obj->RemoveMapReference(this);

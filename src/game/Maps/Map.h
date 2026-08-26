@@ -519,6 +519,11 @@ class Map : public GridRefManager<NGridType>
         Pet* GetPet(ObjectGuid const& guid) { return GetObject<Pet>(guid); }
         Creature* GetAnyTypeCreature(ObjectGuid guid);      // normal creature or pet
         Transport* GetTransport(ObjectGuid guid);
+        std::set<Transport*> GetTransports() const
+        {
+            std::shared_lock<std::shared_mutex> lock(_transports_lock);
+            return _transports;
+        }
         DynamicObject* GetDynamicObject(ObjectGuid guid) { return GetObject<DynamicObject>(guid); }
         Corpse* GetCorpse(ObjectGuid guid);                   // !!! find corpse can be not in world
         Unit* GetUnit(ObjectGuid guid);                       // only use if sure that need objects at current map, specially for player case
@@ -714,6 +719,7 @@ class Map : public GridRefManager<NGridType>
 
         // Objects that must update even in inactive grids without activating them
         typedef std::set<Transport*> TransportsContainer;
+        mutable std::shared_mutex _transports_lock;
         TransportsContainer _transports;
         bool m_unloading = false;
         bool m_crashed = false;

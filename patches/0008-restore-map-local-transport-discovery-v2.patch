@@ -1,0 +1,75 @@
+diff --git a/modules/mod-playerbots/src/playerbot/WorldPosition.cpp b/modules/mod-playerbots/src/playerbot/WorldPosition.cpp
+--- a/modules/mod-playerbots/src/playerbot/WorldPosition.cpp
++++ b/modules/mod-playerbots/src/playerbot/WorldPosition.cpp
+@@ -538,14 +538,19 @@
+ std::set<GenericTransport*> WorldPosition::getTransports(uint32 entry)
+ {
+     std::set<GenericTransport*> transports;
+-    for (auto transport : getMap(getFirstInstanceId())->GetTransports()) //Boats&Zeppelins.
++
++    Map* map = getMap(getFirstInstanceId());
++    if (!map)
++        return transports;
++
++    for (auto transport : map->GetTransports()) //Boats&Zeppelins.
+         if (!entry || transport->GetEntry() == entry)
+             transports.insert(transport);
+ 
+     if (transports.empty() || !entry) //Elevators&rams
+     {
+         for (auto gopair : getGameObjectsNear(0.0f, entry))
+-            if (GameObject* go = getMap(getFirstInstanceId())->GetGameObject(gopair->first))
++            if (GameObject* go = map->GetGameObject(gopair->first))
+                 if (GenericTransport* transport = dynamic_cast<GenericTransport*>(go))
+                     transports.insert(transport);
+     }
+diff --git a/src/game/Maps/Map.cpp b/src/game/Maps/Map.cpp
+--- a/src/game/Maps/Map.cpp
++++ b/src/game/Maps/Map.cpp
+@@ -494,7 +494,10 @@
+ 
+     obj->SetMap(this);
+     obj->AddToWorld();
+-    _transports.insert(obj);
++    {
++        std::unique_lock<std::shared_mutex> lock(_transports_lock);
++        _transports.insert(obj);
++    }
+ 
+     // Broadcast creation to players
+     obj->SendCreateUpdateToMap();
+@@ -1273,7 +1276,10 @@
+         obj->RemoveFromWorld();
+ 
+     obj->SendOutOfRangeUpdateToMap();
+-    _transports.erase(obj);
++    {
++        std::unique_lock<std::shared_mutex> lock(_transports_lock);
++        _transports.erase(obj);
++    }
+ 
+     obj->ResetMap();
+     obj->RemoveMapReference(this);
+diff --git a/src/game/Maps/Map.h b/src/game/Maps/Map.h
+--- a/src/game/Maps/Map.h
++++ b/src/game/Maps/Map.h
+@@ -519,6 +519,11 @@
+         Pet* GetPet(ObjectGuid const& guid) { return GetObject<Pet>(guid); }
+         Creature* GetAnyTypeCreature(ObjectGuid guid);      // normal creature or pet
+         Transport* GetTransport(ObjectGuid guid);
++        std::set<Transport*> GetTransports() const
++        {
++            std::shared_lock<std::shared_mutex> lock(_transports_lock);
++            return _transports;
++        }
+         DynamicObject* GetDynamicObject(ObjectGuid guid) { return GetObject<DynamicObject>(guid); }
+         Corpse* GetCorpse(ObjectGuid guid);                   // !!! find corpse can be not in world
+         Unit* GetUnit(ObjectGuid guid);                       // only use if sure that need objects at current map, specially for player case
+@@ -714,6 +719,7 @@
+ 
+         // Objects that must update even in inactive grids without activating them
+         typedef std::set<Transport*> TransportsContainer;
++        mutable std::shared_mutex _transports_lock;
+         TransportsContainer _transports;
+         bool m_unloading = false;
+         bool m_crashed = false;

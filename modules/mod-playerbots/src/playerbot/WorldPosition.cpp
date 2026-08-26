@@ -538,14 +538,19 @@ bool WorldPosition::HasFaction(const Team team) const
 std::set<GenericTransport*> WorldPosition::getTransports(uint32 entry)
 {
     std::set<GenericTransport*> transports;
-    for (auto transport : getMap(getFirstInstanceId())->GetTransports()) //Boats&Zeppelins.
+
+    Map* map = getMap(getFirstInstanceId());
+    if (!map)
+        return transports;
+
+    for (auto transport : map->GetTransports()) //Boats&Zeppelins.
         if (!entry || transport->GetEntry() == entry)
             transports.insert(transport);
 
     if (transports.empty() || !entry) //Elevators&rams
     {
         for (auto gopair : getGameObjectsNear(0.0f, entry))
-            if (GameObject* go = getMap(getFirstInstanceId())->GetGameObject(gopair->first))
+            if (GameObject* go = map->GetGameObject(gopair->first))
                 if (GenericTransport* transport = dynamic_cast<GenericTransport*>(go))
                     transports.insert(transport);
     }
