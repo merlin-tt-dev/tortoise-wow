@@ -153,7 +153,7 @@ bool OpenLootAction::DoLoot(LootObject& lootObject)
         return ai->DoSpecificAction("use", Event("do loot", chat->formatQItem(lootObject.reqItem) + " " + chat->formatGameobject(go)));
     }
 
-    return ai->CastSpell(spellId, bot);
+    return go ? ai->CastSpell(spellId, go) : false;
 }
 
 uint32 OpenLootAction::GetOpeningSpell(LootObject& lootObject)
