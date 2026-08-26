@@ -64,7 +64,7 @@ diff --git a/modules/mod-playerbots/src/playerbot/PlayerbotAIConfig.cpp b/module
      std::sort(criteriaValues.begin(), criteriaValues.end());
      loginCriteria.clear();
      for (auto& value : criteriaValues)
-@@ -294,7 +299,7 @@ bool PlayerbotAIConfig::Initialize()
+@@ -294,6 +299,6 @@ bool PlayerbotAIConfig::Initialize()
      {
          loginCriteria.push_back({});
 -        LoadListString<std::vector<std::string> >(config.GetStringDefault(value, ""), loginCriteria.back());
@@ -117,7 +117,7 @@ diff --git a/modules/mod-playerbots/src/playerbot/PlayerbotAIConfig.cpp b/module
  	        {
  		    std::string key = "AiPlayerbot.ClassRaceProb." + std::to_string(cls) + "." + std::to_string(race);
 -		    int count = config.GetIntDefault(key, -1);
-+		    int count = config.GetIntDefault(key.c_str(), -1);
++            int count = config.GetIntDefault(key.c_str(), -1);
  
  		    if (count >= 0 && factory.isAvailableRace(cls, race))
  		    {
