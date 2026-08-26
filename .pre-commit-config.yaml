@@ -1,0 +1,85 @@
+# .pre-commit-config.yaml
+
+fail_fast: false
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      # Allgemeine Text-/Whitespace-Sicherheit.
+      # .patch-Dateien absichtlich ausgeschlossen:
+      # dafür gibt es unten einen eigenen Patch-Validator.
+      - id: trailing-whitespace
+        args:
+          - --markdown-linebreak-ext=md
+        exclude: ^patches/.*\.patch$
+
+      - id: end-of-file-fixer
+        exclude: ^patches/.*\.patch$
+
+      - id: mixed-line-ending
+        args:
+          - --fix=lf
+        exclude: ^patches/.*\.patch$
+
+      # Klassische Git-Unfälle
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: check-symlinks
+      - id: destroyed-symlinks
+
+      # Konfigurationsdateien
+      - id: check-yaml
+      - id: check-json
+      - id: check-toml
+
+      # Nicht versehentlich Schlüssel einchecken
+      - id: detect-private-key
+
+      # Unsere beiden geschützten Basisbranches:
+      # LivingBots-Arbeit darf dort NICHT direkt landen.
+      - id: no-commit-to-branch
+        args:
+          - --branch
+          - main
+          - --branch
+          - 1181dev
+
+  - repo: local
+    hooks:
+      # Prüft den tatsächlich gestagten Git-Diff.
+      # Erkennt trailing whitespace / space-before-tab usw.
+      - id: git-diff-check
+        name: git diff --cached --check
+        entry: git diff --cached --check
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      # Sehr wichtig für unseren aktuellen Workflow:
+      #
+      # - prüft Unified-Diff-Syntax
+      # - erkennt kaputte Hunk-Counts
+      # - braucht NICHT, dass der Patch noch auf den Source anwendbar ist
+      # - erkennt "tab in indent" in hinzugefügten Patch-Zeilen
+      #
+      # Genau damit wären unsere kaputten 0005/0006/0007-Patches
+      # bereits beim Commit gestoppt worden.
+      - id: validate-unified-patches
+        name: validate unified patches
+        language: system
+        files: ^patches/.*\.patch$
+        entry: >-
+          bash -c '
+          rc=0;
+          for f in "$@"; do
+            echo "checking patch: $f";
+            git -c core.whitespace=trailing-space,space-before-tab,tab-in-indent
+              apply
+              --numstat
+              --whitespace=error-all
+              "$f"
+              >/dev/null || rc=1;
+          done;
+          exit "$rc"
+          ' --
