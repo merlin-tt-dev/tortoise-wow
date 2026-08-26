@@ -424,7 +424,7 @@ bool PlayerbotAIConfig::Initialize()
 	        for (uint32 race = 1; race < MAX_RACES; ++race)
 	        {
 		    std::string key = "AiPlayerbot.ClassRaceProb." + std::to_string(cls) + "." + std::to_string(race);
-		    int count = config.GetIntDefault(key.c_str(), -1);
+                int count = config.GetIntDefault(key.c_str(), -1);
 
 		    if (count >= 0 && factory.isAvailableRace(cls, race))
 		    {
