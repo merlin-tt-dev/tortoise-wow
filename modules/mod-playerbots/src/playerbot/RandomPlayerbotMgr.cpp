@@ -3588,6 +3588,12 @@ void RandomPlayerbotMgr::HandleCommand(uint32 type, const std::string& text, Pla
             }
         }
 
+        if ((type == CHAT_MSG_PARTY || type == CHAT_MSG_RAID) &&
+            (!fromPlayer.GetGroup() || bot->GetGroup() != fromPlayer.GetGroup()))
+        {
+            return;
+        }
+
         if (team != TEAM_BOTH_ALLOWED && bot->GetTeam() != team)
         {
             return;
