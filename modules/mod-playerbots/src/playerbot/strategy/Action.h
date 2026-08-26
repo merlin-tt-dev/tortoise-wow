@@ -30,7 +30,9 @@ namespace ai
         }
 
     public:
-        std::string getName() const { return name; }
+        // `name` is an owning member, so callers can bind it to a const
+        // reference without allocating a temporary string on every AI tick.
+        const std::string& getName() const { return name; }
         float getRelevance() const { return relevance; }
 
     public:
