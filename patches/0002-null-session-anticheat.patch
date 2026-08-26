@@ -1,7 +1,7 @@
 diff --git a/src/game/WorldSession.cpp b/src/game/WorldSession.cpp
 --- a/src/game/WorldSession.cpp
 +++ b/src/game/WorldSession.cpp
-@@ -101,6 +101,14 @@ WorldSession::WorldSession(uint32 id, WorldSocket *sock, AccountTypes sec, time_t
+@@ -101,6 +101,13 @@ WorldSession::WorldSession(uint32 id, WorldSocket *sock, AccountTypes sec, time.t
      else
          m_Address = "<BOT>";
  
