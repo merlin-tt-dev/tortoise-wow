@@ -316,6 +316,7 @@ bool MovementAction::MoveOnTransport(PlayerbotAI* ai, GenericTransport* transpor
     AiObjectContext* context = ai->GetAiObjectContext();
     Player* bot = ai->GetBot();
     WorldPosition botPos(bot);
+    (void)doTeleport; // LivingBots never beams onto transports.
 
     uint32 radius = 20;
 
@@ -323,18 +324,11 @@ bool MovementAction::MoveOnTransport(PlayerbotAI* ai, GenericTransport* transpor
 
     std::vector<WorldPosition> path;
 
-    WorldPosition transPos = botPos.RandomPointOnTrans(transport, 20.0f, doTeleport ? nullptr : bot, path);
+    WorldPosition transPos = botPos.RandomPointOnTrans(transport, 20.0f, bot, path);
 
     if (!transPos)
         return false;
 
-    if (doTeleport)
-    {
-        bot->GetMap()->PlayerRelocation(bot, transPos.getX(), transPos.getY(), transPos.getZ(), bot->GetOrientation());
-        transport->AddPassenger(bot, true);
-        bot->SendHeartBeat();
-        return true;
-    }
 
     bot->SetTransport(botTrans);
 
@@ -396,6 +390,7 @@ bool MovementAction::MoveOffTransport(PlayerbotAI* ai, WorldPosition exitPos, bo
     AiObjectContext* context = ai->GetAiObjectContext();
     Player* bot = ai->GetBot();
     WorldPosition botPos(bot);
+    (void)doTeleport; // LivingBots never beams off transports.
 
     if (!bot->GetTransport())
     {
@@ -406,11 +401,6 @@ bool MovementAction::MoveOffTransport(PlayerbotAI* ai, WorldPosition exitPos, bo
 
     transport->RemovePassenger(bot);
 
-    if (doTeleport)
-    {
-        bot->TeleportTo(exitPos.getMapId(), exitPos.getX(), exitPos.getY(), exitPos.getZ(), exitPos.getO(), 0);
-        return true;
-    }
 
     bot->NearTeleportTo(bot->m_movementInfo.pos.x, bot->m_movementInfo.pos.y, bot->m_movementInfo.pos.z, bot->m_movementInfo.pos.o);
 
@@ -564,7 +554,7 @@ bool MovementAction::MinimalMove(PlayerbotAI* ai)
 
         WorldPosition exitPos = (exitStep != path.end()) ? exitStep->point : nextStep->point;
 
-        bool didTransport = UseTransport(ai, nextStep->entry, nextStep->point, exitPos, true);
+        bool didTransport = UseTransport(ai, nextStep->entry, nextStep->point, exitPos, false);
 
         if (!didTransport) //We did not board yet or are on the transport so just wait.
         {
@@ -594,9 +584,6 @@ bool MovementAction::MinimalMove(PlayerbotAI* ai)
         //Ready to exit
         lastMove.lastPath.cutTo(*nextStep, true); //Removing boarding point.
 
-        nextStep = path.begin();
-
-        bot->TeleportTo(nextStep->point);
 
         return true;
     }
@@ -672,7 +659,7 @@ bool MovementAction::WaitForTransport()
     PathNodePoint dockPoint = path.getPath().front();
     PathNodePoint telePoint = *std::next(path.getPath().begin());
         
-    if (!UseTransport(ai, dockPoint.entry, dockPoint.point, telePoint.point, sPlayerbotAIConfig.transportTeleportType > 0))
+    if (!UseTransport(ai, dockPoint.entry, dockPoint.point, telePoint.point, false))
         return true;
 
     lastMove.lastTransportEntry = 0;
@@ -784,7 +771,7 @@ bool MovementAction::HandleSpecialMovement(TravelPath& path)
     //We are getting 'on' transport.
     if (nextPoint.type == PathNodeType::NODE_TRANSPORT)
     {
-        bool usedTransport = UseTransport(ai, nextPoint.entry, nextPoint.point, WorldPosition(), sPlayerbotAIConfig.transportTeleportType > 0);
+        bool usedTransport = UseTransport(ai, nextPoint.entry, nextPoint.point, WorldPosition(), false);
 
         uint32 lastTransportEntry = 0;
 
@@ -797,7 +784,7 @@ bool MovementAction::HandleSpecialMovement(TravelPath& path)
 
     if (currentPoint.type == PathNodeType::NODE_TRANSPORT)
     {
-        bool usedTransport = UseTransport(ai, currentPoint.entry, currentPoint.point, nextPoint.point, sPlayerbotAIConfig.transportTeleportType > 0);
+        bool usedTransport = UseTransport(ai, currentPoint.entry, currentPoint.point, nextPoint.point, false);
 
         uint32 lastTransportEntry = 0;
 
@@ -809,7 +796,7 @@ bool MovementAction::HandleSpecialMovement(TravelPath& path)
         else
         {
             if (!bot->GetTransport())
-                return bot->TeleportTo(nextPoint.point.getMapId(), nextPoint.point.getX(), nextPoint.point.getY(), nextPoint.point.getZ(), nextPoint.point.getO(), 0) ? true : false;
+                return true;
 
             lastTransportEntry = nextPoint.entry;
         }
