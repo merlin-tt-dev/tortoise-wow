@@ -88,36 +88,6 @@ repos:
     hooks:
 
       # ---------------------------------------------------------------------
-      # Read-only trailing whitespace check
-      # ---------------------------------------------------------------------
-      #
-      # Do NOT use trailing-whitespace from pre-commit-hooks here:
-      # that hook automatically modifies files.
-      #
-      # Do NOT use a repository-wide `git diff --cached --check` either:
-      # on this repository that proved capable of running for several minutes.
-      #
-      # pre-commit supplies only the relevant files to this command during
-      # a normal commit. grep checks them directly and never modifies them.
-      #
-      - id: trailing-whitespace-check
-        name: trailing whitespace
-        language: system
-        types:
-          - text
-        exclude: ^patches/.*\.patch$
-        entry: >-
-          bash -c '
-          if grep -nH -E "[[:blank:]]+$" "$@"; then
-              echo;
-              echo "ERROR: trailing whitespace detected.";
-              echo "Remove the whitespace before committing.";
-              exit 1;
-          fi;
-          exit 0
-          ' --
-
-      # ---------------------------------------------------------------------
       # Unified patch validator
       # ---------------------------------------------------------------------
       #
@@ -138,13 +108,5 @@ repos:
         name: validate unified patches
         language: system
         files: ^patches/.*\.patch$
-
-        entry: >-
-          bash -c '
-          rc=0;
-
-          for f in "$@"; do
-              echo "checking patch: $f";
-
-              git
-              -c core.whitespace=tr
+        entry: git -c core.whitespace=trailing-space,space-before-tab,tab-in-indent apply --numstat --whitespace=error-all
+        require_serial: true
