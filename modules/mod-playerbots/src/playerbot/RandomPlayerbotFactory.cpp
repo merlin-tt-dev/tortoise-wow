@@ -356,8 +356,6 @@ bool RandomPlayerbotFactory::CreateRandomBot(uint8 cls, uint8 inputRace)
         0, LOCALE_enUS, "disconnected/bot", 0);
 #endif
 
-    session->SetNoAnticheat();
-
     Player* player = new Player(session);
     if (!player || !session)
     {

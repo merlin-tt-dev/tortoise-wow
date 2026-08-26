@@ -102,6 +102,13 @@ WorldSession::WorldSession(uint32 id, WorldSocket *sock, AccountTypes sec, time_
     else
         m_Address = "<BOT>";
 
+    // Keep bot-created sessions on the null-object implementation. Network
+    // logins replace this in InitAntiCheatSession(), while bot sessions never
+    // pass through that login path and otherwise leave m_antiCheat null.
+    // Several movement handlers dereference it unconditionally, including the
+    // knockback acknowledgement path called directly by PlayerbotAI.
+    m_antiCheat = std::make_unique<NullSessionAnticheat>(this);
+
     m_lastUpdateTime = WorldTimer::getMSTime();
     _analyser = std::make_unique<AccountAnalyser>(this);
 }
