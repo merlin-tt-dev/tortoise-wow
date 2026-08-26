@@ -224,11 +224,27 @@ namespace ai
         UnitCalculatedValue(PlayerbotAI* ai, std::string name = "value", int checkInterval = 1) :
             CalculatedValue<Unit*>(ai, name, checkInterval) { this->lastCheckTime = time(0) - checkInterval / 2; }
 
+        // CalculatedValue caches its result between recalculations. A raw Unit*
+        // may become invalid during that window when the world object despawns.
+        // Keep the GUID alongside the result and resolve cached reads through
+        // PlayerbotAI instead of dereferencing a stale pointer.
+        Unit* Get() override;
+        Unit* LazyGet() override;
+
+        void Set(Unit* unit) override
+        {
+            this->value = unit;
+            m_guid = unit ? unit->GetObjectGuid() : ObjectGuid();
+        }
+
         virtual std::string Format() override
         {
             Unit* unit = this->Calculate();
             return unit ? unit->GetName() : "<none>";
         }
+
+    protected:
+        ObjectGuid m_guid;
     };
 
     class CDPairCalculatedValue : public CalculatedValue<CreatureDataPair const*>

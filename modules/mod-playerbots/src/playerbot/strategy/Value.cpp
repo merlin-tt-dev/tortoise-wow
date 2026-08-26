@@ -49,3 +49,31 @@ std::string GuidPositionManualSetValue::Format()
 {
     return chat->formatGuidPosition(value,bot);
 }
+
+Unit* UnitCalculatedValue::Get()
+{
+    time_t now = time(0);
+    if (!lastCheckTime ||
+        (checkInterval < 2 && (now - lastCheckTime > 0.1)) ||
+        now - lastCheckTime >= checkInterval / 2)
+    {
+        lastCheckTime = now;
+
+        auto pmo = sPerformanceMonitor.start(PERF_MON_VALUE, AiNamedObject::getName(), ai);
+        value = Calculate();
+        m_guid = value ? value->GetObjectGuid() : ObjectGuid();
+        return value;
+    }
+
+    value = m_guid.IsEmpty() ? nullptr : ai->GetUnit(m_guid);
+    return value;
+}
+
+Unit* UnitCalculatedValue::LazyGet()
+{
+    if (!lastCheckTime)
+        return Get();
+
+    value = m_guid.IsEmpty() ? nullptr : ai->GetUnit(m_guid);
+    return value;
+}
