@@ -1,0 +1,141 @@
+diff --git a/modules/mod-playerbots/src/playerbot/PlayerbotAIConfig.cpp b/modules/mod-playerbots/src/playerbot/PlayerbotAIConfig.cpp
+--- a/modules/mod-playerbots/src/playerbot/PlayerbotAIConfig.cpp
++++ b/modules/mod-playerbots/src/playerbot/PlayerbotAIConfig.cpp
+@@ -23,15 +23,24 @@
+-std::vector<std::string> ConfigAccess::GetValues(const std::string& name) const
++namespace
+ {
+-    // The original cmangos implementation iterates m_entries
+-    // (unordered_map populated by cmangos's own Config parser). Penqle's Config (which
+-    // ConfigAccess is reinterpret_cast'd onto) has a totally different layout — that
+-    // map doesn't exist at this offset, and iterating it segfaults.
+-    //
+-    // Bot uses GetValues for multi-value keys: LoginCriteria, WorldBuff. Both
+-    // downstream call sites handle an empty result by skipping the optional feature.
+-    // Returning empty here is safe; full multi-value parsing against Penqle's Config
+-    // is a future enhancement (would need to iterate the underlying ACE_Configuration_Heap
+-    // and pattern-match on the key prefix).
+-    (void)name;
+-    return {};
++std::vector<std::string> GetConfigKeysContaining(Config& config, const std::string& name)
++{
++    std::vector<std::string> values;
++    std::vector<std::string> sections;
++    const std::string nameLower = boost::algorithm::to_lower_copy(name);
++
++    config.GetRootSections(sections);
++    for (const std::string& section : sections)
++    {
++        std::vector<std::string> keys;
++        config.GetKeys(section.c_str(), keys);
++
++        for (const std::string& key : keys)
++            if (boost::algorithm::to_lower_copy(key).find(nameLower) != std::string::npos)
++                values.push_back(key);
++    }
++
++    return values;
+ }
++}
+@@ -89,7 +98,7 @@ bool PlayerbotAIConfig::Initialize()
+ {
+     sLog.outString("Initializing AI Playerbot by ike3, based on the original Playerbot by blueboy");
+ 
+-    if (!config.SetSource(_D_AIPLAYERBOT_CONFIG, "PlayerBots_"))
++    if (!config.SetSource(_D_AIPLAYERBOT_CONFIG.c_str()))
+     {
+         sLog.outString("AI Playerbot is Disabled. Unable to open configuration file aiplayerbot.conf");
+         return false;
+@@ -104,8 +113,6 @@ bool PlayerbotAIConfig::Initialize()
+         return false;
+     }
+ 
+-    ConfigAccess* configA = reinterpret_cast<ConfigAccess*>(&config);
+-
+     BarGoLink::SetOutputState(config.GetBoolDefault("AiPlayerbot.ShowProgressBars", false));
+     globalCoolDown = (uint32) config.GetIntDefault("AiPlayerbot.GlobalCooldown", 500);
+     maxWaitForMove = config.GetIntDefault("AiPlayerbot.MaxWaitForMove", 3000);
+@@ -286,7 +293,7 @@ bool PlayerbotAIConfig::Initialize()
+     
+     LoadListString<std::vector<std::string> >(config.GetStringDefault("AiPlayerbot.DefaultLoginCriteria", "maxbots,spareroom,offline"), defaultLoginCriteria);
+ 
+-    std::vector<std::string> criteriaValues = configA->GetValues("AiPlayerbot.LoginCriteria");
++    std::vector<std::string> criteriaValues = GetConfigKeysContaining(config, "AiPlayerbot.LoginCriteria");
+     std::sort(criteriaValues.begin(), criteriaValues.end());
+     loginCriteria.clear();
+     for (auto& value : criteriaValues)
+@@ -294,7 +301,7 @@ bool PlayerbotAIConfig::Initialize()
+     {
+         loginCriteria.push_back({});
+-        LoadListString<std::vector<std::string> >(config.GetStringDefault(value, ""), loginCriteria.back());
++        LoadListString<std::vector<std::string> >(config.GetStringDefault(value.c_str(), ""), loginCriteria.back());
+     }
+ 
+     if (criteriaValues.empty())
+@@ -310,7 +317,8 @@ bool PlayerbotAIConfig::Initialize()
+     
+     for (uint32 level = 1; level <= DEFAULT_MAX_LEVEL; ++level)
+     {
+-        levelProbability[level] = config.GetIntDefault("AiPlayerbot.LevelProbability." + std::to_string(level), 100);
++        std::string key = "AiPlayerbot.LevelProbability." + std::to_string(level);
++        levelProbability[level] = config.GetIntDefault(key.c_str(), 100);
+     }
+ 
+     sLog.outString("Loading Race/Class probabilities");
+@@ -326,7 +334,8 @@ bool PlayerbotAIConfig::Initialize()
+         //Set race defaults
+         if (race > 0)
+         {
+-            int rProb = config.GetIntDefault("AiPlayerbot.ClassRaceProb.0." + std::to_string(race), 100);
++            std::string key = "AiPlayerbot.ClassRaceProb.0." + std::to_string(race);
++            int rProb = config.GetIntDefault(key.c_str(), 100);
+ 
+             for (uint32 cls = 1; cls < MAX_CLASSES; ++cls)
+             {
+@@ -339,7 +348,8 @@ bool PlayerbotAIConfig::Initialize()
+     //Class overrides
+     for (uint32 cls = 1; cls < MAX_CLASSES; ++cls)
+     {
+-        int cProb = config.GetIntDefault("AiPlayerbot.ClassRaceProb." + std::to_string(cls), -1);
++        std::string key = "AiPlayerbot.ClassRaceProb." + std::to_string(cls);
++        int cProb = config.GetIntDefault(key.c_str(), -1);
+ 
+         if (cProb >= 0)
+         {
+@@ -354,7 +364,8 @@ bool PlayerbotAIConfig::Initialize()
+     {
+         for (uint32 cls = 1; cls < MAX_CLASSES; ++cls)
+         {
+-            int rcProb = config.GetIntDefault("AiPlayerbot.ClassRaceProb." + std::to_string(cls) + "." + std::to_string(race), -1);
++            std::string key = "AiPlayerbot.ClassRaceProb." + std::to_string(cls) + "." + std::to_string(race);
++            int rcProb = config.GetIntDefault(key.c_str(), -1);
+             if (rcProb >= 0)
+                 classRaceProbability[cls][race] = rcProb;
+ 
+@@ -397,7 +408,7 @@ bool PlayerbotAIConfig::Initialize()
+ 	        for (uint32 race = 1; race < MAX_RACES; ++race)
+ 	        {
+ 		    std::string key = "AiPlayerbot.ClassRaceProb." + std::to_string(cls) + "." + std::to_string(race);
+-		    int count = config.GetIntDefault(key, -1);
++		    int count = config.GetIntDefault(key.c_str(), -1);
+ 
+ 		    if (count >= 0 && factory.isAvailableRace(cls, race))
+ 		    {
+@@ -420,7 +431,7 @@ bool PlayerbotAIConfig::Initialize()
+     worldBuffs.clear();
+ 
+     //Get all config values starting with AiPlayerbot.WorldBuff
+-    std::vector<std::string> values = configA->GetValues("AiPlayerbot.WorldBuff");
++    std::vector<std::string> values = GetConfigKeysContaining(config, "AiPlayerbot.WorldBuff");
+ 
+     if (values.size())
+     {
+@@ -439,7 +450,7 @@ bool PlayerbotAIConfig::Initialize()
+ 
+             //Get list of buffs for this combination.
+             std::list<uint32> buffs;
+-            LoadList<std::list<uint32>>(config.GetStringDefault(value, ""), buffs);
++            LoadList<std::list<uint32>>(config.GetStringDefault(value.c_str(), ""), buffs);
+ 
+             //Store buffs for later application.
+             for (auto buff : buffs)
