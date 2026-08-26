@@ -58,7 +58,7 @@ diff --git a/modules/mod-playerbots/src/playerbot/RandomPlayerbotFactory.cpp b/m
              continue;
  
          if (sPlayerbotAIConfig.classRaceProbability[cls][race] > 0 && randomProb < sPlayerbotAIConfig.classRaceProbability[cls][race])
-@@ -249,7 +246,14 @@ uint8 RandomPlayerbotFactory::GetRandomRace(uint8 cls, Team team)
+@@ -249,7 +246,13 @@ uint8 RandomPlayerbotFactory::GetRandomRace(uint8 cls, Team team)
          randomProb -= sPlayerbotAIConfig.classRaceProbability[cls][race];
      }
  
@@ -73,7 +73,7 @@ diff --git a/modules/mod-playerbots/src/playerbot/RandomPlayerbotFactory.cpp b/m
  }
  
  bool RandomPlayerbotFactory::CreateRandomBot(uint8 cls, uint8 inputRace)
-@@ -263,6 +267,12 @@ bool RandomPlayerbotFactory::CreateRandomBot(uint8 cls, uint8 inputRace)
+@@ -263,6 +266,12 @@ bool RandomPlayerbotFactory::CreateRandomBot(uint8 cls, uint8 inputRace)
  
      uint8 race = inputRace == 0 ? GetRandomRace(cls) : inputRace;
  
