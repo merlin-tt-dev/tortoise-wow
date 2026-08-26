@@ -1,8 +1,7 @@
 diff --git a/modules/mod-playerbots/src/playerbot/PlayerbotAIConfig.cpp b/modules/mod-playerbots/src/playerbot/PlayerbotAIConfig.cpp
 --- a/modules/mod-playerbots/src/playerbot/PlayerbotAIConfig.cpp
 +++ b/modules/mod-playerbots/src/playerbot/PlayerbotAIConfig.cpp
-@@ -35,5 +35,28 @@ std::vector<std::string> ConfigAccess::GetValues(const std::string& name) const
-     (void)name;
+@@ -36,6 +36,31 @@
      return {};
  }
  
@@ -21,8 +20,10 @@ diff --git a/modules/mod-playerbots/src/playerbot/PlayerbotAIConfig.cpp b/module
 +        config.GetKeys(section.c_str(), keys);
 +
 +        for (const std::string& key : keys)
++        {
 +            if (boost::algorithm::to_lower_copy(key).find(nameLower) != std::string::npos)
 +                values.push_back(key);
++        }
 +    }
 +
 +    return values;
@@ -30,7 +31,9 @@ diff --git a/modules/mod-playerbots/src/playerbot/PlayerbotAIConfig.cpp b/module
 +}
 +
  INSTANTIATE_SINGLETON_1(PlayerbotAIConfig);
-@@ -89,7 +112,7 @@ bool PlayerbotAIConfig::Initialize()
+ 
+ PlayerbotAIConfig::PlayerbotAIConfig()
+@@ -94,7 +119,7 @@
  {
      sLog.outString("Initializing AI Playerbot by ike3, based on the original Playerbot by blueboy");
  
@@ -39,16 +42,16 @@ diff --git a/modules/mod-playerbots/src/playerbot/PlayerbotAIConfig.cpp b/module
      {
          sLog.outString("AI Playerbot is Disabled. Unable to open configuration file aiplayerbot.conf");
          return false;
-@@ -104,8 +127,6 @@ bool PlayerbotAIConfig::Initialize()
+@@ -106,8 +131,6 @@
+         sLog.outString("AI Playerbot is Disabled in aiplayerbot.conf");
          return false;
      }
- 
--    ConfigAccess* configA = reinterpret_cast<ConfigAccess*>(&config);
 -
+-    ConfigAccess* configA = reinterpret_cast<ConfigAccess*>(&config);
+ 
      BarGoLink::SetOutputState(config.GetBoolDefault("AiPlayerbot.ShowProgressBars", false));
      globalCoolDown = (uint32) config.GetIntDefault("AiPlayerbot.GlobalCooldown", 500);
-     maxWaitForMove = config.GetIntDefault("AiPlayerbot.MaxWaitForMove", 3000);
-@@ -286,7 +307,7 @@ bool PlayerbotAIConfig::Initialize()
+@@ -293,13 +316,13 @@
      
      LoadListString<std::vector<std::string> >(config.GetStringDefault("AiPlayerbot.DefaultLoginCriteria", "maxbots,spareroom,offline"), defaultLoginCriteria);
  
@@ -57,7 +60,6 @@ diff --git a/modules/mod-playerbots/src/playerbot/PlayerbotAIConfig.cpp b/module
      std::sort(criteriaValues.begin(), criteriaValues.end());
      loginCriteria.clear();
      for (auto& value : criteriaValues)
-@@ -294,6 +315,6 @@ bool PlayerbotAIConfig::Initialize()
      {
          loginCriteria.push_back({});
 -        LoadListString<std::vector<std::string> >(config.GetStringDefault(value, ""), loginCriteria.back());
@@ -65,8 +67,8 @@ diff --git a/modules/mod-playerbots/src/playerbot/PlayerbotAIConfig.cpp b/module
      }
  
      if (criteriaValues.empty())
-@@ -310,7 +331,8 @@ bool PlayerbotAIConfig::Initialize()
-     
+@@ -316,7 +339,8 @@
+ 
      for (uint32 level = 1; level <= DEFAULT_MAX_LEVEL; ++level)
      {
 -        levelProbability[level] = config.GetIntDefault("AiPlayerbot.LevelProbability." + std::to_string(level), 100);
@@ -75,7 +77,7 @@ diff --git a/modules/mod-playerbots/src/playerbot/PlayerbotAIConfig.cpp b/module
      }
  
      sLog.outString("Loading Race/Class probabilities");
-@@ -326,7 +348,8 @@ bool PlayerbotAIConfig::Initialize()
+@@ -331,7 +355,8 @@
          //Set race defaults
          if (race > 0)
          {
@@ -85,7 +87,7 @@ diff --git a/modules/mod-playerbots/src/playerbot/PlayerbotAIConfig.cpp b/module
  
              for (uint32 cls = 1; cls < MAX_CLASSES; ++cls)
              {
-@@ -339,7 +362,8 @@ bool PlayerbotAIConfig::Initialize()
+@@ -343,7 +368,8 @@
      //Class overrides
      for (uint32 cls = 1; cls < MAX_CLASSES; ++cls)
      {
@@ -95,7 +97,7 @@ diff --git a/modules/mod-playerbots/src/playerbot/PlayerbotAIConfig.cpp b/module
  
          if (cProb >= 0)
          {
-@@ -354,7 +378,8 @@ bool PlayerbotAIConfig::Initialize()
+@@ -359,7 +385,8 @@
      {
          for (uint32 cls = 1; cls < MAX_CLASSES; ++cls)
          {
@@ -105,16 +107,16 @@ diff --git a/modules/mod-playerbots/src/playerbot/PlayerbotAIConfig.cpp b/module
              if (rcProb >= 0)
                  classRaceProbability[cls][race] = rcProb;
  
-@@ -397,7 +422,7 @@ bool PlayerbotAIConfig::Initialize()
+@@ -397,7 +424,7 @@
  	        for (uint32 race = 1; race < MAX_RACES; ++race)
  	        {
  		    std::string key = "AiPlayerbot.ClassRaceProb." + std::to_string(cls) + "." + std::to_string(race);
 -		    int count = config.GetIntDefault(key, -1);
-+            int count = config.GetIntDefault(key.c_str(), -1);
++		    int count = config.GetIntDefault(key.c_str(), -1);
  
  		    if (count >= 0 && factory.isAvailableRace(cls, race))
  		    {
-@@ -420,7 +445,7 @@ bool PlayerbotAIConfig::Initialize()
+@@ -418,7 +445,7 @@
      worldBuffs.clear();
  
      //Get all config values starting with AiPlayerbot.WorldBuff
@@ -123,7 +125,7 @@ diff --git a/modules/mod-playerbots/src/playerbot/PlayerbotAIConfig.cpp b/module
  
      if (values.size())
      {
-@@ -439,7 +464,7 @@ bool PlayerbotAIConfig::Initialize()
+@@ -437,7 +464,7 @@
  
              //Get list of buffs for this combination.
              std::list<uint32> buffs;
