@@ -59,17 +59,17 @@ std::vector<std::string> GetConfigKeysContaining(Config& config, const std::stri
 
     return values;
 }
-}
+} // namespace
 
 INSTANTIATE_SINGLETON_1(PlayerbotAIConfig);
 
 PlayerbotAIConfig::PlayerbotAIConfig()
-: enabled(false)
+    : enabled(false)
 {
 }
 
 template <class T>
-void LoadList(std::string value, T &list)
+void LoadList(std::string value, T& list)
 {
     list.clear();
     std::vector<std::string> ids = split(value, ',');
@@ -100,10 +100,12 @@ void LoadListString(std::string value, T& list)
     }
 }
 
-inline ParsedUrl parseUrl(const std::string& url) {
+inline ParsedUrl parseUrl(const std::string& url)
+{
     std::regex urlRegex(R"((http|https)://([^:/]+)(:([0-9]+))?(/.*)?)");
     std::smatch match;
-    if (!std::regex_match(url, match, urlRegex)) {
+    if (!std::regex_match(url, match, urlRegex))
+    {
         throw std::invalid_argument("Invalid URL format");
     }
 
@@ -133,17 +135,17 @@ bool PlayerbotAIConfig::Initialize()
     }
 
     BarGoLink::SetOutputState(config.GetBoolDefault("AiPlayerbot.ShowProgressBars", false));
-    globalCoolDown = (uint32) config.GetIntDefault("AiPlayerbot.GlobalCooldown", 500);
+    globalCoolDown = (uint32)config.GetIntDefault("AiPlayerbot.GlobalCooldown", 500);
     maxWaitForMove = config.GetIntDefault("AiPlayerbot.MaxWaitForMove", 3000);
     expireActionTime = config.GetIntDefault("AiPlayerbot.ExpireActionTime", 5000);
     dispelAuraDuration = config.GetIntDefault("AiPlayerbot.DispelAuraDuration", 2000);
-    reactDelay = (uint32) config.GetIntDefault("AiPlayerbot.ReactDelay", 100);
-    passiveDelay = (uint32) config.GetIntDefault("AiPlayerbot.PassiveDelay", 4000);
-    repeatDelay = (uint32) config.GetIntDefault("AiPlayerbot.RepeatDelay", 5000);
-    errorDelay = (uint32) config.GetIntDefault("AiPlayerbot.ErrorDelay", 5000);
-    rpgDelay = (uint32) config.GetIntDefault("AiPlayerbot.RpgDelay", 3000);
-    sitDelay = (uint32) config.GetIntDefault("AiPlayerbot.SitDelay", 30000);
-    returnDelay = (uint32) config.GetIntDefault("AiPlayerbot.ReturnDelay", 7000);
+    reactDelay = (uint32)config.GetIntDefault("AiPlayerbot.ReactDelay", 100);
+    passiveDelay = (uint32)config.GetIntDefault("AiPlayerbot.PassiveDelay", 4000);
+    repeatDelay = (uint32)config.GetIntDefault("AiPlayerbot.RepeatDelay", 5000);
+    errorDelay = (uint32)config.GetIntDefault("AiPlayerbot.ErrorDelay", 5000);
+    rpgDelay = (uint32)config.GetIntDefault("AiPlayerbot.RpgDelay", 3000);
+    sitDelay = (uint32)config.GetIntDefault("AiPlayerbot.SitDelay", 30000);
+    returnDelay = (uint32)config.GetIntDefault("AiPlayerbot.ReturnDelay", 7000);
     lootDelay = (uint32)config.GetIntDefault("AiPlayerbot.LootDelayDelay", 750);
 
     farDistance = config.GetFloatDefault("AiPlayerbot.FarDistance", 20.0f);
@@ -190,8 +192,8 @@ bool PlayerbotAIConfig::Initialize()
     randomGearTabardsChance = config.GetFloatDefault("AiPlayerbot.RandomGearTabardsChance", 0.1f);
     randomGearTabardsReplaceGuild = config.GetBoolDefault("AiPlayerbot.RandomGearTabardsReplaceGuild", false);
     randomGearTabardsUnobtainable = config.GetBoolDefault("AiPlayerbot.RandomGearTabardsUnobtainable", false);
-    LoadList<std::list<uint32> >(config.GetStringDefault("AiPlayerbot.RandomGearBlacklist", ""), randomGearBlacklist);
-    LoadList<std::list<uint32> >(config.GetStringDefault("AiPlayerbot.RandomGearWhitelist", ""), randomGearWhitelist);
+    LoadList<std::list<uint32>>(config.GetStringDefault("AiPlayerbot.RandomGearBlacklist", ""), randomGearBlacklist);
+    LoadList<std::list<uint32>>(config.GetStringDefault("AiPlayerbot.RandomGearWhitelist", ""), randomGearWhitelist);
     randomGearProgression = config.GetBoolDefault("AiPlayerbot.RandomGearProgression", true);
     randomGearLoweringChance = config.GetFloatDefault("AiPlayerbot.RandomGearLoweringChance", 0.15f);
     randomBotMaxLevelChance = config.GetFloatDefault("AiPlayerbot.RandomBotMaxLevelChance", 0.15f);
@@ -220,10 +222,10 @@ bool PlayerbotAIConfig::Initialize()
     allowMultiAccountAltBots = config.GetBoolDefault("AiPlayerbot.AllowMultiAccountAltBots", true);
 
     randomBotMapsAsString = config.GetStringDefault("AiPlayerbot.RandomBotMaps", "0,1,530,571");
-    LoadList<std::vector<uint32> >(randomBotMapsAsString, randomBotMaps);
-    LoadList<std::list<uint32> >(config.GetStringDefault("AiPlayerbot.RandomBotQuestItems", "6948,5175,5176,5177,5178,16309,12382,13704,11000,22754"), randomBotQuestItems);
-    LoadList<std::list<uint32> >(config.GetStringDefault("AiPlayerbot.RandomBotSpellIds", "54197"), randomBotSpellIds);
-	LoadList<std::list<uint32> >(config.GetStringDefault("AiPlayerbot.PvpProhibitedZoneIds", "2255,656,2361,2362,2363,976,35,2268,3425,392,541,1446,3828,3712,3738,3565,3539,3623,4152,3988,4658,4284,4418,4436,4275,4323"), pvpProhibitedZoneIds);
+    LoadList<std::vector<uint32>>(randomBotMapsAsString, randomBotMaps);
+    LoadList<std::list<uint32>>(config.GetStringDefault("AiPlayerbot.RandomBotQuestItems", "6948,5175,5176,5177,5178,16309,12382,13704,11000,22754"), randomBotQuestItems);
+    LoadList<std::list<uint32>>(config.GetStringDefault("AiPlayerbot.RandomBotSpellIds", "54197"), randomBotSpellIds);
+    LoadList<std::list<uint32>>(config.GetStringDefault("AiPlayerbot.PvpProhibitedZoneIds", "2255,656,2361,2362,2363,976,35,2268,3425,392,541,1446,3828,3712,3738,3565,3539,3623,4152,3988,4658,4284,4418,4436,4275,4323"), pvpProhibitedZoneIds);
 
 #ifndef MANGOSBOT_ZERO
     // disable pvp near dark portal if event is active
@@ -231,8 +233,8 @@ bool PlayerbotAIConfig::Initialize()
         pvpProhibitedZoneIds.insert(pvpProhibitedZoneIds.begin(), 72);
 #endif
 
-    LoadList<std::list<uint32> >(config.GetStringDefault("AiPlayerbot.RandomBotQuestIds", "7848,3802,5505,6502,7761,9378"), randomBotQuestIds);
-    LoadList<std::list<uint32> >(config.GetStringDefault("AiPlayerbot.ImmuneSpellIds", ""), immuneSpellIds);
+    LoadList<std::list<uint32>>(config.GetStringDefault("AiPlayerbot.RandomBotQuestIds", "7848,3802,5505,6502,7761,9378"), randomBotQuestIds);
+    LoadList<std::list<uint32>>(config.GetStringDefault("AiPlayerbot.ImmuneSpellIds", ""), immuneSpellIds);
 
     botAutologin = BotAutoLogin(config.GetIntDefault("AiPlayerbot.BotAutologin", 0));
     randomBotAutologin = config.GetBoolDefault("AiPlayerbot.RandomBotAutologin", true);
@@ -254,7 +256,7 @@ bool PlayerbotAIConfig::Initialize()
     maxRandomBotReviveTime = config.GetIntDefault("AiPlayerbot.MaxRandomReviveTime", 300);
     enableRandomTeleports = config.GetBoolDefault("AiPlayerbot.EnableRandomTeleports", true);
     enableMinimalMove = config.GetBoolDefault("AiPlayerbot.EnableMinimalMove", true);
-    
+
     randomBotTeleportDistance = config.GetIntDefault("AiPlayerbot.RandomBotTeleportDistance", 1000);
     transportTeleportType = config.GetIntDefault("AiPlayerbot.TransportTeleportType", 2);
     randomBotTeleportNearPlayer = config.GetBoolDefault("AiPlayerbot.RandomBotTeleportNearPlayer", false);
@@ -268,8 +270,8 @@ bool PlayerbotAIConfig::Initialize()
     maxRandomBotsPriceChangeInterval = config.GetIntDefault("AiPlayerbot.MaxRandomBotsPriceChangeInterval", 48 * 3600);
     //Auction house settings
     shouldQueryAHListingsOutsideOfAH = config.GetBoolDefault("AiPlayerbot.ShouldQueryAHListingsOutsideOfAH", true);
-    LoadList<std::list<uint32> >(config.GetStringDefault("AiPlayerbot.AhOverVendorItemIds", ""), ahOverVendorItemIds);
-    LoadList<std::list<uint32> >(config.GetStringDefault("AiPlayerbot.VendorOverAHItemIds", ""), vendorOverAHItemIds);
+    LoadList<std::list<uint32>>(config.GetStringDefault("AiPlayerbot.AhOverVendorItemIds", ""), ahOverVendorItemIds);
+    LoadList<std::list<uint32>>(config.GetStringDefault("AiPlayerbot.VendorOverAHItemIds", ""), vendorOverAHItemIds);
     botCheckAllAuctionListings = config.GetBoolDefault("AiPlayerbot.BotCheckAllAuctionListings", false);
     botsSaveEpics = config.GetBoolDefault("AiPlayerbot.BotsSaveEpics", true);
     //
@@ -309,12 +311,12 @@ bool PlayerbotAIConfig::Initialize()
     randomBotLoginWithPlayer = config.GetBoolDefault("AiPlayerbot.RandomBotLoginWithPlayer", false);
     asyncBotLogin = config.GetBoolDefault("AiPlayerbot.AsyncBotLogin", false);
     preloadHolders = config.GetBoolDefault("AiPlayerbot.PreloadHolders", false);
-    
+
     freeRoomForNonSpareBots = config.GetIntDefault("AiPlayerbot.FreeRoomForNonSpareBots", 1);
 
     loginBotsNearPlayerRange = config.GetIntDefault("AiPlayerbot.LoginBotsNearPlayerRange", 1000);
-    
-    LoadListString<std::vector<std::string> >(config.GetStringDefault("AiPlayerbot.DefaultLoginCriteria", "maxbots,spareroom,offline"), defaultLoginCriteria);
+
+    LoadListString<std::vector<std::string>>(config.GetStringDefault("AiPlayerbot.DefaultLoginCriteria", "maxbots,spareroom,offline"), defaultLoginCriteria);
 
     std::vector<std::string> criteriaValues = GetConfigKeysContaining(config, "AiPlayerbot.LoginCriteria");
     std::sort(criteriaValues.begin(), criteriaValues.end());
@@ -322,20 +324,19 @@ bool PlayerbotAIConfig::Initialize()
     for (auto& value : criteriaValues)
     {
         loginCriteria.push_back({});
-        LoadListString<std::vector<std::string> >(config.GetStringDefault(value.c_str(), ""), loginCriteria.back());
+        LoadListString<std::vector<std::string>>(config.GetStringDefault(value.c_str(), ""), loginCriteria.back());
     }
 
     if (criteriaValues.empty())
     {
-        loginCriteria.push_back({ "group" });
-        loginCriteria.push_back({ "arena" });
-        loginCriteria.push_back({ "bg" });
-        loginCriteria.push_back({ "guild" });
-        loginCriteria.push_back({ "logoff,classrace,level,online" });
-        loginCriteria.push_back({ "logoff,classrace,level" });
-        loginCriteria.push_back({ "logoff,classrace" });
+        loginCriteria.push_back({"group"});
+        loginCriteria.push_back({"arena"});
+        loginCriteria.push_back({"bg"});
+        loginCriteria.push_back({"guild"});
+        loginCriteria.push_back({"logoff,classrace,level,online"});
+        loginCriteria.push_back({"logoff,classrace,level"});
+        loginCriteria.push_back({"logoff,classrace"});
     }
-    
 
     for (uint32 level = 1; level <= DEFAULT_MAX_LEVEL; ++level)
     {
@@ -420,24 +421,24 @@ bool PlayerbotAIConfig::Initialize()
         //Parse and build fixedClassRacesCounts
         {
             for (uint32 cls = 1; cls < MAX_CLASSES; ++cls)
-	    {
-	        for (uint32 race = 1; race < MAX_RACES; ++race)
-	        {
-		    std::string key = "AiPlayerbot.ClassRaceProb." + std::to_string(cls) + "." + std::to_string(race);
-                int count = config.GetIntDefault(key.c_str(), -1);
+            {
+                for (uint32 race = 1; race < MAX_RACES; ++race)
+                {
+                    std::string key = "AiPlayerbot.ClassRaceProb." + std::to_string(cls) + "." + std::to_string(race);
+                    int count = config.GetIntDefault(key.c_str(), -1);
 
-		    if (count >= 0 && factory.isAvailableRace(cls, race))
-		    {
-		        fixedClassRaceCounts[{cls, race}] = count;
-		    }
-	        }
-	    }
+                    if (count >= 0 && factory.isAvailableRace(cls, race))
+                    {
+                        fixedClassRaceCounts[{cls, race}] = count;
+                    }
+                }
+            }
         }
     }
 
     botCheatMask = uint32(CheatAction::GetCheatMask(config.GetStringDefault("AiPlayerbot.BotCheats", "taxi,item,breath")));
 
-    rndBotCheatMask = uint32(CheatAction::GetCheatMask(config.GetStringDefault("AiPlayerbot.RndBotCheats", "taxi,item,breath")));    
+    rndBotCheatMask = uint32(CheatAction::GetCheatMask(config.GetStringDefault("AiPlayerbot.RndBotCheats", "taxi,item,breath")));
 
     LoadListString<std::list<std::string>>(config.GetStringDefault("AiPlayerbot.AllowedLogFiles", ""), allowedLogFiles);
     LoadListString<std::list<std::string>>(config.GetStringDefault("AiPlayerbot.DebugFilter", "add gathering loot,check values,emote,check mount state,jump"), debugFilter);
@@ -455,7 +456,7 @@ bool PlayerbotAIConfig::Initialize()
         for (auto value : values)
         {
             std::vector<std::string> ids = split(value, '.');
-            std::vector<uint32> params = { 0,0,0,0,0,0 };
+            std::vector<uint32> params = {0, 0, 0, 0, 0, 0};
 
             //Extract faction, class, spec, minlevel, maxlevel
             for (uint8 i = 0; i < 6; i++)
@@ -469,7 +470,7 @@ bool PlayerbotAIConfig::Initialize()
             //Store buffs for later application.
             for (auto buff : buffs)
             {
-                worldBuff wb = { buff, params[0], params[1], params[2], params[3], params[4], params[5] };
+                worldBuff wb = {buff, params[0], params[1], params[2], params[3], params[4], params[5]};
                 worldBuffs.push_back(wb);
             }
 
@@ -491,9 +492,9 @@ bool PlayerbotAIConfig::Initialize()
     randomBotShowCloak = config.GetBoolDefault("AiPlayerbot.RandomBotShowCloak", false);
     randomBotShowHelmet = config.GetBoolDefault("AiPlayerbot.RandomBotShowHelmet", false);
 
-	//SPP switches
+    //SPP switches
     enableGreet = config.GetBoolDefault("AiPlayerbot.EnableGreet", false);
-	disableRandomLevels = config.GetBoolDefault("AiPlayerbot.DisableRandomLevels", false);
+    disableRandomLevels = config.GetBoolDefault("AiPlayerbot.DisableRandomLevels", false);
     instantRandomize = config.GetBoolDefault("AiPlayerbot.InstantRandomize", true);
     randomBotRandomPassword = config.GetBoolDefault("AiPlayerbot.RandomBotRandomPassword", true);
     playerbotsXPrate = config.GetFloatDefault("AiPlayerbot.XPRate", 1.0f);
@@ -511,7 +512,7 @@ bool PlayerbotAIConfig::Initialize()
     randombotStartingLevel = config.GetIntDefault("AiPlayerbot.randombotStartingLevel", 5);
     gearscorecheck = config.GetBoolDefault("AiPlayerbot.GearScoreCheck", false);
     levelCheck = config.GetIntDefault("AiPlayerbot.LevelCheck", 30);
-	randomBotPreQuests = config.GetBoolDefault("AiPlayerbot.PreQuests", true);
+    randomBotPreQuests = config.GetBoolDefault("AiPlayerbot.PreQuests", true);
     randomBotSayWithoutMaster = config.GetBoolDefault("AiPlayerbot.RandomBotSayWithoutMaster", false);
     randomBotInvitePlayer = config.GetBoolDefault("AiPlayerbot.RandomBotInvitePlayer", true);
     randomBotGroupNearby = config.GetBoolDefault("AiPlayerbot.RandomBotGroupNearby", true);
@@ -593,9 +594,9 @@ bool PlayerbotAIConfig::Initialize()
     broadcastChanceGuildManagement = config.GetIntDefault("AiPlayerbot.BroadcastChanceGuildManagement", 30000);
     ////////////////////////////
 
-    toxicLinksRepliesChance = config.GetIntDefault("AiPlayerbot.ToxicLinksRepliesChance", 30); //0-100
+    toxicLinksRepliesChance = config.GetIntDefault("AiPlayerbot.ToxicLinksRepliesChance", 30);   //0-100
     thunderfuryRepliesChance = config.GetIntDefault("AiPlayerbot.ThunderfuryRepliesChance", 40); //0-100
-    guildRepliesRate = config.GetIntDefault("AiPlayerbot.GuildRepliesRate", 100); //0-100
+    guildRepliesRate = config.GetIntDefault("AiPlayerbot.GuildRepliesRate", 100);                //0-100
 
     botAcceptDuelMinimumLevel = config.GetIntDefault("AiPlayerbot.BotAcceptDuelMinimumLevel", 10);
 
@@ -634,25 +635,24 @@ bool PlayerbotAIConfig::Initialize()
     //LLM START
     llmEnabled = config.GetIntDefault("AiPlayerbot.LLMEnabled", 1);
     llmApiEndpoint = config.GetStringDefault("AiPlayerbot.LLMApiEndpoint", "http://127.0.0.1:5001/api/v1/generate");
-    try {
+    try
+    {
         llmEndPointUrl = parseUrl(llmApiEndpoint);
     }
-    catch (const std::invalid_argument& e) {
+    catch (const std::invalid_argument& e)
+    {
         sLog.outError("Unable to parse LLMApiEndpoint url: %s", e.what());
     }
-    llmApiKey = config.GetStringDefault("AiPlayerbot.LLMApiKey", "");    
+    llmApiKey = config.GetStringDefault("AiPlayerbot.LLMApiKey", "");
     llmApiJson = config.GetStringDefault("AiPlayerbot.LLMApiJson", "{ \"max_length\": 100, \"prompt\": \"[<pre prompt>]<context> <prompt> <post prompt>\"}");
     llmContextLength = config.GetIntDefault("AiPlayerbot.LLMContextLength", 4096);
     llmGenerationTimeout = config.GetIntDefault("AiPlayerbot.LLMGenerationTimeout", 600);
     llmMaxSimultaniousGenerations = config.GetIntDefault("AiPlayerbot.LLMMaxSimultaniousGenerations", 100);
-        
-    
+
     llmPrePrompt = config.GetStringDefault("AiPlayerbot.LLMPrePrompt", "You are a roleplaying character in World of Warcraft: <expansion name>. Your name is <bot name>. The <other type> <other name> is speaking to you <channel name> and is an <other gender> <other race> <other class> of level <other level>. You are level <bot level> and play as a <bot gender> <bot race> <bot class> that is currently in <bot subzone> <bot zone>. Answer as a roleplaying character. Limit responses to 100 characters.");
 
     llmPreRpgPrompt = config.GetStringDefault("AiPlayerbot.LLMRpgPrompt", "In World of Warcraft: <expansion name> in <bot zone> <bot subzone> stands <bot type> <bot name> a level <bot level> <bot gender> <bot race> <bot class>."
-        " Standing nearby is <unit type> <unit name> <unit subname> a level <unit level> <unit gender> <unit race> <unit faction> <unit class>. Answer as a roleplaying character. Limit responses to 100 characters.");
-
-
+                                                                          " Standing nearby is <unit type> <unit name> <unit subname> a level <unit level> <unit gender> <unit race> <unit faction> <unit class>. Answer as a roleplaying character. Limit responses to 100 characters.");
 
     llmPrompt = config.GetStringDefault("AiPlayerbot.LLMPrompt", "<receiver name>:<initial message>");
     llmPostPrompt = config.GetStringDefault("AiPlayerbot.LLMPostPrompt", "<sender name>:");
@@ -670,31 +670,39 @@ bool PlayerbotAIConfig::Initialize()
         sLog.outError("# AiPlayerbot.LLMResponseSplitPattern = %s", llmResponseSplitPattern.c_str());
     }
 
-    try {
+    try
+    {
         std::regex pattern(llmResponseStartPattern);
     }
-    catch (const std::regex_error& e) {        
+    catch (const std::regex_error& e)
+    {
         sLog.outError("Regex error in %s: %s", llmResponseStartPattern.c_str(), e.what());
     }
 
-    try {
+    try
+    {
         std::regex pattern(llmResponseEndPattern);
     }
-    catch (const std::regex_error& e) {
+    catch (const std::regex_error& e)
+    {
         sLog.outError("Regex error in %s: %s", llmResponseEndPattern.c_str(), e.what());
     }
 
-    try {
+    try
+    {
         std::regex pattern(llmResponseDeletePattern);
     }
-    catch (const std::regex_error& e) {
+    catch (const std::regex_error& e)
+    {
         sLog.outError("Regex error in %s: %s", llmResponseDeletePattern.c_str(), e.what());
     }
 
-    try {
+    try
+    {
         std::regex pattern(llmResponseSplitPattern);
     }
-    catch (const std::regex_error& e) {
+    catch (const std::regex_error& e)
+    {
         sLog.outError("Regex error in %s: %s", llmResponseSplitPattern.c_str(), e.what());
     }
 
@@ -735,9 +743,11 @@ bool PlayerbotAIConfig::Initialize()
     // Gear progression phase
     for (uint8 phase = 0; phase < MAX_GEAR_PROGRESSION_LEVEL; phase++)
     {
-        std::ostringstream os; os << "AiPlayerbot.GearProgressionSystem." << std::to_string(phase) << ".MinItemLevel";
+        std::ostringstream os;
+        os << "AiPlayerbot.GearProgressionSystem." << std::to_string(phase) << ".MinItemLevel";
         gearProgressionSystemItemLevels[phase][0] = config.GetIntDefault(os.str().c_str(), 9999999);
-        os.str(""); os << "AiPlayerbot.GearProgressionSystem." << std::to_string(phase) << ".MaxItemLevel";
+        os.str("");
+        os << "AiPlayerbot.GearProgressionSystem." << std::to_string(phase) << ".MaxItemLevel";
         gearProgressionSystemItemLevels[phase][1] = config.GetIntDefault(os.str().c_str(), 9999999);
 
         // Gear progression class
@@ -749,7 +759,8 @@ bool PlayerbotAIConfig::Initialize()
                 // Gear progression slot
                 for (uint8 slot = 0; slot < SLOT_EMPTY; slot++)
                 {
-                    std::ostringstream os; os << "AiPlayerbot.GearProgressionSystem." << std::to_string(phase) << "." << std::to_string(cls) << "." << std::to_string(spec) << "." << std::to_string(slot);
+                    std::ostringstream os;
+                    os << "AiPlayerbot.GearProgressionSystem." << std::to_string(phase) << "." << std::to_string(cls) << "." << std::to_string(spec) << "." << std::to_string(slot);
                     gearProgressionSystemItems[phase][cls][spec][slot] = config.GetIntDefault(os.str().c_str(), -1);
                 }
             }
@@ -858,7 +869,7 @@ bool PlayerbotAIConfig::IsInRandomQuestItemList(uint32 id)
 
 bool PlayerbotAIConfig::IsInPvpProhibitedZone(uint32 id)
 {
-	return find(pvpProhibitedZoneIds.begin(), pvpProhibitedZoneIds.end(), id) != pvpProhibitedZoneIds.end();
+    return find(pvpProhibitedZoneIds.begin(), pvpProhibitedZoneIds.end(), id) != pvpProhibitedZoneIds.end();
 }
 
 std::string PlayerbotAIConfig::GetValue(std::string name)
@@ -990,7 +1001,6 @@ void PlayerbotAIConfig::loadFreeAltBotAccounts()
 
             } while (result->NextRow());
 
-
         } while (results->NextRow());
     }
 }
@@ -1035,7 +1045,6 @@ bool PlayerbotAIConfig::openLog(std::string fileName, char const* mode, bool has
         if ((m_logsDir.at(m_logsDir.length() - 1) != '/') && (m_logsDir.at(m_logsDir.length() - 1) != '\\'))
             m_logsDir.append("/");
     }
-
 
     file = fopen((m_logsDir + fileName).c_str(), mode);
     fileOpen = true;
@@ -1142,18 +1151,21 @@ void PlayerbotAIConfig::LoadTalentSpecs()
         classSpecs[cls] = ClassSpecs(1 << (cls - 1));
         for (uint32 spec = 0; spec < MAX_LEVEL; ++spec)
         {
-            std::ostringstream os; os << "AiPlayerbot.PremadeSpecName." << cls << "." << spec;
+            std::ostringstream os;
+            os << "AiPlayerbot.PremadeSpecName." << cls << "." << spec;
             std::string specName = config.GetStringDefault(os.str().c_str(), "");
             if (!specName.empty())
             {
-                std::ostringstream os; os << "AiPlayerbot.PremadeSpecProb." << cls << "." << spec;
+                std::ostringstream os;
+                os << "AiPlayerbot.PremadeSpecProb." << cls << "." << spec;
                 int probability = config.GetIntDefault(os.str().c_str(), 100);
 
                 TalentPath talentPath(spec, specName, probability);
 
                 for (uint32 level = 10; level <= 100; level++)
                 {
-                    std::ostringstream os; os << "AiPlayerbot.PremadeSpecLink." << cls << "." << spec << "." << level;
+                    std::ostringstream os;
+                    os << "AiPlayerbot.PremadeSpecLink." << cls << "." << spec << "." << level;
                     std::string specLink = config.GetStringDefault(os.str().c_str(), "");
                     specLink = specLink.substr(0, specLink.find("#", 0));
                     specLink = specLink.substr(0, specLink.find(" ", 0));
@@ -1182,7 +1194,6 @@ void PlayerbotAIConfig::LoadTalentSpecs()
                             continue;
                         }
 
-
                         talentPath.talentSpec.push_back(linkSpec);
                     }
 
@@ -1194,7 +1205,8 @@ void PlayerbotAIConfig::LoadTalentSpecs()
                         using GlyphPriorityLevelMap = std::unordered_map<uint32, GlyphPriorityList>;
                         using GlyphPrioritySpecMap = std::unordered_map<uint32, GlyphPriorityLevelMap>;
 
-                        std::ostringstream os; os << "AiPlayerbot.PremadeSpecGlyp." << cls << "." << spec << "." << level;
+                        std::ostringstream os;
+                        os << "AiPlayerbot.PremadeSpecGlyp." << cls << "." << spec << "." << level;
 
                         std::string glyphList = config.GetStringDefault(os.str().c_str(), "");
                         glyphList = glyphList.substr(0, glyphList.find("#", 0));
@@ -1230,7 +1242,6 @@ void PlayerbotAIConfig::LoadTalentSpecs()
                                 {
                                     sLog.outError("%s is not found for class %d (spec %d level %d)", glyphName.c_str(), cls, spec, level);
                                 }
-
                             }
                         }
                     }
@@ -1249,7 +1260,6 @@ void PlayerbotAIConfig::LoadTalentSpecs()
     {
         if (maxSpecLevel < DEFAULT_MAX_LEVEL && randomBotMaxLevel < DEFAULT_MAX_LEVEL)
             sLog.outErrorDb("!!!!!!!!!!! randomBotMaxLevel and the talentspec levels are below this expansions max level. Please check if you have the correct config file!!!!!!");
-
     }
 }
 
