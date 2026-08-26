@@ -448,6 +448,9 @@ void PlayerbotAI::UpdateAI(uint32 elapsed, bool minimal)
             QueuePacket(land);
             sLog.outDetail("%s: Jump: Landed, landTime: %u", bot->GetName(), curTime);
 
+            // Do not depend on the synthetic land packet to clear m_fallStartZ.
+            bot->SetFallInformation(0.0f);
+
             jumpTime = 0;
             fallAfterJump = false;
             ResetJumpDestination();
@@ -1926,7 +1929,7 @@ void PlayerbotAI::HandleBotOutgoingPacket(const WorldPacket& packet)
         }
 
         // set fall height for fall damage calculations
-        bot->SetFallInformation(0, maxHeight);
+        bot->SetFallInformation(maxHeight);
 
         // fix height
         if (goodLanding)
