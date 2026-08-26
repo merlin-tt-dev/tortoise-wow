@@ -33,6 +33,10 @@ bool RandomPlayerbotFactory::namesInitialized = false;
 
 RandomPlayerbotFactory::RandomPlayerbotFactory(uint32 accountId) : accountId(accountId)
 {
+    // This legacy cache is no longer the source of truth; avoid growing it
+    // every time a factory is constructed while it remains for compatibility.
+    if (!availableRaces.empty())
+        return;
     availableRaces[CLASS_WARRIOR].push_back(RACE_HUMAN);
     availableRaces[CLASS_WARRIOR].push_back(RACE_NIGHTELF);
     availableRaces[CLASS_WARRIOR].push_back(RACE_GNOME);
@@ -126,16 +130,10 @@ RandomPlayerbotFactory::RandomPlayerbotFactory(uint32 accountId) : accountId(acc
 
 bool RandomPlayerbotFactory::isAvailableRace(uint8 cls, uint8 race)
 {
-    if (race == RACE_GOBLIN)
-        return false;
-#ifdef MANGOSBOT_TWO
-    else if (cls == 10)
-#else
-    else if (cls == 10 || cls == 6)
-#endif
+    if (!race || race >= MAX_RACES || !cls || cls >= MAX_CLASSES)
         return false;
 
-    return std::find(availableRaces[cls].begin(), availableRaces[cls].end(), race) != availableRaces[cls].end();
+    return sObjectMgr.GetPlayerInfo(race, cls) != nullptr;
 }
 
 bool RandomPlayerbotFactory::isAvailableRole(uint8 cls, BotRoles role)
@@ -178,7 +176,7 @@ uint8 RandomPlayerbotFactory::GetRandomClass(uint8 useRace, BotRoles role)
 
         for (uint32 cls = 1; cls < MAX_CLASSES; ++cls)
         {
-            if (!isAvailableRole(cls, role))
+            if (!isAvailableRole(cls, role) || !isAvailableRace(cls, race))
                 continue;
 
             classProb[cls] += sPlayerbotAIConfig.classRaceProbability[cls][race];
@@ -231,7 +229,7 @@ uint8 RandomPlayerbotFactory::GetRandomRace(uint8 cls, Team team)
     uint32 totalClassProb = 0;
     for (uint32 race = 1; race < MAX_RACES; ++race)
     {
-        if (!isRaceForTeam(race,team))
+        if (!isRaceForTeam(race, team) || !isAvailableRace(cls, race))
             continue;
         totalClassProb += sPlayerbotAIConfig.classRaceProbability[cls][race];
     }
@@ -240,7 +238,7 @@ uint8 RandomPlayerbotFactory::GetRandomRace(uint8 cls, Team team)
 
     for (uint32 race = 1; race < MAX_RACES; ++race)
     {
-        if (!isRaceForTeam(race, team))
+        if (!isRaceForTeam(race, team) || !isAvailableRace(cls, race))
             continue;
 
         if (sPlayerbotAIConfig.classRaceProbability[cls][race] > 0 && randomProb < sPlayerbotAIConfig.classRaceProbability[cls][race])
@@ -249,7 +247,13 @@ uint8 RandomPlayerbotFactory::GetRandomRace(uint8 cls, Team team)
         randomProb -= sPlayerbotAIConfig.classRaceProbability[cls][race];
     }
 
-    return availableRaces[cls].front();
+    for (uint32 race = 1; race < MAX_RACES; ++race)
+    {
+        if (isRaceForTeam(race, team) && isAvailableRace(cls, race))
+            return race;
+    }
+
+    return 0;
 }
 
 bool RandomPlayerbotFactory::CreateRandomBot(uint8 cls, uint8 inputRace)
@@ -262,6 +266,12 @@ bool RandomPlayerbotFactory::CreateRandomBot(uint8 cls, uint8 inputRace)
     uint8 gender = urand(0, 1) ? GENDER_MALE : GENDER_FEMALE;
 
     uint8 race = inputRace == 0 ? GetRandomRace(cls) : inputRace;
+
+    if (!race || !isAvailableRace(cls, race))
+    {
+        sLog.outError("Invalid playercreateinfo combination for bot race %u class %u", race, cls);
+        return false;
+    }
 
     NameRaceAndGender raceAndGender = CombineRaceAndGender(gender, race);
 
