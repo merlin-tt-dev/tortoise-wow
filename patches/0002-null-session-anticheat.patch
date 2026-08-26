@@ -1,0 +1,27 @@
+diff --git a/src/game/WorldSession.cpp b/src/game/WorldSession.cpp
+--- a/src/game/WorldSession.cpp
++++ b/src/game/WorldSession.cpp
+@@ -101,6 +101,14 @@ WorldSession::WorldSession(uint32 id, WorldSocket *sock, AccountTypes sec, time_t
+     else
+         m_Address = "<BOT>";
+ 
++    // Keep bot-created sessions on the null-object implementation. Network
++    // logins replace this in InitAntiCheatSession(), while bot sessions never
++    // pass through that login path and otherwise leave m_antiCheat null.
++    // Several movement handlers dereference it unconditionally, including the
++    // knockback acknowledgement path called directly by PlayerbotAI.
++    m_antiCheat = std::make_unique<NullSessionAnticheat>(this);
++
+     m_lastUpdateTime = WorldTimer::getMSTime();
+     _analyser = std::make_unique<AccountAnalyser>(this);
+ }
+diff --git a/modules/mod-playerbots/src/playerbot/RandomPlayerbotFactory.cpp b/modules/mod-playerbots/src/playerbot/RandomPlayerbotFactory.cpp
+--- a/modules/mod-playerbots/src/playerbot/RandomPlayerbotFactory.cpp
++++ b/modules/mod-playerbots/src/playerbot/RandomPlayerbotFactory.cpp
+@@ -357,6 +357,4 @@ bool RandomPlayerbotFactory::CreateRandomBot(uint8 cls, uint8 inputRace)
+ #endif
+ 
+-    session->SetNoAnticheat();
+-
+     Player* player = new Player(session);
+     if (!player || !session)
