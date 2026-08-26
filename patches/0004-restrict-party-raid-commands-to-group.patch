@@ -1,0 +1,16 @@
+diff --git a/modules/mod-playerbots/src/playerbot/RandomPlayerbotMgr.cpp b/modules/mod-playerbots/src/playerbot/RandomPlayerbotMgr.cpp
+--- a/modules/mod-playerbots/src/playerbot/RandomPlayerbotMgr.cpp
++++ b/modules/mod-playerbots/src/playerbot/RandomPlayerbotMgr.cpp
+@@ -3590,6 +3590,12 @@ void RandomPlayerbotMgr::HandleCommand(uint32 type, const std::string& text, Play
+             }
+         }
+ 
++        if ((type == CHAT_MSG_PARTY || type == CHAT_MSG_RAID) &&
++            (!fromPlayer.GetGroup() || bot->GetGroup() != fromPlayer.GetGroup()))
++        {
++            return;
++        }
++
+         if (team != TEAM_BOTH_ALLOWED && bot->GetTeam() != team)
+         {
+             return;
