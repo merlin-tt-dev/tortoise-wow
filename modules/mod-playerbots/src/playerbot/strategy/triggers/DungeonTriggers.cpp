@@ -155,7 +155,7 @@ float CloseToHazardTrigger::GetDistanceToHazard(const ObjectGuid& hazzardGuid)
         Creature* creatureHazard = ai->GetCreature(hazzardGuid);
         if (creatureHazard)
         {
-            return bot->GetDistance(creatureHazard, true, DIST_CALC_COMBAT_REACH);
+            return bot->GetDistance(creatureHazard, SizeFactor::CombatReach);
         }
     }
 

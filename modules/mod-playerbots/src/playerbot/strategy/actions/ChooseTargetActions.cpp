@@ -163,8 +163,7 @@ bool SelectNewTargetAction::Execute(Event& event)
         Pet* pet = bot->GetPet();
         if (pet)
         {
-            UnitAI* creatureAI = ((Creature*)pet)->AI();
-            if (creatureAI)
+            if (pet->AI())
             {
                 // Send pet action packet
                 const ObjectGuid& petGuid = pet->GetObjectGuid();

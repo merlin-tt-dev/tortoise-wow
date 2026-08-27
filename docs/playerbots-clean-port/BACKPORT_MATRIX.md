@@ -45,8 +45,9 @@ These are not accepted merely because PR #79 compiled:
 
 | Surface | Historical port behavior | Risk / lost semantics | Decision |
 |---|---|---|---|
-| `CreatureAI::IsPreventingDeath()` | compatibility stub returns `false` | bot can ignore scripted death prevention / encounter semantics | reimplement against Tortoise capability or gate call-site semantics |
-| `CreatureAI::IsRangedUnit()` | compatibility default returns `false` | caster/ranged target classification degraded | reimplement from real Tortoise creature/spell data |
+| historical `IsPreventingDeath()` | old call-site queried AI state that Penqle does not expose | bot can ignore scripted death prevention / encounter semantics | **resolved module-only:** query Penqle `Unit::GetInvincibilityHpThreshold()`, the state used by the native lethal-damage path |
+| historical `UnitAI::IsRangedUnit()` | fake `UnitAI = CreatureAI` alias pretended incompatible AI models were equivalent | caster/ranged target classification degraded | **resolved module-only:** use Penqle's dynamic `CreatureAI::IsMeleeAttackEnabled()` state; main-ranged-spell mode disables melee |
+| historical `DistanceCalculation` / `DIST_CALC_*` | integer compatibility enum was passed into Penqle APIs; several CMaNGOS squared-distance call-sites still applied `sqrt()` | ranges collapse (e.g. 25 yd becomes 5 yd), old 2D/3D bool overloads have wrong type/meaning | **resolved module-only:** use Penqle `SizeFactor`, explicit `GetDistance2d()` for historical 2D calls, and remove only the obsolete CMaNGOS square-root conversions |
 | Auction compatibility methods | fields/defaults and no-op methods added for missing CMaNGOS API | AH bot can reason over fabricated state | audit before enabling AH bot; do not treat stubs as real state |
 | BG flag carrier base accessor | default empty GUID | BG tactics can silently lose objective state | map to real per-BG Tortoise state |
 | `GetTransports()` | later Shyalya state was effectively empty in the broken port | transport travel impossible | restore real transport enumeration from Tortoise containers |

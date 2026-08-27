@@ -32,10 +32,6 @@
 class Transport;
 typedef Transport GenericTransport;
 
-// cmangos's CreatureAI base is named UnitAI; Penqle uses CreatureAI. Same shape.
-class CreatureAI;
-typedef CreatureAI UnitAI;
-
 // cmangos uses GuidSet typedef. Penqle uses ObjectGuidSet.
 // Pull ObjectGuid header transitively to ensure the typedef target is visible
 // before the alias is used.
@@ -67,13 +63,6 @@ typedef AreaEntry AreaTableEntry;
 // Map TEAM_BOTH_ALLOWED to TEAM_NONE so default-arg conversions work.
 #ifndef TEAM_BOTH_ALLOWED
 #define TEAM_BOTH_ALLOWED TEAM_NONE
-#endif
-
-// cmangos has DIST_CALC_COMBAT_REACH for Unit::GetDistance variants.
-// Penqle uses DIST_CALC_BOUNDING_RADIUS / DIST_CALC_COMBAT_REACH naming.
-// Need to verify per use site; for now define as a passthrough constant.
-#ifndef DIST_CALC_COMBAT_REACH
-enum DistanceCalculation { DIST_CALC_NONE = 0, DIST_CALC_BOUNDING_RADIUS = 1, DIST_CALC_COMBAT_REACH = 2 };
 #endif
 
 // cmangos has BarGoLink (console progress bar). Penqle has no equivalent.
@@ -343,10 +332,7 @@ inline char const* GetSpellCastResultString(SpellCastResult /*res*/) { return ""
 #define SPELL_STATE_TARGETING 0
 #endif
 
-// === DIST_CALC_COMBAT_REACH_WITH_MELEE / MAX_GOSSIP_TEXT_OPTIONS ===
-#ifndef DIST_CALC_COMBAT_REACH_WITH_MELEE
-#define DIST_CALC_COMBAT_REACH_WITH_MELEE 3
-#endif
+// === MAX_GOSSIP_TEXT_OPTIONS ===
 #ifndef MAX_GOSSIP_TEXT_OPTIONS
 #define MAX_GOSSIP_TEXT_OPTIONS 8
 #endif

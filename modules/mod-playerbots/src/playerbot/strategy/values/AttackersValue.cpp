@@ -451,9 +451,9 @@ bool AttackersValue::IgnoreTarget(Unit* target, Player* playerToCheckAgainst)
         bool isDummy = false;
 
 
-        if (WorldPosition(playerToCheckAgainst).isOverworld() && target->AI() && target->AI()->IsPreventingDeath())
+        // Penqle's native damage path uses this threshold to prevent lethal damage.
+        if (WorldPosition(playerToCheckAgainst).isOverworld() && target->GetInvincibilityHpThreshold())
         {
-
             isDummy = true;
         }
 

@@ -1,0 +1,454 @@
+diff --git a/docs/playerbots-clean-port/BACKPORT_MATRIX.md b/docs/playerbots-clean-port/BACKPORT_MATRIX.md
+index 6f1379c..91a7c76 100644
+--- a/docs/playerbots-clean-port/BACKPORT_MATRIX.md
++++ b/docs/playerbots-clean-port/BACKPORT_MATRIX.md
+@@ -45,8 +45,9 @@ These are not accepted merely because PR #79 compiled:
+ 
+ | Surface | Historical port behavior | Risk / lost semantics | Decision |
+ |---|---|---|---|
+-| `CreatureAI::IsPreventingDeath()` | compatibility stub returns `false` | bot can ignore scripted death prevention / encounter semantics | reimplement against Tortoise capability or gate call-site semantics |
+-| `CreatureAI::IsRangedUnit()` | compatibility default returns `false` | caster/ranged target classification degraded | reimplement from real Tortoise creature/spell data |
++| historical `IsPreventingDeath()` | old call-site queried AI state that Penqle does not expose | bot can ignore scripted death prevention / encounter semantics | **resolved module-only:** query Penqle `Unit::GetInvincibilityHpThreshold()`, the state used by the native lethal-damage path |
++| historical `UnitAI::IsRangedUnit()` | fake `UnitAI = CreatureAI` alias pretended incompatible AI models were equivalent | caster/ranged target classification degraded | **resolved module-only:** use Penqle's dynamic `CreatureAI::IsMeleeAttackEnabled()` state; main-ranged-spell mode disables melee |
++| historical `DistanceCalculation` / `DIST_CALC_*` | integer compatibility enum was passed into Penqle APIs; several CMaNGOS squared-distance call-sites still applied `sqrt()` | ranges collapse (e.g. 25 yd becomes 5 yd), old 2D/3D bool overloads have wrong type/meaning | **resolved module-only:** use Penqle `SizeFactor`, explicit `GetDistance2d()` for historical 2D calls, and remove only the obsolete CMaNGOS square-root conversions |
+ | Auction compatibility methods | fields/defaults and no-op methods added for missing CMaNGOS API | AH bot can reason over fabricated state | audit before enabling AH bot; do not treat stubs as real state |
+ | BG flag carrier base accessor | default empty GUID | BG tactics can silently lose objective state | map to real per-BG Tortoise state |
+ | `GetTransports()` | later Shyalya state was effectively empty in the broken port | transport travel impossible | restore real transport enumeration from Tortoise containers |
+diff --git a/modules/mod-playerbots/src/cmangos-compat-shim.h b/modules/mod-playerbots/src/cmangos-compat-shim.h
+index d21239f..86bcaad 100644
+--- a/modules/mod-playerbots/src/cmangos-compat-shim.h
++++ b/modules/mod-playerbots/src/cmangos-compat-shim.h
+@@ -32,10 +32,6 @@
+ class Transport;
+ typedef Transport GenericTransport;
+ 
+-// cmangos's CreatureAI base is named UnitAI; Penqle uses CreatureAI. Same shape.
+-class CreatureAI;
+-typedef CreatureAI UnitAI;
+-
+ // cmangos uses GuidSet typedef. Penqle uses ObjectGuidSet.
+ // Pull ObjectGuid header transitively to ensure the typedef target is visible
+ // before the alias is used.
+@@ -69,13 +65,6 @@ typedef AreaEntry AreaTableEntry;
+ #define TEAM_BOTH_ALLOWED TEAM_NONE
+ #endif
+ 
+-// cmangos has DIST_CALC_COMBAT_REACH for Unit::GetDistance variants.
+-// Penqle uses DIST_CALC_BOUNDING_RADIUS / DIST_CALC_COMBAT_REACH naming.
+-// Need to verify per use site; for now define as a passthrough constant.
+-#ifndef DIST_CALC_COMBAT_REACH
+-enum DistanceCalculation { DIST_CALC_NONE = 0, DIST_CALC_BOUNDING_RADIUS = 1, DIST_CALC_COMBAT_REACH = 2 };
+-#endif
+-
+ // cmangos has BarGoLink (console progress bar). Penqle has no equivalent.
+ // Define as a complete stub class so the bot's BarGoLink pointer dereferences
+ // and method calls compile (no-op at runtime).
+@@ -343,10 +332,7 @@ inline char const* GetSpellCastResultString(SpellCastResult /*res*/) { return ""
+ #define SPELL_STATE_TARGETING 0
+ #endif
+ 
+-// === DIST_CALC_COMBAT_REACH_WITH_MELEE / MAX_GOSSIP_TEXT_OPTIONS ===
+-#ifndef DIST_CALC_COMBAT_REACH_WITH_MELEE
+-#define DIST_CALC_COMBAT_REACH_WITH_MELEE 3
+-#endif
++// === MAX_GOSSIP_TEXT_OPTIONS ===
+ #ifndef MAX_GOSSIP_TEXT_OPTIONS
+ #define MAX_GOSSIP_TEXT_OPTIONS 8
+ #endif
+diff --git a/modules/mod-playerbots/src/playerbot/PlayerbotAI.cpp b/modules/mod-playerbots/src/playerbot/PlayerbotAI.cpp
+index a1872f2..4640862 100644
+--- a/modules/mod-playerbots/src/playerbot/PlayerbotAI.cpp
++++ b/modules/mod-playerbots/src/playerbot/PlayerbotAI.cpp
+@@ -4485,7 +4485,7 @@ bool PlayerbotAI::CanCastSpell(uint32 spellid, float x, float y, float z, uint8
+ 
+     if (!itemTarget)
+     {
+-        if (sqrt(bot->GetDistance(x,y,z)) > sPlayerbotAIConfig.sightDistance)
++        if (bot->GetDistance(x, y, z) > sPlayerbotAIConfig.sightDistance)
+         {
+             if (checkResult)
+             {
+@@ -5331,7 +5331,7 @@ bool PlayerbotAI::CastVehicleSpell(uint32 spellId, Unit* target, float projectil
+ 
+         targets.setDestination(dest.coord_x, dest.coord_y, dest.coord_z);
+         targets.setSpeed(projectileSpeed);
+-        float distanceToDest = sqrt(vehicle->GetPosition().GetDistance(Position(dest.coord_x, dest.coord_y, dest.coord_z, 0.0f)));
++        float distanceToDest = WorldPosition(vehicle).distance(WorldPosition(dest));
+         float elev = 0.01f;
+         if (distanceToDest < 25.0f)
+             elev = 0.04f;
+diff --git a/modules/mod-playerbots/src/playerbot/ServerFacade.cpp b/modules/mod-playerbots/src/playerbot/ServerFacade.cpp
+index 3951cc7..e1fad53 100644
+--- a/modules/mod-playerbots/src/playerbot/ServerFacade.cpp
++++ b/modules/mod-playerbots/src/playerbot/ServerFacade.cpp
+@@ -21,7 +21,7 @@ float ServerFacade::GetDistance2d(Unit *unit, WorldObject* wo)
+     unit->GetDistance2d(wo);
+ #endif
+ #ifdef CMANGOS
+-    sqrt(unit->GetDistance2d(wo->GetPositionX(), wo->GetPositionY(), DIST_CALC_NONE));
++    unit->GetDistance2d(wo, SizeFactor::None);
+ #endif
+     return round(dist * 10.0f) / 10.0f;
+ }
+@@ -33,7 +33,7 @@ float ServerFacade::GetDistance2d(Unit *unit, float x, float y)
+     unit->GetDistance2d(x, y);
+ #endif
+ #ifdef CMANGOS
+-    sqrt(unit->GetDistance2d(x, y, DIST_CALC_NONE));
++    unit->GetDistance2d(x, y, SizeFactor::None);
+ #endif
+     return round(dist * 10.0f) / 10.0f;
+ }
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/AreaTriggerAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/AreaTriggerAction.cpp
+index 4ed6509..338f333 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/AreaTriggerAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/AreaTriggerAction.cpp
+@@ -40,7 +40,7 @@ bool ReachAreaTriggerAction::Execute(Event& event)
+ 
+     MotionMaster &mm = *bot->GetMotionMaster();
+     mm.MovePoint(atEntry->mapid, atEntry->x, atEntry->y, atEntry->z, MOVE_RUN_MODE | MOVE_PATHFINDING);
+-    const float distance = sqrt(bot->GetDistance(atEntry->x, atEntry->y, atEntry->z));
++    const float distance = bot->GetDistance(atEntry->x, atEntry->y, atEntry->z);
+     const float duration = 1000.0f * distance / bot->GetSpeed(MOVE_RUN) + sPlayerbotAIConfig.reactDelay;
+     ai->TellError(requester, "Wait for me");
+     SetDuration(duration);
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/AttackAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/AttackAction.cpp
+index 99d71db..86431a7 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/AttackAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/AttackAction.cpp
+@@ -150,20 +150,20 @@ bool AttackAction::Attack(Player* requester, Unit* target)
+         Pet* pet = bot->GetPet();
+         if (pet)
+         {
+-            UnitAI* creatureAI = ((Creature*)pet)->AI();
++            CreatureAI* creatureAI = pet->AI();
+             if (creatureAI)
+             {
+                 // Don't send the pet to attack if the bot is waiting for attack
+                 if (!isWaitingForAttack && (!ai->HasStrategy("stay", BotState::BOT_STATE_COMBAT) || AI_VALUE2(float, "distance", "current target") < ai->GetRange("spell")))
+                 {
+                     // Reset the pet state if no master
+-                    if (creatureAI->GetReactState() == REACT_PASSIVE && !ai->GetMaster())
++                    if (pet->GetReactState() == REACT_PASSIVE && !ai->GetMaster())
+                     {
+-                        creatureAI->SetReactState(REACT_DEFENSIVE);
++                        pet->SetReactState(REACT_DEFENSIVE);
+                     }
+ 
+                     // Don't send the pet to attack if set to passive
+-                    if (creatureAI->GetReactState() != REACT_PASSIVE)
++                    if (pet->GetReactState() != REACT_PASSIVE)
+                     {
+                         creatureAI->AttackStart(target);
+                     }
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/BattleGroundTactics.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/BattleGroundTactics.cpp
+index aa7dbc6..db13035 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/BattleGroundTactics.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/BattleGroundTactics.cpp
+@@ -4032,7 +4032,7 @@ bool BGTactics::moveToObjective()
+                 return true;*/
+ 
+         // don't try to move if already close
+-        if (sqrt(bot->GetDistance(pos.x, pos.y, pos.z, DIST_CALC_NONE)) < 5.0f)
++        if (bot->GetDistance(pos.x, pos.y, pos.z, SizeFactor::None) < 5.0f)
+         {
+             resetObjective();
+ 
+@@ -4104,7 +4104,7 @@ bool BGTactics::selectObjectiveWp(std::vector<BattleBotPath*> const& vPaths)
+ 
+         {
+             BattleBotWaypoint& lastPoint = ((*pPath)[pPath->size() - 1]);
+-            float const distanceFromPathEndToTarget = sqrt(Position(pos.x, pos.y, pos.z, 0.f).GetDistance(Position(lastPoint.x, lastPoint.y, lastPoint.z, 0.f)));
++            float const distanceFromPathEndToTarget = WorldPosition(bot->GetMapId(), pos.x, pos.y, pos.z).distance(WorldPosition(bot->GetMapId(), lastPoint.x, lastPoint.y, lastPoint.z));
+             if (closestDistanceToTarget > distanceFromPathEndToTarget)
+             {
+                 float closestDistanceFromMeToPoint = FLT_MAX;
+@@ -4112,7 +4112,7 @@ bool BGTactics::selectObjectiveWp(std::vector<BattleBotPath*> const& vPaths)
+                 for (uint32 i = 0; i < pPath->size(); i++)
+                 {
+                     BattleBotWaypoint& waypoint = ((*pPath)[i]);
+-                    float const distanceFromMeToPoint = sqrt(bot->GetDistance(waypoint.x, waypoint.y, waypoint.z, DIST_CALC_NONE));
++                    float const distanceFromMeToPoint = bot->GetDistance(waypoint.x, waypoint.y, waypoint.z, SizeFactor::None);
+                     if (distanceFromMeToPoint < maxDistanceToPoint && closestDistanceFromMeToPoint > distanceFromMeToPoint)
+                     {
+                         reverse = false;
+@@ -4137,7 +4137,7 @@ bool BGTactics::selectObjectiveWp(std::vector<BattleBotPath*> const& vPaths)
+ 
+         {
+             BattleBotWaypoint& firstPoint = ((*pPath)[0]);
+-            float const distanceFromPathBeginToTarget = sqrt(Position(pos.x, pos.y, pos.z, 0).GetDistance(Position(firstPoint.x, firstPoint.y, firstPoint.z, 0.f)));
++            float const distanceFromPathBeginToTarget = WorldPosition(bot->GetMapId(), pos.x, pos.y, pos.z).distance(WorldPosition(bot->GetMapId(), firstPoint.x, firstPoint.y, firstPoint.z));
+             if (closestDistanceToTarget > distanceFromPathBeginToTarget)
+             {
+                 float closestDistanceFromMeToPoint = FLT_MAX;
+@@ -4145,7 +4145,7 @@ bool BGTactics::selectObjectiveWp(std::vector<BattleBotPath*> const& vPaths)
+                 for (uint32 i = 0; i < pPath->size(); i++)
+                 {
+                     BattleBotWaypoint& waypoint = ((*pPath)[i]);
+-                    float const distanceFromMeToPoint = sqrt(bot->GetDistance(waypoint.x, waypoint.y, waypoint.z, DIST_CALC_NONE));
++                    float const distanceFromMeToPoint = bot->GetDistance(waypoint.x, waypoint.y, waypoint.z, SizeFactor::None);
+                     if (distanceFromMeToPoint < maxDistanceToPoint && closestDistanceFromMeToPoint > distanceFromMeToPoint)
+                     {
+                         reverse = true;
+@@ -4286,7 +4286,7 @@ bool BGTactics::startNewPathBegin(std::vector<BattleBotPath*> const& vPaths)
+             continue;
+ 
+         BattleBotWaypoint* pStart = &((*pPath)[0]);
+-        if (sqrt(bot->GetDistance(pStart->x, pStart->y, pStart->z, DIST_CALC_NONE)) < INTERACTION_DISTANCE)
++        if (bot->GetDistance(pStart->x, pStart->y, pStart->z, SizeFactor::None) < INTERACTION_DISTANCE)
+             availablePaths.emplace_back(AvailablePath(pPath, false));
+ 
+         // Some paths are not allowed backwards.
+@@ -4294,7 +4294,7 @@ bool BGTactics::startNewPathBegin(std::vector<BattleBotPath*> const& vPaths)
+             continue;
+ 
+         BattleBotWaypoint* pEnd = &((*pPath)[(*pPath).size() - 1]);
+-        if (sqrt(bot->GetDistance(pEnd->x, pEnd->y, pEnd->z, DIST_CALC_NONE)) < INTERACTION_DISTANCE)
++        if (bot->GetDistance(pEnd->x, pEnd->y, pEnd->z, SizeFactor::None) < INTERACTION_DISTANCE)
+             availablePaths.emplace_back(AvailablePath(pPath, true));
+     }
+ 
+@@ -4342,7 +4342,7 @@ bool BGTactics::startNewPathFree(std::vector<BattleBotPath*> const& vPaths)
+         for (uint32 i = 0; i < pPath->size(); i++)
+         {
+             BattleBotWaypoint& waypoint = ((*pPath)[i]);
+-            float const distanceToPoint = sqrt(bot->GetDistance(waypoint.x, waypoint.y, waypoint.z, DIST_CALC_NONE));
++            float const distanceToPoint = bot->GetDistance(waypoint.x, waypoint.y, waypoint.z, SizeFactor::None);
+             if (distanceToPoint < closestDistance)
+             {
+                 pClosestPath = pPath;
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/ChooseTargetActions.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/ChooseTargetActions.cpp
+index 7bdadd5..e0f682d 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/ChooseTargetActions.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/ChooseTargetActions.cpp
+@@ -163,8 +163,7 @@ bool SelectNewTargetAction::Execute(Event& event)
+         Pet* pet = bot->GetPet();
+         if (pet)
+         {
+-            UnitAI* creatureAI = ((Creature*)pet)->AI();
+-            if (creatureAI)
++            if (pet->AI())
+             {
+                 // Send pet action packet
+                 const ObjectGuid& petGuid = pet->GetObjectGuid();
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/GenericSpellActions.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/GenericSpellActions.cpp
+index 95501cb..05314e6 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/GenericSpellActions.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/GenericSpellActions.cpp
+@@ -104,7 +104,7 @@ bool CastSpellAction::isPossible()
+     }
+     else
+     {
+-        float dist = bot->GetDistance(spellTarget, true, ai->IsRanged(bot) ? DIST_CALC_COMBAT_REACH : DIST_CALC_COMBAT_REACH_WITH_MELEE);
++        float dist = bot->GetDistance(spellTarget, ai->IsRanged(bot) ? SizeFactor::CombatReach : SizeFactor::CombatReachWithMelee);
+         if (range == ATTACK_DISTANCE) 
+         {
+             canReach = bot->CanReachWithMeleeAttack(spellTarget);
+@@ -227,7 +227,7 @@ bool CastPetSpellAction::isPossible()
+                 const SpellEntry* pSpellInfo = sServerFacade.LookupSpellInfo(spellId);
+                 if (pSpellInfo)
+                 {
+-                    const float dist = pet->GetDistance(spellTarget, true, DIST_CALC_COMBAT_REACH);
++                    const float dist = pet->GetDistance(spellTarget, SizeFactor::CombatReach);
+                     canReach = dist <= (range + sPlayerbotAIConfig.contactDistance);
+ 
+                     if (pSpellInfo->rangeIndex != SPELL_RANGE_IDX_COMBAT && pSpellInfo->rangeIndex != SPELL_RANGE_IDX_SELF_ONLY && pSpellInfo->rangeIndex != SPELL_RANGE_IDX_ANYWHERE)
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/MovementActions.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/MovementActions.cpp
+index b695efc..f2f3c91 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/MovementActions.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/MovementActions.cpp
+@@ -3148,10 +3148,9 @@ bool FleeWithPetAction::Execute(Event& event)
+     Pet* pet = bot->GetPet();
+     if (pet)
+     {
+-        UnitAI* creatureAI = ((Creature*)pet)->AI();
+-        if (creatureAI)
++        if (pet->AI())
+         {
+-            creatureAI->SetReactState(REACT_PASSIVE);
++            pet->SetReactState(REACT_PASSIVE);
+             pet->AttackStop();
+         }
+     }
+@@ -3294,7 +3293,7 @@ bool SetBehindTargetAction::isUseful()
+     if (target && !bot->IsFacingTargetsBack(target))
+     {
+         // Don't move behind if the target is too far away
+-        const float distance = bot->GetDistance(target, false);
++        const float distance = bot->GetDistance2d(target);
+         return distance <= 15.0f;
+     }
+ 
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/PullActions.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/PullActions.cpp
+index f7ce70b..b16dc54 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/PullActions.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/PullActions.cpp
+@@ -105,11 +105,10 @@ bool PullStartAction::Execute(Event& event)
+             Pet* pet = bot->GetPet();
+             if (pet)
+             {
+-                UnitAI* creatureAI = ((Creature*)pet)->AI();
+-                if (creatureAI)
++                if (pet->AI())
+                 {
+-                    strategy->SetPetReactState(creatureAI->GetReactState());
+-                    creatureAI->SetReactState(REACT_PASSIVE);
++                    strategy->SetPetReactState(pet->GetReactState());
++                    pet->SetReactState(REACT_PASSIVE);
+                 }
+             }
+ 
+@@ -221,10 +220,9 @@ bool PullEndAction::Execute(Event& event)
+         Pet* pet = bot->GetPet();
+         if (pet)
+         {
+-            UnitAI* creatureAI = ((Creature*)pet)->AI();
+-            if (creatureAI)
++            if (pet->AI())
+             {
+-                creatureAI->SetReactState(strategy->GetPetReactState());
++                pet->SetReactState(strategy->GetPetReactState());
+             }
+         }
+ 
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/ReachTargetActions.h b/modules/mod-playerbots/src/playerbot/strategy/actions/ReachTargetActions.h
+index e223d22..740d259 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/ReachTargetActions.h
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/ReachTargetActions.h
+@@ -42,7 +42,7 @@ namespace ai
+                 UpdateMovementState();
+ 
+                 // Ignore movement if too far
+-                const float distanceToTarget = bot->GetDistance(target, false, DIST_CALC_COMBAT_REACH);
++                const float distanceToTarget = bot->GetDistance2d(target, SizeFactor::CombatReach);
+                 float chaseDist = range;
+                 const bool inLos = bot->IsWithinLOSInMap(target, true);
+                 const bool isFriend = sServerFacade.IsFriendlyTo(bot, target);
+@@ -101,7 +101,7 @@ namespace ai
+                         if (bot->IsWithinLOSInMap(target, true))
+                         {
+                             // Check if the bot is already on the range required
+-                            return bot->GetDistance(target, true, DIST_CALC_COMBAT_REACH) > range;
++                            return bot->GetDistance(target, SizeFactor::CombatReach) > range;
+                         }
+ 
+                         return true;
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/triggers/DungeonTriggers.cpp b/modules/mod-playerbots/src/playerbot/strategy/triggers/DungeonTriggers.cpp
+index 37254e8..20d8728 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/triggers/DungeonTriggers.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/triggers/DungeonTriggers.cpp
+@@ -155,7 +155,7 @@ float CloseToHazardTrigger::GetDistanceToHazard(const ObjectGuid& hazzardGuid)
+         Creature* creatureHazard = ai->GetCreature(hazzardGuid);
+         if (creatureHazard)
+         {
+-            return bot->GetDistance(creatureHazard, true, DIST_CALC_COMBAT_REACH);
++            return bot->GetDistance(creatureHazard, SizeFactor::CombatReach);
+         }
+     }
+ 
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/triggers/GenericTriggers.cpp b/modules/mod-playerbots/src/playerbot/strategy/triggers/GenericTriggers.cpp
+index e42510b..f1d6683 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/triggers/GenericTriggers.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/triggers/GenericTriggers.cpp
+@@ -825,7 +825,7 @@ bool TargetOfAttacker::IsActive()
+ bool TargetOfAttackerInRange::IsActive()
+ {
+     const Unit* closestAttacker = AI_VALUE(Unit*, "closest attacker targeting me");
+-    return closestAttacker && bot->GetDistance(closestAttacker, true, DIST_CALC_COMBAT_REACH) <= (distance - sPlayerbotAIConfig.contactDistance);
++    return closestAttacker && bot->GetDistance(closestAttacker, SizeFactor::CombatReach) <= (distance - sPlayerbotAIConfig.contactDistance);
+ }
+ 
+ bool TargetOfCastedAuraTypeTrigger::IsActive()
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/triggers/RangeTriggers.h b/modules/mod-playerbots/src/playerbot/strategy/triggers/RangeTriggers.h
+index 7cab48c..132f5fd 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/triggers/RangeTriggers.h
++++ b/modules/mod-playerbots/src/playerbot/strategy/triggers/RangeTriggers.h
+@@ -261,7 +261,7 @@ namespace ai
+             if (!target)
+                 return false;
+ 
+-            return target && (bot->GetDistance(target, true, DIST_CALC_COMBAT_REACH) > (distance - sPlayerbotAIConfig.contactDistance)) || !bot->IsWithinLOSInMap(target, true);
++            return target && (bot->GetDistance(target, SizeFactor::CombatReach) > (distance - sPlayerbotAIConfig.contactDistance)) || !bot->IsWithinLOSInMap(target, true);
+         }
+     };
+ 
+@@ -277,7 +277,7 @@ namespace ai
+             if (!target)
+                 return false;
+ 
+-            return target && (bot->GetDistance(target, true, DIST_CALC_COMBAT_REACH) > (distance - sPlayerbotAIConfig.contactDistance)) || !bot->IsWithinLOSInMap(target, true);
++            return target && (bot->GetDistance(target, SizeFactor::CombatReach) > (distance - sPlayerbotAIConfig.contactDistance)) || !bot->IsWithinLOSInMap(target, true);
+         }
+     };
+ 
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/AttackersValue.cpp b/modules/mod-playerbots/src/playerbot/strategy/values/AttackersValue.cpp
+index a4b7e48..40e1e9f 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/AttackersValue.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/AttackersValue.cpp
+@@ -451,9 +451,9 @@ bool AttackersValue::IgnoreTarget(Unit* target, Player* playerToCheckAgainst)
+         bool isDummy = false;
+ 
+ 
+-        if (WorldPosition(playerToCheckAgainst).isOverworld() && target->AI() && target->AI()->IsPreventingDeath())
++        // Penqle's native damage path uses this threshold to prevent lethal damage.
++        if (WorldPosition(playerToCheckAgainst).isOverworld() && target->GetInvincibilityHpThreshold())
+         {
+-
+             isDummy = true;
+         }
+ 
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/EnemyPlayerValue.cpp b/modules/mod-playerbots/src/playerbot/strategy/values/EnemyPlayerValue.cpp
+index 5e769a3..d9a6ff5 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/EnemyPlayerValue.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/EnemyPlayerValue.cpp
+@@ -129,7 +129,7 @@ Unit* EnemyPlayerValue::Calculate()
+         Unit* firstTarget = ai->GetUnit(enemyPlayers.front());
+         if (firstTarget)
+         {
+-            bestEnemyPlayerDistance = firstTarget->GetDistance(bot, false);
++            bestEnemyPlayerDistance = firstTarget->GetDistance2d(bot);
+             bestEnemyPlayerHealth = firstTarget->GetHealth();
+             bestEnemyPlayer = firstTarget;
+         }
+@@ -150,7 +150,7 @@ Unit* EnemyPlayerValue::Calculate()
+                 if (isMelee)
+                 {
+                     // Score best enemy player based on lowest distance
+-                    const float distanceToEnemyPlayer = target->GetDistance(bot, false);
++                    const float distanceToEnemyPlayer = target->GetDistance2d(bot);
+                     if (distanceToEnemyPlayer < bestEnemyPlayerDistance)
+                     {
+                         bestEnemyPlayerDistance = distanceToEnemyPlayer;
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/PartyMemberToHeal.cpp b/modules/mod-playerbots/src/playerbot/strategy/values/PartyMemberToHeal.cpp
+index bba1264..b08e11b 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/PartyMemberToHeal.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/PartyMemberToHeal.cpp
+@@ -244,12 +244,9 @@ Unit* PartyMemberToProtect::Calculate()
+         if (!unit)
+             continue;
+ 
+-        bool isRanged = false;
+-        if (unit->AI())
+-        {
+-            if (unit->AI()->IsRangedUnit())
+-                isRanged = true;
+-        }
++        CreatureAI* creatureAI = unit->AI();
++        // Penqle disables melee attacks while its generic creature AI is in main-ranged-spell mode.
++        const bool isRanged = creatureAI && !creatureAI->IsMeleeAttackEnabled();
+ 
+         Unit* pVictim = unit->GetVictim();
+         if (!pVictim || !pVictim->IsPlayer())
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/TargetValue.cpp b/modules/mod-playerbots/src/playerbot/strategy/values/TargetValue.cpp
+index 0609aaf..e8f9c23 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/TargetValue.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/TargetValue.cpp
+@@ -189,7 +189,7 @@ Unit* ClosestAttackerTargetingMeTargetValue::Calculate()
+         Unit* attacker = ai->GetUnit(attackerGuid);
+         if (attacker)
+         {
+-            const float distance = bot->GetDistance(attacker, true, DIST_CALC_COMBAT_REACH);
++            const float distance = bot->GetDistance(attacker, SizeFactor::CombatReach);
+             if (distance < closest)
+             {
+                 closest = distance;

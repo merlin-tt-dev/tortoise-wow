@@ -3148,10 +3148,9 @@ bool FleeWithPetAction::Execute(Event& event)
     Pet* pet = bot->GetPet();
     if (pet)
     {
-        UnitAI* creatureAI = ((Creature*)pet)->AI();
-        if (creatureAI)
+        if (pet->AI())
         {
-            creatureAI->SetReactState(REACT_PASSIVE);
+            pet->SetReactState(REACT_PASSIVE);
             pet->AttackStop();
         }
     }
@@ -3294,7 +3293,7 @@ bool SetBehindTargetAction::isUseful()
     if (target && !bot->IsFacingTargetsBack(target))
     {
         // Don't move behind if the target is too far away
-        const float distance = bot->GetDistance(target, false);
+        const float distance = bot->GetDistance2d(target);
         return distance <= 15.0f;
     }
 

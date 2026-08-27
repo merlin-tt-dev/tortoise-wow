@@ -189,7 +189,7 @@ Unit* ClosestAttackerTargetingMeTargetValue::Calculate()
         Unit* attacker = ai->GetUnit(attackerGuid);
         if (attacker)
         {
-            const float distance = bot->GetDistance(attacker, true, DIST_CALC_COMBAT_REACH);
+            const float distance = bot->GetDistance(attacker, SizeFactor::CombatReach);
             if (distance < closest)
             {
                 closest = distance;

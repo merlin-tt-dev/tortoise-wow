@@ -104,7 +104,7 @@ bool CastSpellAction::isPossible()
     }
     else
     {
-        float dist = bot->GetDistance(spellTarget, true, ai->IsRanged(bot) ? DIST_CALC_COMBAT_REACH : DIST_CALC_COMBAT_REACH_WITH_MELEE);
+        float dist = bot->GetDistance(spellTarget, ai->IsRanged(bot) ? SizeFactor::CombatReach : SizeFactor::CombatReachWithMelee);
         if (range == ATTACK_DISTANCE) 
         {
             canReach = bot->CanReachWithMeleeAttack(spellTarget);
@@ -227,7 +227,7 @@ bool CastPetSpellAction::isPossible()
                 const SpellEntry* pSpellInfo = sServerFacade.LookupSpellInfo(spellId);
                 if (pSpellInfo)
                 {
-                    const float dist = pet->GetDistance(spellTarget, true, DIST_CALC_COMBAT_REACH);
+                    const float dist = pet->GetDistance(spellTarget, SizeFactor::CombatReach);
                     canReach = dist <= (range + sPlayerbotAIConfig.contactDistance);
 
                     if (pSpellInfo->rangeIndex != SPELL_RANGE_IDX_COMBAT && pSpellInfo->rangeIndex != SPELL_RANGE_IDX_SELF_ONLY && pSpellInfo->rangeIndex != SPELL_RANGE_IDX_ANYWHERE)

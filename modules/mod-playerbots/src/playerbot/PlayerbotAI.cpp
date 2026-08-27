@@ -4485,7 +4485,7 @@ bool PlayerbotAI::CanCastSpell(uint32 spellid, float x, float y, float z, uint8 
 
     if (!itemTarget)
     {
-        if (sqrt(bot->GetDistance(x,y,z)) > sPlayerbotAIConfig.sightDistance)
+        if (bot->GetDistance(x, y, z) > sPlayerbotAIConfig.sightDistance)
         {
             if (checkResult)
             {
@@ -5331,7 +5331,7 @@ bool PlayerbotAI::CastVehicleSpell(uint32 spellId, Unit* target, float projectil
 
         targets.setDestination(dest.coord_x, dest.coord_y, dest.coord_z);
         targets.setSpeed(projectileSpeed);
-        float distanceToDest = sqrt(vehicle->GetPosition().GetDistance(Position(dest.coord_x, dest.coord_y, dest.coord_z, 0.0f)));
+        float distanceToDest = WorldPosition(vehicle).distance(WorldPosition(dest));
         float elev = 0.01f;
         if (distanceToDest < 25.0f)
             elev = 0.04f;

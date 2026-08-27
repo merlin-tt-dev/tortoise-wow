@@ -21,7 +21,7 @@ float ServerFacade::GetDistance2d(Unit *unit, WorldObject* wo)
     unit->GetDistance2d(wo);
 #endif
 #ifdef CMANGOS
-    sqrt(unit->GetDistance2d(wo->GetPositionX(), wo->GetPositionY(), DIST_CALC_NONE));
+    unit->GetDistance2d(wo, SizeFactor::None);
 #endif
     return round(dist * 10.0f) / 10.0f;
 }
@@ -33,7 +33,7 @@ float ServerFacade::GetDistance2d(Unit *unit, float x, float y)
     unit->GetDistance2d(x, y);
 #endif
 #ifdef CMANGOS
-    sqrt(unit->GetDistance2d(x, y, DIST_CALC_NONE));
+    unit->GetDistance2d(x, y, SizeFactor::None);
 #endif
     return round(dist * 10.0f) / 10.0f;
 }

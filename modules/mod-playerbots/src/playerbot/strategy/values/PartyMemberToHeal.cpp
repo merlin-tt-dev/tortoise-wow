@@ -244,12 +244,9 @@ Unit* PartyMemberToProtect::Calculate()
         if (!unit)
             continue;
 
-        bool isRanged = false;
-        if (unit->AI())
-        {
-            if (unit->AI()->IsRangedUnit())
-                isRanged = true;
-        }
+        CreatureAI* creatureAI = unit->AI();
+        // Penqle disables melee attacks while its generic creature AI is in main-ranged-spell mode.
+        const bool isRanged = creatureAI && !creatureAI->IsMeleeAttackEnabled();
 
         Unit* pVictim = unit->GetVictim();
         if (!pVictim || !pVictim->IsPlayer())

@@ -105,11 +105,10 @@ bool PullStartAction::Execute(Event& event)
             Pet* pet = bot->GetPet();
             if (pet)
             {
-                UnitAI* creatureAI = ((Creature*)pet)->AI();
-                if (creatureAI)
+                if (pet->AI())
                 {
-                    strategy->SetPetReactState(creatureAI->GetReactState());
-                    creatureAI->SetReactState(REACT_PASSIVE);
+                    strategy->SetPetReactState(pet->GetReactState());
+                    pet->SetReactState(REACT_PASSIVE);
                 }
             }
 
@@ -221,10 +220,9 @@ bool PullEndAction::Execute(Event& event)
         Pet* pet = bot->GetPet();
         if (pet)
         {
-            UnitAI* creatureAI = ((Creature*)pet)->AI();
-            if (creatureAI)
+            if (pet->AI())
             {
-                creatureAI->SetReactState(strategy->GetPetReactState());
+                pet->SetReactState(strategy->GetPetReactState());
             }
         }
 
