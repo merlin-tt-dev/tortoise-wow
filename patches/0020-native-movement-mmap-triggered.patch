@@ -1,0 +1,676 @@
+diff --git a/LIVINGBOTS_ENDTEST_TODO.md b/LIVINGBOTS_ENDTEST_TODO.md
+index c348825..6a97f7a 100644
+--- a/LIVINGBOTS_ENDTEST_TODO.md
++++ b/LIVINGBOTS_ENDTEST_TODO.md
+@@ -18,6 +18,9 @@
+ | 0017 Native Config IncludeDir | eingebaut | ausstehend |
+ | 0018 Native Compatibility Semantics I | eingebaut | ausstehend |
+ | 0019 Native Stores / AreaTriggers / Channels / Pet Autocast | mit diesem Patch | ausstehend |
++| core-0003 Map-only PathFinder / Nav-Area API | mit 0020-Bundle | ausstehend |
++| core-0004 Native Fixed-Path Motion | mit 0020-Bundle | ausstehend |
++| 0020 Native Movement / MMap / Triggered Semantics | mit 0020-Bundle | ausstehend |
+ 
+ **Wichtig:** „eingebaut“ bedeutet nur statisch/source-seitig portiert. Kein Punkt gilt dadurch als getestet.
+ 
+@@ -56,6 +59,14 @@
+ - [ ] 0019: Pet-Autocast wird nicht mehr global durch `IsAutocastable() == false` deaktiviert.
+ - [ ] core-chat-channel-loaded-id: `LoadChatChannels()` erhält die echte DB-ID jedes Standardchannels.
+ - [ ] core-chat-channel-name-match: feste Channel-Namen matchen exakt; zonenabhängige Namen matchen das `%s`-Pattern ohne Substring-Kollisionen.
++- [ ] core-0003: `PathFinder(mapId)` berechnet Travel-Graph-Pfade ohne Live-`Unit` über Penqles echte MMap-Queries.
++- [ ] core-0003: dynamische Playerbot-Avoid-Areas 12/13 werden als Detour-Area-IDs markiert und über Area-Cost gewichtet; native Terrain-Flags bleiben getrennt.
++- [ ] core-0003: Wasser/Steilhänge/Magma/Slime verwenden Penqles `AREA_*`- und `NAV_*`-Semantik ohne erfundene Compatibility-Werte.
++- [ ] core-0004: vorberechnete Punktpfade laufen als echter `MotionMaster`-MovementGenerator statt direktem/ungeführtem Spline-Hack.
++- [ ] core-0004: Fixed-Path-Bewegung erhält Run/Walk/Fly/Speed-Semantik und verwendet auf Transporten Penqles Passenger-Koordinaten/SMSG_MONSTER_MOVE_TRANSPORT korrekt.
++- [ ] 0020: `FORCED_MOVEMENT_*`, `NAV_AREA_*`, `NAV_MAGMA_SLIME`, `NAV_GROUND_STEEP` und `setArea/getArea/getFlags/setAreaCost` sind aus dem aktiven Penqle-Port entfernt.
++- [ ] 0020: Spell-/Item-Casts verwenden Penqles natives `bool triggered`; keine Fake-`TRIGGERED_*`-Bitmasken verbleiben.
++- [ ] 0020: normale Bewegung verwendet keine Teleports als Ersatz für fehlende Movement-/MMap-APIs.
+ - [ ] Rest-Shim-Audit (MMap/BG/Loot/LFG/InstanceTemplate/etc.) vollständig abgeschlossen.
+ 
+ ## A1. Clean Build
+diff --git a/modules/mod-playerbots/src/cmangos-compat-shim.h b/modules/mod-playerbots/src/cmangos-compat-shim.h
+index 1ac1a7b..de54c88 100644
+--- a/modules/mod-playerbots/src/cmangos-compat-shim.h
++++ b/modules/mod-playerbots/src/cmangos-compat-shim.h
+@@ -200,31 +200,6 @@ using Spells::IsPassiveSpell;
+ inline bool IsPositiveSpell(SpellEntry const* spellInfo) { return spellInfo && spellInfo->IsPositiveSpell(); }
+ inline bool IsPositiveSpell(SpellEntry const* spellInfo, WorldObject const* caster, WorldObject const* victim) { return spellInfo && spellInfo->IsPositiveSpell(caster, victim); }
+ 
+-// === TRIGGERED_* spell-cast flags ===
+-// cmangos's CastSpell takes a TriggerCastFlags bitmask (TRIGGERED_OLD_TRIGGERED, etc.).
+-// Penqle uses bool triggered. Provide #defines so bot's symbolic constants compile;
+-// the actual values are arbitrary because Penqle's CastSpell ignores the bitmask
+-// (it'll pass the int as bool, which defaults to falsy for 0).
+-// Penqle expects `bool triggered`, not a bitmask. Use `false` for unflagged casts and
+-// `true` for any "triggered" cast. This is lossy (we can't represent IGNORE_GCD/IGNORE_AURA_SCALING
+-// distinctly) but matches Penqle's API. NOTE: must be `bool` typed so private template-trap
+-// overloads (in Object.h) don't catch them.
+-#ifndef TRIGGERED_NONE
+-#define TRIGGERED_NONE false
+-#endif
+-#ifndef TRIGGERED_OLD_TRIGGERED
+-#define TRIGGERED_OLD_TRIGGERED true
+-#endif
+-#ifndef TRIGGERED_FULL_MASK
+-#define TRIGGERED_FULL_MASK true
+-#endif
+-#ifndef TRIGGERED_IGNORE_GCD
+-#define TRIGGERED_IGNORE_GCD true
+-#endif
+-#ifndef TRIGGERED_IGNORE_AURA_SCALING
+-#define TRIGGERED_IGNORE_AURA_SCALING true
+-#endif
+-
+ // === ClientLootType (cmangos has it in Loot/LootMgr.h; Penqle's LootMgr.h doesn't) ===
+ // Bot's LootValues.h references this enum. Stub copy from cmangos.
+ enum ClientLootType
+@@ -345,23 +320,6 @@ enum LootItemType {
+     LOOTITEM_TYPE_CONDITIONNAL = 3,
+ };
+ 
+-// === NAV_AREA_* / NAV_* (cmangos navmesh area types) ===
+-#ifndef NAV_AREA_WATER
+-#define NAV_AREA_WATER 7
+-#endif
+-#ifndef NAV_AREA_GROUND
+-#define NAV_AREA_GROUND 4
+-#endif
+-#ifndef NAV_AREA_GROUND_STEEP
+-#define NAV_AREA_GROUND_STEEP 3
+-#endif
+-#ifndef NAV_MAGMA_SLIME
+-#define NAV_MAGMA_SLIME 0x18
+-#endif
+-#ifndef NAV_GROUND_STEEP
+-#define NAV_GROUND_STEEP 0x02
+-#endif
+-
+ // === MINIMUM_LOOTING_TIME ===
+ #ifndef MINIMUM_LOOTING_TIME
+ #define MINIMUM_LOOTING_TIME 1000
+@@ -553,19 +511,6 @@ inline bool HasPersistentAuraEffect(SpellEntry const* /*spellInfo*/) { return fa
+ #define SEC_GAMEMASTER SEC_ADMINISTRATOR
+ #endif
+ 
+-// === FORCED_MOVEMENT_RUN / ForcedMovement (cmangos) ===
+-// Penqle uses different movement-flag set; bot only checks symbolic value.
+-typedef int ForcedMovement;
+-#ifndef FORCED_MOVEMENT_RUN
+-#define FORCED_MOVEMENT_RUN 1
+-#endif
+-#ifndef FORCED_MOVEMENT_WALK
+-#define FORCED_MOVEMENT_WALK 0
+-#endif
+-#ifndef FORCED_MOVEMENT_FLIGHT
+-#define FORCED_MOVEMENT_FLIGHT 2
+-#endif
+-
+ // === SkillLineAbility store proxy ===
+ // cmangos exposes sSkillLineAbilityStore (DBCStorage<SkillLineAbilityEntry>);
+ // Penqle exposes sObjectMgr.GetSkillLineAbility(id).
+diff --git a/modules/mod-playerbots/src/playerbot/PlayerbotAI.cpp b/modules/mod-playerbots/src/playerbot/PlayerbotAI.cpp
+index 7591653..a543521 100644
+--- a/modules/mod-playerbots/src/playerbot/PlayerbotAI.cpp
++++ b/modules/mod-playerbots/src/playerbot/PlayerbotAI.cpp
+@@ -8695,7 +8695,7 @@ bool PlayerbotAI::HandleSpellClick(ObjectGuid guid)
+ 
+             if (itr->second.spellId)
+             {
+-                caster->CastSpell(target, itr->second.spellId, TRIGGERED_OLD_TRIGGERED);
++                caster->CastSpell(target, itr->second.spellId, true);
+                 return true;
+             }
+             else
+diff --git a/modules/mod-playerbots/src/playerbot/TravelMgr.cpp b/modules/mod-playerbots/src/playerbot/TravelMgr.cpp
+index 9761264..321ee12 100644
+--- a/modules/mod-playerbots/src/playerbot/TravelMgr.cpp
++++ b/modules/mod-playerbots/src/playerbot/TravelMgr.cpp
+@@ -1269,7 +1269,7 @@ void TravelMgr::SetMobAvoidArea()
+ 
+ void TravelMgr::SetMobAvoidAreaMap(uint32 mapId) 
+ {
+-    PathFinder path(mapId, 0);
++    PathFinder path(mapId);
+     FactionTemplateEntry const* humanFaction = sFactionTemplateStore.LookupEntry(1);
+     FactionTemplateEntry const* orcFaction = sFactionTemplateStore.LookupEntry(2);
+ 
+@@ -1301,8 +1301,8 @@ void TravelMgr::SetMobAvoidAreaMap(uint32 mapId)
+         if (!point.loadMapAndVMap(0))
+             continue;
+ 
+-        path.setArea(point.getMapId(), point.getX(), point.getY(), point.getZ(), 12, 50.0f);
+-        path.setArea(point.getMapId(), point.getX(), point.getY(), point.getZ(), 13, 20.0f);
++        path.MarkNavArea(point.getX(), point.getY(), point.getZ(), PLAYERBOT_MMAP_AREA_AVOID, 50.0f);
++        path.MarkNavArea(point.getX(), point.getY(), point.getZ(), PLAYERBOT_MMAP_AREA_DANGER, 20.0f);
+     }
+ }
+ 
+@@ -2409,7 +2409,7 @@ void TravelMgr::GetFishLocations(uint32 mapId)
+     TravelNode* ironForgeNode = sTravelNodeMap.getNode(ironForge);
+     WorldPosition orgrimmar(1, 1845.49, -4395.95, 5.19264);
+ 
+-    PathFinder path(mapId,0);
++    PathFinder path(mapId);
+ 
+     const int8 subCellPerGrid = 64;
+     const float sizeOfSubCell = SIZE_OF_GRIDS / subCellPerGrid;
+@@ -2455,9 +2455,9 @@ void TravelMgr::GetFishLocations(uint32 mapId)
+                         if (fabs(fishSpot.getZ() - waterSpot.getZ()) > 10.0f)
+                             continue;
+ 
+-                        uint32 area = path.getArea(mapId, fishSpot.getX(), fishSpot.getY(), fishSpot.getZ());
++                        uint32 area = path.GetNavArea(fishSpot.getX(), fishSpot.getY(), fishSpot.getZ());
+ 
+-                        if (!area || area == NAV_AREA_GROUND_STEEP)
++                        if (!area || area == AREA_STEEP_SLOPE || area == AREA_STEEP_SLOPE_MODEL)
+                         {
+                         //    sLog.outError("no area %d %f %f %f", mapId, fishSpot.getX(), fishSpot.getY(), fishSpot.getZ());
+                             continue;
+diff --git a/modules/mod-playerbots/src/playerbot/TravelNode.cpp b/modules/mod-playerbots/src/playerbot/TravelNode.cpp
+index 8796220..5a19e75 100644
+--- a/modules/mod-playerbots/src/playerbot/TravelNode.cpp
++++ b/modules/mod-playerbots/src/playerbot/TravelNode.cpp
+@@ -3707,9 +3707,9 @@ TravelNodeMap::PathFindResult TravelNodeMap::testPathToLoop(const WorldPosition&
+ 
+     std::unique_ptr<PathFinder> pathfinder = std::make_unique<PathFinder>(bot);
+ 
+-    pathfinder->setAreaCost(NAV_AREA_WATER, 10.0f);
+-    pathfinder->setAreaCost(12, 5.0f);
+-    pathfinder->setAreaCost(13, 20.0f);
++    pathfinder->SetNavAreaCost(AREA_WATER, 10.0f);
++    pathfinder->SetNavAreaCost(PLAYERBOT_MMAP_AREA_AVOID, 5.0f);
++    pathfinder->SetNavAreaCost(PLAYERBOT_MMAP_AREA_DANGER, 20.0f);
+ 
+     PointsArray points;
+     PathType pathType;
+diff --git a/modules/mod-playerbots/src/playerbot/WorldPosition.cpp b/modules/mod-playerbots/src/playerbot/WorldPosition.cpp
+index abff609..755f66a 100644
+--- a/modules/mod-playerbots/src/playerbot/WorldPosition.cpp
++++ b/modules/mod-playerbots/src/playerbot/WorldPosition.cpp
+@@ -1098,11 +1098,11 @@ std::vector<WorldPosition> WorldPosition::getPathFromPath(const std::vector<Worl
+     if (bot && instanceId == bot->GetInstanceId())
+         pathfinder = std::make_unique<PathFinder>(bot);
+     else
+-        pathfinder = std::make_unique<PathFinder>(getMapId(), instanceId);
++        pathfinder = std::make_unique<PathFinder>(getMapId());
+ 
+-    pathfinder->setAreaCost(NAV_AREA_WATER, 10.0f);
+-    pathfinder->setAreaCost(12, 5.0f);
+-    pathfinder->setAreaCost(13, 20.0f);
++    pathfinder->SetNavAreaCost(AREA_WATER, 10.0f);
++    pathfinder->SetNavAreaCost(PLAYERBOT_MMAP_AREA_AVOID, 5.0f);
++    pathfinder->SetNavAreaCost(PLAYERBOT_MMAP_AREA_DANGER, 20.0f);
+ 
+     //Limit the pathfinding attempts
+     for (uint32 i = 0; i < maxAttempt; i++)
+@@ -1151,7 +1151,7 @@ bool WorldPosition::ClosestCorrectPoint(float maxRange, float maxHeight, uint32
+     uint16 excludeFlags = 0;
+ 
+     includeFlags |= (NAV_GROUND );
+-    excludeFlags |= (NAV_MAGMA_SLIME | NAV_GROUND_STEEP | NAV_WATER);
++    excludeFlags |= (NAV_MAGMA | NAV_SLIME | NAV_STEEP_SLOPES | NAV_WATER);
+ 
+ 
+     filter.setIncludeFlags(includeFlags);
+@@ -1206,9 +1206,9 @@ std::vector<WorldPosition> WorldPosition::ComputePathToRandomPoint(const Player*
+ 
+     std::unique_ptr<PathFinder> pathfinder = std::make_unique<PathFinder>(bot);
+ 
+-    pathfinder->setAreaCost(NAV_AREA_WATER, 10.0f);
+-    pathfinder->setAreaCost(12, 5.0f);
+-    pathfinder->setAreaCost(13, 20.0f);
++    pathfinder->SetNavAreaCost(AREA_WATER, 10.0f);
++    pathfinder->SetNavAreaCost(PLAYERBOT_MMAP_AREA_AVOID, 5.0f);
++    pathfinder->SetNavAreaCost(PLAYERBOT_MMAP_AREA_DANGER, 20.0f);
+ 
+     std::vector<WorldPosition> path = getPathStepFrom(start, pathfinder, bot);
+     
+diff --git a/modules/mod-playerbots/src/playerbot/playerbotDefs.h b/modules/mod-playerbots/src/playerbot/playerbotDefs.h
+index 6266435..2fdf69d 100644
+--- a/modules/mod-playerbots/src/playerbot/playerbotDefs.h
++++ b/modules/mod-playerbots/src/playerbot/playerbotDefs.h
+@@ -2,3 +2,7 @@
+ 
+ #define CAST_ANGLE_IN_FRONT (2 * M_PI_F / 3)
+ #define EMOTE_ANGLE_IN_FRONT (2 * M_PI_F / 6)
++
++// Dynamic Detour area ids used to increase path cost around hostile units.
++constexpr uint8 PLAYERBOT_MMAP_AREA_AVOID = 12;
++constexpr uint8 PLAYERBOT_MMAP_AREA_DANGER = 13;
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/AreaTriggerAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/AreaTriggerAction.cpp
+index 0f56067..4ed6509 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/AreaTriggerAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/AreaTriggerAction.cpp
+@@ -39,7 +39,7 @@ bool ReachAreaTriggerAction::Execute(Event& event)
+     }
+ 
+     MotionMaster &mm = *bot->GetMotionMaster();
+-	mm.MovePoint(atEntry->mapid, atEntry->x, atEntry->y, atEntry->z, FORCED_MOVEMENT_RUN);
++    mm.MovePoint(atEntry->mapid, atEntry->x, atEntry->y, atEntry->z, MOVE_RUN_MODE | MOVE_PATHFINDING);
+     const float distance = sqrt(bot->GetDistance(atEntry->x, atEntry->y, atEntry->z));
+     const float duration = 1000.0f * distance / bot->GetSpeed(MOVE_RUN) + sPlayerbotAIConfig.reactDelay;
+     ai->TellError(requester, "Wait for me");
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/CheatAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/CheatAction.cpp
+index e5b66d0..1772f83 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/CheatAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/CheatAction.cpp
+@@ -105,11 +105,11 @@ void CheatAction::AddCheat(BotCheatMask cheatMask)
+         uint32 SPELL_MOD_SPELL_HASTE = 15183;
+ 
+         bot->RemoveAurasDueToSpell(SPELL_MOD_MELEE_HASTE);
+-        bot->CastCustomSpell(bot, SPELL_MOD_MELEE_HASTE, &amount, &amount, nullptr, TRIGGERED_OLD_TRIGGERED);
++        bot->CastCustomSpell(bot, SPELL_MOD_MELEE_HASTE, &amount, &amount, nullptr, true);
+         bot->RemoveAurasDueToSpell(SPELL_MOD_RANGE_HASTE);
+-        bot->CastCustomSpell(bot, SPELL_MOD_RANGE_HASTE, &amount, &amount, nullptr, TRIGGERED_OLD_TRIGGERED);
++        bot->CastCustomSpell(bot, SPELL_MOD_RANGE_HASTE, &amount, &amount, nullptr, true);
+         bot->RemoveAurasDueToSpell(SPELL_MOD_SPELL_HASTE);
+-        bot->CastCustomSpell(bot, SPELL_MOD_SPELL_HASTE, &amount, &amount, nullptr, TRIGGERED_OLD_TRIGGERED);
++        bot->CastCustomSpell(bot, SPELL_MOD_SPELL_HASTE, &amount, &amount, nullptr, true);
+ 
+         break;
+     }
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/DebugAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/DebugAction.cpp
+index 6e08e98..3ea4228 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/DebugAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/DebugAction.cpp
+@@ -1174,9 +1174,9 @@ bool DebugAction::HandleAvoidScan(Event& event, Player* requester, const std::st
+             p.setY(p.getY() + y);
+             p.setZ(p.getHeight(bot->GetInstanceId()));
+             Creature* wpCreature = requester->SummonCreature(2334, p.getX(), p.getY(), p.getZ(), 0.0, TEMPSPAWN_TIMED_DESPAWN, 20000.0f);
+-            if(path.getArea(p.getMapId(), p.getX(), p.getY(), p.getZ()) == 12)
++            if(path.GetNavArea(p.getX(), p.getY(), p.getZ()) == PLAYERBOT_MMAP_AREA_AVOID)
+                 ai->AddAura(wpCreature, 246);
+-            if (path.getArea(p.getMapId(), p.getX(), p.getY(), p.getZ()) == 13)
++            if (path.GetNavArea(p.getX(), p.getY(), p.getZ()) == PLAYERBOT_MMAP_AREA_DANGER)
+                 ai->AddAura(wpCreature, 1130);
+         }
+     return true;
+@@ -1196,7 +1196,7 @@ bool DebugAction::HandleAvoidAdd(Event& event, Player* requester, const std::str
+     }
+     area = stoi(args[0]);
+     radius = stoi(args[1]);
+-    pathfinder.setArea(point.getMapId(), point.getX(), point.getY(), point.getZ(), area, radius);
++    pathfinder.MarkNavArea(point.getX(), point.getY(), point.getZ(), uint8(area), radius);
+     return true;
+ }
+ 
+@@ -1741,7 +1741,7 @@ bool DebugAction::HandlePointOnTrans(Event& event, Player* requester, const std:
+             ai->AddAura(wpCreature, 246);
+ 
+             bot->SetTransport(transport);
+-            std::unique_ptr<PathFinder> pathfinder = std::make_unique<PathFinder>(bot, true);
++            std::unique_ptr<PathFinder> pathfinder = std::make_unique<PathFinder>(bot);
+             WorldPosition tStart = bot, tEnd = pos;
+             tStart.CalculatePassengerOffset(transport);
+             tEnd.CalculatePassengerOffset(transport);
+@@ -1887,9 +1887,9 @@ bool DebugAction::HandleOnTrans(Event& event, Player* requester, const std::stri
+ 
+     std::vector<G3D::Vector3> pointPath = transPos.toPointsArray(path);
+ #ifndef MANGOSBOT_TWO
+-    bot->GetMotionMaster()->MovePath(pointPath, FORCED_MOVEMENT_RUN, false, false);
++    bot->GetMotionMaster()->MovePath(pointPath, MOVE_RUN_MODE);
+ #else
+-    bot->GetMotionMaster()->MovePath(pointPath, FORCED_MOVEMENT_RUN, false);
++    bot->GetMotionMaster()->MovePath(pointPath, MOVE_RUN_MODE);
+ #endif  
+ 
+     return true;
+@@ -1930,9 +1930,9 @@ bool DebugAction::HandleOffTrans(Event& event, Player* requester, const std::str
+     std::vector<G3D::Vector3> pointPath = exitPos.toPointsArray(path);
+ 
+ #ifndef MANGOSBOT_TWO
+-    bot->GetMotionMaster()->MovePath(pointPath, FORCED_MOVEMENT_RUN, false, false);
++    bot->GetMotionMaster()->MovePath(pointPath, MOVE_RUN_MODE);
+ #else
+-    bot->GetMotionMaster()->MovePath(pointPath, FORCED_MOVEMENT_RUN, false);
++    bot->GetMotionMaster()->MovePath(pointPath, MOVE_RUN_MODE);
+ #endif  
+ 
+     return true;
+@@ -4662,7 +4662,7 @@ bool DebugAction::HandleCSpellMap(Event& event, Player* requester, const std::st
+ 
+             if (wpCreature && lCreature)
+             {
+-                wpCreature->CastSpell(lCreature, effect, TRIGGERED_OLD_TRIGGERED);
++                wpCreature->CastSpell(lCreature, effect, true);
+             }
+ 
+             lCreature = wpCreature;
+@@ -5227,9 +5227,9 @@ bool DebugAction::HandleNodes(Event& event, Player* requester, const std::string
+         float dist = pos.distance(*startNode->getPosition());
+         
+         std::unique_ptr<PathFinder> pathfinder = std::make_unique<PathFinder>(bot);
+-        pathfinder->setAreaCost(NAV_AREA_WATER, 10.0f);
+-        pathfinder->setAreaCost(12, 5.0f);
+-        pathfinder->setAreaCost(13, 20.0f);
++        pathfinder->SetNavAreaCost(AREA_WATER, 10.0f);
++        pathfinder->SetNavAreaCost(PLAYERBOT_MMAP_AREA_AVOID, 5.0f);
++        pathfinder->SetNavAreaCost(PLAYERBOT_MMAP_AREA_DANGER, 20.0f);
+         pathfinder->calculate(pos.getVector3(), startNode->getPosition()->getVector3(), false);
+         
+         PointsArray points = pathfinder->getPath();
+@@ -5523,7 +5523,7 @@ bool DebugAction::HandleTransanal(Event& event, Player* requester, const std::st
+                             if (found[end])
+                                 continue;
+ 
+-                            std::unique_ptr<PathFinder> pathfinder = std::make_unique<PathFinder>(tempPlayer, true);
++                            std::unique_ptr<PathFinder> pathfinder = std::make_unique<PathFinder>(tempPlayer);
+ 
+                             WorldPosition tStart = start, tEnd = end;
+                             tStart.CalculatePassengerOffset(transport);
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/GenericSpellActions.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/GenericSpellActions.cpp
+index 01ac03c..95501cb 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/GenericSpellActions.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/GenericSpellActions.cpp
+@@ -689,7 +689,7 @@ bool CastItemTargetAction::Execute(Event& event)
+         if (spellInfo->Targets & TARGET_FLAG_DEST_LOCATION)
+             targets.m_targetMask = TARGET_FLAG_DEST_LOCATION;
+ 
+-        BotUseItemSpell* spell = new BotUseItemSpell(bot, spellInfo, (count > 0) ? TRIGGERED_OLD_TRIGGERED : TRIGGERED_NONE);
++        BotUseItemSpell* spell = new BotUseItemSpell(bot, spellInfo, count > 0);
+ 
+         Item* tItem = nullptr;
+ 
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/MovementActions.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/MovementActions.cpp
+index 14d342f..b695efc 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/MovementActions.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/MovementActions.cpp
+@@ -243,7 +243,9 @@ bool MovementAction::FlyDirect(const WorldPosition &startPosition, const WorldPo
+         }
+     }
+     mm.Clear(false, true);
+-    mm.MovePoint(movePosition.getMapId(), Position(movePosition.getX(), movePosition.getY(), movePosition.getZ(), 0.f), bot->IsFlying() ? FORCED_MOVEMENT_FLIGHT : FORCED_MOVEMENT_RUN, bot->IsFlying() ? bot->GetSpeed(MOVE_FLIGHT) : 0.f, bot->IsFlying());
++    mm.MovePoint(movePosition.getMapId(), Position(movePosition.getX(), movePosition.getY(), movePosition.getZ(), 0.f),
++            (bot->IsFlying() ? (MOVE_FLY_MODE | MOVE_RUN_MODE | MOVE_PATHFINDING) : MOVE_RUN_MODE),
++            bot->IsFlying() ? bot->GetSpeed(MOVE_FLIGHT) : 0.f);
+ 
+     AI_VALUE(LastMovement&, "last movement").lastAreaTrigger = movePosition;
+ 
+@@ -377,9 +379,9 @@ bool MovementAction::MoveOnTransport(PlayerbotAI* ai, GenericTransport* transpor
+ 
+     std::vector<G3D::Vector3> pointPath = transPos.toPointsArray(path);
+ #ifndef MANGOSBOT_TWO
+-    bot->GetMotionMaster()->MovePath(pointPath, FORCED_MOVEMENT_RUN, false, false);
++    bot->GetMotionMaster()->MovePath(pointPath, MOVE_RUN_MODE);
+ #else
+-    bot->GetMotionMaster()->MovePath(pointPath, FORCED_MOVEMENT_RUN, false);
++    bot->GetMotionMaster()->MovePath(pointPath, MOVE_RUN_MODE);
+ #endif
+ 
+     return true;
+@@ -420,9 +422,9 @@ bool MovementAction::MoveOffTransport(PlayerbotAI* ai, WorldPosition exitPos, bo
+ 
+     std::vector<G3D::Vector3> pointPath = exitPos.toPointsArray(path);
+ #ifndef MANGOSBOT_TWO
+-    bot->GetMotionMaster()->MovePath(pointPath, FORCED_MOVEMENT_RUN, false, false);
++    bot->GetMotionMaster()->MovePath(pointPath, MOVE_RUN_MODE);
+ #else
+-    bot->GetMotionMaster()->MovePath(pointPath, FORCED_MOVEMENT_RUN, false);
++    bot->GetMotionMaster()->MovePath(pointPath, MOVE_RUN_MODE);
+ #endif
+ 
+     return true;
+@@ -948,10 +950,10 @@ void MovementAction::DispatchMovement(TravelPath movePath, bool generatePath, bo
+ 
+     mm.Clear();
+ 
+-    ForcedMovement moveMode = masterWalking ? FORCED_MOVEMENT_WALK : FORCED_MOVEMENT_RUN;
++    uint32 moveMode = masterWalking ? MOVE_WALK_MODE : MOVE_RUN_MODE;
+ #ifndef MANGOSBOT_ZERO
+     if (bot->IsFlying())
+-        moveMode = FORCED_MOVEMENT_FLIGHT;
++        moveMode = MOVE_FLY_MODE | MOVE_RUN_MODE;
+ #endif
+ 
+     std::vector<WorldPosition> path = movePath.getPointPath();
+@@ -965,8 +967,7 @@ void MovementAction::DispatchMovement(TravelPath movePath, bool generatePath, bo
+             movePosition.getX(),
+             movePosition.getY(),
+             movePosition.getZ(),
+-            moveMode,
+-            generatePath);
++            moveMode | (generatePath ? MOVE_PATHFINDING : MOVE_NONE));
+ #else
+         mm.MovePoint(movePosition.getMapId(),
+             Position(movePosition.getX(), movePosition.getY(), movePosition.getZ(), 0.f),
+@@ -997,9 +998,9 @@ void MovementAction::DispatchMovement(TravelPath movePath, bool generatePath, bo
+         }
+ 
+ #ifndef MANGOSBOT_TWO
+-        mm.MovePath(pointPath, moveMode, false, false);
++        mm.MovePath(pointPath, moveMode);
+ #else
+-        mm.MovePath(pointPath, moveMode, false);
++        mm.MovePath(pointPath, moveMode);
+ #endif
+     }
+     else
+@@ -1011,8 +1012,7 @@ void MovementAction::DispatchMovement(TravelPath movePath, bool generatePath, bo
+             movePosition.getX(),
+             movePosition.getY(),
+             movePosition.getZ(),
+-            moveMode,
+-            generatePath);
++            moveMode | (generatePath ? MOVE_PATHFINDING : MOVE_NONE));
+ #else
+         mm.MovePoint(movePosition.getMapId(),
+             Position(movePosition.getX(), movePosition.getY(), movePosition.getZ(), 0.f),
+@@ -2053,7 +2053,8 @@ bool MovementAction::MoveTo(uint32 mapId, float x, float y, float z, bool idle,
+     }
+ 
+ #ifdef MANGOSBOT_ZERO
+-        mm.MovePoint(movePosition.getMapId(), movePosition.getX(), movePosition.getY(), movePosition.getZ(), masterWalking ? FORCED_MOVEMENT_WALK : FORCED_MOVEMENT_RUN, generatePath);
++        mm.MovePoint(movePosition.getMapId(), movePosition.getX(), movePosition.getY(), movePosition.getZ(),
++            (masterWalking ? MOVE_WALK_MODE : MOVE_RUN_MODE) | (generatePath ? MOVE_PATHFINDING : MOVE_NONE));
+ #else
+     if (!bot->IsFreeFlying())
+     {
+@@ -2061,7 +2062,8 @@ bool MovementAction::MoveTo(uint32 mapId, float x, float y, float z, bool idle,
+         if (bot->HasMovementFlag(MOVEFLAG_SWIMMING) && startPosition.isInWater() && !startPosition.isUnderWater() && !movePosition.isInWater())
+             generatePath = true;
+ 
+-        mm.MovePoint(movePosition.getMapId(), movePosition.getX(), movePosition.getY(), movePosition.getZ(), masterWalking ? FORCED_MOVEMENT_WALK : FORCED_MOVEMENT_RUN, generatePath);
++        mm.MovePoint(movePosition.getMapId(), movePosition.getX(), movePosition.getY(), movePosition.getZ(),
++            (masterWalking ? MOVE_WALK_MODE : MOVE_RUN_MODE) | (generatePath ? MOVE_PATHFINDING : MOVE_NONE));
+     }
+     else
+     {
+@@ -2152,7 +2154,9 @@ bool MovementAction::MoveTo(uint32 mapId, float x, float y, float z, bool idle,
+                     bot->m_movementInfo.RemoveMovementFlag(MOVEFLAG_LEVITATING);
+             }
+         }
+-        mm.MovePoint(movePosition.getMapId(), Position(movePosition.getX(), movePosition.getY(), movePosition.getZ(), 0.f), bot->IsFlying() ? FORCED_MOVEMENT_FLIGHT : FORCED_MOVEMENT_RUN, bot->IsFlying() ? bot->GetSpeed(MOVE_FLIGHT) : 0.f, bot->IsFlying());
++        mm.MovePoint(movePosition.getMapId(), Position(movePosition.getX(), movePosition.getY(), movePosition.getZ(), 0.f),
++            (bot->IsFlying() ? (MOVE_FLY_MODE | MOVE_RUN_MODE | MOVE_PATHFINDING) : MOVE_RUN_MODE),
++            bot->IsFlying() ? bot->GetSpeed(MOVE_FLIGHT) : 0.f);
+     }
+ #endif
+ 
+@@ -2617,9 +2621,9 @@ bool MovementAction::ChaseTo(WorldObject* obj, float distance, float angle)
+ 
+             std::vector<G3D::Vector3> pointsArray = WorldPosition().toPointsArray(path);
+ #ifndef MANGOSBOT_TWO  
+-            mm.MovePath(pointsArray, FORCED_MOVEMENT_RUN, false, false);
++            mm.MovePath(pointsArray, MOVE_RUN_MODE);
+ #else
+-            mm.MovePath(pointsArray, FORCED_MOVEMENT_RUN, false);
++            mm.MovePath(pointsArray, MOVE_RUN_MODE);
+ #endif
+             WaitForReach(distance);
+             return true;
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/ReleaseSpiritAction.h b/modules/mod-playerbots/src/playerbot/strategy/actions/ReleaseSpiritAction.h
+index 60aa126..b518f4a 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/ReleaseSpiritAction.h
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/ReleaseSpiritAction.h
+@@ -43,7 +43,7 @@ namespace ai
+             if (bot->InBattleGround() && !ai->HasAura(2584, bot))
+             {
+                 // cast Waiting for Resurrect
+-                bot->CastSpell(bot, 2584, TRIGGERED_OLD_TRIGGERED);
++                bot->CastSpell(bot, 2584, true);
+             }
+ 
+             return true;
+@@ -67,7 +67,7 @@ namespace ai
+             if (bot->InBattleGround() && !ai->HasAura(2584, bot))
+             {
+                 // cast Waiting for Resurrect
+-                bot->CastSpell(bot, 2584, TRIGGERED_OLD_TRIGGERED);
++                bot->CastSpell(bot, 2584, true);
+             }
+ 
+             sPlayerbotAIConfig.logEvent(ai, "AutoReleaseSpiritAction");
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/SeeSpellAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/SeeSpellAction.cpp
+index 183dd39..a762f0a 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/SeeSpellAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/SeeSpellAction.cpp
+@@ -96,9 +96,9 @@ bool SeeSpellAction::Execute(Event& event)
+ 
+         out << " area = ";
+ 
+-        out << path.getArea(bot->GetMapId(), x, y, z);
++        out << path.GetNavArea(x, y, z);
+ 
+-        unsigned short flags = path.getFlags(bot->GetMapId(), x, y, z);
++        unsigned short flags = path.GetNavFlags(x, y, z);
+ 
+         out << " flags = " << flags;
+ 
+@@ -106,11 +106,11 @@ bool SeeSpellAction::Execute(Event& event)
+             out << ", ground";
+         if (flags & NAV_EMPTY)
+             out << ", empty";
+-        if (flags & NAV_GROUND_STEEP)
++        if (flags & NAV_STEEP_SLOPES)
+             out << ", slope";
+         if (flags & NAV_WATER)
+             out << ", water";
+-        if (flags & NAV_MAGMA_SLIME)
++        if (flags & (NAV_MAGMA | NAV_SLIME))
+             out << ", magma slime";
+ 
+         ai->TellPlayer(requester, out);
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/SetAvoidAreaAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/SetAvoidAreaAction.cpp
+index 7a66b2a..64ad863 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/SetAvoidAreaAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/SetAvoidAreaAction.cpp
+@@ -9,7 +9,7 @@ using namespace ai;
+ 
+ bool SetAvoidAreaAction::Execute(Event& event)
+ {
+-    PathFinder pathfinder(bot->GetMapId(), bot->GetInstanceId());
++    PathFinder pathfinder(bot->GetMapId());
+ 
+     SET_AI_VALUE2(PositionEntry, "pos", "last avoid", PositionEntry(bot));
+ 
+@@ -47,8 +47,8 @@ bool SetAvoidAreaAction::Execute(Event& event)
+             continue;
+ 
+         WorldPosition point(targetUnit);
+-        pathfinder.setArea(point.getMapId(), point.getX(), point.getY(), point.getZ(), 12, targetUnit->GetAttackDistance(bot) * 2.5);
+-        pathfinder.setArea(point.getMapId(), point.getX(), point.getY(), point.getZ(), 13, targetUnit->GetAttackDistance(bot));
++        pathfinder.MarkNavArea(point.getX(), point.getY(), point.getZ(), PLAYERBOT_MMAP_AREA_AVOID, targetUnit->GetAttackDistance(bot) * 2.5f);
++        pathfinder.MarkNavArea(point.getX(), point.getY(), point.getZ(), PLAYERBOT_MMAP_AREA_DANGER, targetUnit->GetAttackDistance(bot));
+     }
+ 
+     return true;
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/TrainerAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/TrainerAction.cpp
+index 0921134..82b9f9b 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/TrainerAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/TrainerAction.cpp
+@@ -52,7 +52,7 @@ void TrainerAction::Learn(uint32 cost, ObjectGuid trainerGuid, uint32 spellId, T
+     bot->GetSession()->SendPacket(data);
+ 
+     if (tSpell->IsCastable())
+-        bot->CastSpell(bot, tSpell->spell, TRIGGERED_OLD_TRIGGERED);
++        bot->CastSpell(bot, tSpell->spell, true);
+     else
+         bot->learnSpell(spellId, false);
+ #endif
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/UseItemAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/UseItemAction.cpp
+index eab8542..261897a 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/UseItemAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/UseItemAction.cpp
+@@ -651,7 +651,7 @@ bool UseAction::UseItemInternal(Player* requester, uint32 itemId, Unit* unit, Ga
+             }
+ 
+             // Use triggered flag only for items with many spell casts and for not first cast
+-            BotUseItemSpell* spell = new BotUseItemSpell(bot, spellInfo, (successCasts > 0) ? TRIGGERED_OLD_TRIGGERED : TRIGGERED_NONE);
++            BotUseItemSpell* spell = new BotUseItemSpell(bot, spellInfo, successCasts > 0);
+             spell->m_clientCast = true;
+             
+ #ifdef MANGOSBOT_ONE
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/UseItemAction.h b/modules/mod-playerbots/src/playerbot/strategy/actions/UseItemAction.h
+index fe730d5..fee7369 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/UseItemAction.h
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/UseItemAction.h
+@@ -9,10 +9,10 @@ namespace ai
+     class BotUseItemSpell : public Spell
+     {
+     public:
+-        BotUseItemSpell(WorldObject* caster, SpellEntry const* info, uint32 triggeredFlags, ObjectGuid originalCasterGUID = ObjectGuid(), SpellEntry const* triggeredBy = nullptr, bool itemCheats = false)
+-            : Spell(caster->ToUnit() ? caster->ToUnit() : (Unit*)nullptr, info, triggeredFlags != 0, originalCasterGUID, triggeredBy), itemCheats(itemCheats) {};
++        BotUseItemSpell(WorldObject* caster, SpellEntry const* info, bool triggered, ObjectGuid originalCasterGUID = ObjectGuid(), SpellEntry const* triggeredBy = nullptr, bool itemCheats = false)
++            : Spell(caster->ToUnit() ? caster->ToUnit() : (Unit*)nullptr, info, triggered, originalCasterGUID, triggeredBy), itemCheats(itemCheats) {};
+ 
+-        static BotUseItemSpell* Create(WorldObject* caster, SpellEntry const* info, uint32 triggeredFlags, ObjectGuid originalCasterGUID = ObjectGuid(), SpellEntry const* triggeredBy = nullptr, bool itemCheats = false)
++        static BotUseItemSpell* Create(WorldObject* caster, SpellEntry const* info, bool triggered, ObjectGuid originalCasterGUID = ObjectGuid(), SpellEntry const* triggeredBy = nullptr, bool itemCheats = false)
+         {
+             if (!caster || !info)
+                 return nullptr;
+@@ -20,7 +20,7 @@ namespace ai
+             if (info != sSpellTemplate.LookupEntry<SpellEntry>(info->Id))
+                 return nullptr;
+ 
+-            return new BotUseItemSpell(caster, info, triggeredFlags, originalCasterGUID, triggeredBy, itemCheats);
++            return new BotUseItemSpell(caster, info, triggered, originalCasterGUID, triggeredBy, itemCheats);
+         }
+ 
+         SpellCastResult ForceSpellStart(SpellCastTargets const* targets, Aura* triggeredByAura = nullptr);
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/UseMeetingStoneAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/UseMeetingStoneAction.cpp
+index 921817d..10e4a29 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/UseMeetingStoneAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/UseMeetingStoneAction.cpp
+@@ -155,7 +155,7 @@ bool SummonAction::SummonUsingNpcs(Player* requester, Player *summoner, Player *
+                     0
+ #endif
+ #ifdef CMANGOS
+-                    TRIGGERED_OLD_TRIGGERED
++                    true
+ #endif
+                     );
+             spell.SendSpellCooldown();
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/VehicleActions.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/VehicleActions.cpp
+index 3d0c494..1454bf7 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/VehicleActions.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/VehicleActions.cpp
+@@ -53,7 +53,7 @@ bool EnterVehicleAction::Execute(Event& event)
+         bot->Say(out.str(), LANG_UNIVERSAL);
+         continue;
+ 
+-        //bot->CastSpell(vehicle, SPELL_RIDE_VEHICLE_HARDCODED, TRIGGERED_OLD_TRIGGERED);
++        //bot->CastSpell(vehicle, SPELL_RIDE_VEHICLE_HARDCODED, true);
+ 
+         TransportInfo* transportCheck = bot->GetTransportInfo();
+         if (!transportCheck || !transportCheck->IsOnVehicle())
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/rogue/RogueActions.h b/modules/mod-playerbots/src/playerbot/strategy/rogue/RogueActions.h
+index 12db415..a501114 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/rogue/RogueActions.h
++++ b/modules/mod-playerbots/src/playerbot/strategy/rogue/RogueActions.h
+@@ -22,7 +22,7 @@ namespace ai
+ 
+         virtual bool Execute(Event& event) override
+         {
+-            return bot->CastSpell(GetTarget(), 36554, TRIGGERED_OLD_TRIGGERED);
++            return bot->CastSpell(GetTarget(), 36554, true);
+         }
+     };
+ 
+@@ -417,7 +417,7 @@ namespace ai
+                                 const SpellEntry* spellInfo = sSpellTemplate.LookupEntry<SpellEntry>(spellData.SpellId);
+                                 if (spellInfo)
+                                 {
+-                                    BotUseItemSpell* spell = new BotUseItemSpell(bot, spellInfo, (count > 0) ? TRIGGERED_OLD_TRIGGERED : TRIGGERED_NONE);
++                                    BotUseItemSpell* spell = new BotUseItemSpell(bot, spellInfo, count > 0);
+                                     spell->m_clientCast = true;
+ 
+                                     if (spell->ForceSpellStart(&targets) == SPELL_CAST_OK)

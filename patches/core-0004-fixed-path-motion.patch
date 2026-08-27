@@ -1,0 +1,193 @@
+diff --git a/src/game/Movement/MotionMaster.cpp b/src/game/Movement/MotionMaster.cpp
+index a1140f5..c160b21 100644
+--- a/src/game/Movement/MotionMaster.cpp
++++ b/src/game/Movement/MotionMaster.cpp
+@@ -451,6 +451,15 @@ void MotionMaster::MovePoint(uint32 id, float x, float y, float z, uint32 option
+         Mutate(new PointMovementGenerator<Creature>(id, x, y, z, options, speed, finalOrientation));
+ }
+ 
++void MotionMaster::MovePath(const Movement::PointsArray& path, uint32 options, float speed)
++{
++    if (path.empty())
++        return;
++
++    DEBUG_FILTER_LOG(LOG_FILTER_AI_AND_MOVEGENSS, "%s follows a pre-calculated path with %u points", m_owner->GetGuidStr().c_str(), uint32(path.size()));
++    Mutate(new FixedPathMovementGenerator(path, options, speed));
++}
++
+ void MotionMaster::MoveSeekAssistance(float x, float y, float z)
+ {
+     if (m_owner->IsPlayer())
+@@ -741,6 +750,8 @@ char const* MotionMaster::GetMovementGeneratorTypeName(MovementGeneratorType gen
+         return "CHARGE_MOTION_TYPE";
+     case DISTANCING_MOTION_TYPE:
+         return "DISTANCING_MOTION_TYPE";
++    case FIXED_PATH_MOTION_TYPE:
++        return "FIXED_PATH_MOTION_TYPE";
+     }
+ 
+     return "UNKNOWN";
+@@ -768,6 +779,7 @@ bool MotionMaster::IsUsingOutOfCombatMovementType() const
+         case RANDOM_MOTION_TYPE:
+         case WAYPOINT_MOTION_TYPE:
+         case PATROL_MOTION_TYPE:
++        case FIXED_PATH_MOTION_TYPE:
+             return true;
+     }
+     return false;
+diff --git a/src/game/Movement/MotionMaster.h b/src/game/Movement/MotionMaster.h
+index 53326df..5881a24 100644
+--- a/src/game/Movement/MotionMaster.h
++++ b/src/game/Movement/MotionMaster.h
+@@ -57,6 +57,7 @@ enum MovementGeneratorType
+     PATROL_MOTION_TYPE              = 16,
+     CHARGE_MOTION_TYPE              = 17,
+     DISTANCING_MOTION_TYPE          = 18,
++    FIXED_PATH_MOTION_TYPE          = 19,
+ };
+ 
+ enum MMCleanFlag
+@@ -135,6 +136,7 @@ class MotionMaster : std::stack<MovementGenerator *>
+         void MoveFeared(Unit* enemy, uint32 time = 0);
+         void MovePoint(uint32 id, const Movement::Location& location, uint32 options = MOVE_NONE, float speed = 0.0f, float finalOrientation = -10);
+         void MovePoint(uint32 id, float x, float y, float z, uint32 options = MOVE_NONE, float speed = 0.0f, float finalOrientation = -10);
++        void MovePath(const Movement::PointsArray& path, uint32 options = MOVE_NONE, float speed = 0.0f);
+         void MoveSeekAssistance(float x,float y,float z);
+         void MoveSeekAssistanceDistract(uint32 timer);
+         void MoveWaypoint(uint32 startPoint = 0, uint32 source = 0, uint32 initialDelay = 0, uint32 overwriteGuid = 0, uint32 overwriteEntry = 0, bool repeat = true);
+diff --git a/src/game/Movement/PointMovementGenerator.cpp b/src/game/Movement/PointMovementGenerator.cpp
+index 4c3eeed..5d907db 100644
+--- a/src/game/Movement/PointMovementGenerator.cpp
++++ b/src/game/Movement/PointMovementGenerator.cpp
+@@ -27,6 +27,98 @@
+ #include "MoveSplineInit.h"
+ #include "MoveSpline.h"
+ #include "Anticheat.h"
++#include "Transport.h"
++
++#include <algorithm>
++
++//----- Fixed pre-calculated path movement generator
++void FixedPathMovementGenerator::Initialize(Unit& unit)
++{
++    if (m_path.empty() || m_pathOffset >= m_path.size())
++        return;
++
++    if (!unit.IsStopped())
++        unit.StopMoving();
++
++    unit.AddUnitState(UNIT_STAT_ROAMING | UNIT_STAT_ROAMING_MOVE);
++
++    // MoveSplineInit replaces path[0] with the unit's current position. Prepend a
++    // placeholder so none of the caller-supplied path nodes is discarded.
++    Movement::PointsArray splinePath;
++    splinePath.reserve(m_path.size() - m_pathOffset + 1);
++    splinePath.emplace_back();
++
++    Transport* transport = unit.GetTransport();
++    for (size_t i = m_pathOffset; i < m_path.size(); ++i)
++        splinePath.push_back(m_path[i]);
++
++    Movement::MoveSplineInit init(unit, "FixedPathMovementGenerator::Initialize");
++    init.MovebyPath(splinePath, int32(m_pathOffset));
++
++    if (transport)
++        init.SetTransport(transport->GetGUIDLow());
++
++    if (m_options & MOVE_WALK_MODE)
++        init.SetWalk(true);
++    else if (m_options & MOVE_RUN_MODE)
++        init.SetWalk(false);
++
++    if (m_options & MOVE_FLY_MODE)
++        init.SetFly();
++    if (m_options & MOVE_FALLING)
++        init.SetFall();
++    if (m_options & MOVE_CYCLIC)
++        init.SetCyclic();
++    if (m_speed > 0.0f)
++        init.SetVelocity(m_speed);
++
++    m_recalculateSpeed = false;
++    init.Launch();
++}
++
++void FixedPathMovementGenerator::Finalize(Unit& unit)
++{
++    unit.ClearUnitState(UNIT_STAT_ROAMING | UNIT_STAT_ROAMING_MOVE);
++}
++
++void FixedPathMovementGenerator::Interrupt(Unit& unit)
++{
++    unit.ClearUnitState(UNIT_STAT_ROAMING | UNIT_STAT_ROAMING_MOVE);
++}
++
++void FixedPathMovementGenerator::Reset(Unit& unit)
++{
++    Initialize(unit);
++}
++
++bool FixedPathMovementGenerator::Update(Unit& unit, uint32 const& /*diff*/)
++{
++    if (unit.HasUnitState(UNIT_STAT_CAN_NOT_MOVE))
++    {
++        unit.ClearUnitState(UNIT_STAT_ROAMING_MOVE);
++        return true;
++    }
++
++    unit.AddUnitState(UNIT_STAT_ROAMING_MOVE);
++
++    if (!unit.movespline->Finalized() && m_recalculateSpeed)
++    {
++        // Preserve progress when relaunching the spline with the unit's new speed.
++        // Cyclic paths intentionally restart from their first supplied node.
++        if (!(m_options & MOVE_CYCLIC))
++        {
++            int32 currentPathIndex = unit.movespline->currentPathIdx();
++            if (currentPathIndex > 0)
++                m_pathOffset = std::min<size_t>(size_t(currentPathIndex), m_path.size() - 1);
++        }
++        else
++            m_pathOffset = 0;
++
++        Initialize(unit);
++    }
++
++    return !unit.movespline->Finalized();
++}
+ 
+ //----- Point Movement Generator
+ template<class T>
+diff --git a/src/game/Movement/PointMovementGenerator.h b/src/game/Movement/PointMovementGenerator.h
+index aaa885e..96bcd63 100644
+--- a/src/game/Movement/PointMovementGenerator.h
++++ b/src/game/Movement/PointMovementGenerator.h
+@@ -53,6 +53,28 @@ class PointMovementGenerator
+         bool m_recalculateSpeed;
+ };
+ 
++class FixedPathMovementGenerator : public MovementGenerator
++{
++    public:
++        FixedPathMovementGenerator(const Movement::PointsArray& path, uint32 options, float speed = 0.0f) :
++            m_path(path), m_options(options), m_speed(speed), m_pathOffset(0), m_recalculateSpeed(false) {}
++
++        void Initialize(Unit& unit) override;
++        void Finalize(Unit& unit) override;
++        void Interrupt(Unit& unit) override;
++        void Reset(Unit& unit) override;
++        bool Update(Unit& unit, uint32 const& diff) override;
++        void UnitSpeedChanged() override { m_recalculateSpeed = true; }
++        MovementGeneratorType GetMovementGeneratorType() const override { return FIXED_PATH_MOTION_TYPE; }
++
++    private:
++        Movement::PointsArray m_path;
++        uint32 m_options;
++        float m_speed;
++        size_t m_pathOffset;
++        bool m_recalculateSpeed;
++};
++
+ template<class T>
+ class DistancingMovementGenerator
+ : public PointMovementGenerator<T>
