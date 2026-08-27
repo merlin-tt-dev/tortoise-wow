@@ -1,0 +1,704 @@
+diff --git a/docs/playerbots-clean-port/BACKPORT_MATRIX.md b/docs/playerbots-clean-port/BACKPORT_MATRIX.md
+index 8cf1f7d..fe0e8a2 100644
+--- a/docs/playerbots-clean-port/BACKPORT_MATRIX.md
++++ b/docs/playerbots-clean-port/BACKPORT_MATRIX.md
+@@ -49,6 +49,11 @@ These are not accepted merely because PR #79 compiled:
+ | historical `UnitAI::IsRangedUnit()` | fake `UnitAI = CreatureAI` alias pretended incompatible AI models were equivalent | caster/ranged target classification degraded | **resolved module-only:** use Penqle's dynamic `CreatureAI::IsMeleeAttackEnabled()` state; main-ranged-spell mode disables melee |
+ | historical `DistanceCalculation` / `DIST_CALC_*` | integer compatibility enum was passed into Penqle APIs; several CMaNGOS squared-distance call-sites still applied `sqrt()` | ranges collapse (e.g. 25 yd becomes 5 yd), old 2D/3D bool overloads have wrong type/meaning | **resolved module-only:** use Penqle `SizeFactor`, explicit `GetDistance2d()` for historical 2D calls, and remove only the obsolete CMaNGOS square-root conversions |
+ | historical `Taxi::Map` / `Player::GetTaxiPathSpline()` | compatibility shim always returned an empty pseudo-spline | following a player on taxi never knew the real flight endpoint; `go` could not report the destination | **resolved module-only:** read Penqle's active `FlightPathMovementGenerator` and its native `TaxiPathNodeList`; stop at `GetPathAtMapEnd()` to preserve CMaNGOS' map-local spline semantics (and work for both single- and multi-leg flights) |
++| historical `TransportAnimation` compatibility types | shim declared an in-memory path shape but Penqle never populated it; transport generation also read `moTransport` fields from `GAMEOBJECT_TYPE_TRANSPORT` union entries | elevator/tram graph generation was either non-functional or based on the wrong GO union member | **resolved module-only:** load the genuine client `TransportAnimation.dbc` through Tortoise `DBCStorage`, index it inside playerbots, and only read `moTransport` for `GAMEOBJECT_TYPE_MO_TRANSPORT`; boats/zeppelins keep Penqle's native TaxiPath data |
++| fake `InstanceTemplate` | zero-filled struct plus `WorldPosition::getInstanceTemplate() -> nullptr` | generated instance tests were silently skipped and any future field read would consume fabricated metadata | **resolved native:** use Penqle `MapEntry::maxPlayers` and `sObjectMgr.GetMapEntranceTrigger(mapId)->requiredLevel`; explicitly skip test generation if authoritative metadata is absent |
++| fake `AuctionHouseType` | pseudo enum `0/1/2` was passed to an API that expects `AuctionHouseEntry const*` | AH mirror used the wrong API contract and could duplicate the same native AH object | **resolved native:** iterate `sAuctionHouseStore`, resolve with `sAuctionMgr.GetAuctionsMap(entry)`, and deduplicate native `AuctionHouseObject*` mappings |
++| EmotesTextSound no-op | shim always returned `nullptr` | playerbot text-emote sounds were silently disabled | **resolved module-only:** load genuine `EmotesTextSound.dbc` through Tortoise `DBCStorage` and preserve the historical exact `(emote,race,gender)` lookup |
++| debug/diagnostic fake semantics | empty spell-result formatter, persistent-aura helper always false plus invented cast-flag name, and fake formation objects | diagnostics lied or pretended unsupported core behavior existed | **resolved:** report numeric native `SpellCastResult`; leave Penqle's native spell-go flags untouched; formation debug command explicitly reports unsupported rather than invoking a fake API |
+ | Auction compatibility methods | fields/defaults and no-op methods added for missing CMaNGOS API | AH bot can reason over fabricated state | audit before enabling AH bot; do not treat stubs as real state |
+ | BG flag carrier base accessor | default empty GUID | BG tactics can silently lose objective state | map to real per-BG Tortoise state |
+ | `GetTransports()` | later Shyalya state was effectively empty in the broken port | transport travel impossible | restore real transport enumeration from Tortoise containers |
+diff --git a/modules/mod-playerbots/src/cmangos-compat-shim.h b/modules/mod-playerbots/src/cmangos-compat-shim.h
+index 96aa9b4..cd78d56 100644
+--- a/modules/mod-playerbots/src/cmangos-compat-shim.h
++++ b/modules/mod-playerbots/src/cmangos-compat-shim.h
+@@ -77,18 +77,6 @@ public:
+     static void SetOutputState(bool /*state*/) {}
+ };
+ 
+-// cmangos has InstanceTemplate (sObjectMgr.GetInstanceTemplate). Penqle has
+-// no equivalent class. Define a minimal stub with the fields the bot reads,
+-// all zero; bot's getInstanceTemplate() returns nullptr in WorldPosition.h
+-// so the fields are never read at runtime.
+-struct InstanceTemplate {
+-    uint32 levelMin = 0;
+-    uint32 levelMax = 0;
+-    uint32 maxPlayers = 0;
+-    uint32 reset_delay = 0;
+-    uint32 parent = 0;
+-};
+-
+ // === DBC store aliases ===
+ // cmangos accesses spell DBC via `sSpellTemplate.LookupEntry<SpellEntry>(id)`.
+ // Penqle uses `sSpellMgr.GetSpellEntry(id)`. The bot's `sSpellTemplate` is used
+@@ -267,14 +255,6 @@ inline bool IsAreaAuraEffect(uint32 effect) {
+ #define MINIMUM_LOOTING_TIME 1000
+ #endif
+ 
+-// === AuctionHouseType (cmangos enum) ===
+-enum AuctionHouseType {
+-    AUCTION_HOUSE_ALLIANCE = 0,
+-    AUCTION_HOUSE_HORDE = 1,
+-    AUCTION_HOUSE_NEUTRAL = 2,
+-    MAX_AUCTION_HOUSE_TYPE = 3,
+-};
+-
+ // === SPELL_RANGE_FLAG_MELEE / RANGED (cmangos defines on SpellRangeEntry::Flags) ===
+ #ifndef SPELL_RANGE_FLAG_MELEE
+ #define SPELL_RANGE_FLAG_MELEE 1
+@@ -309,9 +289,6 @@ struct CmangosScriptDevAIMgrStub {
+ };
+ inline CmangosScriptDevAIMgrStub sScriptDevAIMgr;
+ 
+-// === GetSpellCastResultString stub (cmangos free function) ===
+-inline char const* GetSpellCastResultString(SpellCastResult /*res*/) { return ""; }
+-
+ #ifndef SPELL_STATE_TARGETING
+ #define SPELL_STATE_TARGETING 0
+ #endif
+@@ -321,12 +298,6 @@ inline char const* GetSpellCastResultString(SpellCastResult /*res*/) { return ""
+ #define MAX_GOSSIP_TEXT_OPTIONS 8
+ #endif
+ 
+-// === HasPersistentAuraEffect / CAST_FLAG_PERSISTENT_AA / FACTION_GROUP_MASK ===
+-inline bool HasPersistentAuraEffect(SpellEntry const* /*spellInfo*/) { return false; }
+-#ifndef CAST_FLAG_PERSISTENT_AA
+-#define CAST_FLAG_PERSISTENT_AA 0x40
+-#endif
+-
+ // === SEC_GAMEMASTER alias (cmangos has it; Penqle goes SEC_PLAYER → SEC_ADMINISTRATOR) ===
+ #ifndef SEC_GAMEMASTER
+ #define SEC_GAMEMASTER SEC_ADMINISTRATOR
+@@ -367,20 +338,6 @@ struct CmangosTaxiNodesStoreProxy
+ };
+ inline CmangosTaxiNodesStoreProxy sTaxiNodesStore;
+ 
+-// === TransportAnimation stub (cmangos has TransportAnim.dbc; Penqle doesn't) ===
+-struct TransportAnimationNode {
+-    uint32 TimeIndex = 0;
+-    uint32 TimeSeg = 0;
+-    float X = 0, Y = 0, Z = 0;
+-};
+-struct TransportAnimation {
+-    // cmangos uses a time-keyed map of pointers (so iterators yield (uint32, TransportAnimationNode*) pairs).
+-    std::map<uint32, TransportAnimationNode*> Path;
+-    uint32 TotalTime = 0;
+-};
+-typedef std::map<uint32, TransportAnimationNode*> TransportPathContainer;
+-// Note: Penqle has its own sTransportMgr; we extend TransportMgr inline (see Transports/TransportMgr.h).
+-
+ // === sLootMgr adapter (cmangos global; Penqle stores Loot on world objects) ===
+ // Bot calls sLootMgr.GetLoot(player[, guid]) to fetch the loot the player is currently looking at.
+ // Penqle embeds Loot directly in Creature/GameObject, so resolve the target on the player's
+@@ -419,24 +376,6 @@ inline CmangosLootMgrStub sLootMgr;
+ // Penqle uses GetLosHitPosition. The bot module's call sites were patched at
+ // the source level (TravelMgr.cpp / WorldPosition.h).
+ 
+-// === FormationSlotData / SpawnGroupFormationSlotType (cmangos formation system) ===
+-// Penqle has no formation system; these are stubs; flesh out if we want bot squads.
+-struct FormationSlotData {
+-    uint32 slotId = 0;
+-    FormationSlotData() = default;
+-    // bot calls make_shared<FormationSlotData>(int, ObjectGuid, nullptr, uint32).
+-    // Stub ctor accepts those 4 args; only slotId tracked.
+-    FormationSlotData(int /*idx*/, ObjectGuid const& /*guid*/, void* /*nullptr*/, uint32 slotId_)
+-        : slotId(slotId_) {}
+-};
+-typedef std::shared_ptr<FormationSlotData> FormationSlotDataSPtr;
+-namespace SpawnGroupFormationSlotType {
+-    constexpr uint32 SPAWN_GROUP_FORMATION_SLOT_TYPE_STATIC = 0;
+-    constexpr uint32 SPAWN_GROUP_FORMATION_SLOT_TYPE_SCRIPT = 1;
+-}
+-using SpawnGroupFormationSlotType::SPAWN_GROUP_FORMATION_SLOT_TYPE_STATIC;
+-using SpawnGroupFormationSlotType::SPAWN_GROUP_FORMATION_SLOT_TYPE_SCRIPT;
+-
+ // === Free-function helpers (cmangos style) wrapping Penqle SpellEntry methods ===
+ // cmangos exposes these as free functions; Penqle wraps them in SpellEntry::method.
+ inline uint32 GetSpellCastTime(SpellEntry const* spellInfo, Spell const* spell = nullptr) {
+@@ -494,10 +433,6 @@ constexpr WorldSession::WorldSessionState WORLD_SESSION_STATE_READY = WorldSessi
+ constexpr WorldSession::WorldSessionState WORLD_SESSION_STATE_OFFLINE = WorldSession::WORLD_SESSION_STATE_OFFLINE;
+ constexpr WorldSession::WorldSessionState WORLD_SESSION_STATE_REMOVING = WorldSession::WORLD_SESSION_STATE_REMOVING;
+ 
+-// === EmotesTextSoundEntry / FindTextSoundEmoteFor (cmangos) — DBC stubs ===
+-struct EmotesTextSoundEntry { uint32 SoundId = 0; };
+-inline EmotesTextSoundEntry const* FindTextSoundEmoteFor(uint32 /*textEmoteId*/, uint32 /*race*/, uint32 /*gender*/) { return nullptr; }
+-
+ // === GetApplicationStartTime (cmangos) — free function returning startup timestamp ===
+ inline std::chrono::system_clock::time_point GetApplicationStartTime() {
+     static auto s_start = std::chrono::system_clock::now();
+diff --git a/modules/mod-playerbots/src/playerbot/PlayerbotAI.cpp b/modules/mod-playerbots/src/playerbot/PlayerbotAI.cpp
+index 4640862..c88b700 100644
+--- a/modules/mod-playerbots/src/playerbot/PlayerbotAI.cpp
++++ b/modules/mod-playerbots/src/playerbot/PlayerbotAI.cpp
+@@ -26,6 +26,7 @@
+ #include "Spells/SpellAuras.h"
+ #include "Spells/SpellMgr.h"
+ #include "PlayerbotDbStore.h"
++#include "playerbot/PlayerbotSupplementalDBCStore.h"
+ #include "strategy/values/PositionValue.h"
+ #include "playerbot/ServerFacade.h"
+ #include "playerbot/TravelMgr.h"
+@@ -2491,13 +2492,12 @@ bool PlayerbotAI::DoSpecificAction(const std::string& name, Event event, bool si
+ 
+ bool PlayerbotAI::PlaySound(uint32 emote)
+ {
+-    if (EmotesTextSoundEntry const* soundEntry = FindTextSoundEmoteFor(emote, bot->getRace(), bot->getGender()))
+-    {
+-        bot->PlayDistanceSound(soundEntry->SoundId);
+-        return true;
+-    }
++    uint32 soundId = 0;
++    if (!sPlayerbotSupplementalDBCStore.GetTextEmoteSound(emote, bot->getRace(), bot->getGender(), soundId))
++        return false;
+ 
+-    return false;
++    bot->PlayDistanceSound(soundId);
++    return true;
+ }
+ 
+ bool PlayerbotAI::PlayEmote(uint32 emote)
+diff --git a/modules/mod-playerbots/src/playerbot/PlayerbotSupplementalDBCStore.cpp b/modules/mod-playerbots/src/playerbot/PlayerbotSupplementalDBCStore.cpp
+new file mode 100644
+index 0000000..3960925
+--- /dev/null
++++ b/modules/mod-playerbots/src/playerbot/PlayerbotSupplementalDBCStore.cpp
+@@ -0,0 +1,130 @@
++#include "playerbot/PlayerbotSupplementalDBCStore.h"
++
++#include "World.h"
++
++namespace
++{
++// Classic TransportAnimation.dbc:
++// id (sort/index only), transport entry, time segment, x, y, z, movement id.
++char const PlayerbotTransportAnimationEntryfmt[] = "diifffx";
++
++// Classic EmotesTextSound.dbc:
++// id, text emote id, race, gender, sound id.
++char const PlayerbotEmotesTextSoundEntryfmt[] = "niiii";
++}
++
++PlayerbotSupplementalDBCStore sPlayerbotSupplementalDBCStore;
++
++PlayerbotSupplementalDBCStore::PlayerbotSupplementalDBCStore()
++    : m_transportAnimationStore(PlayerbotTransportAnimationEntryfmt),
++      m_emotesTextSoundStore(PlayerbotEmotesTextSoundEntryfmt)
++{
++    static_assert(sizeof(TransportAnimationEntry) == 5 * sizeof(uint32),
++        "Playerbot TransportAnimation entry must match the native DBCStorage format");
++    static_assert(sizeof(EmotesTextSoundEntry) == 5 * sizeof(uint32),
++        "Playerbot EmotesTextSound entry must match the native DBCStorage format");
++}
++
++bool PlayerbotSupplementalDBCStore::LoadTransportAnimations()
++{
++    std::call_once(m_transportLoadOnce, [this]()
++    {
++        if (DBCFileLoader::GetFormatRecordSize(PlayerbotTransportAnimationEntryfmt) != sizeof(TransportAnimationEntry))
++        {
++            sLog.outError("Playerbot TransportAnimation DBC format does not match its entry structure; elevator/tram travel nodes will be skipped.");
++            return;
++        }
++
++        std::string path = sWorld.GetDataPath() + "dbc/TransportAnimation.dbc";
++        if (!m_transportAnimationStore.Load(path.c_str()))
++        {
++            sLog.outError("Playerbot could not load '%s' with Tortoise DBCStorage; elevator/tram travel nodes will be skipped.", path.c_str());
++            return;
++        }
++
++        for (uint32 id = 0; id < m_transportAnimationStore.GetNumRows(); ++id)
++        {
++            TransportAnimationEntry const* entry = m_transportAnimationStore.LookupEntry(id);
++            if (!entry || !entry->transportEntry)
++                continue;
++
++            m_transportAnimations[entry->transportEntry][entry->timeSegment] =
++                { entry->timeSegment, entry->x, entry->y, entry->z };
++        }
++
++        if (m_transportAnimations.empty())
++        {
++            sLog.outError("Playerbot loaded TransportAnimation.dbc but found no usable transport paths; elevator/tram travel nodes will be skipped.");
++            return;
++        }
++
++        m_transportLoaded = true;
++        sLog.outString("Playerbot loaded TransportAnimation.dbc through native Tortoise DBCStorage (%zu transport paths).",
++            m_transportAnimations.size());
++    });
++
++    return m_transportLoaded;
++}
++
++PlayerbotSupplementalDBCStore::TransportAnimationPath const*
++PlayerbotSupplementalDBCStore::GetTransportAnimationPath(uint32 transportEntry)
++{
++    if (!LoadTransportAnimations())
++        return nullptr;
++
++    auto itr = m_transportAnimations.find(transportEntry);
++    return itr == m_transportAnimations.end() ? nullptr : &itr->second;
++}
++
++bool PlayerbotSupplementalDBCStore::LoadTextEmoteSounds()
++{
++    std::call_once(m_emoteSoundLoadOnce, [this]()
++    {
++        if (DBCFileLoader::GetFormatRecordSize(PlayerbotEmotesTextSoundEntryfmt) != sizeof(EmotesTextSoundEntry))
++        {
++            sLog.outError("Playerbot EmotesTextSound DBC format does not match its entry structure; text-emote sounds will be disabled.");
++            return;
++        }
++
++        std::string path = sWorld.GetDataPath() + "dbc/EmotesTextSound.dbc";
++        if (!m_emotesTextSoundStore.Load(path.c_str()))
++        {
++            sLog.outError("Playerbot could not load '%s' with Tortoise DBCStorage; text-emote sounds will be disabled.", path.c_str());
++            return;
++        }
++
++        for (uint32 id = 0; id < m_emotesTextSoundStore.GetNumRows(); ++id)
++        {
++            EmotesTextSoundEntry const* entry = m_emotesTextSoundStore.LookupEntry(id);
++            if (!entry || !entry->soundId)
++                continue;
++
++            m_emoteSounds[EmoteSoundKey(entry->textEmoteId, entry->race, entry->gender)] = entry->soundId;
++        }
++
++        if (m_emoteSounds.empty())
++        {
++            sLog.outError("Playerbot loaded EmotesTextSound.dbc but found no usable sound mappings; text-emote sounds will be disabled.");
++            return;
++        }
++
++        m_emoteSoundsLoaded = true;
++        sLog.outString("Playerbot loaded EmotesTextSound.dbc through native Tortoise DBCStorage (%zu emote sound mappings).",
++            m_emoteSounds.size());
++    });
++
++    return m_emoteSoundsLoaded;
++}
++
++bool PlayerbotSupplementalDBCStore::GetTextEmoteSound(uint32 textEmoteId, uint32 race, uint32 gender, uint32& soundId)
++{
++    if (!LoadTextEmoteSounds())
++        return false;
++
++    auto itr = m_emoteSounds.find(EmoteSoundKey(textEmoteId, race, gender));
++    if (itr == m_emoteSounds.end())
++        return false;
++
++    soundId = itr->second;
++    return true;
++}
+diff --git a/modules/mod-playerbots/src/playerbot/PlayerbotSupplementalDBCStore.h b/modules/mod-playerbots/src/playerbot/PlayerbotSupplementalDBCStore.h
+new file mode 100644
+index 0000000..15387d1
+--- /dev/null
++++ b/modules/mod-playerbots/src/playerbot/PlayerbotSupplementalDBCStore.h
+@@ -0,0 +1,76 @@
++#ifndef _PLAYERBOT_SUPPLEMENTAL_DBC_STORE_H
++#define _PLAYERBOT_SUPPLEMENTAL_DBC_STORE_H
++
++#include "Common.h"
++#include "Database/DBCStore.h"
++
++#include <map>
++#include <mutex>
++#include <tuple>
++#include <unordered_map>
++
++// Playerbot-only access to genuine client DBCs that Tortoise does not need to
++// load for normal core gameplay. The files are parsed through Tortoise's native
++// DBCStorage/DBCFileLoader; this class only builds module-local lookup indexes.
++class PlayerbotSupplementalDBCStore
++{
++public:
++    PlayerbotSupplementalDBCStore();
++
++    struct TransportAnimationNode
++    {
++        uint32 timeSegment = 0;
++        float x = 0.0f;
++        float y = 0.0f;
++        float z = 0.0f;
++    };
++
++    using TransportAnimationPath = std::map<uint32, TransportAnimationNode>;
++
++    // Returns the ordered TransportAnimation.dbc path for a GO entry, or
++    // nullptr when the optional DBC is unavailable or the entry has no path.
++    TransportAnimationPath const* GetTransportAnimationPath(uint32 transportEntry);
++
++    // Resolves the exact historical EmotesTextSound key
++    // (text-emote, race, gender) to its client sound id.
++    bool GetTextEmoteSound(uint32 textEmoteId, uint32 race, uint32 gender, uint32& soundId);
++
++private:
++    struct TransportAnimationEntry
++    {
++        uint32 transportEntry;
++        uint32 timeSegment;
++        float x;
++        float y;
++        float z;
++    };
++
++    struct EmotesTextSoundEntry
++    {
++        uint32 id;
++        uint32 textEmoteId;
++        uint32 race;
++        uint32 gender;
++        uint32 soundId;
++    };
++
++    using EmoteSoundKey = std::tuple<uint32, uint32, uint32>;
++
++    bool LoadTransportAnimations();
++    bool LoadTextEmoteSounds();
++
++    DBCStorage<TransportAnimationEntry> m_transportAnimationStore;
++    DBCStorage<EmotesTextSoundEntry> m_emotesTextSoundStore;
++
++    std::unordered_map<uint32, TransportAnimationPath> m_transportAnimations;
++    std::map<EmoteSoundKey, uint32> m_emoteSounds;
++
++    std::once_flag m_transportLoadOnce;
++    std::once_flag m_emoteSoundLoadOnce;
++    bool m_transportLoaded = false;
++    bool m_emoteSoundsLoaded = false;
++};
++
++extern PlayerbotSupplementalDBCStore sPlayerbotSupplementalDBCStore;
++
++#endif
+diff --git a/modules/mod-playerbots/src/playerbot/RandomPlayerbotMgr.cpp b/modules/mod-playerbots/src/playerbot/RandomPlayerbotMgr.cpp
+index 10af100..4abbe9a 100644
+--- a/modules/mod-playerbots/src/playerbot/RandomPlayerbotMgr.cpp
++++ b/modules/mod-playerbots/src/playerbot/RandomPlayerbotMgr.cpp
+@@ -1,4 +1,6 @@
+ #include "Config/Config.h"
++#include "AuctionHouse/AuctionHouseMgr.h"
++#include "Database/DBCStores.h"
+ 
+ #include "playerbot/playerbot.h"
+ #include "playerbot/PlayerbotAIConfig.h"
+@@ -41,6 +43,7 @@
+ #include "playerbot/TravelMgr.h"
+ #include <iomanip>
+ #include <float.h>
++#include <unordered_set>
+ 
+ #if PLATFORM == PLATFORM_WINDOWS
+ #include "windows.h"
+@@ -4345,16 +4348,24 @@ void RandomPlayerbotMgr::Hotfix(Player* bot, uint32 version)
+ 
+ void RandomPlayerbotMgr::MirrorAh()
+ {
+-    sRandomPlayerbotMgr.m_ahActionMutex.lock();
++    std::lock_guard<std::mutex> lock(sRandomPlayerbotMgr.m_ahActionMutex);
+ 
+     ahMirror.clear();
+ 
+-    std::vector<AuctionHouseType> houses = { (AuctionHouseType)0,(AuctionHouseType)1,(AuctionHouseType)2 };
+-
+-    //Now loops over all houses. Can probably be faction specific later.
+-    for (auto house : houses)
++    // AuctionHouse.dbc is the authoritative list of houses. Several DBC rows
++    // can resolve to the same AuctionHouseObject (and all rows do when the
++    // core's cross-faction AH option is enabled), so mirror each native object
++    // exactly once.
++    std::unordered_set<AuctionHouseObject*> mirroredHouses;
++    for (uint32 id = 0; id < sAuctionHouseStore.GetNumRows(); ++id)
+     {
+-        AuctionHouseObject* auctionHouse = sAuctionMgr.GetAuctionsMap(house);
++        AuctionHouseEntry const* houseEntry = sAuctionHouseStore.LookupEntry(id);
++        if (!houseEntry)
++            continue;
++
++        AuctionHouseObject* auctionHouse = sAuctionMgr.GetAuctionsMap(houseEntry);
++        if (!auctionHouse || !mirroredHouses.insert(auctionHouse).second)
++            continue;
+ 
+         AuctionHouseObject::AuctionEntryMap const& map = *auctionHouse->GetAuctions();
+ 
+@@ -4374,7 +4385,6 @@ void RandomPlayerbotMgr::MirrorAh()
+             ahMirror[auctionEntry.itemTemplate].push_back(auctionEntry);
+         }
+     }
+-    sRandomPlayerbotMgr.m_ahActionMutex.unlock();
+ }
+ 
+ typedef std::unordered_map <uint32, std::list<float>> botPerformanceMetric;
+diff --git a/modules/mod-playerbots/src/playerbot/TravelNode.cpp b/modules/mod-playerbots/src/playerbot/TravelNode.cpp
+index 5a19e75..59c3701 100644
+--- a/modules/mod-playerbots/src/playerbot/TravelNode.cpp
++++ b/modules/mod-playerbots/src/playerbot/TravelNode.cpp
+@@ -12,6 +12,7 @@
+ #include "strategy/values/BudgetValues.h"
+ #include "strategy/values/LastMovementValue.h"
+ #include "playerbot/ServerFacade.h"
++#include "playerbot/PlayerbotSupplementalDBCStore.h"
+ #include "Maps/MoveMap.h"
+ #include "strategy/values/HazardsValue.h"
+ 
+@@ -2383,24 +2384,33 @@ void TravelNodeMap::generateTransportNodes()
+             if (data->displayId == 808) //Remove plunger
+                 continue;
+ 
+-            TransportAnimation const* animation = sTransportMgr.GetTransportAnimInfo(entry);
+-
+-            uint32 pathId = data->moTransport.taxiPathId;
+-            float moveSpeed = data->moTransport.moveSpeed;
+-            if (pathId >= sTaxiPathNodesByPath.size())
+-                continue;
+-
+-            TaxiPathNodeList const& path = sTaxiPathNodesByPath[pathId];
++            // GAMEOBJECT_TYPE_TRANSPORT and GAMEOBJECT_TYPE_MO_TRANSPORT use
++            // different GameObjectInfo union members. Never read moTransport fields
++            // from an elevator/tram entry.
++            TaxiPathNodeList const* path = nullptr;
++            float moveSpeed = 0.0f;
++            if (data->type == GAMEOBJECT_TYPE_MO_TRANSPORT)
++            {
++                uint32 pathId = data->moTransport.taxiPathId;
++                if (pathId < sTaxiPathNodesByPath.size())
++                {
++                    path = &sTaxiPathNodesByPath[pathId];
++                    moveSpeed = data->moTransport.moveSpeed;
++                }
++            }
+ 
+             std::vector<WorldPosition> ppath;
+             TravelNode* prevNode = nullptr;
+ 
+-            //Elevators/Trams
+-            if (path.empty())
++            // Elevators/trams use genuine TransportAnimation.dbc data. Penqle
++            // does not need that DBC for core gameplay, so playerbots load it
++            // module-only through Tortoise's native DBCStorage.
++            if (!path || path->empty())
+             {
+-                if (animation)
++                auto const* animationPath = sPlayerbotSupplementalDBCStore.GetTransportAnimationPath(entry);
++                if (animationPath)
+                 {
+-                    TransportPathContainer aPath = animation->Path;
++                    auto const& aPath = *animationPath;
+                     float timeStart;
+ 
+                     for (auto& transport : WorldPosition().getGameObjectsNear(0, entry))
+@@ -2413,14 +2423,14 @@ void TravelNodeMap::generateTransportNodes()
+                         for (auto& p : aPath)
+                         {
+ #ifndef MANGOSBOT_TWO
+-                            float dx = cos(basePos.getO()) * p.second->X - sin(basePos.getO()) * p.second->Y;
+-                            float dy = sin(basePos.getO()) * p.second->X + cos(basePos.getO()) * p.second->Y;
++                            float dx = cos(basePos.getO()) * p.second.x - sin(basePos.getO()) * p.second.y;
++                            float dy = sin(basePos.getO()) * p.second.x + cos(basePos.getO()) * p.second.y;
+ #else
+-                            float dx = -1 * p.second->X;
+-                            float dy = -1 * p.second->Y;
++                            float dx = -1 * p.second.x;
++                            float dy = -1 * p.second.y;
+ #endif
+ 
+-                            WorldPosition pos = WorldPosition(basePos.getMapId(), basePos.getX() + dx, basePos.getY() + dy, basePos.getZ() + p.second->Z, basePos.getO());
++                            WorldPosition pos = WorldPosition(basePos.getMapId(), basePos.getX() + dx, basePos.getY() + dy, basePos.getZ() + p.second.z, basePos.getO());
+ 
+                             if (prevNode)
+                             {
+@@ -2445,17 +2455,17 @@ void TravelNodeMap::generateTransportNodes()
+                                 if (!prevNode)
+                                 {
+                                     ppath.push_back(pos);
+-                                    timeStart = p.second->TimeSeg;
++                                    timeStart = p.second.timeSegment;
+                                 }
+                                 else
+                                 {
+-                                    float totalTime = (p.second->TimeSeg - timeStart) / 1000.0f;
++                                    float totalTime = (p.second.timeSegment - timeStart) / 1000.0f;
+ 
+                                     TravelNodePath travelPath(0.1f, totalTime, (uint8)TravelNodePathType::transport, entry, true);
+                                     prevNode->setPathTo(node, travelPath);
+                                     ppath.clear();
+                                     ppath.push_back(pos);
+-                                    timeStart = p.second->TimeSeg;
++                                    timeStart = p.second.timeSegment;
+                                 }
+ 
+                                 prevNode = node;
+@@ -2469,13 +2479,13 @@ void TravelNodeMap::generateTransportNodes()
+                             for (auto& p : aPath)
+                             {
+ #ifndef MANGOSBOT_TWO
+-                                float dx = cos(basePos.getO()) * p.second->X - sin(basePos.getO()) * p.second->Y;
+-                                float dy = sin(basePos.getO()) * p.second->X + cos(basePos.getO()) * p.second->Y;
++                                float dx = cos(basePos.getO()) * p.second.x - sin(basePos.getO()) * p.second.y;
++                                float dy = sin(basePos.getO()) * p.second.x + cos(basePos.getO()) * p.second.y;
+ #else
+-                                float dx = -1 * p.second->X;
+-                                float dy = -1 * p.second->Y;
++                                float dx = -1 * p.second.x;
++                                float dy = -1 * p.second.y;
+ #endif
+-                                WorldPosition pos = WorldPosition(basePos.getMapId(), basePos.getX() + dx, basePos.getY() + dy, basePos.getZ() + p.second->Z, basePos.getO());
++                                WorldPosition pos = WorldPosition(basePos.getMapId(), basePos.getX() + dx, basePos.getY() + dy, basePos.getZ() + p.second.z, basePos.getO());
+ 
+                                 ppath.push_back(pos);
+ 
+@@ -2495,17 +2505,17 @@ void TravelNodeMap::generateTransportNodes()
+                                     makeDockNode(node, exitPos, "entry");
+ 
+                                     if (node != prevNode) {
+-                                        if (p.second->TimeSeg < timeStart)
++                                        if (p.second.timeSegment < timeStart)
+                                             timeStart = 0;
+ 
+-                                        float totalTime = (p.second->TimeSeg - timeStart) / 1000.0f;
++                                        float totalTime = (p.second.timeSegment - timeStart) / 1000.0f;
+ 
+                                         TravelNodePath travelPath(0.1f, totalTime, (uint8)TravelNodePathType::transport, entry, true);
+                                         travelPath.setPath(ppath);
+                                         prevNode->setPathTo(node, travelPath);
+                                         ppath.clear();
+                                         ppath.push_back(pos);
+-                                        timeStart = p.second->TimeSeg;
++                                        timeStart = p.second.timeSegment;
+                                     }
+                                 }
+ 
+@@ -2520,7 +2530,7 @@ void TravelNodeMap::generateTransportNodes()
+             else //Boats/Zepelins
+             {
+                 //Loop over the path and connect stop locations.
+-                for (auto& p : path)
++                for (auto& p : *path)
+                 {
+                     WorldPosition pos = WorldPosition(p->mapid, p->x, p->y, p->z, 0);
+ 
+@@ -2564,7 +2574,7 @@ void TravelNodeMap::generateTransportNodes()
+                 if (prevNode)
+                 {
+                     //Continue from start until first stop and connect to end.
+-                    for (auto& p : path)
++                    for (auto& p : *path)
+                     {
+                         WorldPosition pos = WorldPosition(p->mapid, p->x, p->y, p->z, 0);
+ 
+diff --git a/modules/mod-playerbots/src/playerbot/WorldPosition.h b/modules/mod-playerbots/src/playerbot/WorldPosition.h
+index 94b7eaa..d6d57e2 100644
+--- a/modules/mod-playerbots/src/playerbot/WorldPosition.h
++++ b/modules/mod-playerbots/src/playerbot/WorldPosition.h
+@@ -222,9 +222,6 @@ namespace ai
+         const MapEntry* getMapEntry() const { return sMapStorage.LookupEntry<MapEntry>(mapid); }
+         uint32 getFirstInstanceId() const { for (auto& map : sMapMgr.Maps()) { if (map.second->GetId() == getMapId()) return map.second->GetInstanceId(); }; return 0; }
+ 
+-        // Penqle has no sObjectMgr.GetInstanceTemplate; stub returns nullptr.
+-        // Real implementation if any caller needs it.
+-        InstanceTemplate const* getInstanceTemplate() { return nullptr; }
+         Map* getMap(uint32 instanceId) const { if (!*this) return nullptr; loadMapAndVMap(instanceId); return sMapMgr.FindMap(mapid, instanceId ? instanceId : (getMapEntry()->Instanceable() ? getFirstInstanceId() : 0)); }
+         const TerrainInfo* getTerrain() const { return getMap(getFirstInstanceId()) ? getMap(getFirstInstanceId())->GetTerrain() : sTerrainMgr.LoadTerrain(getMapId()); }
+         bool isDungeon() { return getMapEntry()->IsDungeon(); }
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/CastCustomSpellAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/CastCustomSpellAction.cpp
+index 9c77339..838b4ab 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/CastCustomSpellAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/CastCustomSpellAction.cpp
+@@ -241,7 +241,7 @@ bool CastCustomSpellAction::Execute(Event& event)
+     {
+         std::map<std::string, std::string> args;
+         args["%spell"] = replyArgs["%spell"];
+-        args["%fail_reason"] = BOT_TEXT2(GetSpellCastResultString(checkResult), args);
++        args["%fail_reason"] = "SpellCastResult=" + std::to_string(static_cast<uint32>(checkResult));
+         ai->TellPlayerNoFacing(requester, BOT_TEXT2("cast_spell_command_error", args));
+         return false;
+     }
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/DebugAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/DebugAction.cpp
+index 3ea4228..14f0eac 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/DebugAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/DebugAction.cpp
+@@ -1063,8 +1063,6 @@ void DebugAction::FakeSpell(uint32 spellId, Unit* truecaster, Unit* caster, Obje
+ 
+         if (spellInfo && spellInfo->HasAttribute(SPELL_ATTR_RANGED))
+             castFlags |= CAST_FLAG_AMMO;                        // arrows/bullets visual
+-        if (spellInfo && HasPersistentAuraEffect(spellInfo))
+-            castFlags |= CAST_FLAG_PERSISTENT_AA;
+ 
+         WorldPacket data(SMSG_SPELL_GO, 53);                    // guess size
+ 
+@@ -1583,8 +1581,8 @@ bool DebugAction::HandleMotion(Event& event, Player* requester, const std::strin
+             mm->MoveFall();
+         else if (cmd == "formation")
+         {
+-            FormationSlotDataSPtr form = std::make_shared<FormationSlotData>(0, bot->GetObjectGuid(), nullptr, SpawnGroupFormationSlotType::SPAWN_GROUP_FORMATION_SLOT_TYPE_STATIC);
+-            mm->MoveInFormation(form);
++            ai->TellPlayer(requester, "formation movement is not supported by the Tortoise core");
++            return true;
+         }
+ 
+         std::string sType = "TODO"; // GetMoveTypeStr(type);
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/tests/TestRegistry.cpp b/modules/mod-playerbots/src/playerbot/strategy/tests/TestRegistry.cpp
+index ccba1f7..d442174 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/tests/TestRegistry.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/tests/TestRegistry.cpp
+@@ -312,8 +312,11 @@ void TestRegistry::GenerateBossWalkTest()
+             if (!mapEntry->IsDungeon())
+                 continue;
+ 
+-            const InstanceTemplate* instanceTemplate = point->getInstanceTemplate();
+-            if (!instanceTemplate)
++            // Penqle keeps instance capacity on MapEntry and entrance-level
++            // requirements on the native areatrigger teleport. If either piece
++            // is absent, do not invent CMaNGOS InstanceTemplate defaults.
++            AreaTriggerTeleport const* entranceTrigger = sObjectMgr.GetMapEntranceTrigger(mapEntry->id);
++            if (!entranceTrigger || !entranceTrigger->requiredLevel || !mapEntry->maxPlayers)
+                 continue;
+ 
+             CreatureInfo const* bossInfo = static_cast<BossTravelDestination*>(destination)->GetCreatureInfo();
+@@ -342,7 +345,7 @@ void TestRegistry::GenerateBossWalkTest()
+             {
+                 for (auto& node : sTravelNodeMap.getNodes())
+                 {
+-                    if (node->getMapId() != mapEntry->MapID)
++                    if (node->getMapId() != mapEntry->id)
+                         continue;
+ 
+                     if (!node->isPortal())
+@@ -364,17 +367,10 @@ void TestRegistry::GenerateBossWalkTest()
+ 
+             std::string startCommand = ".bot p @tank co + mark rti";
+ 
+-            std::string maxPlayers = "5";
++            std::string maxPlayers = std::to_string(mapEntry->maxPlayers);
+ 
+             if (mapEntry->IsRaid())
+-            {
+-#ifdef MANGOS_TWO
+-                maxPlayers = std::to_string(instanceTemplate->maxPlayers);
+-#else
+-                maxPlayers = "25";
+-#endif
+                 startCommand = ".bot r @tank co + mark rti";
+-            }
+ 
+             std::string bossName = std::string(mapEntry->name) + std::string("_") + bossInfo->name;
+ 
+@@ -388,7 +384,7 @@ void TestRegistry::GenerateBossWalkTest()
+             RegisterScenarioVariant("scenario_trash", bossName, instanceGroupTemplate, {
+                {"timeout_s",        "1200"                                         },
+                {"start_command",    startCommand                                   },
+-               {"level",            std::to_string(instanceTemplate->levelMin + 10)},
++               {"level",            std::to_string(uint32(entranceTrigger->requiredLevel) + 10)},
+                {"group_size",       maxPlayers                                     },
+                {"dead_mobs_min",    "5"                                            },
+                {"instance_entry",   mapName                                        },
