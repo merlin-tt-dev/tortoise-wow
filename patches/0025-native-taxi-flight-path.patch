@@ -1,0 +1,126 @@
+diff --git a/docs/playerbots-clean-port/BACKPORT_MATRIX.md b/docs/playerbots-clean-port/BACKPORT_MATRIX.md
+index 91a7c76..8cf1f7d 100644
+--- a/docs/playerbots-clean-port/BACKPORT_MATRIX.md
++++ b/docs/playerbots-clean-port/BACKPORT_MATRIX.md
+@@ -48,6 +48,7 @@ These are not accepted merely because PR #79 compiled:
+ | historical `IsPreventingDeath()` | old call-site queried AI state that Penqle does not expose | bot can ignore scripted death prevention / encounter semantics | **resolved module-only:** query Penqle `Unit::GetInvincibilityHpThreshold()`, the state used by the native lethal-damage path |
+ | historical `UnitAI::IsRangedUnit()` | fake `UnitAI = CreatureAI` alias pretended incompatible AI models were equivalent | caster/ranged target classification degraded | **resolved module-only:** use Penqle's dynamic `CreatureAI::IsMeleeAttackEnabled()` state; main-ranged-spell mode disables melee |
+ | historical `DistanceCalculation` / `DIST_CALC_*` | integer compatibility enum was passed into Penqle APIs; several CMaNGOS squared-distance call-sites still applied `sqrt()` | ranges collapse (e.g. 25 yd becomes 5 yd), old 2D/3D bool overloads have wrong type/meaning | **resolved module-only:** use Penqle `SizeFactor`, explicit `GetDistance2d()` for historical 2D calls, and remove only the obsolete CMaNGOS square-root conversions |
++| historical `Taxi::Map` / `Player::GetTaxiPathSpline()` | compatibility shim always returned an empty pseudo-spline | following a player on taxi never knew the real flight endpoint; `go` could not report the destination | **resolved module-only:** read Penqle's active `FlightPathMovementGenerator` and its native `TaxiPathNodeList`; stop at `GetPathAtMapEnd()` to preserve CMaNGOS' map-local spline semantics (and work for both single- and multi-leg flights) |
+ | Auction compatibility methods | fields/defaults and no-op methods added for missing CMaNGOS API | AH bot can reason over fabricated state | audit before enabling AH bot; do not treat stubs as real state |
+ | BG flag carrier base accessor | default empty GUID | BG tactics can silently lose objective state | map to real per-BG Tortoise state |
+ | `GetTransports()` | later Shyalya state was effectively empty in the broken port | transport travel impossible | restore real transport enumeration from Tortoise containers |
+diff --git a/modules/mod-playerbots/src/cmangos-compat-shim.h b/modules/mod-playerbots/src/cmangos-compat-shim.h
+index 86bcaad..96aa9b4 100644
+--- a/modules/mod-playerbots/src/cmangos-compat-shim.h
++++ b/modules/mod-playerbots/src/cmangos-compat-shim.h
+@@ -292,22 +292,6 @@ enum AuctionHouseType {
+ typedef ClassRoles LfgRoles;
+ typedef RolesPriority LfgRolePriority;
+ 
+-// === Taxi namespace stub (cmangos has Taxi::Map for in-flight spline tracking) ===
+-// Penqle has no equivalent; bot uses GetTaxiPathSpline() which we stub to return nullptr/empty.
+-namespace Taxi {
+-    struct PathNode {
+-        uint32 mapid = 0; float x = 0, y = 0, z = 0;
+-    };
+-    class Map {
+-    public:
+-        Map() {}
+-        Map(void*) {}  // accept the void* from Player::GetTaxiPathSpline stub
+-        bool empty() const { return true; }
+-        PathNode const* back() const { return nullptr; }
+-        PathNode const* front() const { return nullptr; }
+-    };
+-}
+-
+ // === Other small defines ===
+ #ifndef LOOT_SLOT_NORMAL
+ #define LOOT_SLOT_NORMAL 0
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/GoAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/GoAction.cpp
+index 19dbd60..927a82f 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/GoAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/GoAction.cpp
+@@ -176,11 +176,9 @@ inline void TellPosition(PlayerbotAI* ai, Player* requester)
+     if (bot->IsTaxiFlying())
+     {
+         out << "On a flight path";
+-        const Taxi::Map tMap = bot->GetTaxiPathSpline();
+-        if (!tMap.empty())
++        WorldPosition taxiEnd;
++        if (GetTaxiFlightMapEnd(bot, taxiEnd))
+         {
+-            auto tEnd = tMap.back();
+-            WorldPosition taxiEnd(tEnd->mapid, tEnd->x, tEnd->y, tEnd->z);
+             std::string endArea = taxiEnd.getAreaName();
+ 
+             if (!endArea.empty())
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/MovementActions.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/MovementActions.cpp
+index f2f3c91..6a49109 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/MovementActions.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/MovementActions.cpp
+@@ -20,6 +20,30 @@
+ 
+ using namespace ai;
+ 
++bool ai::GetTaxiFlightMapEnd(Player* player, WorldPosition& endPosition)
++{
++    if (!player || !player->IsTaxiFlying())
++        return false;
++
++    MotionMaster* motionMaster = player->GetMotionMaster();
++    if (!motionMaster || motionMaster->GetCurrentMovementGeneratorType() != FLIGHT_MOTION_TYPE)
++        return false;
++
++    FlightPathMovementGenerator* flight = static_cast<FlightPathMovementGenerator*>(motionMaster->top());
++    if (!flight)
++        return false;
++
++    TaxiPathNodeList const& path = flight->GetPath();
++    uint32 const currentNode = flight->GetCurrentNode();
++    uint32 const mapEnd = flight->GetPathAtMapEnd();
++    if (path.empty() || currentNode >= path.size() || mapEnd <= currentNode || mapEnd > path.size())
++        return false;
++
++    TaxiPathNodeEntry const& endNode = path[mapEnd - 1];
++    endPosition = WorldPosition(endNode.mapid, endNode.x, endNode.y, endNode.z);
++    return true;
++}
++
+ void MovementAction::CreateWp(Player* wpOwner, float x, float y, float z, float o, uint32 entry, bool important)
+ {
+     float dist = wpOwner->GetDistance(x, y, z);
+@@ -2348,16 +2372,11 @@ bool MovementAction::Follow(Unit* target, float distance, float angle)
+                 }
+             }
+ 
+-            if (player->IsTaxiFlying()) //Move to where the player is flying to.
++            if (player->IsTaxiFlying()) // Move to the end of the player's current map-local taxi spline.
+             {
+-                const Taxi::Map tMap = player->GetTaxiPathSpline();
+-                if (!tMap.empty())
+-                {
+-                    auto tEnd = tMap.back();
+-
+-                    if (tEnd)
+-                        return MoveTo(tEnd->mapid, tEnd->x, tEnd->y, tEnd->z);
+-                }
++                WorldPosition taxiEnd;
++                if (GetTaxiFlightMapEnd(player, taxiEnd))
++                    return MoveTo(taxiEnd.getMapId(), taxiEnd.getX(), taxiEnd.getY(), taxiEnd.getZ());
+             }
+         }
+         if (!target->IsTaxiFlying()/* || bot->GetTransport()*/)
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/MovementActions.h b/modules/mod-playerbots/src/playerbot/strategy/actions/MovementActions.h
+index 06227ed..1592e5c 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/MovementActions.h
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/MovementActions.h
+@@ -10,6 +10,8 @@
+ 
+ namespace ai
+ {
++    bool GetTaxiFlightMapEnd(Player* player, WorldPosition& endPosition);
++
+     class MovementAction : public Action
+     {
+     public:
