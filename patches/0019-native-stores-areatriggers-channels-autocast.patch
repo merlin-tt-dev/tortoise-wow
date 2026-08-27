@@ -1,0 +1,1204 @@
+diff --git a/LIVINGBOTS_ENDTEST_TODO.md b/LIVINGBOTS_ENDTEST_TODO.md
+index de05234..c348825 100644
+--- a/LIVINGBOTS_ENDTEST_TODO.md
++++ b/LIVINGBOTS_ENDTEST_TODO.md
+@@ -16,7 +16,8 @@
+ | 0015 Native Quest-Relation Access | eingebaut | ausstehend |
+ | 0016 Native Travel Metadata | eingebaut | ausstehend |
+ | 0017 Native Config IncludeDir | eingebaut | ausstehend |
+-| 0018 Native Compatibility Semantics I | mit diesem Patch | ausstehend |
++| 0018 Native Compatibility Semantics I | eingebaut | ausstehend |
++| 0019 Native Stores / AreaTriggers / Channels / Pet Autocast | mit diesem Patch | ausstehend |
+ 
+ **Wichtig:** „eingebaut“ bedeutet nur statisch/source-seitig portiert. Kein Punkt gilt dadurch als getestet.
+ 
+@@ -48,7 +49,14 @@
+ - [ ] 0018: unsichtbare Creature-Templates werden über `flags_extra` / `CREATURE_FLAG_EXTRA_INVISIBLE` gefiltert.
+ - [ ] 0018: Channeling wird über Penqles nativen `SPELL_STATE_CASTING`-Zustand erkannt.
+ - [ ] 0018: GossipHello läuft über `sScriptMgr`; kein No-op-Compatibility-Hook.
+-- [ ] Rest-Shim-Audit (MMap/BG/Loot/LFG/ChatChannel/InstanceTemplate/Autocast/etc.) vollständig abgeschlossen.
++- [ ] 0019: Item-/Creature-/GameObject-/Faction-Scans iterieren Penqles tatsächlich geladene ObjectMgr-Maps ohne künstliche ID-Hardlimits.
++- [ ] 0019: AreaTrigger-Geometrie und Teleport-Metadaten verwenden getrennt `AreaTriggerEntry` und `AreaTriggerTeleport`.
++- [ ] 0019: AreaTrigger-Conditions verwenden Penqles `CONDITION_FROM_AREATRIGGER`-Semantik.
++- [ ] 0019: Standard-ChatChannels werden aus Penqles geladenen `chat_channels`-Metadaten aufgebaut; kein leerer DBC-Store-Shim.
++- [ ] 0019: Pet-Autocast wird nicht mehr global durch `IsAutocastable() == false` deaktiviert.
++- [ ] core-chat-channel-loaded-id: `LoadChatChannels()` erhält die echte DB-ID jedes Standardchannels.
++- [ ] core-chat-channel-name-match: feste Channel-Namen matchen exakt; zonenabhängige Namen matchen das `%s`-Pattern ohne Substring-Kollisionen.
++- [ ] Rest-Shim-Audit (MMap/BG/Loot/LFG/InstanceTemplate/etc.) vollständig abgeschlossen.
+ 
+ ## A1. Clean Build
+ 
+diff --git a/modules/mod-playerbots/src/ahbot/AhBot.cpp b/modules/mod-playerbots/src/ahbot/AhBot.cpp
+index 6692d65..f030aaf 100644
+--- a/modules/mod-playerbots/src/ahbot/AhBot.cpp
++++ b/modules/mod-playerbots/src/ahbot/AhBot.cpp
+@@ -1132,11 +1132,10 @@ void AhBot::CheckSendMail(uint32 bidder, uint32 price, AuctionEntry *entry)
+ 
+ void AhBot::Dump()
+ {
+-    for (uint32 itemId = 0; itemId < sItemStorage.GetMaxEntry(); ++itemId)
++    for (auto const& itemEntry : sObjectMgr.GetItemPrototypeMap())
+     {
+-        ItemPrototype const* proto = sObjectMgr.GetItemPrototype(itemId);
+-        if (!proto)
+-            continue;
++        uint32 itemId = itemEntry.first;
++        ItemPrototype const* proto = &itemEntry.second;
+ 
+         bool first = true;
+         for (int i=0; i<CategoryList::instance.size(); i++)
+diff --git a/modules/mod-playerbots/src/ahbot/ItemBag.cpp b/modules/mod-playerbots/src/ahbot/ItemBag.cpp
+index d70fbb8..e5ac588 100644
+--- a/modules/mod-playerbots/src/ahbot/ItemBag.cpp
++++ b/modules/mod-playerbots/src/ahbot/ItemBag.cpp
+@@ -179,14 +179,15 @@ void AvailableItemsBag::Load()
+           } while (results->NextRow());
+       }
+ 
+-      BarGoLink bar(sItemStorage.GetMaxEntry());
+-      for (uint32 itemId = 0; itemId < sItemStorage.GetMaxEntry(); ++itemId)
++      BarGoLink bar(sObjectMgr.GetItemPrototypeMap().size());
++      for (auto const& itemEntry : sObjectMgr.GetItemPrototypeMap())
+       {
++          uint32 itemId = itemEntry.first;
+           if (vendorItems.find(itemId) == vendorItems.end() || sAhBotConfig.ignoreVendorItemIds.find(itemId) != sAhBotConfig.ignoreVendorItemIds.end())
+-              Add(sObjectMgr.GetItemPrototype(itemId));
++              Add(&itemEntry.second);
+ 
+           bar.step();
+-    }
++      }
+ 
+ }
+ 
+diff --git a/modules/mod-playerbots/src/ahbot/TradeCategory.cpp b/modules/mod-playerbots/src/ahbot/TradeCategory.cpp
+index a135ee5..f0223c9 100644
+--- a/modules/mod-playerbots/src/ahbot/TradeCategory.cpp
++++ b/modules/mod-playerbots/src/ahbot/TradeCategory.cpp
+@@ -44,9 +44,9 @@ bool TradeSkill::ContainsInternal(ItemPrototype const* proto)
+             return true;
+     }
+ 
+-    for (uint32 id = 0; id < sCreatureStorage.GetMaxEntry(); ++id)
++    for (auto const& creatureEntry : sObjectMgr.GetCreatureInfoMap())
+     {
+-        CreatureInfo const* co = sCreatureStorage.LookupEntry<CreatureInfo>(id);
++        CreatureInfo const* co = creatureEntry.second.get();
+         if (!co || co->TrainerType != TRAINER_TYPE_TRADESKILLS)
+             continue;
+ 
+@@ -73,11 +73,9 @@ bool TradeSkill::ContainsInternal(ItemPrototype const* proto)
+         }
+     }
+ 
+-    for (uint32 itemId = 0; itemId < sItemStorage.GetMaxEntry(); ++itemId)
++    for (auto const& itemEntry : sObjectMgr.GetItemPrototypeMap())
+     {
+-        ItemPrototype const* recipe = sItemStorage.LookupEntry<ItemPrototype>(itemId);
+-        if (!recipe)
+-            continue;
++        ItemPrototype const* recipe = &itemEntry.second;
+ 
+         if (recipe->Class == ITEM_CLASS_RECIPE && (
+             (recipe->SubClass == ITEM_SUBCLASS_LEATHERWORKING_PATTERN && skill == SKILL_LEATHERWORKING) ||
+diff --git a/modules/mod-playerbots/src/cmangos-compat-shim.h b/modules/mod-playerbots/src/cmangos-compat-shim.h
+index e1b7e01..1ac1a7b 100644
+--- a/modules/mod-playerbots/src/cmangos-compat-shim.h
++++ b/modules/mod-playerbots/src/cmangos-compat-shim.h
+@@ -47,10 +47,6 @@ typedef ObjectGuidSet GuidSet;
+ struct AreaEntry;
+ typedef AreaEntry AreaTableEntry;
+ 
+-// cmangos uses AreaTrigger; Penqle has AreaTriggerEntry (DBCStructure.h).
+-struct AreaTriggerEntry;
+-typedef AreaTriggerEntry AreaTrigger;
+-
+ // === Define mappings ===
+ // cmangos's ItemClass enum has ITEM_CLASS_MISC at value 15. Penqle renamed
+ // this to ITEM_CLASS_JUNK (also at 15). The bot module's ahbot/Category.h
+@@ -131,20 +127,12 @@ struct CmangosSpellTemplateProxy
+ };
+ inline CmangosSpellTemplateProxy sSpellTemplate;
+ 
+-// Singleton-like wrapper for cmangos's sItemStorage. Forwards to sObjectMgr.GetItemPrototype().
+-// Iteration-upper-bound stubs (this proxy + CmangosCreatureStorageProxy,
+-// CmangosGOStorageProxy, CmangosFactionStoreProxy, CmangosAreaTriggerStoreProxy
+-// below): cmangos's stores expose GetMaxEntry/GetNumRows; Penqle's don't have
+-// a tight maximum. The bot module only uses these as upper bounds for
+-// `for (i=0; i<max; ++i) LookupEntry(i)` scans where LookupEntry returns
+-// nullptr for unknown ids — so a generous overestimate is safe (a few thousand
+-// wasted lookups during one-shot init). Bump if a future caller actually
+-// depends on a tight bound.
++// Singleton-like wrapper for cmangos's sItemStorage. Direct lookups forward to
++// sObjectMgr.GetItemPrototype(); full-store scans use Penqle's native map.
+ struct CmangosItemStorageProxy
+ {
+     template<typename T = ItemPrototype>
+     T const* LookupEntry(uint32 id) const { return sObjectMgr.GetItemPrototype(id); }
+-    uint32 GetMaxEntry() const { return 100000; }
+ };
+ inline CmangosItemStorageProxy sItemStorage;
+ 
+@@ -164,7 +152,6 @@ struct CmangosFactionTemplateStoreProxy
+ {
+     template<typename T = FactionTemplateEntry>
+     T const* LookupEntry(uint32 id) const { return sObjectMgr.GetFactionTemplateEntry(id); }
+-    uint32 GetNumRows() const { return 1500; } // upper bound stub
+ };
+ inline CmangosFactionTemplateStoreProxy sFactionTemplateStore;
+ 
+@@ -279,7 +266,6 @@ struct CmangosFactionStoreProxy
+ {
+     template<typename T = FactionEntry>
+     T const* LookupEntry(uint32 id) const { return sObjectMgr.GetFactionEntry(id); }
+-    uint32 GetNumRows() const { return 100; } // stub upper-bound
+ };
+ inline CmangosFactionStoreProxy sFactionStore;
+ 
+@@ -288,7 +274,6 @@ struct CmangosCreatureStorageProxy
+ {
+     template<typename T = CreatureInfo>
+     T const* LookupEntry(uint32 id) const { return sObjectMgr.GetCreatureTemplate(id); }
+-    uint32 GetMaxEntry() const { return 100000; }
+ };
+ inline CmangosCreatureStorageProxy sCreatureStorage;
+ 
+@@ -328,8 +313,10 @@ inline const char* strstr(std::string const& haystack, const char* needle) {
+ #endif
+ 
+ // === IsAutocastable (cmangos free function) ===
+-inline bool IsAutocastable(uint32 /*spellId*/) { return false; }
+-inline bool IsAutocastable(SpellEntry const* /*spellInfo*/) { return false; }
++// Penqle's native pet-autocast opcode accepts any known, non-passive pet spell.
++// Mirror that host rule instead of disabling autocast through a false stub.
++inline bool IsAutocastable(SpellEntry const* spellInfo) { return spellInfo && !spellInfo->IsPassiveSpell(); }
++inline bool IsAutocastable(uint32 spellId) { return IsAutocastable(sSpellMgr.GetSpellEntry(spellId)); }
+ 
+ // === IsSpellAppliesAura / IsSpellHaveEffect / IsAreaAuraEffect (cmangos free functions) ===
+ inline bool IsSpellAppliesAura(SpellEntry const* spellInfo, uint32 effectMask = 0xFFFFFFFF) {
+@@ -375,11 +362,6 @@ enum LootItemType {
+ #define NAV_GROUND_STEEP 0x02
+ #endif
+ 
+-// === CONDITION_FROM_AREATRIGGER_TELEPORT (cmangos) ===
+-#ifndef CONDITION_FROM_AREATRIGGER_TELEPORT
+-#define CONDITION_FROM_AREATRIGGER_TELEPORT 0
+-#endif
+-
+ // === MINIMUM_LOOTING_TIME ===
+ #ifndef MINIMUM_LOOTING_TIME
+ #define MINIMUM_LOOTING_TIME 1000
+@@ -416,15 +398,6 @@ enum AuctionHouseType {
+ #define TAXI_MOTION_TYPE FLIGHT_MOTION_TYPE
+ #endif
+ 
+-// === sAreaTriggerStore (cmangos) ===
+-struct CmangosAreaTriggerStoreProxy
+-{
+-    template<typename T = AreaTriggerEntry>
+-    T const* LookupEntry(uint32 id) const { return sObjectMgr.GetAreaTrigger(id); }
+-    uint32 GetNumRows() const { return 10000; } // upper bound stub
+-};
+-inline CmangosAreaTriggerStoreProxy sAreaTriggerStore;
+-
+ // === LfgRoles / LfgRolePriority (cmangos) — bot module's own ClassRoles is similar ===
+ typedef ClassRoles LfgRoles;
+ typedef RolesPriority LfgRolePriority;
+@@ -610,22 +583,11 @@ inline CmangosSkillLineAbilityStoreProxy sSkillLineAbilityStore;
+ // Same shape; keep both names.
+ #define sAreaStore sAreaStorage
+ 
+-// === sChatChannelsStore proxy ===
+-// Penqle exposes ChatChannels via sObjectMgr.GetChatChannelByDBId or similar. Stub returns nullptr.
+-struct CmangosChatChannelsStoreProxy
+-{
+-    template<typename T = ChatChannelsEntry>
+-    T const* LookupEntry(uint32 /*id*/) const { return nullptr; }
+-    uint32 GetNumRows() const { return 0; }
+-};
+-inline CmangosChatChannelsStoreProxy sChatChannelsStore;
+-
+ // === sGOStorage (cmangos) → sObjectMgr.GetGameObjectInfo ===
+ struct CmangosGOStorageProxy
+ {
+     template<typename T = GameObjectInfo>
+     T const* LookupEntry(uint32 id) const { return sObjectMgr.GetGameObjectInfo(id); }
+-    uint32 GetMaxEntry() const { return 200000; }
+ };
+ inline CmangosGOStorageProxy sGOStorage;
+ 
+diff --git a/modules/mod-playerbots/src/playerbot/PlayerbotAI.cpp b/modules/mod-playerbots/src/playerbot/PlayerbotAI.cpp
+index 0668f04..7591653 100644
+--- a/modules/mod-playerbots/src/playerbot/PlayerbotAI.cpp
++++ b/modules/mod-playerbots/src/playerbot/PlayerbotAI.cpp
+@@ -883,70 +883,61 @@ void PlayerbotAI::UpdateTalentSpec(PlayerTalentSpec spec)
+     aiObjectContext->GetValue<PlayerTalentSpec>("talent spec")->Set(spec);
+ }
+ 
+-bool PlayerbotAI::CanEnterArea(const AreaTrigger* area)
++bool PlayerbotAI::CanEnterArea(AreaTriggerTeleport const* area)
+ {
+-    if (sRandomPlayerbotMgr.IsRandomBot(GetBot()))
+-    {
+-        DungeonPersistentState* state = bot->GetBoundInstanceSaveForSelfOrGroup(area->target_mapId);
+-        Map* map = sMapMgr.FindMap(area->target_mapId, state ? state->GetInstanceId() : 0);
+-        const MapEntry* mapEntry = sMapStore.LookupEntry(area->target_mapId);
++    if (!area || !sRandomPlayerbotMgr.IsRandomBot(GetBot()))
++        return false;
+ 
+-        // check if this account try to abuse reseting instance
++    uint32 targetMapId = area->destination.mapId;
++    DungeonPersistentState* state = bot->GetBoundInstanceSaveForSelfOrGroup(targetMapId);
++    Map* map = sMapMgr.FindMap(targetMapId, state ? state->GetInstanceId() : 0);
++    MapEntry const* mapEntry = sMapStore.LookupEntry(targetMapId);
++    if (!mapEntry)
++        return false;
++
++    // check if this account tries to abuse resetting instance
+ #ifdef MANGOSBOT_ZERO
+-        if (mapEntry->IsNonRaidDungeon())
++    if (mapEntry->IsNonRaidDungeon())
+ #elif MANGOSBOT_ONE
+-        if (mapEntry->IsNonRaidDungeon() && ((map && map->GetDifficulty() == DUNGEON_DIFFICULTY_NORMAL) || (bot->GetDifficulty() == DUNGEON_DIFFICULTY_NORMAL)))
++    if (mapEntry->IsNonRaidDungeon() && ((map && map->GetDifficulty() == DUNGEON_DIFFICULTY_NORMAL) || (bot->GetDifficulty() == DUNGEON_DIFFICULTY_NORMAL)))
+ #else
+-        if (mapEntry->IsNonRaidDungeon() && ((map && map->GetDifficulty() == DUNGEON_DIFFICULTY_NORMAL) || (bot->GetDifficulty(false) == DUNGEON_DIFFICULTY_NORMAL)))
++    if (mapEntry->IsNonRaidDungeon() && ((map && map->GetDifficulty() == DUNGEON_DIFFICULTY_NORMAL) || (bot->GetDifficulty(false) == DUNGEON_DIFFICULTY_NORMAL)))
+ #endif
+-        {
+-            if (!bot->CanEnterNewInstance(state ? state->GetInstanceId() : 0))
+-            {
+-                return false;
+-            }
+-        }
++    {
++        if (!bot->CanEnterNewInstance(state ? state->GetInstanceId() : 0))
++            return false;
++    }
+ 
+-        // Map's state check
+-        if (map && map->IsDungeon())
++    // Map's state check
++    if (map && map->IsDungeon())
++    {
++        // cannot enter if the instance is full (player cap), GMs don't count, must not check when teleporting around the same map
++        if (bot->GetMapId() != targetMapId)
+         {
+-            // cannot enter if the instance is full (player cap), GMs don't count, must not check when teleporting around the same map
+-            if (bot->GetMapId() != area->target_mapId)
+-            {
+-                if (((DungeonMap*)map)->GetPlayersCountExceptGMs() >= ((DungeonMap*)map)->GetMaxPlayers())
+-                {
+-                    return false;
+-                }
++            if (((DungeonMap*)map)->GetPlayersCountExceptGMs() >= ((DungeonMap*)map)->GetMaxPlayers())
++                return false;
+ 
+-                // In Combat check
+-                if (map && map->GetInstanceData() && map->GetInstanceData()->IsEncounterInProgress())
+-                {
+-                    return false;
+-                }
++            // In Combat check
++            if (map->GetInstanceData() && map->GetInstanceData()->IsEncounterInProgress())
++                return false;
+ 
+-                // Bind Checks
++            // Bind Checks
+ #ifdef MANGOSBOT_ZERO
+-                InstancePlayerBind* pBind = bot->GetBoundInstance(area->target_mapId);
++            InstancePlayerBind* pBind = bot->GetBoundInstance(targetMapId);
+ #elif MANGOSBOT_ONE
+-                InstancePlayerBind* pBind = bot->GetBoundInstance(area->target_mapId, bot->GetDifficulty());
++            InstancePlayerBind* pBind = bot->GetBoundInstance(targetMapId, bot->GetDifficulty());
+ #else
+-                InstancePlayerBind* pBind = bot->GetBoundInstance(area->target_mapId, bot->GetDifficulty(mapEntry->IsRaid()));
++            InstancePlayerBind* pBind = bot->GetBoundInstance(targetMapId, bot->GetDifficulty(mapEntry->IsRaid()));
+ #endif
+-                if (pBind && pBind->perm && pBind->state != state)
+-                {
+-                    return false;
+-                }
++            if (pBind && pBind->perm && pBind->state != state)
++                return false;
+ 
+-                if (pBind && pBind->perm && pBind->state != map->GetPersistentState())
+-                {
+-                    return false;
+-                }
+-            }
++            if (pBind && pBind->perm && pBind->state != map->GetPersistentState())
++                return false;
+         }
+-
+-        return true;
+     }
+ 
+-    return false;
++    return true;
+ }
+ 
+ void PlayerbotAI::Unmount()
+diff --git a/modules/mod-playerbots/src/playerbot/PlayerbotAI.h b/modules/mod-playerbots/src/playerbot/PlayerbotAI.h
+index b51f23c..7a0c11a 100644
+--- a/modules/mod-playerbots/src/playerbot/PlayerbotAI.h
++++ b/modules/mod-playerbots/src/playerbot/PlayerbotAI.h
+@@ -734,7 +734,7 @@ public:
+     PlayerTalentSpec GetTalentSpec();
+     void UpdateTalentSpec(PlayerTalentSpec spec = PlayerTalentSpec::TALENT_SPEC_INVALID);
+ 
+-    bool CanEnterArea(const AreaTrigger* area);
++    bool CanEnterArea(AreaTriggerTeleport const* area);
+     void Unmount();
+ 
+     void QueuePacket(WorldPacket& pkt);
+diff --git a/modules/mod-playerbots/src/playerbot/PlayerbotFactory.cpp b/modules/mod-playerbots/src/playerbot/PlayerbotFactory.cpp
+index 31041b2..d40def3 100644
+--- a/modules/mod-playerbots/src/playerbot/PlayerbotFactory.cpp
++++ b/modules/mod-playerbots/src/playerbot/PlayerbotFactory.cpp
+@@ -559,11 +559,10 @@ void PlayerbotFactory::InitPet()
+             return;
+ 
+         std::vector<uint32> ids;
+-        for (uint32 id = 0; id < sCreatureStorage.GetMaxEntry(); ++id)
++        for (auto const& creatureEntry : sObjectMgr.GetCreatureInfoMap())
+         {
+-            CreatureInfo const* co = sCreatureStorage.LookupEntry<CreatureInfo>(id);
+-			if (!co)
+-				continue;
++            uint32 id = creatureEntry.first;
++            CreatureInfo const* co = creatureEntry.second.get();
+ 
+ #ifdef MANGOSBOT_TWO
+             if (!co->isTameable(bot->CanTameExoticPets()))
+@@ -3638,11 +3637,10 @@ void PlayerbotFactory::InitSecondEquipmentSet()
+ 
+     do
+     {
+-        for (uint32 itemId = 0; itemId < sItemStorage.GetMaxEntry(); ++itemId)
++        for (auto const& itemEntry : sObjectMgr.GetItemPrototypeMap())
+         {
+-            ItemPrototype const* proto = sObjectMgr.GetItemPrototype(itemId);
+-            if (!proto)
+-                continue;
++            uint32 itemId = itemEntry.first;
++            ItemPrototype const* proto = &itemEntry.second;
+ 
+             // filter item level
+             if (proto->ItemLevel > sPlayerbotAIConfig.randomGearMaxLevel)
+@@ -3971,11 +3969,10 @@ void PlayerbotFactory::InitTradeSkills()
+ #endif
+ 
+     // learn recipies
+-    for (uint32 id = 0; id < sCreatureStorage.GetMaxEntry(); ++id)
++    for (auto const& creatureEntry : sObjectMgr.GetCreatureInfoMap())
+     {
+-        CreatureInfo const* co = sCreatureStorage.LookupEntry<CreatureInfo>(id);
+-        if (!co)
+-            continue;
++        uint32 id = creatureEntry.first;
++        CreatureInfo const* co = creatureEntry.second.get();
+ 
+         if (co->TrainerType != TRAINER_TYPE_TRADESKILLS)
+             continue;
+@@ -5014,11 +5011,10 @@ void PlayerbotFactory::InitInventoryEquip()
+         desiredQuality--;
+     }
+ 
+-    for (uint32 itemId = 0; itemId < sItemStorage.GetMaxEntry(); ++itemId)
++    for (auto const& itemEntry : sObjectMgr.GetItemPrototypeMap())
+     {
+-        ItemPrototype const* proto = sObjectMgr.GetItemPrototype(itemId);
+-        if (!proto)
+-            continue;
++        uint32 itemId = itemEntry.first;
++        ItemPrototype const* proto = &itemEntry.second;
+ 
+         if (proto->ItemLevel > sPlayerbotAIConfig.randomGearMaxLevel)
+             continue;
+diff --git a/modules/mod-playerbots/src/playerbot/PlayerbotMgr.cpp b/modules/mod-playerbots/src/playerbot/PlayerbotMgr.cpp
+index a2c50ee..da63a92 100644
+--- a/modules/mod-playerbots/src/playerbot/PlayerbotMgr.cpp
++++ b/modules/mod-playerbots/src/playerbot/PlayerbotMgr.cpp
+@@ -622,24 +622,32 @@ void PlayerbotHolder::JoinChatChannels(Player* bot)
+ 
+     if (current_zone && cMgr)
+     {
+-        for (uint32 i = 0; i < sChatChannelsStore.GetNumRows(); ++i)
++        static uint32 const channelIds[] =
+         {
+-            ChatChannelsEntry const* channel = sChatChannelsStore.LookupEntry(i);
+-            if (!channel) continue;
++            ChatChannelId::GENERAL,
++            ChatChannelId::TRADE,
++            ChatChannelId::LOCAL_DEFENSE,
++            ChatChannelId::WORLD_DEFENSE,
++            ChatChannelId::LOOKING_FOR_GROUP,
++            ChatChannelId::GUILD_RECRUITMENT
++        };
+ 
++        for (uint32 channelId : channelIds)
++        {
++            ChatChannelsEntry const* channel = sObjectMgr.GetChannelEntryFor(channelId);
++            if (!channel || locale >= MAX_DBC_LOCALE || channel->name[locale].empty())
++                continue;
++
++            std::string const& channelPattern = channel->name[locale];
+             Channel* new_channel = nullptr;
+-            switch (channel->ChannelID)
++            switch (channelId)
+             {
+                 case ChatChannelId::GENERAL:
+                 case ChatChannelId::LOCAL_DEFENSE:
+                 {
+                     char new_channel_name_buf[100];
+-                    snprintf(new_channel_name_buf, 100, channel->pattern[locale], current_zone_name.c_str());
+-#ifdef MANGOSBOT_ZERO
+-                    new_channel = cMgr->GetJoinChannel(new_channel_name_buf);
+-#else
+-                    new_channel = cMgr->GetJoinChannel(new_channel_name_buf, channel->ChannelID);
+-#endif
++                    snprintf(new_channel_name_buf, 100, channelPattern.c_str(), current_zone_name.c_str());
++                    new_channel = cMgr->GetOrCreateChannel(new_channel_name_buf);
+                     break;
+                 }
+                 case ChatChannelId::TRADE:
+@@ -653,32 +661,24 @@ void PlayerbotHolder::JoinChatChannels(Player* bot)
+                     snprintf(
+                         new_channel_name_buf,
+                         100,
+-                        channel->pattern[locale],
++                        channelPattern.c_str(),
+                         bot->GetPlayerbotAI()->GetLocalizedAreaName(GetAreaEntryByAreaID(ImportantAreaId::CITY)).c_str()
+                     );
+ 
+-#ifdef MANGOSBOT_ZERO
+-                    new_channel = cMgr->GetJoinChannel(new_channel_name_buf);
+-#else
+-                    new_channel = cMgr->GetJoinChannel(new_channel_name_buf, channel->ChannelID);
+-#endif
++                    new_channel = cMgr->GetOrCreateChannel(new_channel_name_buf);
+                     break;
+                 }
+                 case ChatChannelId::LOOKING_FOR_GROUP:
+                 case ChatChannelId::WORLD_DEFENSE:
+                 {
+-#ifdef MANGOSBOT_ZERO
+-                    new_channel = cMgr->GetJoinChannel(channel->pattern[locale]);
+-#else
+-                    new_channel = cMgr->GetJoinChannel(channel->pattern[locale], channel->ChannelID);
+-#endif
++                    new_channel = cMgr->GetOrCreateChannel(channelPattern);
+                     break;
+                 }
+                 default:
+                     break;
+             }
+             if (new_channel)
+-                new_channel->Join(bot, "");
++                new_channel->Join(bot->GetObjectGuid(), "");
+         }
+     }
+ }
+diff --git a/modules/mod-playerbots/src/playerbot/RandomItemMgr.cpp b/modules/mod-playerbots/src/playerbot/RandomItemMgr.cpp
+index 7eadbae..d7b9c1d 100644
+--- a/modules/mod-playerbots/src/playerbot/RandomItemMgr.cpp
++++ b/modules/mod-playerbots/src/playerbot/RandomItemMgr.cpp
+@@ -218,12 +218,11 @@ void RandomItemMgr::BuildRandomItemCache()
+     }
+     else
+     {
+-        sLog.outString("Building random item cache from %u items", sItemStorage.GetMaxEntry());
+-        for (uint32 itemId = 0; itemId < sItemStorage.GetMaxEntry(); ++itemId)
++        sLog.outString("Building random item cache from %u items", uint32(sObjectMgr.GetItemPrototypeMap().size()));
++        for (auto const& itemEntry : sObjectMgr.GetItemPrototypeMap())
+         {
+-            ItemPrototype const* proto = sObjectMgr.GetItemPrototype(itemId);
+-            if (!proto)
+-                continue;
++            uint32 itemId = itemEntry.first;
++            ItemPrototype const* proto = &itemEntry.second;
+ 
+             if (proto->Duration & 0x80000000)
+                 continue;
+@@ -949,8 +948,9 @@ void RandomItemMgr::BuildItemInfoCache()
+ 
+     int32 sEntry;
+ 
+-    for (uint32 entry = 0; entry < sCreatureStorage.GetMaxEntry(); entry++)
++    for (auto const& creatureEntry : sObjectMgr.GetCreatureInfoMap())
+     {
++        uint32 entry = creatureEntry.first;
+         sEntry = entry;
+ 
+         LootTemplateAccess const* lTemplateA = DropMapValue::GetLootTemplate(ObjectGuid(HIGHGUID_UNIT, entry, uint32(1)), LOOT_CORPSE);
+@@ -960,8 +960,9 @@ void RandomItemMgr::BuildItemInfoCache()
+                 dropMap->insert(std::make_pair(lItem.itemid, sEntry));
+     }
+ 
+-    for (uint32 entry = 0; entry < sGOStorage.GetMaxEntry(); entry++)
++    for (auto const& gameObjectEntry : sObjectMgr.GetGameObjectInfoMap())
+     {
++        uint32 entry = gameObjectEntry.first;
+         sEntry = entry;
+ 
+         LootTemplateAccess const* lTemplateA = DropMapValue::GetLootTemplate(ObjectGuid(HIGHGUID_GAMEOBJECT, entry, uint32(1)), LOOT_CORPSE);
+@@ -973,19 +974,18 @@ void RandomItemMgr::BuildItemInfoCache()
+ 
+     sLog.outString("Loaded %d loot templates...", (uint32)dropMap->size());
+ 
+-    sLog.outString("Calculating stat weights for %d items...", sItemStorage.GetMaxEntry());
+-    BarGoLink bar(sItemStorage.GetMaxEntry());
++    sLog.outString("Calculating stat weights for %d items...", uint32(sObjectMgr.GetItemPrototypeMap().size()));
++    BarGoLink bar(uint32(sObjectMgr.GetItemPrototypeMap().size()));
+ 
+     CharacterDatabase.BeginTransaction();
+ 
+     // generate stat weights for classes/specs
+-    for (uint32 itemId = 0; itemId < sItemStorage.GetMaxEntry(); ++itemId)
++    for (auto const& itemEntry : sObjectMgr.GetItemPrototypeMap())
+     {
+         bar.step();
+ 
+-        ItemPrototype const* proto = sObjectMgr.GetItemPrototype(itemId);
+-        if (!proto)
+-            continue;
++        uint32 itemId = itemEntry.first;
++        ItemPrototype const* proto = &itemEntry.second;
+ 
+         // skip non armor/weapon
+         if (proto->Class != ITEM_CLASS_WEAPON &&
+@@ -3306,7 +3306,7 @@ void RandomItemMgr::BuildEquipCache()
+     if (results)
+     {
+         sLog.outString("Loading equipment cache for %d classes, %d levels, %d slots, %d quality from %d items",
+-                MAX_CLASSES, maxLevel, EQUIPMENT_SLOT_END, ITEM_QUALITY_ARTIFACT, sItemStorage.GetMaxEntry());
++                MAX_CLASSES, maxLevel, EQUIPMENT_SLOT_END, ITEM_QUALITY_ARTIFACT, uint32(sObjectMgr.GetItemPrototypeMap().size()));
+         int count = 0;
+         do
+         {
+@@ -3329,7 +3329,7 @@ void RandomItemMgr::BuildEquipCache()
+     {
+         uint64 total = uint64(MAX_CLASSES * 3 * maxLevel * EQUIPMENT_SLOT_END * ITEM_QUALITY_ARTIFACT);
+         sLog.outString("Building equipment cache for %d classes, %d specs, %d levels, %d slots, %d quality from %d items (%zu total)",
+-                MAX_CLASSES, MAX_STAT_SCALES, maxLevel, EQUIPMENT_SLOT_END, ITEM_QUALITY_ARTIFACT, sItemStorage.GetMaxEntry(), total);
++                MAX_CLASSES, MAX_STAT_SCALES, maxLevel, EQUIPMENT_SLOT_END, ITEM_QUALITY_ARTIFACT, uint32(sObjectMgr.GetItemPrototypeMap().size()), total);
+ 
+         BarGoLink bar(total);
+         RandomItemList tabardsList;
+@@ -3369,11 +3369,10 @@ void RandomItemMgr::BuildEquipCache()
+                             BotEquipKey key(level, clazz, spec, slot, quality);
+ 
+                             RandomItemList items;
+-                            for (uint32 itemId = 0; itemId < sItemStorage.GetMaxEntry(); ++itemId)
++                            for (auto const& itemEntry : sObjectMgr.GetItemPrototypeMap())
+                             {
+-                                ItemPrototype const* proto = sObjectMgr.GetItemPrototype(itemId);
+-                                if (!proto)
+-                                    continue;
++                                uint32 itemId = itemEntry.first;
++                                ItemPrototype const* proto = &itemEntry.second;
+ 
+                                 if (proto->Quality != key.quality)
+                                     continue;
+@@ -3538,11 +3537,10 @@ void RandomItemMgr::BuildPotionCache()
+         {
+             uint32 effect = effects[i];
+ 
+-            for (uint32 itemId = 0; itemId < sItemStorage.GetMaxEntry(); ++itemId)
++            for (auto const& itemEntry : sObjectMgr.GetItemPrototypeMap())
+             {
+-                ItemPrototype const* proto = sObjectMgr.GetItemPrototype(itemId);
+-                if (!proto)
+-                    continue;
++                uint32 itemId = itemEntry.first;
++                ItemPrototype const* proto = &itemEntry.second;
+ 
+                 if (proto->Class != ITEM_CLASS_CONSUMABLE ||
+                     (proto->SubClass != ITEM_SUBCLASS_POTION && proto->SubClass != ITEM_SUBCLASS_FLASK) ||
+@@ -3609,11 +3607,10 @@ void RandomItemMgr::BuildFoodCache()
+         {
+             uint32 category = categories[i];
+ 
+-            for (uint32 itemId = 0; itemId < sItemStorage.GetMaxEntry(); ++itemId)
++            for (auto const& itemEntry : sObjectMgr.GetItemPrototypeMap())
+             {
+-                ItemPrototype const* proto = sObjectMgr.GetItemPrototype(itemId);
+-                if (!proto)
+-                    continue;
++                uint32 itemId = itemEntry.first;
++                ItemPrototype const* proto = &itemEntry.second;
+ 
+                 if (proto->Class != ITEM_CLASS_CONSUMABLE ||
+                     (proto->SubClass != ITEM_SUBCLASS_FOOD && proto->SubClass != ITEM_SUBCLASS_CONSUMABLE) ||
+@@ -3753,11 +3750,10 @@ void RandomItemMgr::BuildTradeCache()
+ 	int counter4 = 0;
+     for (uint32 level = 1; level <= maxLevel+1; level+=10)
+     {
+-        for (uint32 itemId = 0; itemId < sItemStorage.GetMaxEntry(); ++itemId)
++        for (auto const& itemEntry : sObjectMgr.GetItemPrototypeMap())
+         {
+-            ItemPrototype const* proto = sObjectMgr.GetItemPrototype(itemId);
+-            if (!proto)
+-                continue;
++            uint32 itemId = itemEntry.first;
++            ItemPrototype const* proto = &itemEntry.second;
+ 
+             if (proto->Class != ITEM_CLASS_TRADE_GOODS || proto->Bonding != NO_BIND)
+                 continue;
+@@ -3798,11 +3794,10 @@ std::vector<uint32> RandomItemMgr::GetGemsList()
+ #ifndef MANGOSBOT_ZERO
+     if (_gems.empty())
+     {
+-        for (uint32 itemId = 0; itemId < sItemStorage.GetMaxEntry(); ++itemId)
++        for (auto const& itemEntry : sObjectMgr.GetItemPrototypeMap())
+         {
+-            ItemPrototype const* proto = sObjectMgr.GetItemPrototype(itemId);
+-            if (!proto)
+-                continue;
++            uint32 itemId = itemEntry.first;
++            ItemPrototype const* proto = &itemEntry.second;
+ 
+             if (proto->Class != ITEM_CLASS_GEM)
+                 continue;
+@@ -3838,14 +3833,13 @@ void RandomItemMgr::BuildRarityCache()
+     }
+     else
+     {
+-        sLog.outBasic("Building item rarity cache from %u items", sItemStorage.GetMaxEntry());
+-        BarGoLink bar(sItemStorage.GetMaxEntry());
+-        for (uint32 itemId = 0; itemId < sItemStorage.GetMaxEntry(); ++itemId)
++        sLog.outBasic("Building item rarity cache from %u items", uint32(sObjectMgr.GetItemPrototypeMap().size()));
++        BarGoLink bar(uint32(sObjectMgr.GetItemPrototypeMap().size()));
++        for (auto const& itemEntry : sObjectMgr.GetItemPrototypeMap())
+         {
+             bar.step();
+-            ItemPrototype const* proto = sObjectMgr.GetItemPrototype(itemId);
+-            if (!proto)
+-                continue;
++            uint32 itemId = itemEntry.first;
++            ItemPrototype const* proto = &itemEntry.second;
+ 
+             if (proto->Duration & 0x80000000)
+                 continue;
+@@ -3952,19 +3946,18 @@ void RandomItemMgr::BuildRarityCache()
+                 }
+             }
+         }
+-        sLog.outString("Item rarity cache built from %u items", sItemStorage.GetMaxEntry());
++        sLog.outString("Item rarity cache built from %u items", uint32(sObjectMgr.GetItemPrototypeMap().size()));
+     }
+ }
+ 
+ #ifdef MANGOSBOT_TWO
+ void RandomItemMgr::BuildGlyphCache()
+ {
+-    sLog.outString("Building glyphCache", sItemStorage.GetMaxEntry());
+-    for (uint32 itemId = 0; itemId < sItemStorage.GetMaxEntry(); ++itemId)
++    sLog.outString("Building glyphCache from %u items", uint32(sObjectMgr.GetItemPrototypeMap().size()));
++    for (auto const& itemEntry : sObjectMgr.GetItemPrototypeMap())
+     {
+-        ItemPrototype const* proto = sObjectMgr.GetItemPrototype(itemId);
+-        if (!proto)
+-            continue;
++        uint32 itemId = itemEntry.first;
++        ItemPrototype const* proto = &itemEntry.second;
+ 
+         if (proto->Class != ITEM_CLASS_GLYPH)
+             continue;
+diff --git a/modules/mod-playerbots/src/playerbot/RandomPlayerbotMgr.cpp b/modules/mod-playerbots/src/playerbot/RandomPlayerbotMgr.cpp
+index 7f19b6b..66aa4a8 100644
+--- a/modules/mod-playerbots/src/playerbot/RandomPlayerbotMgr.cpp
++++ b/modules/mod-playerbots/src/playerbot/RandomPlayerbotMgr.cpp
+@@ -2805,7 +2805,7 @@ void RandomPlayerbotMgr::PrepareTeleportCache()
+         }
+     }
+ 
+-    sLog.outString("Preparing RPG teleport caches for %d factions...", sFactionTemplateStore.GetNumRows());
++    sLog.outString("Preparing RPG teleport caches for %d factions...", uint32(sObjectMgr.GetFactionTemplateMap().size()));
+ 
+     results = WorldDatabase.PQuery("SELECT map, position_x, position_y, position_z, "
+         "r.race, r.minl, r.maxl "
+diff --git a/modules/mod-playerbots/src/playerbot/TravelNode.cpp b/modules/mod-playerbots/src/playerbot/TravelNode.cpp
+index 0e7e6dc..8796220 100644
+--- a/modules/mod-playerbots/src/playerbot/TravelNode.cpp
++++ b/modules/mod-playerbots/src/playerbot/TravelNode.cpp
+@@ -124,16 +124,11 @@ float TravelNodePath::getCost(Unit* unit, uint32 cGold)
+         //Check if we can use this area trigger.
+         if (getPathType() == TravelNodePathType::areaTrigger && pathObject)
+         {
+-            uint32 triggerId = getPathObject();
+-            AreaTriggerEntry const* atEntry = sAreaTriggerStore.LookupEntry(pathObject);
+-            AreaTrigger const* at = sObjectMgr.GetAreaTrigger(pathObject);
+-            if (atEntry && at && atEntry->mapid == bot->GetMapId())
+-            {
+-                Map* map = WorldPosition(atEntry->mapid, atEntry->box_x, atEntry->box_y, atEntry->box_z).getMap(bot->GetInstanceId());
+-                if (map)
+-                    if (at && at->conditionId && !sObjectMgr.IsConditionSatisfied(at->conditionId, bot, map, nullptr, (ConditionSource)CONDITION_FROM_AREATRIGGER_TELEPORT))
+-                        return -1;
+-            }
++            AreaTriggerEntry const* atEntry = sObjectMgr.GetAreaTrigger(pathObject);
++            AreaTriggerTeleport const* at = sObjectMgr.GetAreaTriggerTeleport(pathObject);
++            if (atEntry && at && atEntry->mapid == bot->GetMapId() && at->requiredCondition &&
++                !sObjectMgr.IsConditionSatisfied(at->requiredCondition, bot, bot->GetMap(), bot, CONDITION_FROM_AREATRIGGER))
++                return -1;
+         }
+ 
+         if (getPathType() == TravelNodePathType::staticPortal && pathObject)
+@@ -243,7 +238,7 @@ uint32 TravelNode::getAreaTriggerId()
+         if (link.second->getPathType() != TravelNodePathType::areaTrigger)
+             continue;
+ 
+-        AreaTriggerEntry const* atEntry = sAreaTriggerStore.LookupEntry(link.second->getPathObject());
++        AreaTriggerEntry const* atEntry = sObjectMgr.GetAreaTrigger(link.second->getPathObject());
+         if (!atEntry)
+             continue;
+ 
+@@ -258,20 +253,18 @@ uint32 TravelNode::getAreaTriggerId()
+ 
+ bool TravelNode::isAreaTriggerTarget(uint32 areaTriggerId)
+ {
+-    for (uint32 i = 0; i < sAreaTriggerStore.GetNumRows(); i++)
++    for (auto const& areaTriggerData : sObjectMgr.GetAreaTriggersMap())
+     {
++        uint32 i = areaTriggerData.first;
+         if (areaTriggerId && areaTriggerId != i)
+             continue;
+ 
+-        AreaTriggerEntry const* atEntry = sAreaTriggerStore.LookupEntry(i);
+-        if (!atEntry)
+-            continue;
+-
+-        AreaTrigger const* at = sObjectMgr.GetAreaTrigger(i);
++        AreaTriggerEntry const* atEntry = &areaTriggerData.second;
++        AreaTriggerTeleport const* at = sObjectMgr.GetAreaTriggerTeleport(i);
+         if (!at)
+             continue;
+ 
+-        WorldPosition outPos = WorldPosition(at->target_mapId, at->target_X, at->target_Y, at->target_Z, at->target_Orientation);
++        WorldPosition outPos = WorldPosition(at->destination.mapId, at->destination.x, at->destination.y, at->destination.z, at->destination.o);
+ 
+         if (*getPosition() == outPos)
+             return true;
+@@ -1040,11 +1033,11 @@ bool TravelPath::UpcommingSpecialMovement(WorldPosition startPos, float maxDist,
+     {
+         if (startP->entry) //For area triggers we need to be close enough to trigger it's activation.
+         {
+-            AreaTriggerEntry const* atEntry = sAreaTriggerStore.LookupEntry(startP->entry);
++            AreaTriggerEntry const* atEntry = sObjectMgr.GetAreaTrigger(startP->entry);
+             if (!atEntry)
+                 return false;
+ 
+-            AreaTrigger const* at = sObjectMgr.GetAreaTrigger(startP->entry);
++            AreaTriggerTeleport const* at = sObjectMgr.GetAreaTriggerTeleport(startP->entry);
+             if (!at)
+                 return false;
+ 
+@@ -2220,19 +2213,17 @@ void TravelNodeMap::generateAreaTriggerNodes()
+ {
+     //Entrance nodes
+ 
+-    for (uint32 i = 0; i < sAreaTriggerStore.GetNumRows(); i++)
++    for (auto const& areaTriggerData : sObjectMgr.GetAreaTriggersMap())
+     {
+-        AreaTriggerEntry const* atEntry = sAreaTriggerStore.LookupEntry(i);
+-        if (!atEntry)
+-            continue;
+-
+-        AreaTrigger const* at = sObjectMgr.GetAreaTrigger(i);
++        uint32 i = areaTriggerData.first;
++        AreaTriggerEntry const* atEntry = &areaTriggerData.second;
++        AreaTriggerTeleport const* at = sObjectMgr.GetAreaTriggerTeleport(i);
+         if (!at)
+             continue;
+ 
+         WorldPosition inPos = WorldPosition(atEntry->mapid, atEntry->x, atEntry->y, atEntry->z - 4.0f, 0);
+ 
+-        WorldPosition outPos = WorldPosition(at->target_mapId, at->target_X, at->target_Y, at->target_Z, at->target_Orientation);
++        WorldPosition outPos = WorldPosition(at->destination.mapId, at->destination.x, at->destination.y, at->destination.z, at->destination.o);
+ 
+         std::string nodeName;
+ 
+@@ -2248,19 +2239,17 @@ void TravelNodeMap::generateAreaTriggerNodes()
+ 
+     //Exit nodes
+ 
+-    for (uint32 i = 0; i < sAreaTriggerStore.GetNumRows(); i++)
++    for (auto const& areaTriggerData : sObjectMgr.GetAreaTriggersMap())
+     {
+-        AreaTriggerEntry const* atEntry = sAreaTriggerStore.LookupEntry(i);
+-        if (!atEntry)
+-            continue;
+-
+-        AreaTrigger const* at = sObjectMgr.GetAreaTrigger(i);
++        uint32 i = areaTriggerData.first;
++        AreaTriggerEntry const* atEntry = &areaTriggerData.second;
++        AreaTriggerTeleport const* at = sObjectMgr.GetAreaTriggerTeleport(i);
+         if (!at)
+             continue;
+ 
+         WorldPosition inPos = WorldPosition(atEntry->mapid, atEntry->x, atEntry->y, atEntry->z - 4.0f, 0);
+ 
+-        WorldPosition outPos = WorldPosition(at->target_mapId, at->target_X, at->target_Y, at->target_Z, at->target_Orientation);
++        WorldPosition outPos = WorldPosition(at->destination.mapId, at->destination.x, at->destination.y, at->destination.z, at->destination.o);
+ 
+         std::string nodeName;
+ 
+@@ -2384,11 +2373,12 @@ void TravelNodeMap::makeDockNode(TravelNode* node, WorldPosition pos, std::strin
+ 
+ void TravelNodeMap::generateTransportNodes()
+ {
+-    for (uint32 entry = 1; entry <= sGOStorage.GetMaxEntry(); ++entry)
+-    {        
+-        auto data = sGOStorage.LookupEntry<GameObjectInfo>(entry);
++    for (auto const& gameObjectEntry : sObjectMgr.GetGameObjectInfoMap())
++    {
++        uint32 entry = gameObjectEntry.first;
++        GameObjectInfo const* data = &gameObjectEntry.second;
+ 
+-        if (data && (data->type == GAMEOBJECT_TYPE_TRANSPORT || data->type == GAMEOBJECT_TYPE_MO_TRANSPORT))
++        if (data->type == GAMEOBJECT_TYPE_TRANSPORT || data->type == GAMEOBJECT_TYPE_MO_TRANSPORT)
+         {
+             if (data->displayId == 808) //Remove plunger
+                 continue;
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/AreaTriggerAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/AreaTriggerAction.cpp
+index 371f283..0f56067 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/AreaTriggerAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/AreaTriggerAction.cpp
+@@ -17,11 +17,11 @@ bool ReachAreaTriggerAction::Execute(Event& event)
+     p.rpos(0);
+     p >> triggerId;
+ 
+-    AreaTriggerEntry const* atEntry = sAreaTriggerStore.LookupEntry(triggerId);
++    AreaTriggerEntry const* atEntry = sObjectMgr.GetAreaTrigger(triggerId);
+     if(!atEntry)
+         return false;
+ 
+-    AreaTrigger const* at = sObjectMgr.GetAreaTrigger(triggerId);
++    AreaTriggerTeleport const* at = sObjectMgr.GetAreaTriggerTeleport(triggerId);
+     if (!at)
+     {
+         WorldPacket p1(CMSG_AREATRIGGER);
+@@ -58,11 +58,11 @@ bool AreaTriggerAction::Execute(Event& event)
+     uint32 triggerId = movement.lastAreaTrigger;
+     movement.lastAreaTrigger = 0;
+ 
+-    AreaTriggerEntry const* atEntry = sAreaTriggerStore.LookupEntry(triggerId);
++    AreaTriggerEntry const* atEntry = sObjectMgr.GetAreaTrigger(triggerId);
+     if(!atEntry)
+         return false;
+ 
+-    AreaTrigger const* at = sObjectMgr.GetAreaTrigger(triggerId);
++    AreaTriggerTeleport const* at = sObjectMgr.GetAreaTriggerTeleport(triggerId);
+     if (!at)
+         return true;
+ 
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/AutoLearnSpellAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/AutoLearnSpellAction.cpp
+index a171810..1ae6633 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/AutoLearnSpellAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/AutoLearnSpellAction.cpp
+@@ -66,11 +66,10 @@ void AutoLearnSpellAction::LearnTrainerSpells(std::ostringstream* out)
+ {
+     bot->learnDefaultSpells();
+ 
+-    for (uint32 id = 0; id < sCreatureStorage.GetMaxEntry(); ++id)
++    for (auto const& creatureEntry : sObjectMgr.GetCreatureInfoMap())
+     {
+-        CreatureInfo const* co = sCreatureStorage.LookupEntry<CreatureInfo>(id);
+-        if (!co)
+-            continue;
++        uint32 id = creatureEntry.first;
++        CreatureInfo const* co = creatureEntry.second.get();
+ 
+         if (co->TrainerType != TRAINER_TYPE_CLASS && 
+             co->TrainerType != TRAINER_TYPE_TRADESKILLS &&
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/FactionAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/FactionAction.cpp
+index a9efb1c..6fcbff9 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/FactionAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/FactionAction.cpp
+@@ -36,20 +36,10 @@ bool FactionAction::Execute(Event& event)
+ 
+     bool factionFound = false;
+     std::map<std::string, std::string> args;
+-#ifndef MANGOSBOT_ONE
+-    for (uint32 id = 0; id < sFactionStore.GetNumRows(); ++id)
+-#else
+-    for (uint32 id = 0; id < sFactionStore.GetMaxEntry(); ++id)
+-#endif
++    for (auto const& factionData : sObjectMgr.GetFactionMap())
+     {
+-#ifndef MANGOSBOT_ONE
+-        const FactionEntry* factionEntry = sFactionStore.LookupEntry(id);
+-#else
+-        const FactionEntry* factionEntry = sFactionStore.LookupEntry<FactionEntry>(id);
+-#endif
+-
+-        if (!factionEntry)
+-            continue;
++        uint32 id = factionData.first;
++        FactionEntry const* factionEntry = &factionData.second;
+ 
+         FactionState const* repState = mgr.GetState(factionEntry);
+ 
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/MovementActions.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/MovementActions.cpp
+index 3202020..14d342f 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/MovementActions.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/MovementActions.cpp
+@@ -1545,10 +1545,7 @@ bool MovementAction::MoveTo(uint32 mapId, float x, float y, float z, bool idle,
+                 //Log bot movement
+                 if (sPlayerbotAIConfig.hasLog("bot_movement.csv"))
+                 {
+-                    WorldPosition telePos;
+-                    AreaTrigger const* at = sObjectMgr.GetAreaTrigger(entry);
+-                    if (at)
+-                        telePos = WorldPosition(at->target_mapId, at->target_X, at->target_Y, at->target_Z, at->target_Orientation);
++                    WorldPosition telePos = movePosition;
+ 
+                     std::ostringstream out;
+                     out << sPlayerbotAIConfig.GetTimestampStr() << "+00,";
+@@ -1618,9 +1615,9 @@ bool MovementAction::MoveTo(uint32 mapId, float x, float y, float z, bool idle,
+                     WorldPosition telePos;
+                     if (entry)
+                     {
+-                        AreaTrigger const* at = sObjectMgr.GetAreaTrigger(entry);
++                        AreaTriggerTeleport const* at = sObjectMgr.GetAreaTriggerTeleport(entry);
+                         if (at)
+-                            telePos = WorldPosition(at->target_mapId, at->target_X, at->target_Y, at->target_Z, at->target_Orientation);
++                            telePos = WorldPosition(at->destination.mapId, at->destination.x, at->destination.y, at->destination.z, at->destination.o);
+                     }
+                     else
+                         telePos = movePosition;
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/triggers/GenericTriggers.cpp b/modules/mod-playerbots/src/playerbot/strategy/triggers/GenericTriggers.cpp
+index 8fffdc2..e42510b 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/triggers/GenericTriggers.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/triggers/GenericTriggers.cpp
+@@ -1040,20 +1040,10 @@ bool AtWarTrigger::IsActive()
+ {
+     ReputationMgr& mgr = bot->GetReputationMgr();
+ 
+-#ifndef MANGOSBOT_ONE
+-    for (uint32 id = 0; id < sFactionStore.GetNumRows(); ++id)
+-#else
+-    for (uint32 id = 0; id < sFactionStore.GetMaxEntry(); ++id)
+-#endif
++    for (auto const& factionData : sObjectMgr.GetFactionMap())
+     {
+-#ifndef MANGOSBOT_ONE
+-        const FactionEntry* factionEntry = sFactionStore.LookupEntry(id);
+-#else
+-        const FactionEntry* factionEntry = sFactionStore.LookupEntry<FactionEntry>(id);
+-#endif
+-
+-        if (!factionEntry)
+-            continue;
++        uint32 id = factionData.first;
++        FactionEntry const* factionEntry = &factionData.second;
+ 
+         FactionState const* repState = mgr.GetState(factionEntry);
+ 
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/triggers/WithinAreaTrigger.h b/modules/mod-playerbots/src/playerbot/strategy/triggers/WithinAreaTrigger.h
+index ce784f4..da7d840 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/triggers/WithinAreaTrigger.h
++++ b/modules/mod-playerbots/src/playerbot/strategy/triggers/WithinAreaTrigger.h
+@@ -16,11 +16,11 @@ namespace ai
+             if (!movement.lastAreaTrigger)
+                 return false;
+ 
+-            AreaTriggerEntry const* atEntry = sAreaTriggerStore.LookupEntry(movement.lastAreaTrigger);
++            AreaTriggerEntry const* atEntry = sObjectMgr.GetAreaTrigger(movement.lastAreaTrigger);
+             if(!atEntry)
+                 return false;
+ 
+-            AreaTrigger const* at = sObjectMgr.GetAreaTrigger(movement.lastAreaTrigger);
++            AreaTriggerTeleport const* at = sObjectMgr.GetAreaTriggerTeleport(movement.lastAreaTrigger);
+             if (!at)
+                 return false;
+ 
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/GuildValues.cpp b/modules/mod-playerbots/src/playerbot/strategy/values/GuildValues.cpp
+index fe73855..913d0df 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/GuildValues.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/GuildValues.cpp
+@@ -45,13 +45,13 @@ uint32 GuildOrderValue::FindItemByName(const std::string& name)
+     if (it != s_cache.end())
+         return it->second;
+ 
++    uint32 exactMatch = 0;
+     uint32 substringMatch = 0;
+ 
+-    for (uint32 itemId = 0; itemId < sItemStorage.GetMaxEntry(); ++itemId)
++    for (auto const& itemEntry : sObjectMgr.GetItemPrototypeMap())
+     {
+-        ItemPrototype const* proto = sItemStorage.LookupEntry<ItemPrototype>(itemId);
+-        if (!proto)
+-            continue;
++        uint32 itemId = itemEntry.first;
++        ItemPrototype const* proto = &itemEntry.second;
+ 
+         if (proto->Class == ITEM_CLASS_RECIPE ||
+             proto->Class == ITEM_CLASS_WEAPON ||
+@@ -60,16 +60,18 @@ uint32 GuildOrderValue::FindItemByName(const std::string& name)
+ 
+         if (name.size() == proto->Name1.size() && strstri(proto->Name1, name.c_str()))
+         {
+-            s_cache[lowerName] = itemId;
+-            return itemId;
++            if (!exactMatch || itemId < exactMatch)
++                exactMatch = itemId;
++            continue;
+         }
+ 
+-        if (!substringMatch && strstri(proto->Name1, name.c_str()))
++        if (strstri(proto->Name1, name.c_str()) && (!substringMatch || itemId < substringMatch))
+             substringMatch = itemId;
+     }
+ 
+-    s_cache[lowerName] = substringMatch;
+-    return substringMatch;
++    uint32 match = exactMatch ? exactMatch : substringMatch;
++    s_cache[lowerName] = match;
++    return match;
+ }
+ 
+ std::vector<std::pair<uint32, int8>> ai::FindRepeatableQuestsRewardingItem(uint32 itemId)
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/LootValues.cpp b/modules/mod-playerbots/src/playerbot/strategy/values/LootValues.cpp
+index a6d285e..61f9342 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/LootValues.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/LootValues.cpp
+@@ -175,12 +175,10 @@ DropMap* ItemDropMapValue::Calculate()
+ {
+ 	DropMap* dropMap = new DropMap;
+ 
+-	for (uint32 itemId = 0; itemId < sItemStorage.GetMaxEntry(); itemId++)
+-	{
+-		ItemPrototype const* proto = sItemStorage.LookupEntry<ItemPrototype>(itemId);
+-
+-		if (!proto)
+-			continue;
++    for (auto const& itemEntry : sObjectMgr.GetItemPrototypeMap())
++    {
++        uint32 itemId = itemEntry.first;
++        ItemPrototype const* proto = &itemEntry.second;
+ 
+ 		if (!(proto->Flags & ITEM_FLAG_HAS_LOOT))
+ 			continue;
+@@ -212,9 +210,10 @@ DropMap* DropMapValue::Calculate()
+ 
+ 	int32 sEntry;
+ 
+-	for (uint32 entry = 0; entry < sCreatureStorage.GetMaxEntry(); entry++)
+-	{
+-		sEntry = entry;
++    for (auto const& creatureEntry : sObjectMgr.GetCreatureInfoMap())
++    {
++        uint32 entry = creatureEntry.first;
++        sEntry = entry;
+ 
+ 		LootTemplateAccess const* lTemplateA = GetLootTemplate(ObjectGuid(HIGHGUID_UNIT, entry, uint32(1)), LOOT_CORPSE);
+ 
+@@ -234,9 +233,10 @@ DropMap* DropMapValue::Calculate()
+ 		}
+ 	}
+ 
+-	for (uint32 entry = 0; entry < sGOStorage.GetMaxEntry(); entry++)
+-	{
+-		sEntry = entry;
++    for (auto const& gameObjectEntry : sObjectMgr.GetGameObjectInfoMap())
++    {
++        uint32 entry = gameObjectEntry.first;
++        sEntry = entry;
+ 
+ 		LootTemplateAccess const* lTemplateA = GetLootTemplate(ObjectGuid(HIGHGUID_GAMEOBJECT, entry, uint32(1)), LOOT_CORPSE);
+ 
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/MountValues.cpp b/modules/mod-playerbots/src/playerbot/strategy/values/MountValues.cpp
+index 35e76db..81a76d2 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/MountValues.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/MountValues.cpp
+@@ -210,11 +210,9 @@ std::vector<MountValue> FullMountListValue::Calculate()
+ {
+     std::vector<MountValue> mounts;
+ 
+-    for (uint32 id = 0; id < sItemStorage.GetMaxEntry(); ++id)
++    for (auto const& itemEntry : sObjectMgr.GetItemPrototypeMap())
+     {
+-        ItemPrototype const* pProto = sItemStorage.LookupEntry<ItemPrototype>(id);
+-        if (!pProto)
+-            continue;
++        ItemPrototype const* pProto = &itemEntry.second;
+ 
+         if (!MountValue::GetMountSpell(pProto->ItemId))
+             continue;
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/TrainerValues.cpp b/modules/mod-playerbots/src/playerbot/strategy/values/TrainerValues.cpp
+index 2108317..8f1cd3d 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/TrainerValues.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/TrainerValues.cpp
+@@ -15,11 +15,10 @@ trainableSpellMap* TrainableSpellMapValue::Calculate()
+     std::unordered_map <uint32, std::vector<CreatureInfo const*>> trainerTemplateIds;
+ 
+     //Select all trainer lists and their trainers.
+-    for (uint32 id = 0; id < sCreatureStorage.GetMaxEntry(); ++id)
++    for (auto const& creatureEntry : sObjectMgr.GetCreatureInfoMap())
+     {
+-        CreatureInfo const* creatureInfo = sCreatureStorage.LookupEntry<CreatureInfo>(id);
+-        if (!creatureInfo)
+-            continue;
++        uint32 id = creatureEntry.first;
++        CreatureInfo const* creatureInfo = creatureEntry.second.get();
+ 
+         if (!creatureInfo->TrainerType && !creatureInfo->TrainerClass)
+             continue;
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/TravelValues.cpp b/modules/mod-playerbots/src/playerbot/strategy/values/TravelValues.cpp
+index 2d713a2..ac0152b 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/TravelValues.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/TravelValues.cpp
+@@ -66,12 +66,10 @@ EntryTravelPurposeMap EntryTravelPurposeMapValue::Calculate()
+         { UNIT_NPC_FLAG_AUCTIONEER, TravelDestinationPurpose::AH }
+     };
+ 
+-    for (uint32 entry = 0; entry < sCreatureStorage.GetMaxEntry(); ++entry)
++    for (auto const& creatureEntry : sObjectMgr.GetCreatureInfoMap())
+     {
+-        CreatureInfo const* cInfo = sCreatureStorage.LookupEntry<CreatureInfo>(entry);
+-
+-        if (!cInfo)
+-            continue;
++        uint32 entry = creatureEntry.first;
++        CreatureInfo const* cInfo = creatureEntry.second.get();
+ 
+         if (cInfo->flags_extra & CREATURE_FLAG_EXTRA_INVISIBLE)
+             continue;
+@@ -157,12 +155,10 @@ EntryTravelPurposeMap EntryTravelPurposeMapValue::Calculate()
+             entryPurposeMap[entry] = purpose;
+     }
+ 
+-    for (uint32 entry = 0; entry < sGOStorage.GetMaxEntry(); ++entry)
++    for (auto const& gameObjectEntry : sObjectMgr.GetGameObjectInfoMap())
+     {
+-        GameObjectInfo const* gInfo = sObjectMgr.GetGameObjectInfo(entry);
+-
+-        if (!gInfo)
+-            continue;
++        uint32 entry = gameObjectEntry.first;
++        GameObjectInfo const* gInfo = &gameObjectEntry.second;
+ 
+         // Penqle's GameObjectInfo has no ExtraFlags (cmangos uses it for invisible
+         // markers; the bot is checking a creature flag here — likely a bot-side
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/VendorValues.cpp b/modules/mod-playerbots/src/playerbot/strategy/values/VendorValues.cpp
+index 8ac70ed..f379be4 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/VendorValues.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/VendorValues.cpp
+@@ -11,12 +11,10 @@ VendorMap* VendorMapValue::Calculate()
+     VendorMap* vendorpMap = new VendorMap;
+ 
+ 
+-    for (uint32 entry = 0; entry < sCreatureStorage.GetMaxEntry(); entry++)
++    for (auto const& creatureEntry : sObjectMgr.GetCreatureInfoMap())
+     {
+-        CreatureInfo const* cInfo = sObjectMgr.GetCreatureTemplate(entry);
+-
+-        if (!cInfo)
+-            continue;
++        uint32 entry = creatureEntry.first;
++        CreatureInfo const* cInfo = creatureEntry.second.get();
+ 
+         VendorItemList vendorItems;
+         VendorItemData const* vItems = sObjectMgr.GetNpcVendorItemList(entry);
