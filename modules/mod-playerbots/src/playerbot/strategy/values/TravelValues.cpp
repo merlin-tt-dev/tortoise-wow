@@ -73,7 +73,7 @@ EntryTravelPurposeMap EntryTravelPurposeMapValue::Calculate()
         if (!cInfo)
             continue;
 
-        if (cInfo->ExtraFlags & CREATURE_EXTRA_FLAG_INVISIBLE)
+        if (cInfo->flags_extra & CREATURE_FLAG_EXTRA_INVISIBLE)
             continue;
 
         DestinationPurose purpose = 0;
@@ -84,7 +84,7 @@ EntryTravelPurposeMap EntryTravelPurposeMapValue::Calculate()
 
         for (auto& flag : allowedNpcFlags)
         {
-            if ((cInfo->NpcFlags & flag) != 0)
+            if ((cInfo->npc_flags & flag) != 0)
             {
                 purpose |= (uint32)TravelDestinationPurpose::GenericRpg;
                 break;
@@ -93,14 +93,14 @@ EntryTravelPurposeMap EntryTravelPurposeMapValue::Calculate()
 
         for (auto& [flag, flagPurpose] : npcPurposeMap)
         {
-            if ((cInfo->NpcFlags & flag) != 0)
+            if ((cInfo->npc_flags & flag) != 0)
             {
                 purpose |= (uint32)flagPurpose;
             }
         }
 
 
-        if (cInfo->MinLootGold > 0)
+        if (cInfo->gold_min > 0)
         {
             purpose |= (uint32)TravelDestinationPurpose::Grind;
         }
@@ -127,9 +127,9 @@ EntryTravelPurposeMap EntryTravelPurposeMapValue::Calculate()
             }
         }
 
-        if (cInfo->Rank == CREATURE_ELITE_ELITE || cInfo->Rank == CREATURE_ELITE_RAREELITE || cInfo->Rank == CREATURE_ELITE_WORLDBOSS || cInfo->Rank == CREATURE_ELITE_RARE)
+        if (cInfo->rank == CREATURE_ELITE_ELITE || cInfo->rank == CREATURE_ELITE_RAREELITE || cInfo->rank == CREATURE_ELITE_WORLDBOSS || cInfo->rank == CREATURE_ELITE_RARE)
         {
-            if (cInfo->Rank == 1)
+            if (cInfo->rank == 1)
             {
                 if (guidpMap[entry].size() == 1)
                     purpose |= (uint32)TravelDestinationPurpose::Boss;
@@ -138,7 +138,7 @@ EntryTravelPurposeMap EntryTravelPurposeMapValue::Calculate()
                 purpose |= (uint32)TravelDestinationPurpose::Boss;
         }
 
-        if (cInfo->SkinningLootId && cInfo->GetRequiredLootSkill() == SKILL_SKINNING)
+        if (cInfo->skinning_loot_id)
         {
             purpose |= (uint32)TravelDestinationPurpose::GatherSkinning;
         }
@@ -212,14 +212,18 @@ uint32 EntryTravelPurposeMapValue::SkillIdToGatherEntry(int32 entry)
     {
         CreatureInfo const* cInfo = sCreatureStorage.LookupEntry<CreatureInfo>(entry);
 
-        if (!cInfo->SkinningLootId)
+        if (!cInfo || !cInfo->skinning_loot_id)
             return 0;
 
-        return cInfo->GetRequiredLootSkill();
+        // Penqle Classic uses SKILL_SKINNING for creature skinning.
+        return SKILL_SKINNING;
     }
     else
     {
         GameObjectInfo const* gInfo = sObjectMgr.GetGameObjectInfo(entry * -1);
+
+        if (!gInfo)
+            return 0;
 
         if (uint32 lockId = gInfo->GetLockId())
         {

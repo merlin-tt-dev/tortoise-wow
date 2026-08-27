@@ -1,0 +1,368 @@
+diff --git a/modules/mod-playerbots/src/playerbot/TravelMgr.cpp b/modules/mod-playerbots/src/playerbot/TravelMgr.cpp
+index b9f8c52..9761264 100644
+--- a/modules/mod-playerbots/src/playerbot/TravelMgr.cpp
++++ b/modules/mod-playerbots/src/playerbot/TravelMgr.cpp
+@@ -272,7 +272,7 @@ bool QuestObjectiveTravelDestination::IsPossible(const PlayerTravelInfo& info) c
+ 
+         CreatureInfo const* cInfo = GetCreatureInfo();
+ 
+-        if (cInfo->NpcFlags & UNIT_NPC_FLAG_VENDOR && GetQuestTemplate()->ReqItemId[GetObjective()])
++        if (cInfo && (cInfo->npc_flags & UNIT_NPC_FLAG_VENDOR) && GetQuestTemplate()->ReqItemId[GetObjective()])
+         {
+             ItemPrototype const* proto = sObjectMgr.GetItemPrototype(GetQuestTemplate()->ReqItemId[GetObjective()]);
+             if (GetQuestTemplate()->ReqItemCount[GetObjective()] * proto->BuyPrice > info.GetMoney()) //Need more money.
+@@ -283,11 +283,11 @@ bool QuestObjectiveTravelDestination::IsPossible(const PlayerTravelInfo& info) c
+ 
+         if (!skipKillableCheck && !forceThisQuest)
+         {
+-            if (cInfo && (int)cInfo->MaxLevel - (int)info.GetLevel() > 4)
++            if (cInfo && (int)cInfo->level_max - (int)info.GetLevel() > 4)
+                 return false;
+ 
+             //Do not try to hand-in dungeon/elite quests in instances without a group.
+-            if (cInfo->Rank > CREATURE_ELITE_NORMAL)
++            if (cInfo && cInfo->rank > CREATURE_ELITE_NORMAL)
+             {
+                 if (!IsOverWorld(info.GetPosition()) && info.GetPosition().getMapId() != 609 && !info.GetBoolValue("can fight boss"))
+                     return false;
+@@ -381,7 +381,7 @@ bool QuestObjectiveTravelDestination::IsActive(Player* bot, const PlayerTravelIn
+ 
+         CreatureInfo const* cInfo = GetCreatureInfo();
+ 
+-        if (!skipKillableCheck && cInfo->NpcFlags & UNIT_NPC_FLAG_VENDOR && GetQuestTemplate()->ReqItemId[GetObjective()] &&
++        if (!skipKillableCheck && cInfo && (cInfo->npc_flags & UNIT_NPC_FLAG_VENDOR) && GetQuestTemplate()->ReqItemId[GetObjective()] &&
+             !GuidPosition(HIGHGUID_UNIT, GetEntry()).IsHostileTo(bot))
+         {
+             skipKillableCheck = true;
+@@ -539,7 +539,7 @@ AreaTableEntry const* ZoneTravelDestination::GetArea() const
+     for (uint32 areaid = 0; areaid <= sAreaStore.GetNumRows(); ++areaid)
+     {
+         AreaTableEntry const* areaEntry = sAreaStore.LookupEntry<AreaEntry>(areaid);
+-        if (areaEntry && areaEntry->ID == GetEntry())
++        if (areaEntry && areaEntry->Id == GetEntry())
+         {
+             return areaEntry;
+         }
+@@ -565,11 +565,11 @@ bool ExploreTravelDestination::IsActive(Player* bot, const PlayerTravelInfo& inf
+ 
+     AreaTableEntry const* area = GetArea();
+ 
+-    if (area->exploreFlag == 0xffff)
++    if (area->ExploreFlag == 0xffff)
+         return false;
+-    int offset = area->exploreFlag / 32;
++    int offset = area->ExploreFlag / 32;
+ 
+-    uint32 val = (uint32)(1 << (area->exploreFlag % 32));
++    uint32 val = (uint32)(1 << (area->ExploreFlag % 32));
+     uint32 currFields = bot->GetUInt32Value(PLAYER_EXPLORED_ZONES_1 + offset);
+ 
+     return !(currFields & val);    
+@@ -582,8 +582,11 @@ bool GrindTravelDestination::IsPossible(const PlayerTravelInfo& info) const
+ 
+     CreatureInfo const* cInfo = GetCreatureInfo();
+ 
++    if (!cInfo)
++        return false;
++
+ #ifdef MANGOSBOT_TWO
+-    if (cInfo->Rank == CREATURE_ELITE_NORMAL && cInfo->MinLootGold == 0 && info.GetPosition().getMapId() == 609)
++    if (cInfo->rank == CREATURE_ELITE_NORMAL && cInfo->gold_min == 0 && info.GetPosition().getMapId() == 609)
+         return true;
+ #endif
+ 
+@@ -595,18 +598,18 @@ bool GrindTravelDestination::IsPossible(const PlayerTravelInfo& info) const
+ 
+     int32 maxLevel = std::max(botLevel * (0.5f + levelMod), botLevel - 5.0f + levelBoost);
+ 
+-    if ((int32)cInfo->MaxLevel > maxLevel) //@lvl5 max = 3, @lvl60 max = 57
++    if ((int32)cInfo->level_max > maxLevel) //@lvl5 max = 3, @lvl60 max = 57
+         return false;
+ 
+     int32 minLevel = std::max(botLevel * (0.4f + levelMod), botLevel - 12.0f + levelBoost);
+ 
+-    if ((int32)cInfo->MaxLevel < minLevel) //@lvl5 min = 3, @lvl60 max = 50
++    if ((int32)cInfo->level_max < minLevel) //@lvl5 min = 3, @lvl60 max = 50
+         return false;
+ 
+-    if (cInfo->MinLootGold == 0)
++    if (cInfo->gold_min == 0)
+         return false;
+ 
+-    if (cInfo->Rank > CREATURE_ELITE_NORMAL && !info.GetBoolValue("can fight elite"))
++    if (cInfo->rank > CREATURE_ELITE_NORMAL && !info.GetBoolValue("can fight elite"))
+         return false;
+ 
+     return true;
+@@ -641,7 +644,10 @@ bool BossTravelDestination::IsPossible(const PlayerTravelInfo& info) const
+ 
+     CreatureInfo const* cInfo = sObjectMgr.GetCreatureTemplate(GetEntry());
+ 
+-    if ((int32)cInfo->MaxLevel > info.GetLevel() + 3)
++    if (!cInfo)
++        return false;
++
++    if ((int32)cInfo->level_max > info.GetLevel() + 3)
+         return false;
+     
+     const MapEntry* mapEntry = ClosetMapEntry(info.GetPosition());
+@@ -726,7 +732,7 @@ bool GatherTravelDestination::IsPossible(const PlayerTravelInfo& info) const
+     {
+         skillId = SKILL_FISHING;
+ 
+-        int32 reqSkillValue = sObjectMgr.GetFishingBaseSkillLevel(GetEntry());
++        reqSkillValue = sObjectMgr.GetFishingBaseSkillLevel(GetEntry());
+ 
+         if (!reqSkillValue) //no fishable zone or area should be 0
+             return false;
+@@ -738,11 +744,12 @@ bool GatherTravelDestination::IsPossible(const PlayerTravelInfo& info) const
+     {
+         CreatureInfo const* cInfo = GetCreatureInfo();
+ 
+-        if (!cInfo)
++        if (!cInfo || !cInfo->skinning_loot_id)
+             return false;
+ 
+-        skillId = cInfo->GetRequiredLootSkill();
+-        uint32 targetLevel = cInfo->MaxLevel;
++        // Penqle Classic uses SKILL_SKINNING for creature skinning.
++        skillId = SKILL_SKINNING;
++        uint32 targetLevel = cInfo->level_max;
+         reqSkillValue = targetLevel < 10 ? 1 : targetLevel < 20 ? (targetLevel - 10) * 10 : targetLevel * 5;
+     }
+     else
+@@ -1100,10 +1107,10 @@ int32 TravelMgr::GetAreaLevel(uint32 area_id)
+     }
+ 
+     //Get exploration level
+-    if (area->area_level) 
++    if (area->AreaLevel)
+     {
+-        areaLevels[area_id] = area->area_level;
+-        return area->area_level;
++        areaLevels[area_id] = area->AreaLevel;
++        return area->AreaLevel;
+     }
+ 
+ 
+@@ -1115,10 +1122,10 @@ int32 TravelMgr::GetAreaLevel(uint32 area_id)
+     {
+         AreaTableEntry const* subArea = GetAreaEntryByAreaID(i);
+ 
+-        if (!subArea || subArea->zone != area->ID)
++        if (!subArea || subArea->ZoneId != area->Id)
+             continue;
+ 
+-        int32 subLevel = GetAreaLevel(subArea->ID);
++        int32 subLevel = GetAreaLevel(subArea->Id);
+ 
+         if (!subLevel)
+             continue;
+@@ -1149,14 +1156,14 @@ int32 TravelMgr::GetAreaLevel(uint32 area_id)
+         if (!cInfo)
+             continue;
+ 
+-        FactionTemplateEntry const* factionEntry = sFactionTemplateStore.LookupEntry(cInfo->Faction);
++        FactionTemplateEntry const* factionEntry = sFactionTemplateStore.LookupEntry(cInfo->faction);
+         ReputationRank reactionHum = PlayerbotAI::GetFactionReaction(humanFaction, factionEntry);
+         ReputationRank reactionOrc = PlayerbotAI::GetFactionReaction(orcFaction, factionEntry);
+ 
+         if (reactionHum > REP_NEUTRAL || reactionOrc > REP_NEUTRAL)
+             continue;
+ 
+-        level += cInfo->MaxLevel;
++        level += cInfo->level_max;
+         cnt++;
+     }
+ 
+@@ -1167,10 +1174,10 @@ int32 TravelMgr::GetAreaLevel(uint32 area_id)
+     }
+ 
+     //Use parent zone value.
+-    if (area->zone)
++    if (area->ZoneId)
+     {
+         areaLevels[area_id] = 0; //Set a temporary value so it wont be counted.
+-        level = GetAreaLevel(area->zone);
++        level = GetAreaLevel(area->ZoneId);
+         areaLevels[area_id] = level;        
+         return areaLevels[area_id];
+     }
+@@ -1218,11 +1225,11 @@ void TravelMgr::LoadAreaLevels()
+             bar.step();
+             if (AreaTableEntry const* area = sAreaStore.LookupEntry<AreaEntry>(i))
+             {
+-                if (std::find(loadedAreas.begin(), loadedAreas.end(), area->ID) == loadedAreas.end())
++                if (std::find(loadedAreas.begin(), loadedAreas.end(), area->Id) == loadedAreas.end())
+                 {
+-                    int32 level = sTravelMgr.GetAreaLevel(area->ID);
++                    int32 level = sTravelMgr.GetAreaLevel(area->Id);
+ 
+-                    WorldDatabase.PExecute("INSERT INTO `ai_playerbot_zone_level` (`id`, `level`) VALUES ('%d', '%d')", area->ID, level);
++                    WorldDatabase.PExecute("INSERT INTO `ai_playerbot_zone_level` (`id`, `level`) VALUES ('%d', '%d')", area->Id, level);
+                 }
+             }
+         }
+@@ -1245,7 +1252,7 @@ void TravelMgr::SetMobAvoidArea()
+         if (!sMapStore.LookupEntry(i))
+             continue;
+         
+-        uint32 mapId = sMapStore.LookupEntry(i)->MapID;
++        uint32 mapId = sMapStore.LookupEntry(i)->id;
+         calculations.push_back(std::async([this, mapId] { SetMobAvoidAreaMap(mapId); }));
+         bar.step();
+     }
+@@ -1278,10 +1285,10 @@ void TravelMgr::SetMobAvoidAreaMap(uint32 mapId)
+ 
+         WorldPosition point = WorldPosition(cData.position.mapid, cData.position.coord_x, cData.position.coord_y, cData.position.coord_z, cData.position.orientation);
+ 
+-        if (cInfo->NpcFlags > 0)
++        if (cInfo->npc_flags > 0)
+             continue;
+ 
+-        FactionTemplateEntry const* factionEntry = sFactionTemplateStore.LookupEntry(cInfo->Faction);
++        FactionTemplateEntry const* factionEntry = sFactionTemplateStore.LookupEntry(cInfo->faction);
+         ReputationRank reactionHum = PlayerbotAI::GetFactionReaction(humanFaction, factionEntry);
+         ReputationRank reactionOrc = PlayerbotAI::GetFactionReaction(orcFaction, factionEntry);
+ 
+@@ -1440,14 +1447,14 @@ void TravelMgr::LoadQuestTravelTable()
+         if (!area)
+             continue;
+ 
+-        if (!area->exploreFlag)
++        if (!area->ExploreFlag)
+             continue;
+ 
+         point.FetchArea();
+ 
+         pointsMap.insert_or_assign(point.GetRawValue(), point);
+ 
+-        loc = AddDestination<ExploreTravelDestination>(area->ID, TravelDestinationPurpose::Explore);
++        loc = AddDestination<ExploreTravelDestination>(area->Id, TravelDestinationPurpose::Explore);
+         loc->AddPoint(&pointsMap.at(point.GetRawValue()));
+     }
+ 
+@@ -1561,10 +1568,10 @@ void TravelMgr::LoadQuestTravelTable()
+             std::ostringstream out;
+             out << name << ",";
+             point.printWKT(out);
+-            out << cInfo->MaxLevel << ",";
+-            out << cInfo->Rank << ",";
+-            out << cInfo->Faction << ",";
+-            out << cInfo->NpcFlags << ",";
++            out << cInfo->level_max << ",";
++            out << cInfo->rank << ",";
++            out << cInfo->faction << ",";
++            out << cInfo->npc_flags << ",";
+             out << point.getAreaName() << ",";
+             out << std::fixed;
+ 
+@@ -2236,7 +2243,7 @@ void TravelMgr::LoadQuestTravelTable()
+         if (!sMapStore.LookupEntry(i))
+             continue;
+ 
+-        uint32 mapId = sMapStore.LookupEntry(i)->MapID;
++        uint32 mapId = sMapStore.LookupEntry(i)->id;
+ 
+         if (WorldPosition(mapId, 0, 0).getMap(0))
+             continue;
+@@ -2259,7 +2266,7 @@ void TravelMgr::GetPopulatedGrids()
+         if (!sMapStore.LookupEntry(i))
+             continue;
+ 
+-        uint32 mapId = sMapStore.LookupEntry(i)->MapID;
++        uint32 mapId = sMapStore.LookupEntry(i)->id;
+ 
+         GetPopulatedGrids(mapId);
+     }
+@@ -2372,7 +2379,7 @@ void TravelMgr::GetFishLocations()
+             if (area->MapId != mapId)
+                 continue;
+ 
+-            if (!sObjectMgr.GetFishingBaseSkillLevel(area->ID))
++            if (!sObjectMgr.GetFishingBaseSkillLevel(area->Id))
+                 continue;
+ 
+             hashFishing = true;
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/TravelValues.cpp b/modules/mod-playerbots/src/playerbot/strategy/values/TravelValues.cpp
+index 2ce82a6..2d713a2 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/TravelValues.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/TravelValues.cpp
+@@ -73,7 +73,7 @@ EntryTravelPurposeMap EntryTravelPurposeMapValue::Calculate()
+         if (!cInfo)
+             continue;
+ 
+-        if (cInfo->ExtraFlags & CREATURE_EXTRA_FLAG_INVISIBLE)
++        if (cInfo->flags_extra & CREATURE_FLAG_EXTRA_INVISIBLE)
+             continue;
+ 
+         DestinationPurose purpose = 0;
+@@ -84,7 +84,7 @@ EntryTravelPurposeMap EntryTravelPurposeMapValue::Calculate()
+ 
+         for (auto& flag : allowedNpcFlags)
+         {
+-            if ((cInfo->NpcFlags & flag) != 0)
++            if ((cInfo->npc_flags & flag) != 0)
+             {
+                 purpose |= (uint32)TravelDestinationPurpose::GenericRpg;
+                 break;
+@@ -93,14 +93,14 @@ EntryTravelPurposeMap EntryTravelPurposeMapValue::Calculate()
+ 
+         for (auto& [flag, flagPurpose] : npcPurposeMap)
+         {
+-            if ((cInfo->NpcFlags & flag) != 0)
++            if ((cInfo->npc_flags & flag) != 0)
+             {
+                 purpose |= (uint32)flagPurpose;
+             }
+         }
+ 
+ 
+-        if (cInfo->MinLootGold > 0)
++        if (cInfo->gold_min > 0)
+         {
+             purpose |= (uint32)TravelDestinationPurpose::Grind;
+         }
+@@ -127,9 +127,9 @@ EntryTravelPurposeMap EntryTravelPurposeMapValue::Calculate()
+             }
+         }
+ 
+-        if (cInfo->Rank == CREATURE_ELITE_ELITE || cInfo->Rank == CREATURE_ELITE_RAREELITE || cInfo->Rank == CREATURE_ELITE_WORLDBOSS || cInfo->Rank == CREATURE_ELITE_RARE)
++        if (cInfo->rank == CREATURE_ELITE_ELITE || cInfo->rank == CREATURE_ELITE_RAREELITE || cInfo->rank == CREATURE_ELITE_WORLDBOSS || cInfo->rank == CREATURE_ELITE_RARE)
+         {
+-            if (cInfo->Rank == 1)
++            if (cInfo->rank == 1)
+             {
+                 if (guidpMap[entry].size() == 1)
+                     purpose |= (uint32)TravelDestinationPurpose::Boss;
+@@ -138,7 +138,7 @@ EntryTravelPurposeMap EntryTravelPurposeMapValue::Calculate()
+                 purpose |= (uint32)TravelDestinationPurpose::Boss;
+         }
+ 
+-        if (cInfo->SkinningLootId && cInfo->GetRequiredLootSkill() == SKILL_SKINNING)
++        if (cInfo->skinning_loot_id)
+         {
+             purpose |= (uint32)TravelDestinationPurpose::GatherSkinning;
+         }
+@@ -212,15 +212,19 @@ uint32 EntryTravelPurposeMapValue::SkillIdToGatherEntry(int32 entry)
+     {
+         CreatureInfo const* cInfo = sCreatureStorage.LookupEntry<CreatureInfo>(entry);
+ 
+-        if (!cInfo->SkinningLootId)
++        if (!cInfo || !cInfo->skinning_loot_id)
+             return 0;
+ 
+-        return cInfo->GetRequiredLootSkill();
++        // Penqle Classic uses SKILL_SKINNING for creature skinning.
++        return SKILL_SKINNING;
+     }
+     else
+     {
+         GameObjectInfo const* gInfo = sObjectMgr.GetGameObjectInfo(entry * -1);
+ 
++        if (!gInfo)
++            return 0;
++
+         if (uint32 lockId = gInfo->GetLockId())
+         {
+             LockEntry const* lockInfo = sLockStore.LookupEntry(lockId);
