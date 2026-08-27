@@ -66,6 +66,7 @@ class Config
 
         std::vector<std::string> GetModuleConfigFiles() const;
         std::string GetConfigDirectory() const;
+        bool LoadIncludeDirectory();
 
         using LockType = std::mutex;
         using GuardType = std::unique_lock<LockType>;
