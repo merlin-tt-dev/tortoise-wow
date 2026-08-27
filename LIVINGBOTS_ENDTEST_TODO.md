@@ -185,6 +185,13 @@ Falls bis dahin implementiert:
 Für jede Rasse:
 
 - [ ] zulässige Klassen korrekt.
+- [ ] Race/Class-Matrix folgt ausschließlich `playercreateinfo`; keine Playerbot-Allow-/Forbidden-Liste beeinflusst die Auswahl.
+- [ ] eine in `playercreateinfo` neu hinzugefügte gültige Kombination benötigt keinen Playerbot-Codepatch.
+- [ ] eine nicht in `playercreateinfo` vorhandene Kombination wird zuverlässig abgewiesen.
+- [ ] `CharSections.dbc` wird vom Modul über Penqles/Tortoises nativen `DBCStorage` geladen; kein eigener WDBC-Parser.
+- [ ] männliche und weibliche Appearance-Werte stammen bei vorhandenen Daten aus `CharSections.dbc`.
+- [ ] `SECTION_FLAG_UNAVAILABLE` wird nicht ausgewählt.
+- [ ] fehlt `CharSections.dbc`, bleibt Erstellung über den dokumentierten nativen Tortoise-0..5-Fallback möglich und der Fehler wird klar geloggt.
 - [ ] Erscheinungsdaten gültig.
 - [ ] Startposition korrekt.
 - [ ] Homebind korrekt.
@@ -193,9 +200,17 @@ Für jede Rasse:
 - [ ] Startskills korrekt.
 - [ ] Sprache(n) korrekt.
 - [ ] Startquests erreichbar.
-- [ ] keine Human-/Orc-Fallback-Semantik für High Elf/Goblin.
+- [ ] keine Human-/Orc-Fallback-Semantik für High Elf/Goblin bei Race/Class, Startposition oder Homebind.
+- [ ] Human Hunter und weitere Turtle-Custom-Kombinationen werden erzeugt, wenn `playercreateinfo` sie erlaubt und ihr Configgewicht > 0 ist.
+- [ ] 9 Charaktere auf einem Classic-Botaccount werden vollständig gespeichert und nach Neustart wiedergefunden.
+- [ ] fehlgeschlagene Character-Creation erhöht weder Bot-Zähler noch FixedClassRace-Restmenge fälschlich.
+- [ ] ungültige/unspeicherbare FixedClassRace-Konfiguration terminiert mit verständlichem Fehler statt Endlosschleife.
+- [ ] Config-Reload leert alte `fixedClassRaceCounts`; entfernte Kombinationen bleiben nicht aus einer vorherigen Konfiguration erhalten.
+- [ ] Bot-Erstellung während laufendem Server speichert/entfernt keine bereits eingeloggten RealPlayer oder andere globale `ObjectAccessor`-Player.
+- [ ] `PLAYERHOOK_ON_CREATE` wird wie bei normaler Character-Erstellung ausgeführt.
+- [ ] Realm-Charcount und ObjectMgr-Playercache enthalten den neu gespeicherten Bot.
 
-**PASS:** jeder erzeugte Bot entspricht `playercreateinfo` und Turtle-Daten.
+**PASS:** jeder erzeugte Bot entspricht `playercreateinfo` und Turtle-Daten; Erstellung besitzt nur ihre lokalen temporären Player/Session-Objekte.
 
 ---
 

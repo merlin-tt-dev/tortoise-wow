@@ -83,7 +83,6 @@ class RandomPlayerbotFactory
         static bool namesInitialized;
 
         uint32 accountId;
-        static std::map<uint8, std::vector<uint8> > availableRaces;
 };
 
 #endif

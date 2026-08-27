@@ -510,31 +510,6 @@ inline AreaEntry const* GetAreaEntryByMapId(uint32 mapId) {
 // Definition lives in LFGMgr.h so both host (game.vcxproj) and bot module see the same type.
 typedef std::vector<MeetingStoneInfo> MeetingStoneSet;
 
-// === CharSections (cmangos-only DBC) ===
-// Penqle has no CharSections.dbc loader. The types are stubbed with an empty
-// static map so the bot's character-randomization code compiles. The factory
-// falls back to a default appearance when the map is empty.
-// SECTION_TYPE_* (cmangos CharSection types)
-enum CharSectionType {
-    SECTION_TYPE_SKIN = 0,
-    SECTION_TYPE_FACE = 1,
-    SECTION_TYPE_FACIAL_HAIR = 2,
-    SECTION_TYPE_HAIR = 3,
-    SECTION_TYPE_UNDERWEAR = 4,
-};
-struct CharSectionsEntry {
-    uint32 Race = 0;
-    uint32 Gender = 0;
-    uint32 Type = 0;
-    uint32 Section = 0;
-    uint32 ColorIndex = 0;
-    uint32 Color = 0;
-    uint32 VariationIndex = 0;
-    uint32 BaseSection = 0;
-};
-typedef std::map<uint32, CharSectionsEntry const*> CharSectionsMap;
-inline CharSectionsMap sCharSectionMap;
-
 // === LFGQueue ===
 // Penqle has its own LFGQueue in src/game/LFG/LFGMgr.h with stub methods added.
 // World::GetLFGQueue() forwards to sLFGMgr. Bot module uses the existing types.

@@ -349,6 +349,7 @@ bool PlayerbotAIConfig::Initialize()
     classRaceProbabilityTotal = 0;
 
     useFixedClassRaceCounts = config.GetBoolDefault("AiPlayerbot.ClassRace.UseFixedClassRaceCounts", false);
+    fixedClassRaceCounts.clear();
     RandomPlayerbotFactory factory(0);
 
     for (uint32 race = 1; race < MAX_RACES; ++race)
