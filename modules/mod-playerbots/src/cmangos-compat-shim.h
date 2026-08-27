@@ -200,25 +200,6 @@ using Spells::IsPassiveSpell;
 inline bool IsPositiveSpell(SpellEntry const* spellInfo) { return spellInfo && spellInfo->IsPositiveSpell(); }
 inline bool IsPositiveSpell(SpellEntry const* spellInfo, WorldObject const* caster, WorldObject const* victim) { return spellInfo && spellInfo->IsPositiveSpell(caster, victim); }
 
-// === ClientLootType (cmangos has it in Loot/LootMgr.h; Penqle's LootMgr.h doesn't) ===
-// Bot's LootValues.h references this enum. Stub copy from cmangos.
-enum ClientLootType
-{
-    CLIENT_LOOT_NONE            = 0,
-    CLIENT_LOOT_CORPSE          = 1,
-    CLIENT_LOOT_PICKPOCKETING   = 2,
-    CLIENT_LOOT_FISHING         = 3,
-    CLIENT_LOOT_DISENCHANTING   = 4,
-    CLIENT_LOOT_FISHINGFAIL     = 5,
-    CLIENT_LOOT_INSIGNIA        = 6,
-    CLIENT_LOOT_FISHINGHOLE     = 8,
-};
-
-// === GroupLootRoll / GroupLootRollMap (cmangos types not in Penqle) ===
-// Bot's LootValues.h has a GroupLootRollMap field. Stub class so the field declaration parses.
-class GroupLootRoll;  // opaque
-typedef std::unordered_map<uint32, GroupLootRoll*> GroupLootRollMap;
-
 // === TimePoint (cmangos using; not in Penqle) ===
 // Bot uses TimePoint for loot creation timestamps.
 #include <chrono>
@@ -309,16 +290,6 @@ inline bool IsAreaAuraEffect(uint32 effect) {
         || effect == SPELL_EFFECT_APPLY_AREA_AURA_ENEMY || effect == SPELL_EFFECT_APPLY_AREA_AURA_PET
         || effect == SPELL_EFFECT_APPLY_AREA_AURA_OWNER;
 }
-
-// === LootItem cmangos-only fields ===
-// cmangos has lootItemType + LOOTITEM_TYPE_*; Penqle has only the basic LootItem.
-// Add stubs to compile bot's checks; behavior degraded (everything looks "normal").
-enum LootItemType {
-    LOOTITEM_TYPE_NORMAL = 0,
-    LOOTITEM_TYPE_QUEST = 1,
-    LOOTITEM_TYPE_FFA = 2,
-    LOOTITEM_TYPE_CONDITIONNAL = 3,
-};
 
 // === MINIMUM_LOOTING_TIME ===
 #ifndef MINIMUM_LOOTING_TIME
@@ -725,22 +696,6 @@ inline std::mt19937* GetRandomGenerator() {
 // === Loot status flags (cmangos LootMgr.h) ===
 // Bot's LootValues.cpp returns bitflags describing loot state. Penqle has no equivalent
 // (its Loot just exposes items/gold). Define as bitflags so bot computes a value (which
-// is consumed only on the bot side via AI_VALUE comparisons; runtime semantic is harmless).
-#ifndef LOOT_STATUS_FAKE_LOOT
-enum LootStatusFlags : uint32 {
-    LOOT_STATUS_FAKE_LOOT              = 0x01,
-    LOOT_STATUS_CONTAIN_GOLD           = 0x02,
-    LOOT_STATUS_NOT_FULLY_LOOTED       = 0x04,
-    LOOT_STATUS_CONTAIN_FFA            = 0x08,
-    LOOT_STATUS_CONTAIN_RELEASED_ITEMS = 0x10,
-};
-#endif
-
-// === LootMethod sentinel (cmangos has NOT_GROUP_TYPE_LOOT for "no group loot") ===
-// Penqle uses NOT_GROUP_TYPE_LOOT or FREE_FOR_ALL — but the enum values may differ.
-// Stub as 0xFF so the comparison `lootMethod != NOT_GROUP_TYPE_LOOT` always hits.
-#ifndef NOT_GROUP_TYPE_LOOT
-constexpr uint32 NOT_GROUP_TYPE_LOOT = 0xFF;
 #endif
 
 // === SPELL_ATTR_ON_NEXT_SWING aliases ===

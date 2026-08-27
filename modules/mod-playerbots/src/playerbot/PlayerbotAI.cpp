@@ -7141,7 +7141,7 @@ bool PlayerbotAI::HasNotFullStacksInBagsForLootItems(LootItemList &lootItemList)
                 {
                     if (Item* pItem = pBag->GetItemByPos(j))
                     {
-                        if (pItem->GetProto()->ItemId == lootItem.itemId
+                        if (pItem->GetProto()->ItemId == lootItem.itemid
                             && pItem->GetCount() < pItem->GetMaxStackCount())
                         {
                             return true;
@@ -7155,7 +7155,7 @@ bool PlayerbotAI::HasNotFullStacksInBagsForLootItems(LootItemList &lootItemList)
         {
             if (Item* pItem = bot->GetItemByPos(INVENTORY_SLOT_BAG_0, i))
             {
-                if (pItem->GetProto()->ItemId == lootItem.itemId
+                if (pItem->GetProto()->ItemId == lootItem.itemid
                     && pItem->GetCount() < pItem->GetMaxStackCount())
                 {
                     return true;
@@ -7179,7 +7179,7 @@ bool PlayerbotAI::HasQuestItemsInWOLootList(WorldObject* wo)
     if (wo->IsCreature()) woLoot = &((Creature*)wo)->loot;
     else if (wo->IsGameObject()) woLoot = &((GameObject*)wo)->loot;
     if (woLoot)
-        woLoot->GetLootItemsListFor(bot, lootItemList);
+        LootAccess(woLoot).GetLootItemsListFor(bot, lootItemList);
 
     if (HasQuestItemsInLootList(lootItemList))
     {
@@ -7193,7 +7193,7 @@ bool PlayerbotAI::HasQuestItemsInLootList(LootItemList &lootItemList)
 {
     for (auto lootItem : lootItemList)
     {
-        if (lootItem.lootItemType == LOOTITEM_TYPE_QUEST)
+        if (lootItem.needs_quest)
         {
             return true;
         }
@@ -7213,13 +7213,13 @@ bool PlayerbotAI::CanLootSomethingFromWO(WorldObject* wo)
         Creature* creature = GetCreature(guid);
         if (creature && sServerFacade.GetDeathState(creature) == CORPSE)
         {
-            if (creature->loot.GetGoldAmount() > 0)
+            if (creature->loot.gold > 0)
             {
                 return true;
             }
             LootItemList lootItemList = {};
 
-            creature->loot.GetLootItemsListFor(bot, lootItemList);
+            LootAccess(&creature->loot).GetLootItemsListFor(bot, lootItemList);
 
             if (HasNotFullStacksInBagsForLootItems(lootItemList))
             {
@@ -7234,7 +7234,7 @@ bool PlayerbotAI::CanLootSomethingFromWO(WorldObject* wo)
         {
             LootItemList lootItemList = {};
 
-            go->loot.GetLootItemsListFor(bot, lootItemList);
+            LootAccess(&go->loot).GetLootItemsListFor(bot, lootItemList);
 
             if (HasNotFullStacksInBagsForLootItems(lootItemList))
             {

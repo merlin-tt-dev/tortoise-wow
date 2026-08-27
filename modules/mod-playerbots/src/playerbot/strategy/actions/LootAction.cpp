@@ -319,7 +319,7 @@ bool StoreLootAction::Execute(Event& event)
         if (!proto)
             continue;
 
-        LootItem* lootItem = loot->GetLootItemInSlot(itemindex);
+        LootItem* lootItem = loot->LootItemInSlot(itemindex, bot->GetGUIDLow());
 
         if (!lootItem)
             continue;

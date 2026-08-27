@@ -11,110 +11,52 @@ INSTANTIATE_SINGLETON_1(ai::SharedObjectContext);
 // LootAccess methods read from the wrapped Loot* (proper accessor-based
 // access; the original layout-cheat reinterpret_cast pattern was removed).
 
-// Empty static fallbacks used when LootAccess wraps a null Loot* (defensive).
+// Empty static fallback used when LootAccess wraps a null Loot*.
 static const std::set<ObjectGuid> s_emptyGuidSet;
-static const LootItemList s_emptyLootItems;
 
 std::set<ObjectGuid> const& LootAccess::playersLooting() const
 {
-	if (!loot)
-		return s_emptyGuidSet;
-	return loot->GetLootingPlayers();
+    return loot ? loot->GetLootingPlayers() : s_emptyGuidSet;
 }
 
 LootType LootAccess::lootType() const
 {
-	return loot ? loot->loot_type : LOOT_CORPSE;
+    return loot ? loot->loot_type : LOOT_CORPSE;
 }
 
-uint32 LootAccess::gold() const
+std::vector<LootItem*> LootAccess::GetLootContentFor(Player* player) const
 {
-	return loot ? loot->gold : 0;
+    std::vector<LootItem*> result;
+    if (!loot || !player)
+        return result;
+
+    // Penqle exposes the exact player-visible loot-slot mapping through
+    // LootItemInSlot().  This includes normal, quest, FFA and conditional
+    // items and filters already-looted entries.
+    Loot* mutableLoot = const_cast<Loot*>(loot);
+    uint32 const maxSlot = loot->GetMaxSlotInLootFor(player->GetGUIDLow());
+    for (uint32 slot = 0; slot < maxSlot; ++slot)
+    {
+        LootItem* item = mutableLoot->LootItemInSlot(slot, player->GetGUIDLow());
+        if (!item || !item->AllowedForPlayer(player, loot->GetLootTarget()))
+            continue;
+
+        result.push_back(item);
+    }
+
+    return result;
 }
 
-std::set<ObjectGuid> const& LootAccess::playersOpened() const
+void LootAccess::GetLootItemsListFor(Player* player, LootItemList& result) const
 {
-	// Penqle has no per-player "released the corpse" tracking; return empty set.
-	return s_emptyGuidSet;
-}
-
-LootItemList const& LootAccess::lootItems() const
-{
-	if (!loot)
-		return s_emptyLootItems;
-	return loot->items;
-}
-
-std::vector<LootItem*> LootAccess::GetLootContentFor(Player* /*player*/) const
-{
-	std::vector<LootItem*> retvec;
-	if (!loot)
-		return retvec;
-
-	// Penqle's items vector holds LootItem values; bot consumers want pointers.
-	// Cast away const to publish as ptr — bot consumers treat as read-only via const accessors.
-	for (auto const& item : loot->items)
-		retvec.push_back(const_cast<LootItem*>(&item));
-
-	return retvec;
-}
-
-// Get loot status for a specified player.
-// cmangos returned bitflags reflecting "has gold / not fully looted / contains FFA / etc."
-// We map to Penqle's coarser model: any items remaining = NOT_FULLY_LOOTED, gold > 0 = CONTAIN_GOLD.
-// FFA / released-items flags use LootItem::freeForAll() / isReleased() (which we aliased; isReleased
-// always returns false in Penqle).
-uint32 LootAccess::GetLootStatusFor(Player const* player) const
-{
-	if (!loot)
-		return 0;
-
-	uint32 status = 0;
-
-	if (loot->gold != 0)
-		status |= LOOT_STATUS_CONTAIN_GOLD;
-
-	for (auto const& lootItem : loot->items)
-	{
-		// Penqle's GetSlotTypeForSharedLoot takes (PermissionTypes, Player*).
-		// Pass NONE_PERMISSION — bot uses this status only for "is anything left to loot?" checks.
-		LootSlotType slotType = lootItem.GetSlotTypeForSharedLoot(NONE_PERMISSION, const_cast<Player*>(player));
-		if (slotType == MAX_LOOT_SLOT_TYPE)
-			continue;
-
-		status |= LOOT_STATUS_NOT_FULLY_LOOTED;
-
-		if (lootItem.freeForAll())
-			status |= LOOT_STATUS_CONTAIN_FFA;
-
-		if (lootItem.isReleased())
-			status |= LOOT_STATUS_CONTAIN_RELEASED_ITEMS;
-	}
-	return status;
-}
-
-// Is there is any loot available for provided player
-bool LootAccess::IsLootedFor(Player const* player) const
-{
-	return (GetLootStatusFor(player) == 0);
+    result.clear();
+    for (LootItem* item : GetLootContentFor(player))
+        result.push_back(*item);
 }
 
 bool LootAccess::IsLootedForAll() const
 {
-	if (!loot)
-		return true;
-
-	// Penqle's allowed-looters set is private; use the public IsAllowedLooter instead.
-	// For our purposes (despawn timer), "looted for all" = no items left + no gold left.
-	if (loot->gold > 0)
-		return false;
-
-	for (auto const& item : loot->items)
-	{
-		if (!item.is_looted)
-			return false;
-	}
-	return true;
+    return !loot || loot->isLooted();
 }
 
 LootTemplateAccess const* DropMapValue::GetLootTemplate(ObjectGuid guid, LootType type)
@@ -456,20 +398,34 @@ bool ShouldLootObject::Calculate()
 		return true;				
     }
 
-    if (objLoot->GetGoldAmount() > 0)
-		return true;
+    if (objLoot->gold > 0)
+        return true;
 
     LootAccess lootAccess(objLoot);
 
-	if (lootAccess.lootMethod() != NOT_GROUP_TYPE_LOOT && !lootAccess.isChecked()) //Open loot once to start rolls.
-		return true;
+    // Penqle starts GROUP_LOOT / NEED_BEFORE_GREED rolls the first time body
+    // loot is opened. Preserve the historical bot behavior of opening such a
+    // corpse once even when none of its items is personally useful.
+    if (object->IsCreature())
+    {
+        Creature* creature = static_cast<Creature*>(object);
+        if (!creature->lootForBody)
+        {
+            Group* group = creature->GetGroupLootRecipient();
+            if (!group && bot->GetGroup() && bot->GetGroup()->isBGGroup())
+                group = bot->GetGroup();
+
+            if (group && (group->GetLootMethod() == GROUP_LOOT || group->GetLootMethod() == NEED_BEFORE_GREED))
+                return true;
+        }
+    }
 
 	for (auto& lItem : lootAccess.GetLootContentFor(bot))
 	{
-		if (!lItem->itemId)
+        if (!lItem->itemid
 			continue;
 
-		uint32 canLootAmount = AI_VALUE2(uint32, "stack space for item", lItem->itemId);
+        uint32 canLootAmount = AI_VALUE2(uint32, "stack space for item", lItem->itemid);
 
 		if (canLootAmount < lItem->count)
 			continue;
@@ -489,17 +445,11 @@ void ActiveRolls::CleanUp(Player* bot, LootRollMap& rollMap, ObjectGuid guid, ui
 {
 	for (auto roll = rollMap.begin(); roll != rollMap.end();)
 	{
-		if (guid && roll->first != guid)
-		{
-			++roll;
-			continue;
-		}
-
-		if (slot && roll->second != slot)
-		{
-			++roll;
-			continue;
-		}
+        if (guid && (roll->first != guid || roll->second != slot))
+        {
+            ++roll;
+            continue;
+        }
 
 		Loot* loot = sLootMgr.GetLoot(bot, roll->first);
 		if (!loot)
@@ -508,12 +458,11 @@ void ActiveRolls::CleanUp(Player* bot, LootRollMap& rollMap, ObjectGuid guid, ui
 			continue;
 		}
 
-		GroupLootRoll* lootRoll = loot->GetRollForSlot(roll->second);
-		if (!lootRoll)
-		{
-			roll = rollMap.erase(roll);
-			continue;
-		}
+        if (roll->second >= loot->items.size() || !loot->items[roll->second].is_blocked)
+        {
+            roll = rollMap.erase(roll);
+            continue;
+        }
 
 		if(guid)
 		{
@@ -543,11 +492,11 @@ std::string ActiveRolls::Format()
 		Loot* loot = sLootMgr.GetLoot(bot, roll.first);
 		if (loot)
 		{
-			LootItem* item = loot->GetLootItemInSlot(roll.second);
+            LootItem* item = roll.second < loot->items.size() ? &loot->items[roll.second] : nullptr;
 
-			if (item)
-			{
-				const ItemPrototype* proto = sItemStorage.LookupEntry<ItemPrototype>(item->itemId);
+            if (item)
+            {
+                const ItemPrototype* proto = sItemStorage.LookupEntry<ItemPrototype>(item->itemid);
 
 				if (proto)
 				{

@@ -8,7 +8,7 @@ using namespace ai;
 
 bool LootStartRollAction::Execute(Event& event)
 {
-    WorldPacket p(event.getPacket()); //WorldPacket packet for CMSG_LOOT_ROLL, (8+4+1)
+    WorldPacket p(event.getPacket()); // SMSG_LOOT_START_ROLL packet
     ObjectGuid creatureGuid;
     uint32 itemSlot;
     uint32 itemId;
@@ -36,18 +36,25 @@ bool LootStartRollAction::Execute(Event& event)
 
     LootRollMap lootRolls = AI_VALUE(LootRollMap, "active rolls");
 
-    if (lootRolls.find(creatureGuid) != lootRolls.end())
-        return false;
-
     Loot* loot = sLootMgr.GetLoot(bot, creatureGuid);
-    if (!loot)
+    if (!loot || itemSlot >= loot->items.size() || !loot->items[itemSlot].is_blocked)
         return false;
 
-    for(uint8 i=0;i< MAX_NR_LOOT_ITEMS;i++)
-        if(loot->GetRollForSlot(i))
-            lootRolls.insert({ creatureGuid, i });
-        
-    ActiveRolls::CleanUp(bot,lootRolls);
+    // Penqle sends one SMSG_LOOT_START_ROLL per native Group::Roll.  Track the
+    // slot from this packet directly; do not depend on a CMaNGOS Loot-side roll map.
+    auto range = lootRolls.equal_range(creatureGuid);
+    bool alreadyTracked = false;
+    for (auto itr = range.first; itr != range.second; ++itr)
+        if (itr->second == itemSlot)
+        {
+            alreadyTracked = true;
+            break;
+        }
+
+    if (!alreadyTracked)
+        lootRolls.insert({ creatureGuid, itemSlot });
+
+    ActiveRolls::CleanUp(bot, lootRolls);
 
     SET_AI_VALUE(LootRollMap, "active rolls", lootRolls);
 
@@ -168,7 +175,7 @@ ItemQualifier RollAction::GetRollItem(ObjectGuid lootGuid, uint32 slot)
     if (!loot)
         return ItemQualifier();
 
-    LootItem* item = loot->GetLootItemInSlot(slot);
+    LootItem* item = slot < loot->items.size() ? &loot->items[slot] : nullptr;
 
     if (!item)
         return ItemQualifier();
@@ -243,17 +250,21 @@ bool RollAction::RollOnItemInSlot(RollVote vote, ObjectGuid lootGuid, uint32 slo
     if (!loot)
         return false;
 
-    LootItem* item = loot->GetLootItemInSlot(slot);
-    ItemPrototype const* proto = sItemStorage.LookupEntry<ItemPrototype>(item->itemId);
+    LootItem* item = slot < loot->items.size() ? &loot->items[slot] : nullptr;
+    if (!item)
+        return false;
+
+    ItemPrototype const* proto = sItemStorage.LookupEntry<ItemPrototype>(item->itemid);
     if (!proto)
         return false;
 
-    // Penqle has no GroupLootRoll system; GetRollForSlot returns nullptr.
-    void* lootRoll = loot->GetRollForSlot(slot);
-    if (!lootRoll)
+    Group* group = bot->GetGroup();
+    if (!group)
         return false;
 
-    bool didRoll = false; // Wiring group-roll properly is future work.
+    // Use Penqle's native Group roll registry. CountRollVote locates the active
+    // Roll by loot target + item slot and performs the normal Need/Greed/Pass flow.
+    bool didRoll = group->CountRollVote(bot, lootGuid, slot, vote);
 
     if (didRoll)
     {
@@ -271,7 +282,7 @@ bool LootRollAction::Execute(Event& event)
 {
     Player* bot = QueryItemUsageAction::ai->GetBot();
 
-    WorldPacket p(event.getPacket()); //WorldPacket packet for CMSG_LOOT_ROLL, (8+4+1)
+    WorldPacket p(event.getPacket()); // SMSG_LOOT_START_ROLL packet
     ObjectGuid guid;
     uint32 slot;
     uint8 rollType;

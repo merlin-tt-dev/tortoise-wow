@@ -17,10 +17,11 @@
 | 0016 Native Travel Metadata | eingebaut | ausstehend |
 | 0017 Native Config IncludeDir | eingebaut | ausstehend |
 | 0018 Native Compatibility Semantics I | eingebaut | ausstehend |
-| 0019 Native Stores / AreaTriggers / Channels / Pet Autocast | mit diesem Patch | ausstehend |
-| core-0003 Map-only PathFinder / Nav-Area API | mit 0020-Bundle | ausstehend |
-| core-0004 Native Fixed-Path Motion | mit 0020-Bundle | ausstehend |
-| 0020 Native Movement / MMap / Triggered Semantics | mit 0020-Bundle | ausstehend |
+| 0019 Native Stores / AreaTriggers / Channels / Pet Autocast | eingebaut | ausstehend |
+| core-0003 Map-only PathFinder / Nav-Area API | eingebaut | ausstehend |
+| core-0004 Native Fixed-Path Motion | eingebaut | ausstehend |
+| 0020 Native Movement / MMap / Triggered Semantics | eingebaut | ausstehend |
+| 0021 Native Loot / Group Roll Semantics | mit diesem Patch | ausstehend |
 
 **Wichtig:** „eingebaut“ bedeutet nur statisch/source-seitig portiert. Kein Punkt gilt dadurch als getestet.
 
@@ -67,6 +68,12 @@
 - [ ] 0020: `FORCED_MOVEMENT_*`, `NAV_AREA_*`, `NAV_MAGMA_SLIME`, `NAV_GROUND_STEEP` und `setArea/getArea/getFlags/setAreaCost` sind aus dem aktiven Penqle-Port entfernt.
 - [ ] 0020: Spell-/Item-Casts verwenden Penqles natives `bool triggered`; keine Fake-`TRIGGERED_*`-Bitmasken verbleiben.
 - [ ] 0020: normale Bewegung verwendet keine Teleports als Ersatz für fehlende Movement-/MMap-APIs.
+- [ ] 0021: Loot-Zugriffe verwenden Penqles `Loot::gold`, `LootItemInSlot()` und player-spezifische Quest/FFA/Conditional-Slots; keine erfundenen `GetGoldAmount()`/`GetLootItemInSlot()`-Methoden.
+- [ ] 0021: `LootItem` verwendet Penqles native Felder `itemid`, `needs_quest`, `freeforall` und `is_blocked`; keine CMaNGOS-Fake-Felder/Typen.
+- [ ] 0021: `SMSG_LOOT_START_ROLL` erfasst jeden Roll-Slot einzeln, auch mehrere Rolls auf derselben Leiche.
+- [ ] 0021: Need/Greed/Pass läuft über Penqles `Group::CountRollVote()` und entfernt den alten `didRoll=false`-Funktionsverlust.
+- [ ] 0021: aktive Rolls werden über Penqles native `LootItem::is_blocked`-Lebensdauer bereinigt.
+- [ ] 0021: GROUP_LOOT/NEED_BEFORE_GREED öffnet eine noch nicht initialisierte Leiche weiterhin einmal, damit Penqle die nativen Rolls startet.
 - [ ] Rest-Shim-Audit (MMap/BG/Loot/LFG/InstanceTemplate/etc.) vollständig abgeschlossen.
 
 ## A1. Clean Build

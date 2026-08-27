@@ -37,31 +37,14 @@ namespace ai
         explicit LootAccess(Loot* l) : loot(l) {}
 
         std::vector<LootItem*> GetLootContentFor(Player* player) const;
-        uint32 GetLootStatusFor(Player const* player) const;
-        bool IsLootedFor(Player const* player) const;
         bool IsLootedForAll() const;
+        void GetLootItemsListFor(Player* player, LootItemList& result) const;
 
-        // Accessor methods replacing the old cmangos-layout fields. Penqle's Loot maps:
-        //   cmangos m_playersLooting -> Penqle::Loot::GetLootingPlayers()
-        //   cmangos m_lootType       -> Penqle::Loot::loot_type
-        //   cmangos m_gold           -> Penqle::Loot::gold
-        //   cmangos m_isChecked      -> no equivalent (always false)
-        //   cmangos m_isFakeLoot     -> no equivalent (always false)
-        //   cmangos m_lootMethod     -> no equivalent (always FREE_FOR_ALL — Penqle uses
-        //                                              Group->m_lootMethod, not Loot->m_lootMethod)
-        //   cmangos m_playersOpened  -> no equivalent (always empty)
-        //   cmangos m_lootItems      -> Penqle::Loot::items
-        // Methods are named to match the bot's call sites (e.g., bot reads `lootAccess->playersLooting()`).
-        // Return type is std::set<ObjectGuid> to match Penqle's Loot::PlayersLooting (the bot uses
-        // .count() which works on both std::set and std::unordered_set).
+        // Native Penqle-backed accessors.  Do not mirror the old CMaNGOS Loot
+        // layout: Penqle has player-specific quest/FFA/conditional slot maps and
+        // group roll state lives on Group, not Loot.
         std::set<ObjectGuid> const& playersLooting() const;
         LootType lootType() const;
-        uint32 gold() const;
-        bool isChecked() const { return false; }
-        bool isFakeLoot() const { return false; }
-        LootMethod lootMethod() const { return FREE_FOR_ALL; }
-        std::set<ObjectGuid> const& playersOpened() const;
-        LootItemList const& lootItems() const;
 
         Loot const* GetLoot() const { return loot; }
 
