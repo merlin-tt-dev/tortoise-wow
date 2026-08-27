@@ -1610,6 +1610,9 @@ class ObjectMgr
         }
 
         QuestRelationsMap& GetCreatureQuestRelationsMap() { return m_CreatureQuestRelations; }
+        QuestRelationsMap& GetCreatureQuestInvolvedRelationsMap() { return m_CreatureQuestInvolvedRelations; }
+        QuestRelationsMap& GetGOQuestRelationsMap() { return m_GOQuestRelations; }
+        QuestRelationsMap& GetGOQuestInvolvedRelationsMap() { return m_GOQuestInvolvedRelations; }
 
         void ResetOldMailCounter() { m_OldMailCounter = 0; }
         void IncrementOldMailCounter(uint32 count) { m_OldMailCounter += count; }

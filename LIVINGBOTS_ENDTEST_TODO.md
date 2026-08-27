@@ -4,6 +4,21 @@
 > **Regel:** Erst ausführen, wenn der Clean-Port vollständig abgeschlossen ist.  
 > **Keine Zwischenabnahme einzelner Patches.**
 
+## Source-Port Checkpoint (noch ungetestet)
+
+| Portblock | Source-Status | Runtime-Test |
+| --- | --- | --- |
+| 0001–0010 Clean-Port Basis/Fixes | eingebaut | ausstehend |
+| 0011 Static Transport GameObject GUID | eingebaut | ausstehend |
+| 0012 Open-Lock: alle Spell-Effects prüfen | eingebaut | ausstehend |
+| 0013 Mining/Herbalism auf echtes GameObject | eingebaut | ausstehend |
+| 0014 Native Penqle Loot Access | eingebaut | ausstehend |
+| 0015 Native Quest-Relation Access | mit diesem Patch | ausstehend |
+
+**Wichtig:** „eingebaut“ bedeutet nur statisch/source-seitig portiert. Kein Punkt gilt dadurch als getestet.
+
+---
+
 ## 0. Testbasis festhalten
 
 - [ ] Finalen Commit-SHA des Teststands notieren.
@@ -224,6 +239,7 @@ Für mehrere echte Routen:
 - [ ] MapTransfers.
 - [ ] Taxi.
 - [ ] Portale als echte Spielmechanik.
+- [ ] Travel-Destinations entstehen aus allen vier nativen Quest-Relation-Maps (Creature giver/taker, GO giver/taker).
 - [ ] keine falsche Verkürzung durch Playerbot-Teleports.
 
 **PASS:** Reise funktioniert spielmechanisch, nicht per Star-Trek-Modus. 😄
@@ -310,6 +326,9 @@ Für mehrere echte Routen:
 ## I1. Questannahme
 
 - [ ] Questgeber finden.
+- [ ] Creature-Questgiver aus nativer `ObjectMgr`-Questrelation finden.
+- [ ] GameObject-Questgiver aus nativer `ObjectMgr`-Questrelation finden.
+- [ ] negative GO-Entry-Konvention (`-entry`) bleibt bei Questzielen/-relationen korrekt.
 - [ ] Levelanforderung.
 - [ ] Race/Class-Anforderung.
 - [ ] Faction.
@@ -330,6 +349,9 @@ Für mehrere echte Routen:
 ## I3. Turn-in
 
 - [ ] korrekten Questgeber finden.
+- [ ] Creature-Involved-/QuestTaker-Relation wird vollständig gefunden.
+- [ ] GameObject-Involved-/QuestTaker-Relation wird vollständig gefunden.
+- [ ] Questgiver/QuestTaker-Factionfilter verwendet Penqles `CreatureInfo::faction`.
 - [ ] richtige Area/Position.
 - [ ] Reward auswählen.
 - [ ] Quest abschließen.

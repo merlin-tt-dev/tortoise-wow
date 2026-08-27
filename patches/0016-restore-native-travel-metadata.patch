@@ -1,0 +1,375 @@
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/TravelValues.cpp b/modules/mod-playerbots/src/playerbot/strategy/values/TravelValues.cpp
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/TravelValues.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/TravelValues.cpp
+@@ -73,8 +73,8 @@
+         if (!cInfo)
+             continue;
+ 
+-        if (cInfo->ExtraFlags & CREATURE_EXTRA_FLAG_INVISIBLE)
++        if (cInfo->flags_extra & CREATURE_FLAG_EXTRA_INVISIBLE)
+             continue;
+ 
+         DestinationPurose purpose = 0;
+ 
+@@ -83,24 +83,24 @@
+                 purpose |= questFlag;
+ 
+         for (auto& flag : allowedNpcFlags)
+         {
+-            if ((cInfo->NpcFlags & flag) != 0)
++            if ((cInfo->npc_flags & flag) != 0)
+             {
+                 purpose |= (uint32)TravelDestinationPurpose::GenericRpg;
+                 break;
+             }
+         }
+ 
+         for (auto& [flag, flagPurpose] : npcPurposeMap)
+         {
+-            if ((cInfo->NpcFlags & flag) != 0)
++            if ((cInfo->npc_flags & flag) != 0)
+             {
+                 purpose |= (uint32)flagPurpose;
+             }
+         }
+ 
+ 
+-        if (cInfo->MinLootGold > 0)
++        if (cInfo->gold_min > 0)
+         {
+             purpose |= (uint32)TravelDestinationPurpose::Grind;
+         }
+@@ -128,15 +128,15 @@
+-        if (cInfo->Rank == CREATURE_ELITE_ELITE || cInfo->Rank == CREATURE_ELITE_RAREELITE || cInfo->Rank == CREATURE_ELITE_WORLDBOSS || cInfo->Rank == CREATURE_ELITE_RARE)
++        if (cInfo->rank == CREATURE_ELITE_ELITE || cInfo->rank == CREATURE_ELITE_RAREELITE || cInfo->rank == CREATURE_ELITE_WORLDBOSS || cInfo->rank == CREATURE_ELITE_RARE)
+         {
+-            if (cInfo->Rank == 1)
++            if (cInfo->rank == 1)
+             {
+                 if (guidpMap[entry].size() == 1)
+                     purpose |= (uint32)TravelDestinationPurpose::Boss;
+             }
+             else
+                 purpose |= (uint32)TravelDestinationPurpose::Boss;
+         }
+ 
+-        if (cInfo->SkinningLootId && cInfo->GetRequiredLootSkill() == SKILL_SKINNING)
++        if (cInfo->skinning_loot_id)
+         {
+             purpose |= (uint32)TravelDestinationPurpose::GatherSkinning;
+         }
+@@ -208,14 +208,18 @@
+     if (entry > 0)
+     {
+         CreatureInfo const* cInfo = sCreatureStorage.LookupEntry<CreatureInfo>(entry);
+ 
+-        if (!cInfo->SkinningLootId)
++        if (!cInfo || !cInfo->skinning_loot_id)
+             return 0;
+ 
+-        return cInfo->GetRequiredLootSkill();
++        // Penqle's Classic EffectSkinning uses SKILL_SKINNING directly.
++        return SKILL_SKINNING;
+     }
+     else
+     {
+         GameObjectInfo const* gInfo = sObjectMgr.GetGameObjectInfo(entry * -1);
+ 
++        if (!gInfo)
++            return 0;
++
+         if (uint32 lockId = gInfo->GetLockId())
+diff --git a/modules/mod-playerbots/src/playerbot/TravelMgr.cpp b/modules/mod-playerbots/src/playerbot/TravelMgr.cpp
+--- a/modules/mod-playerbots/src/playerbot/TravelMgr.cpp
++++ b/modules/mod-playerbots/src/playerbot/TravelMgr.cpp
+@@ -280,7 +280,7 @@
+         CreatureInfo const* cInfo = GetCreatureInfo();
+ 
+-        if (cInfo->NpcFlags & UNIT_NPC_FLAG_VENDOR && GetQuestTemplate()->ReqItemId[GetObjective()])
++        if (cInfo && (cInfo->npc_flags & UNIT_NPC_FLAG_VENDOR) && GetQuestTemplate()->ReqItemId[GetObjective()])
+         {
+             ItemPrototype const* proto = sObjectMgr.GetItemPrototype(GetQuestTemplate()->ReqItemId[GetObjective()]);
+             if (GetQuestTemplate()->ReqItemCount[GetObjective()] * proto->BuyPrice > info.GetMoney()) //Need more money.
+                 return false;
+@@ -289,9 +289,9 @@
+         }
+ 
+         if (!skipKillableCheck && !forceThisQuest)
+         {
+-            if (cInfo && (int)cInfo->MaxLevel - (int)info.GetLevel() > 4)
++            if (cInfo && (int)cInfo->level_max - (int)info.GetLevel() > 4)
+                 return false;
+ 
+             //Do not try to hand-in dungeon/elite quests in instances without a group.
+-            if (cInfo->Rank > CREATURE_ELITE_NORMAL)
++            if (cInfo && cInfo->rank > CREATURE_ELITE_NORMAL)
+@@ -380,7 +380,7 @@
+         CreatureInfo const* cInfo = GetCreatureInfo();
+ 
+-        if (!skipKillableCheck && cInfo->NpcFlags & UNIT_NPC_FLAG_VENDOR && GetQuestTemplate()->ReqItemId[GetObjective()] &&
++        if (!skipKillableCheck && cInfo && (cInfo->npc_flags & UNIT_NPC_FLAG_VENDOR) && GetQuestTemplate()->ReqItemId[GetObjective()] &&
+             !GuidPosition(HIGHGUID_UNIT, GetEntry()).IsHostileTo(bot))
+         {
+             skipKillableCheck = true;
+         }
+@@ -520,5 +520,5 @@
+         AreaTableEntry const* areaEntry = sAreaStore.LookupEntry<AreaEntry>(areaid);
+-        if (areaEntry && areaEntry->ID == GetEntry())
++        if (areaEntry && areaEntry->Id == GetEntry())
+         {
+             return areaEntry;
+         }
+@@ -550,5 +550,5 @@
+-    if (area->exploreFlag == 0xffff)
++    if (area->ExploreFlag == 0xffff)
+         return false;
+-    int offset = area->exploreFlag / 32;
++    int offset = area->ExploreFlag / 32;
+ 
+-    uint32 val = (uint32)(1 << (area->exploreFlag % 32));
++    uint32 val = (uint32)(1 << (area->ExploreFlag % 32));
+@@ -590,8 +590,11 @@
+     CreatureInfo const* cInfo = GetCreatureInfo();
+ 
++    if (!cInfo)
++        return false;
++
+ #ifdef MANGOSBOT_TWO
+-    if (cInfo->Rank == CREATURE_ELITE_NORMAL && cInfo->MinLootGold == 0 && info.GetPosition().getMapId() == 609)
++    if (cInfo->rank == CREATURE_ELITE_NORMAL && cInfo->gold_min == 0 && info.GetPosition().getMapId() == 609)
+         return true;
+ #endif
+ 
+     int32 botLevel = info.GetLevel();
+@@ -601,17 +604,17 @@
+     float levelBoost = botPowerLevel / 50.0f; //(0-2.0f)
+ 
+     int32 maxLevel = std::max(botLevel * (0.5f + levelMod), botLevel - 5.0f + levelBoost);
+ 
+-    if ((int32)cInfo->MaxLevel > maxLevel) //@lvl5 max = 3, @lvl60 max = 57
++    if ((int32)cInfo->level_max > maxLevel) //@lvl5 max = 3, @lvl60 max = 57
+         return false;
+ 
+     int32 minLevel = std::max(botLevel * (0.4f + levelMod), botLevel - 12.0f + levelBoost);
+ 
+-    if ((int32)cInfo->MaxLevel < minLevel) //@lvl5 min = 3, @lvl60 max = 50
++    if ((int32)cInfo->level_max < minLevel) //@lvl5 min = 3, @lvl60 max = 50
+         return false;
+ 
+-    if (cInfo->MinLootGold == 0)
++    if (cInfo->gold_min == 0)
+         return false;
+ 
+-    if (cInfo->Rank > CREATURE_ELITE_NORMAL && !info.GetBoolValue("can fight elite"))
++    if (cInfo->rank > CREATURE_ELITE_NORMAL && !info.GetBoolValue("can fight elite"))
+         return false;
+@@ -680,4 +680,7 @@
+     CreatureInfo const* cInfo = sObjectMgr.GetCreatureTemplate(GetEntry());
+ 
+-    if ((int32)cInfo->MaxLevel > info.GetLevel() + 3)
++    if (!cInfo)
+         return false;
++
++    if ((int32)cInfo->level_max > info.GetLevel() + 3)
++        return false;
+@@ -730,9 +730,9 @@
+     if (GetPurpose() == TravelDestinationPurpose::GatherFishing)
+     {
+         skillId = SKILL_FISHING;
+ 
+-        int32 reqSkillValue = sObjectMgr.GetFishingBaseSkillLevel(GetEntry());
++        reqSkillValue = sObjectMgr.GetFishingBaseSkillLevel(GetEntry());
+ 
+         if (!reqSkillValue) //no fishable zone or area should be 0
+             return false;
+ 
+@@ -742,11 +742,12 @@
+     else if (GetEntry() > 0)
+     {
+         CreatureInfo const* cInfo = GetCreatureInfo();
+ 
+-        if (!cInfo)
++        if (!cInfo || !cInfo->skinning_loot_id)
+             return false;
+ 
+-        skillId = cInfo->GetRequiredLootSkill();
+-        uint32 targetLevel = cInfo->MaxLevel;
++        // Penqle's Classic EffectSkinning always requires SKILL_SKINNING.
++        skillId = SKILL_SKINNING;
++        uint32 targetLevel = cInfo->level_max;
+         reqSkillValue = targetLevel < 10 ? 1 : targetLevel < 20 ? (targetLevel - 10) * 10 : targetLevel * 5;
+     }
+@@ -1080,9 +1080,9 @@
+     //Get exploration level
+-    if (area->area_level) 
++    if (area->AreaLevel)
+     {
+-        areaLevels[area_id] = area->area_level;
+-        return area->area_level;
++        areaLevels[area_id] = area->AreaLevel;
++        return area->AreaLevel;
+     }
+ 
+ 
+     int32 level = 0;
+@@ -1092,8 +1092,8 @@
+     for (uint32 i = 0; i <= sAreaStore.GetNumRows(); i++)
+     {
+         AreaTableEntry const* subArea = GetAreaEntryByAreaID(i);
+ 
+-        if (!subArea || subArea->zone != area->ID)
++        if (!subArea || subArea->ZoneId != area->Id)
+             continue;
+ 
+-        int32 subLevel = GetAreaLevel(subArea->ID);
++        int32 subLevel = GetAreaLevel(subArea->Id);
+@@ -1140,12 +1140,12 @@
+-        FactionTemplateEntry const* factionEntry = sFactionTemplateStore.LookupEntry(cInfo->Faction);
++        FactionTemplateEntry const* factionEntry = sFactionTemplateStore.LookupEntry(cInfo->faction);
+         ReputationRank reactionHum = PlayerbotAI::GetFactionReaction(humanFaction, factionEntry);
+         ReputationRank reactionOrc = PlayerbotAI::GetFactionReaction(orcFaction, factionEntry);
+ 
+         if (reactionHum > REP_NEUTRAL || reactionOrc > REP_NEUTRAL)
+             continue;
+ 
+-        level += cInfo->MaxLevel;
++        level += cInfo->level_max;
+         cnt++;
+     }
+ 
+     if (cnt)
+@@ -1154,8 +1154,8 @@
+         return areaLevels[area_id];
+     }
+ 
+     //Use parent zone value.
+-    if (area->zone)
++    if (area->ZoneId)
+     {
+         areaLevels[area_id] = 0; //Set a temporary value so it wont be counted.
+-        level = GetAreaLevel(area->zone);
++        level = GetAreaLevel(area->ZoneId);
+@@ -1205,6 +1205,6 @@
+-                if (std::find(loadedAreas.begin(), loadedAreas.end(), area->ID) == loadedAreas.end())
++                if (std::find(loadedAreas.begin(), loadedAreas.end(), area->Id) == loadedAreas.end())
+                 {
+-                    int32 level = sTravelMgr.GetAreaLevel(area->ID);
++                    int32 level = sTravelMgr.GetAreaLevel(area->Id);
+ 
+-                    WorldDatabase.PExecute("INSERT INTO `ai_playerbot_zone_level` (`id`, `level`) VALUES ('%d', '%d')", area->ID, level);
++                    WorldDatabase.PExecute("INSERT INTO `ai_playerbot_zone_level` (`id`, `level`) VALUES ('%d', '%d')", area->Id, level);
+                 }
+@@ -1250,2 +1250,2 @@
+-        uint32 mapId = sMapStore.LookupEntry(i)->MapID;
++        uint32 mapId = sMapStore.LookupEntry(i)->id;
+         calculations.push_back(std::async([this, mapId] { SetMobAvoidAreaMap(mapId); }));
+@@ -1300,4 +1300,4 @@
+-        if (cInfo->NpcFlags > 0)
++        if (cInfo->npc_flags > 0)
+             continue;
+ 
+-        FactionTemplateEntry const* factionEntry = sFactionTemplateStore.LookupEntry(cInfo->Faction);
++        FactionTemplateEntry const* factionEntry = sFactionTemplateStore.LookupEntry(cInfo->faction);
+@@ -1425,8 +1425,8 @@
+-        if (!area->exploreFlag)
++        if (!area->ExploreFlag)
+             continue;
+ 
+         point.FetchArea();
+ 
+         pointsMap.insert_or_assign(point.GetRawValue(), point);
+ 
+-        loc = AddDestination<ExploreTravelDestination>(area->ID, TravelDestinationPurpose::Explore);
++        loc = AddDestination<ExploreTravelDestination>(area->Id, TravelDestinationPurpose::Explore);
+@@ -1555,6 +1555,6 @@
+             point.printWKT(out);
+-            out << cInfo->MaxLevel << ",";
+-            out << cInfo->Rank << ",";
+-            out << cInfo->Faction << ",";
+-            out << cInfo->NpcFlags << ",";
++            out << cInfo->level_max << ",";
++            out << cInfo->rank << ",";
++            out << cInfo->faction << ",";
++            out << cInfo->npc_flags << ",";
+             out << point.getAreaName() << ",";
+@@ -2260,3 +2260,3 @@
+-        uint32 mapId = sMapStore.LookupEntry(i)->MapID;
++        uint32 mapId = sMapStore.LookupEntry(i)->id;
+ 
+         if (WorldPosition(mapId, 0, 0).getMap(0))
+@@ -2290,3 +2290,3 @@
+-        uint32 mapId = sMapStore.LookupEntry(i)->MapID;
++        uint32 mapId = sMapStore.LookupEntry(i)->id;
+ 
+         GetPopulatedGrids(mapId);
+@@ -2370,2 +2370,2 @@
+-            if (!sObjectMgr.GetFishingBaseSkillLevel(area->ID))
++            if (!sObjectMgr.GetFishingBaseSkillLevel(area->Id))
+                 continue;
+diff --git a/LIVINGBOTS_ENDTEST_TODO.md b/LIVINGBOTS_ENDTEST_TODO.md
+--- a/LIVINGBOTS_ENDTEST_TODO.md
++++ b/LIVINGBOTS_ENDTEST_TODO.md
+@@ -12,9 +12,10 @@
+ | 0011 Static Transport GameObject GUID | eingebaut | ausstehend |
+ | 0012 Open-Lock: alle Spell-Effects prüfen | eingebaut | ausstehend |
+ | 0013 Mining/Herbalism auf echtes GameObject | eingebaut | ausstehend |
+ | 0014 Native Penqle Loot Access | eingebaut | ausstehend |
+-| 0015 Native Quest-Relation Access | mit diesem Patch | ausstehend |
++| 0015 Native Quest-Relation Access | eingebaut | ausstehend |
++| 0016 Native Travel Metadata / Gather Skills | mit diesem Patch | ausstehend |
+ 
+ **Wichtig:** „eingebaut“ bedeutet nur statisch/source-seitig portiert. Kein Punkt gilt dadurch als getestet.
+ 
+ ---
+@@ -239,8 +240,10 @@
+ - [ ] MapTransfers.
+ - [ ] Taxi.
+ - [ ] Portale als echte Spielmechanik.
+ - [ ] Travel-Destinations entstehen aus allen vier nativen Quest-Relation-Maps (Creature giver/taker, GO giver/taker).
++- [ ] Area-/Map-Metadaten verwenden Penqles native Felder (`Id`, `ZoneId`, `AreaLevel`, `ExploreFlag`, `MapEntry::id`).
++- [ ] Mob-Avoidance verwendet Penqles `npc_flags` und `faction` statt historische CMaNGOS-Feldnamen.
+ - [ ] keine falsche Verkürzung durch Playerbot-Teleports.
+ 
+ **PASS:** Reise funktioniert spielmechanisch, nicht per Star-Trek-Modus. 😄
+ 
+@@ -292,8 +295,9 @@
+ - [ ] Bot hat Mining → benutzt Node.
+ - [ ] Spell target ist GameObject.
+ - [ ] Skill-Anforderung korrekt.
+ - [ ] Loot danach korrekt.
++- [ ] Fishing-Travel berücksichtigt den tatsächlichen Zonen-Skillwert (kein durch Shadowing verlorenes `reqSkillValue`).
+ 
+ ## H2. Herbalism
+ 
+ - [ ] Herb erkannt.
+@@ -304,8 +308,10 @@
+ 
+ ## H3. Skinning
+ 
+ - [ ] Creature-Skinning.
++- [ ] Creature-Gather-Ziel wird nur bei vorhandenem `skinning_loot_id` erzeugt.
++- [ ] Penqle-Creature-Skinning verwendet `SKILL_SKINNING` wie der native `EffectSkinning`-Pfad.
+ - [ ] korrekter Skillcheck.
+ - [ ] korrektes Unit-Ziel.
+ - [ ] kein GameObject-Pfad.
+ 
+@@ -343,8 +349,9 @@
+ - [ ] GameObject quests.
+ - [ ] Use-item quests.
+ - [ ] Escort soweit unterstützt.
+ - [ ] Explore / Area objectives.
++- [ ] Explore-State verwendet `AreaEntry::ExploreFlag`; Subarea-/Parent-Zonen verwenden `Id`/`ZoneId`.
+ - [ ] Multi-zone objectives.
+ 
+ ## I3. Turn-in
+ 
+@@ -360,8 +367,9 @@
+ ## I4. Level-Fortschritt
+ 
+ - [ ] Level 1 → mehrere Level ohne manuellen Eingriff.
+ - [ ] Gebietswechsel passend zum Level.
++- [ ] Area-Level-Berechnung verwendet `AreaLevel` bzw. native Creature-`level_max`-Fallbacks.
+ - [ ] keine dauerhafte Schleife in einer Zone.
+ - [ ] keine Kohorten, die reproduzierbar in Arathi hängen.
+ - [ ] kein zufälliger Teleport als Progress-Fix.
+ - [ ] `DisableRandomLevels = 1` respektiert.

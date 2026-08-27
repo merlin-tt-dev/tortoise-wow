@@ -12,22 +12,20 @@ using namespace ai;
 //What kind of a relation does this entry have with this quest.
 EntryQuestRelationMap EntryQuestRelationMapValue::Calculate()
 {
-	EntryQuestRelationMap rMap;
+    EntryQuestRelationMap rMap;
 
-	//Quest givers takers
-	QuestObjectMgr* questObjectMgr = (QuestObjectMgr*)&sObjectMgr;
+    // Quest givers/takers come directly from Penqle's ObjectMgr relation stores.
+    for (auto [entry, questId] : sObjectMgr.GetCreatureQuestRelationsMap())
+        rMap[entry][questId] |= (uint8)TravelDestinationPurpose::QuestGiver;
 
-	for (auto [entry, questId] : questObjectMgr->GetCreatureQuestRelationsMap())
-		rMap[entry][questId] |= (uint8)TravelDestinationPurpose::QuestGiver;
+    for (auto [entry, questId] : sObjectMgr.GetCreatureQuestInvolvedRelationsMap())
+        rMap[entry][questId] |= (uint8)TravelDestinationPurpose::QuestTaker;
 
-	for (auto [entry, questId] : questObjectMgr->GetCreatureQuestInvolvedRelationsMap())
-		rMap[entry][questId] |= (uint8)TravelDestinationPurpose::QuestTaker;
+    for (auto [entry, questId] : sObjectMgr.GetGOQuestRelationsMap())
+        rMap[-(int32)entry][questId] |= (uint8)TravelDestinationPurpose::QuestGiver;
 
-	for (auto [entry, questId] : questObjectMgr->GetGOQuestRelationsMap())
-		rMap[-(int32)entry][questId] |= (uint8)TravelDestinationPurpose::QuestGiver;
-
-	for (auto [entry, questId] : questObjectMgr->GetGOQuestInvolvedRelationsMap())
-		rMap[-(int32)entry][questId] |= (uint8)TravelDestinationPurpose::QuestTaker;
+    for (auto [entry, questId] : sObjectMgr.GetGOQuestInvolvedRelationsMap())
+        rMap[-(int32)entry][questId] |= (uint8)TravelDestinationPurpose::QuestTaker;
 
 	//Quest objectives
 	ObjectMgr::QuestMap const& questMap = sObjectMgr.GetQuestTemplates();
@@ -233,7 +231,7 @@ std::list<GuidPosition> ActiveQuestGiversValue::Calculate()
 
 			if (creatureInfo)
 			{
-				if (!ai->IsFriendlyTo(creatureInfo->Faction))
+                if (!ai->IsFriendlyTo(creatureInfo->faction))
 					continue;
 			}
 
@@ -287,7 +285,7 @@ std::list<GuidPosition> ActiveQuestTakersValue::Calculate()
 
 				if (info)
 				{
-					if (!ai->IsFriendlyTo(info->Faction))
+                    if (!ai->IsFriendlyTo(info->faction))
 						continue;
 				}
 			}
