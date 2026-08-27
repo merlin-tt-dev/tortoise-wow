@@ -119,7 +119,7 @@ bool OpenLootAction::DoLoot(LootObject& lootObject)
         return false;
 
     if (lootObject.skillId == SKILL_MINING)
-        return ai->HasSkill(SKILL_MINING) ? ai->CastSpell(MINING, bot) : false;
+        return go && ai->HasSkill(SKILL_MINING) ? ai->CastSpell(MINING, go) : false;
 
     if (lootObject.skillId == SKILL_HERBALISM)
     {
@@ -136,7 +136,7 @@ bool OpenLootAction::DoLoot(LootObject& lootObject)
 
         if (!isForQuest)
         {
-            return ai->HasSkill(SKILL_HERBALISM) ? ai->CastSpell(HERB_GATHERING, bot) : false;
+            return go && ai->HasSkill(SKILL_HERBALISM) ? ai->CastSpell(HERB_GATHERING, go) : false;
         }
     }
 

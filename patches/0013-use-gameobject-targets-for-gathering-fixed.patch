@@ -1,17 +1,31 @@
 diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/LootAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/LootAction.cpp
 --- a/modules/mod-playerbots/src/playerbot/strategy/actions/LootAction.cpp
 +++ b/modules/mod-playerbots/src/playerbot/strategy/actions/LootAction.cpp
-@@ -1,6 +1,6 @@
+@@ -114,28 +114,28 @@ bool OpenLootAction::DoLoot(LootObject& lootObject)
+     GameObject* go = ai->GetGameObject(lootObject.guid);
+     if (go && sServerFacade.GetDistance2d(bot, go) > INTERACTION_DISTANCE)
+         return false;
+
+     if (go && (go->IsInUse() || go->GetGoState() == GO_STATE_ACTIVE))
+         return false;
+
      if (lootObject.skillId == SKILL_MINING)
 -        return ai->HasSkill(SKILL_MINING) ? ai->CastSpell(MINING, bot) : false;
 +        return go && ai->HasSkill(SKILL_MINING) ? ai->CastSpell(MINING, go) : false;
- 
+
      if (lootObject.skillId == SKILL_HERBALISM)
      {
          // herb-like quest objects
-@@ -15,7 +15,7 @@
+         bool isForQuest = false;
+         if (go && sObjectMgr.IsGameObjectForQuests(lootObject.guid.GetEntry()))
+         {
+             if (go->ActivateToQuest(bot))
+             {
+                 std::list<uint32> lootItems = GAI_VALUE2(std::list<uint32>, "entry loot list", -1*int32(go->GetEntry()));
+                 isForQuest = !lootItems.empty() || go->GetLootState() != GO_READY;
+             }
          }
- 
+
          if (!isForQuest)
          {
 -            return ai->HasSkill(SKILL_HERBALISM) ? ai->CastSpell(HERB_GATHERING, bot) : false;
