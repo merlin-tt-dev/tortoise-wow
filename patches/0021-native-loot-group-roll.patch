@@ -1,0 +1,567 @@
+diff --git a/LIVINGBOTS_ENDTEST_TODO.md b/LIVINGBOTS_ENDTEST_TODO.md
+index 6a97f7a..ac7217d 100644
+--- a/LIVINGBOTS_ENDTEST_TODO.md
++++ b/LIVINGBOTS_ENDTEST_TODO.md
+@@ -17,10 +17,11 @@
+ | 0016 Native Travel Metadata | eingebaut | ausstehend |
+ | 0017 Native Config IncludeDir | eingebaut | ausstehend |
+ | 0018 Native Compatibility Semantics I | eingebaut | ausstehend |
+-| 0019 Native Stores / AreaTriggers / Channels / Pet Autocast | mit diesem Patch | ausstehend |
+-| core-0003 Map-only PathFinder / Nav-Area API | mit 0020-Bundle | ausstehend |
+-| core-0004 Native Fixed-Path Motion | mit 0020-Bundle | ausstehend |
+-| 0020 Native Movement / MMap / Triggered Semantics | mit 0020-Bundle | ausstehend |
++| 0019 Native Stores / AreaTriggers / Channels / Pet Autocast | eingebaut | ausstehend |
++| core-0003 Map-only PathFinder / Nav-Area API | eingebaut | ausstehend |
++| core-0004 Native Fixed-Path Motion | eingebaut | ausstehend |
++| 0020 Native Movement / MMap / Triggered Semantics | eingebaut | ausstehend |
++| 0021 Native Loot / Group Roll Semantics | mit diesem Patch | ausstehend |
+ 
+ **Wichtig:** „eingebaut“ bedeutet nur statisch/source-seitig portiert. Kein Punkt gilt dadurch als getestet.
+ 
+@@ -67,6 +68,12 @@
+ - [ ] 0020: `FORCED_MOVEMENT_*`, `NAV_AREA_*`, `NAV_MAGMA_SLIME`, `NAV_GROUND_STEEP` und `setArea/getArea/getFlags/setAreaCost` sind aus dem aktiven Penqle-Port entfernt.
+ - [ ] 0020: Spell-/Item-Casts verwenden Penqles natives `bool triggered`; keine Fake-`TRIGGERED_*`-Bitmasken verbleiben.
+ - [ ] 0020: normale Bewegung verwendet keine Teleports als Ersatz für fehlende Movement-/MMap-APIs.
++- [ ] 0021: Loot-Zugriffe verwenden Penqles `Loot::gold`, `LootItemInSlot()` und player-spezifische Quest/FFA/Conditional-Slots; keine erfundenen `GetGoldAmount()`/`GetLootItemInSlot()`-Methoden.
++- [ ] 0021: `LootItem` verwendet Penqles native Felder `itemid`, `needs_quest`, `freeforall` und `is_blocked`; keine CMaNGOS-Fake-Felder/Typen.
++- [ ] 0021: `SMSG_LOOT_START_ROLL` erfasst jeden Roll-Slot einzeln, auch mehrere Rolls auf derselben Leiche.
++- [ ] 0021: Need/Greed/Pass läuft über Penqles `Group::CountRollVote()` und entfernt den alten `didRoll=false`-Funktionsverlust.
++- [ ] 0021: aktive Rolls werden über Penqles native `LootItem::is_blocked`-Lebensdauer bereinigt.
++- [ ] 0021: GROUP_LOOT/NEED_BEFORE_GREED öffnet eine noch nicht initialisierte Leiche weiterhin einmal, damit Penqle die nativen Rolls startet.
+ - [ ] Rest-Shim-Audit (MMap/BG/Loot/LFG/InstanceTemplate/etc.) vollständig abgeschlossen.
+ 
+ ## A1. Clean Build
+diff --git a/modules/mod-playerbots/src/cmangos-compat-shim.h b/modules/mod-playerbots/src/cmangos-compat-shim.h
+index de54c88..6fddb90 100644
+--- a/modules/mod-playerbots/src/cmangos-compat-shim.h
++++ b/modules/mod-playerbots/src/cmangos-compat-shim.h
+@@ -200,25 +200,6 @@ using Spells::IsPassiveSpell;
+ inline bool IsPositiveSpell(SpellEntry const* spellInfo) { return spellInfo && spellInfo->IsPositiveSpell(); }
+ inline bool IsPositiveSpell(SpellEntry const* spellInfo, WorldObject const* caster, WorldObject const* victim) { return spellInfo && spellInfo->IsPositiveSpell(caster, victim); }
+ 
+-// === ClientLootType (cmangos has it in Loot/LootMgr.h; Penqle's LootMgr.h doesn't) ===
+-// Bot's LootValues.h references this enum. Stub copy from cmangos.
+-enum ClientLootType
+-{
+-    CLIENT_LOOT_NONE            = 0,
+-    CLIENT_LOOT_CORPSE          = 1,
+-    CLIENT_LOOT_PICKPOCKETING   = 2,
+-    CLIENT_LOOT_FISHING         = 3,
+-    CLIENT_LOOT_DISENCHANTING   = 4,
+-    CLIENT_LOOT_FISHINGFAIL     = 5,
+-    CLIENT_LOOT_INSIGNIA        = 6,
+-    CLIENT_LOOT_FISHINGHOLE     = 8,
+-};
+-
+-// === GroupLootRoll / GroupLootRollMap (cmangos types not in Penqle) ===
+-// Bot's LootValues.h has a GroupLootRollMap field. Stub class so the field declaration parses.
+-class GroupLootRoll;  // opaque
+-typedef std::unordered_map<uint32, GroupLootRoll*> GroupLootRollMap;
+-
+ // === TimePoint (cmangos using; not in Penqle) ===
+ // Bot uses TimePoint for loot creation timestamps.
+ #include <chrono>
+@@ -310,16 +291,6 @@ inline bool IsAreaAuraEffect(uint32 effect) {
+         || effect == SPELL_EFFECT_APPLY_AREA_AURA_OWNER;
+ }
+ 
+-// === LootItem cmangos-only fields ===
+-// cmangos has lootItemType + LOOTITEM_TYPE_*; Penqle has only the basic LootItem.
+-// Add stubs to compile bot's checks; behavior degraded (everything looks "normal").
+-enum LootItemType {
+-    LOOTITEM_TYPE_NORMAL = 0,
+-    LOOTITEM_TYPE_QUEST = 1,
+-    LOOTITEM_TYPE_FFA = 2,
+-    LOOTITEM_TYPE_CONDITIONNAL = 3,
+-};
+-
+ // === MINIMUM_LOOTING_TIME ===
+ #ifndef MINIMUM_LOOTING_TIME
+ #define MINIMUM_LOOTING_TIME 1000
+@@ -725,22 +696,6 @@ inline std::mt19937* GetRandomGenerator() {
+ // === Loot status flags (cmangos LootMgr.h) ===
+ // Bot's LootValues.cpp returns bitflags describing loot state. Penqle has no equivalent
+ // (its Loot just exposes items/gold). Define as bitflags so bot computes a value (which
+-// is consumed only on the bot side via AI_VALUE comparisons; runtime semantic is harmless).
+-#ifndef LOOT_STATUS_FAKE_LOOT
+-enum LootStatusFlags : uint32 {
+-    LOOT_STATUS_FAKE_LOOT              = 0x01,
+-    LOOT_STATUS_CONTAIN_GOLD           = 0x02,
+-    LOOT_STATUS_NOT_FULLY_LOOTED       = 0x04,
+-    LOOT_STATUS_CONTAIN_FFA            = 0x08,
+-    LOOT_STATUS_CONTAIN_RELEASED_ITEMS = 0x10,
+-};
+-#endif
+-
+-// === LootMethod sentinel (cmangos has NOT_GROUP_TYPE_LOOT for "no group loot") ===
+-// Penqle uses NOT_GROUP_TYPE_LOOT or FREE_FOR_ALL — but the enum values may differ.
+-// Stub as 0xFF so the comparison `lootMethod != NOT_GROUP_TYPE_LOOT` always hits.
+-#ifndef NOT_GROUP_TYPE_LOOT
+-constexpr uint32 NOT_GROUP_TYPE_LOOT = 0xFF;
+ #endif
+ 
+ // === SPELL_ATTR_ON_NEXT_SWING aliases ===
+diff --git a/modules/mod-playerbots/src/playerbot/PlayerbotAI.cpp b/modules/mod-playerbots/src/playerbot/PlayerbotAI.cpp
+index a543521..98ea476 100644
+--- a/modules/mod-playerbots/src/playerbot/PlayerbotAI.cpp
++++ b/modules/mod-playerbots/src/playerbot/PlayerbotAI.cpp
+@@ -7141,7 +7141,7 @@ bool PlayerbotAI::HasNotFullStacksInBagsForLootItems(LootItemList &lootItemList)
+                 {
+                     if (Item* pItem = pBag->GetItemByPos(j))
+                     {
+-                        if (pItem->GetProto()->ItemId == lootItem.itemId
++                        if (pItem->GetProto()->ItemId == lootItem.itemid
+                             && pItem->GetCount() < pItem->GetMaxStackCount())
+                         {
+                             return true;
+@@ -7155,7 +7155,7 @@ bool PlayerbotAI::HasNotFullStacksInBagsForLootItems(LootItemList &lootItemList)
+         {
+             if (Item* pItem = bot->GetItemByPos(INVENTORY_SLOT_BAG_0, i))
+             {
+-                if (pItem->GetProto()->ItemId == lootItem.itemId
++                if (pItem->GetProto()->ItemId == lootItem.itemid
+                     && pItem->GetCount() < pItem->GetMaxStackCount())
+                 {
+                     return true;
+@@ -7179,7 +7179,7 @@ bool PlayerbotAI::HasQuestItemsInWOLootList(WorldObject* wo)
+     if (wo->IsCreature()) woLoot = &((Creature*)wo)->loot;
+     else if (wo->IsGameObject()) woLoot = &((GameObject*)wo)->loot;
+     if (woLoot)
+-        woLoot->GetLootItemsListFor(bot, lootItemList);
++        LootAccess(woLoot).GetLootItemsListFor(bot, lootItemList);
+ 
+     if (HasQuestItemsInLootList(lootItemList))
+     {
+@@ -7193,7 +7193,7 @@ bool PlayerbotAI::HasQuestItemsInLootList(LootItemList &lootItemList)
+ {
+     for (auto lootItem : lootItemList)
+     {
+-        if (lootItem.lootItemType == LOOTITEM_TYPE_QUEST)
++        if (lootItem.needs_quest)
+         {
+             return true;
+         }
+@@ -7213,13 +7213,13 @@ bool PlayerbotAI::CanLootSomethingFromWO(WorldObject* wo)
+         Creature* creature = GetCreature(guid);
+         if (creature && sServerFacade.GetDeathState(creature) == CORPSE)
+         {
+-            if (creature->loot.GetGoldAmount() > 0)
++            if (creature->loot.gold > 0)
+             {
+                 return true;
+             }
+             LootItemList lootItemList = {};
+ 
+-            creature->loot.GetLootItemsListFor(bot, lootItemList);
++            LootAccess(&creature->loot).GetLootItemsListFor(bot, lootItemList);
+ 
+             if (HasNotFullStacksInBagsForLootItems(lootItemList))
+             {
+@@ -7234,7 +7234,7 @@ bool PlayerbotAI::CanLootSomethingFromWO(WorldObject* wo)
+         {
+             LootItemList lootItemList = {};
+ 
+-            go->loot.GetLootItemsListFor(bot, lootItemList);
++            LootAccess(&go->loot).GetLootItemsListFor(bot, lootItemList);
+ 
+             if (HasNotFullStacksInBagsForLootItems(lootItemList))
+             {
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/LootAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/LootAction.cpp
+index 32d515b..8ef5d38 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/LootAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/LootAction.cpp
+@@ -319,7 +319,7 @@ bool StoreLootAction::Execute(Event& event)
+         if (!proto)
+             continue;
+ 
+-        LootItem* lootItem = loot->GetLootItemInSlot(itemindex);
++        LootItem* lootItem = loot->LootItemInSlot(itemindex, bot->GetGUIDLow());
+ 
+         if (!lootItem)
+             continue;
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/LootRollAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/LootRollAction.cpp
+index b038507..85485c4 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/LootRollAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/LootRollAction.cpp
+@@ -8,7 +8,7 @@ using namespace ai;
+ 
+ bool LootStartRollAction::Execute(Event& event)
+ {
+-    WorldPacket p(event.getPacket()); //WorldPacket packet for CMSG_LOOT_ROLL, (8+4+1)
++    WorldPacket p(event.getPacket()); // SMSG_LOOT_START_ROLL packet
+     ObjectGuid creatureGuid;
+     uint32 itemSlot;
+     uint32 itemId;
+@@ -36,18 +36,25 @@ bool LootStartRollAction::Execute(Event& event)
+ 
+     LootRollMap lootRolls = AI_VALUE(LootRollMap, "active rolls");
+ 
+-    if (lootRolls.find(creatureGuid) != lootRolls.end())
+-        return false;
+-
+     Loot* loot = sLootMgr.GetLoot(bot, creatureGuid);
+-    if (!loot)
++    if (!loot || itemSlot >= loot->items.size() || !loot->items[itemSlot].is_blocked)
+         return false;
+ 
+-    for(uint8 i=0;i< MAX_NR_LOOT_ITEMS;i++)
+-        if(loot->GetRollForSlot(i))
+-            lootRolls.insert({ creatureGuid, i });
+-        
+-    ActiveRolls::CleanUp(bot,lootRolls);
++    // Penqle sends one SMSG_LOOT_START_ROLL per native Group::Roll.  Track the
++    // slot from this packet directly; do not depend on a CMaNGOS Loot-side roll map.
++    auto range = lootRolls.equal_range(creatureGuid);
++    bool alreadyTracked = false;
++    for (auto itr = range.first; itr != range.second; ++itr)
++        if (itr->second == itemSlot)
++        {
++            alreadyTracked = true;
++            break;
++        }
++
++    if (!alreadyTracked)
++        lootRolls.insert({ creatureGuid, itemSlot });
++
++    ActiveRolls::CleanUp(bot, lootRolls);
+ 
+     SET_AI_VALUE(LootRollMap, "active rolls", lootRolls);
+ 
+@@ -168,7 +175,7 @@ ItemQualifier RollAction::GetRollItem(ObjectGuid lootGuid, uint32 slot)
+     if (!loot)
+         return ItemQualifier();
+ 
+-    LootItem* item = loot->GetLootItemInSlot(slot);
++    LootItem* item = slot < loot->items.size() ? &loot->items[slot] : nullptr;
+ 
+     if (!item)
+         return ItemQualifier();
+@@ -243,17 +250,21 @@ bool RollAction::RollOnItemInSlot(RollVote vote, ObjectGuid lootGuid, uint32 slo
+     if (!loot)
+         return false;
+ 
+-    LootItem* item = loot->GetLootItemInSlot(slot);
+-    ItemPrototype const* proto = sItemStorage.LookupEntry<ItemPrototype>(item->itemId);
++    LootItem* item = slot < loot->items.size() ? &loot->items[slot] : nullptr;
++    if (!item)
++        return false;
++
++    ItemPrototype const* proto = sItemStorage.LookupEntry<ItemPrototype>(item->itemid);
+     if (!proto)
+         return false;
+ 
+-    // Penqle has no GroupLootRoll system; GetRollForSlot returns nullptr.
+-    void* lootRoll = loot->GetRollForSlot(slot);
+-    if (!lootRoll)
++    Group* group = bot->GetGroup();
++    if (!group)
+         return false;
+ 
+-    bool didRoll = false; // Wiring group-roll properly is future work.
++    // Use Penqle's native Group roll registry. CountRollVote locates the active
++    // Roll by loot target + item slot and performs the normal Need/Greed/Pass flow.
++    bool didRoll = group->CountRollVote(bot, lootGuid, slot, vote);
+ 
+     if (didRoll)
+     {
+@@ -271,7 +282,7 @@ bool LootRollAction::Execute(Event& event)
+ {
+     Player* bot = QueryItemUsageAction::ai->GetBot();
+ 
+-    WorldPacket p(event.getPacket()); //WorldPacket packet for CMSG_LOOT_ROLL, (8+4+1)
++    WorldPacket p(event.getPacket()); // SMSG_LOOT_START_ROLL packet
+     ObjectGuid guid;
+     uint32 slot;
+     uint8 rollType;
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/ItemUsageValue.h b/modules/mod-playerbots/src/playerbot/strategy/values/ItemUsageValue.h
+index fc1383e..a1d1a4b 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/ItemUsageValue.h
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/ItemUsageValue.h
+@@ -10,7 +10,7 @@ namespace ai
+         ItemQualifier() { itemId = 0; enchantId = 0; randomPropertyId = 0; gem1 = 0; gem2 = 0; gem3 = 0; gem4 = 0; proto = nullptr; };
+         ItemQualifier(uint32 itemId, int32 randomPropertyId = 0, uint32 enchantId = 0, uint32 gem1 = 0, uint32 gem2 = 0, uint32 gem3 = 0, uint32 gem4 = 0) : itemId(itemId), randomPropertyId(randomPropertyId), enchantId(enchantId), gem1(gem1), gem2(gem2), gem3(gem3), gem4(gem4) { proto = nullptr; };
+         ItemQualifier(Item* item) { itemId = item->GetProto()->ItemId; enchantId = item->GetEnchantmentId(PERM_ENCHANTMENT_SLOT); randomPropertyId = item->GetItemRandomPropertyId(); gem1 = GemId(item, 0); gem2 = GemId(item, 1); gem3 = GemId(item, 2); gem4 = GemId(item, 3); proto = item->GetProto(); };
+-        ItemQualifier(LootItem* item) { itemId = item->itemId; enchantId = 0; randomPropertyId = item->randomPropertyId; gem1 = 0; gem2 = 0; gem3 = 0; gem4 = 0; proto = nullptr; };
++        ItemQualifier(LootItem* item) { itemId = item->itemid; enchantId = 0; randomPropertyId = item->randomPropertyId; gem1 = 0; gem2 = 0; gem3 = 0; gem4 = 0; proto = nullptr; };
+         ItemQualifier(AuctionEntry* auction) { itemId = auction->itemTemplate; enchantId = 0; randomPropertyId = auction->itemRandomPropertyId; gem1 = 0; gem2 = 0; gem3 = 0; gem4 = 0; proto = nullptr; };
+         ItemQualifier(std::string qualifier, bool linkQualifier = true);
+ 
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/LootValues.cpp b/modules/mod-playerbots/src/playerbot/strategy/values/LootValues.cpp
+index 61f9342..355ca7d 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/LootValues.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/LootValues.cpp
+@@ -11,110 +11,52 @@ INSTANTIATE_SINGLETON_1(ai::SharedObjectContext);
+ // LootAccess methods read from the wrapped Loot* (proper accessor-based
+ // access; the original layout-cheat reinterpret_cast pattern was removed).
+ 
+-// Empty static fallbacks used when LootAccess wraps a null Loot* (defensive).
++// Empty static fallback used when LootAccess wraps a null Loot*.
+ static const std::set<ObjectGuid> s_emptyGuidSet;
+-static const LootItemList s_emptyLootItems;
+ 
+ std::set<ObjectGuid> const& LootAccess::playersLooting() const
+ {
+-	if (!loot)
+-		return s_emptyGuidSet;
+-	return loot->GetLootingPlayers();
++    return loot ? loot->GetLootingPlayers() : s_emptyGuidSet;
+ }
+ 
+ LootType LootAccess::lootType() const
+ {
+-	return loot ? loot->loot_type : LOOT_CORPSE;
++    return loot ? loot->loot_type : LOOT_CORPSE;
+ }
+ 
+-uint32 LootAccess::gold() const
++std::vector<LootItem*> LootAccess::GetLootContentFor(Player* player) const
+ {
+-	return loot ? loot->gold : 0;
+-}
+-
+-std::set<ObjectGuid> const& LootAccess::playersOpened() const
+-{
+-	// Penqle has no per-player "released the corpse" tracking; return empty set.
+-	return s_emptyGuidSet;
+-}
+-
+-LootItemList const& LootAccess::lootItems() const
+-{
+-	if (!loot)
+-		return s_emptyLootItems;
+-	return loot->items;
+-}
+-
+-std::vector<LootItem*> LootAccess::GetLootContentFor(Player* /*player*/) const
+-{
+-	std::vector<LootItem*> retvec;
+-	if (!loot)
+-		return retvec;
+-
+-	// Penqle's items vector holds LootItem values; bot consumers want pointers.
+-	// Cast away const to publish as ptr — bot consumers treat as read-only via const accessors.
+-	for (auto const& item : loot->items)
+-		retvec.push_back(const_cast<LootItem*>(&item));
+-
+-	return retvec;
+-}
+-
+-// Get loot status for a specified player.
+-// cmangos returned bitflags reflecting "has gold / not fully looted / contains FFA / etc."
+-// We map to Penqle's coarser model: any items remaining = NOT_FULLY_LOOTED, gold > 0 = CONTAIN_GOLD.
+-// FFA / released-items flags use LootItem::freeForAll() / isReleased() (which we aliased; isReleased
+-// always returns false in Penqle).
+-uint32 LootAccess::GetLootStatusFor(Player const* player) const
+-{
+-	if (!loot)
+-		return 0;
+-
+-	uint32 status = 0;
+-
+-	if (loot->gold != 0)
+-		status |= LOOT_STATUS_CONTAIN_GOLD;
+-
+-	for (auto const& lootItem : loot->items)
+-	{
+-		// Penqle's GetSlotTypeForSharedLoot takes (PermissionTypes, Player*).
+-		// Pass NONE_PERMISSION — bot uses this status only for "is anything left to loot?" checks.
+-		LootSlotType slotType = lootItem.GetSlotTypeForSharedLoot(NONE_PERMISSION, const_cast<Player*>(player));
+-		if (slotType == MAX_LOOT_SLOT_TYPE)
+-			continue;
+-
+-		status |= LOOT_STATUS_NOT_FULLY_LOOTED;
++    std::vector<LootItem*> result;
++    if (!loot || !player)
++        return result;
++
++    // Penqle exposes the exact player-visible loot-slot mapping through
++    // LootItemInSlot().  This includes normal, quest, FFA and conditional
++    // items and filters already-looted entries.
++    Loot* mutableLoot = const_cast<Loot*>(loot);
++    uint32 const maxSlot = loot->GetMaxSlotInLootFor(player->GetGUIDLow());
++    for (uint32 slot = 0; slot < maxSlot; ++slot)
++    {
++        LootItem* item = mutableLoot->LootItemInSlot(slot, player->GetGUIDLow());
++        if (!item || !item->AllowedForPlayer(player, loot->GetLootTarget()))
++            continue;
+ 
+-		if (lootItem.freeForAll())
+-			status |= LOOT_STATUS_CONTAIN_FFA;
++        result.push_back(item);
++    }
+ 
+-		if (lootItem.isReleased())
+-			status |= LOOT_STATUS_CONTAIN_RELEASED_ITEMS;
+-	}
+-	return status;
++    return result;
+ }
+ 
+-// Is there is any loot available for provided player
+-bool LootAccess::IsLootedFor(Player const* player) const
++void LootAccess::GetLootItemsListFor(Player* player, LootItemList& result) const
+ {
+-	return (GetLootStatusFor(player) == 0);
++    result.clear();
++    for (LootItem* item : GetLootContentFor(player))
++        result.push_back(*item);
+ }
+ 
+ bool LootAccess::IsLootedForAll() const
+ {
+-	if (!loot)
+-		return true;
+-
+-	// Penqle's allowed-looters set is private; use the public IsAllowedLooter instead.
+-	// For our purposes (despawn timer), "looted for all" = no items left + no gold left.
+-	if (loot->gold > 0)
+-		return false;
+-
+-	for (auto const& item : loot->items)
+-	{
+-		if (!item.is_looted)
+-			return false;
+-	}
+-	return true;
++    return !loot || loot->isLooted();
+ }
+ 
+ LootTemplateAccess const* DropMapValue::GetLootTemplate(ObjectGuid guid, LootType type)
+@@ -456,20 +398,34 @@ bool ShouldLootObject::Calculate()
+ 		return true;				
+     }
+ 
+-    if (objLoot->GetGoldAmount() > 0)
+-		return true;
++    if (objLoot->gold > 0)
++        return true;
+ 
+     LootAccess lootAccess(objLoot);
+ 
+-	if (lootAccess.lootMethod() != NOT_GROUP_TYPE_LOOT && !lootAccess.isChecked()) //Open loot once to start rolls.
+-		return true;
++    // Penqle starts GROUP_LOOT / NEED_BEFORE_GREED rolls the first time body
++    // loot is opened. Preserve the historical bot behavior of opening such a
++    // corpse once even when none of its items is personally useful.
++    if (object->IsCreature())
++    {
++        Creature* creature = static_cast<Creature*>(object);
++        if (!creature->lootForBody)
++        {
++            Group* group = creature->GetGroupLootRecipient();
++            if (!group && bot->GetGroup() && bot->GetGroup()->isBGGroup())
++                group = bot->GetGroup();
++
++            if (group && (group->GetLootMethod() == GROUP_LOOT || group->GetLootMethod() == NEED_BEFORE_GREED))
++                return true;
++        }
++    }
+ 
+ 	for (auto& lItem : lootAccess.GetLootContentFor(bot))
+ 	{
+-		if (!lItem->itemId)
++        if (!lItem->itemid
+ 			continue;
+ 
+-		uint32 canLootAmount = AI_VALUE2(uint32, "stack space for item", lItem->itemId);
++        uint32 canLootAmount = AI_VALUE2(uint32, "stack space for item", lItem->itemid);
+ 
+ 		if (canLootAmount < lItem->count)
+ 			continue;
+@@ -489,17 +445,11 @@ void ActiveRolls::CleanUp(Player* bot, LootRollMap& rollMap, ObjectGuid guid, ui
+ {
+ 	for (auto roll = rollMap.begin(); roll != rollMap.end();)
+ 	{
+-		if (guid && roll->first != guid)
+-		{
+-			++roll;
+-			continue;
+-		}
+-
+-		if (slot && roll->second != slot)
+-		{
+-			++roll;
+-			continue;
+-		}
++        if (guid && (roll->first != guid || roll->second != slot))
++        {
++            ++roll;
++            continue;
++        }
+ 
+ 		Loot* loot = sLootMgr.GetLoot(bot, roll->first);
+ 		if (!loot)
+@@ -508,12 +458,11 @@ void ActiveRolls::CleanUp(Player* bot, LootRollMap& rollMap, ObjectGuid guid, ui
+ 			continue;
+ 		}
+ 
+-		GroupLootRoll* lootRoll = loot->GetRollForSlot(roll->second);
+-		if (!lootRoll)
+-		{
+-			roll = rollMap.erase(roll);
+-			continue;
+-		}
++        if (roll->second >= loot->items.size() || !loot->items[roll->second].is_blocked)
++        {
++            roll = rollMap.erase(roll);
++            continue;
++        }
+ 
+ 		if(guid)
+ 		{
+@@ -543,11 +492,11 @@ std::string ActiveRolls::Format()
+ 		Loot* loot = sLootMgr.GetLoot(bot, roll.first);
+ 		if (loot)
+ 		{
+-			LootItem* item = loot->GetLootItemInSlot(roll.second);
++            LootItem* item = roll.second < loot->items.size() ? &loot->items[roll.second] : nullptr;
+ 
+-			if (item)
+-			{
+-				const ItemPrototype* proto = sItemStorage.LookupEntry<ItemPrototype>(item->itemId);
++            if (item)
++            {
++                const ItemPrototype* proto = sItemStorage.LookupEntry<ItemPrototype>(item->itemid);
+ 
+ 				if (proto)
+ 				{
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/LootValues.h b/modules/mod-playerbots/src/playerbot/strategy/values/LootValues.h
+index fca4d14..2f2549d 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/LootValues.h
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/LootValues.h
+@@ -37,31 +37,14 @@ namespace ai
+         explicit LootAccess(Loot* l) : loot(l) {}
+ 
+         std::vector<LootItem*> GetLootContentFor(Player* player) const;
+-        uint32 GetLootStatusFor(Player const* player) const;
+-        bool IsLootedFor(Player const* player) const;
+         bool IsLootedForAll() const;
++        void GetLootItemsListFor(Player* player, LootItemList& result) const;
+ 
+-        // Accessor methods replacing the old cmangos-layout fields. Penqle's Loot maps:
+-        //   cmangos m_playersLooting -> Penqle::Loot::GetLootingPlayers()
+-        //   cmangos m_lootType       -> Penqle::Loot::loot_type
+-        //   cmangos m_gold           -> Penqle::Loot::gold
+-        //   cmangos m_isChecked      -> no equivalent (always false)
+-        //   cmangos m_isFakeLoot     -> no equivalent (always false)
+-        //   cmangos m_lootMethod     -> no equivalent (always FREE_FOR_ALL — Penqle uses
+-        //                                              Group->m_lootMethod, not Loot->m_lootMethod)
+-        //   cmangos m_playersOpened  -> no equivalent (always empty)
+-        //   cmangos m_lootItems      -> Penqle::Loot::items
+-        // Methods are named to match the bot's call sites (e.g., bot reads `lootAccess->playersLooting()`).
+-        // Return type is std::set<ObjectGuid> to match Penqle's Loot::PlayersLooting (the bot uses
+-        // .count() which works on both std::set and std::unordered_set).
++        // Native Penqle-backed accessors.  Do not mirror the old CMaNGOS Loot
++        // layout: Penqle has player-specific quest/FFA/conditional slot maps and
++        // group roll state lives on Group, not Loot.
+         std::set<ObjectGuid> const& playersLooting() const;
+         LootType lootType() const;
+-        uint32 gold() const;
+-        bool isChecked() const { return false; }
+-        bool isFakeLoot() const { return false; }
+-        LootMethod lootMethod() const { return FREE_FOR_ALL; }
+-        std::set<ObjectGuid> const& playersOpened() const;
+-        LootItemList const& lootItems() const;
+ 
+         Loot const* GetLoot() const { return loot; }
+ 
