@@ -1,0 +1,149 @@
+diff --git a/modules/mod-playerbots/src/cmangos-compat-shim.h b/modules/mod-playerbots/src/cmangos-compat-shim.h
+--- a/modules/mod-playerbots/src/cmangos-compat-shim.h
++++ b/modules/mod-playerbots/src/cmangos-compat-shim.h
+@@ -1,9 +1,33 @@
+-// === sLootMgr stub (cmangos global; Penqle has LootStore but no equivalent singleton) ===
+-// Bot calls sLootMgr.GetLoot(player[, guid]) to fetch the loot the player is currently looking at.
+-// Penqle stores Loot directly on Creature/GameObject. Stub returns nullptr; loot UI bot logic is a
+-// stub: symbol needs to resolve, value never actually consulted.
++// === sLootMgr adapter (cmangos global; Penqle stores Loot on world objects) ===
++// Bot calls sLootMgr.GetLoot(player[, guid]) to fetch the loot the player is
++// currently looking at. Penqle embeds Loot directly in Creature/GameObject, so
++// resolve the target on the player's current map and return that native Loot.
+ struct CmangosLootMgrStub
+ {
+-    Loot* GetLoot(Player* /*player*/, ObjectGuid /*guid*/ = ObjectGuid()) const { return nullptr; }
++    Loot* GetLoot(Player* player, ObjectGuid guid = ObjectGuid()) const
++    {
++        if (!player)
++            return nullptr;
++
++        if (!guid)
++            guid = player->GetLootGuid();
++
++        if (!guid || !player->GetMap())
++            return nullptr;
++
++        if (guid.IsCreature())
++        {
++            Creature* creature = player->GetMap()->GetCreature(guid);
++            return creature ? &creature->loot : nullptr;
++        }
++
++        if (guid.IsGameObject())
++        {
++            GameObject* gameObject = player->GetMap()->GetGameObject(guid);
++            return gameObject ? &gameObject->loot : nullptr;
++        }
++
++        return nullptr;
++    }
+ };
+ inline CmangosLootMgrStub sLootMgr;
+
+diff --git a/modules/mod-playerbots/src/playerbot/PlayerbotAI.cpp b/modules/mod-playerbots/src/playerbot/PlayerbotAI.cpp
+--- a/modules/mod-playerbots/src/playerbot/PlayerbotAI.cpp
++++ b/modules/mod-playerbots/src/playerbot/PlayerbotAI.cpp
+@@ -1,8 +1,8 @@
+                 if (lootObject.IsUnit())
+                 {
+                     Unit* unitTarget = (Unit*)loot->GetLootTarget();
+-                    // Unit doesn't have m_loot; only Creature does.
+-                    Loot* utLoot = (unitTarget && unitTarget->GetTypeId() == TYPEID_UNIT) ? ((Creature*)unitTarget)->m_loot : nullptr;
++                    // Penqle embeds Loot directly in Creature.
++                    Loot* utLoot = (unitTarget && unitTarget->GetTypeId() == TYPEID_UNIT) ? &((Creature*)unitTarget)->loot : nullptr;
+                     // LootAccess wraps Loot* now (no more reinterpret_cast layout-cheat).
+                     LootAccess lootAccess(utLoot);
+                     if (utLoot && lootAccess.playersLooting().count(bot->GetObjectGuid()) == 0)
+@@ -15,7 +15,7 @@
+                 {
+                     GameObject* gameobjectTarget = (GameObject*)loot->GetLootTarget();
+                     // LootAccess wraps Loot* now.
+-                    LootAccess lootAccess(gameobjectTarget ? gameobjectTarget->m_loot : nullptr);
++                    LootAccess lootAccess(gameobjectTarget ? &gameobjectTarget->loot : nullptr);
+                     if (!lootAccess.playersLooting().count(bot->GetObjectGuid()))
+                     {
+                         // You shouldn't release if you aren't looting already
+@@ -37,8 +37,8 @@
+ 
+     // Penqle's loot is on Creature/GameObject; dispatch via cast.
+     Loot* woLoot = nullptr;
+-    if (wo->IsCreature()) woLoot = ((Creature*)wo)->m_loot;
+-    else if (wo->IsGameObject()) woLoot = ((GameObject*)wo)->m_loot;
++    if (wo->IsCreature()) woLoot = &((Creature*)wo)->loot;
++    else if (wo->IsGameObject()) woLoot = &((GameObject*)wo)->loot;
+     if (woLoot)
+         woLoot->GetLootItemsListFor(bot, lootItemList);
+ 
+@@ -59,14 +59,13 @@
+         Creature* creature = GetCreature(guid);
+         if (creature && sServerFacade.GetDeathState(creature) == CORPSE)
+         {
+-            if (creature->m_loot->GetGoldAmount() > 0)
++            if (creature->loot.GetGoldAmount() > 0)
+             {
+                 return true;
+             }
+             LootItemList lootItemList = {};
+ 
+-            if (creature->m_loot)
+-                creature->m_loot->GetLootItemsListFor(bot, lootItemList);
++            creature->loot.GetLootItemsListFor(bot, lootItemList);
+ 
+             if (HasNotFullStacksInBagsForLootItems(lootItemList))
+ 
+@@ -85,8 +84,7 @@
+         {
+             LootItemList lootItemList = {};
+ 
+-            if (go->m_loot)
+-                go->m_loot->GetLootItemsListFor(bot, lootItemList);
++            go->loot.GetLootItemsListFor(bot, lootItemList);
+ 
+             if (HasNotFullStacksInBagsForLootItems(lootItemList))
+ 
+@@ -106,10 +104,10 @@
+ 
+     creature->SetRespawnDelay(m_respawnDelay / IN_MILLISECONDS,true);
+ 
+-    if (!m_corpseAccelerationDecayDelay && creature->m_loot)
++    if (!m_corpseAccelerationDecayDelay)
+     {
+         // LootAccess wraps Loot* now.
+-        LootAccess lootAccess(creature->m_loot);
++        LootAccess lootAccess(&creature->loot);
+ 
+         if (lootAccess.IsLootedForAll()) //No loot left. Just despawn the corpse.
+         {
+
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/LootValues.cpp b/modules/mod-playerbots/src/playerbot/strategy/values/LootValues.cpp
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/LootValues.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/LootValues.cpp
+@@ -3,10 +3,10 @@
+ 	if (!object)
+ 		return false;
+ 
+-	// Penqle has m_loot only on Creature/GameObject; check via cast.
++    // Penqle embeds Loot directly in Creature/GameObject.
+ 	Loot* objLoot = nullptr;
+-	if (object->IsCreature()) objLoot = ((Creature*)object)->m_loot;
+-	else if (object->IsGameObject()) objLoot = ((GameObject*)object)->m_loot;
++    if (object->IsCreature()) objLoot = &((Creature*)object)->loot;
++    else if (object->IsGameObject()) objLoot = &((GameObject*)object)->loot;
+ 	if (!objLoot)
+     {
+ 
+@@ -25,10 +25,10 @@
+ 		return true;				
+     }
+ 
+-	// Dispatch via cast to access m_loot (lives on Creature/GameObject only).
++    // Dispatch via cast to access Penqle's embedded Loot.
+ 	Loot* objLoot2 = nullptr;
+-	if (object->IsCreature()) objLoot2 = ((Creature*)object)->m_loot;
+-	else if (object->IsGameObject()) objLoot2 = ((GameObject*)object)->m_loot;
++    if (object->IsCreature()) objLoot2 = &((Creature*)object)->loot;
++    else if (object->IsGameObject()) objLoot2 = &((GameObject*)object)->loot;
+ 	if (objLoot2 && objLoot2->GetGoldAmount() > 0)
+ 		return true;
+ 

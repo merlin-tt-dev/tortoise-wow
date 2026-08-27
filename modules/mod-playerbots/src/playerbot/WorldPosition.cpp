@@ -550,7 +550,7 @@ std::set<GenericTransport*> WorldPosition::getTransports(uint32 entry)
     if (transports.empty() || !entry) //Elevators&rams
     {
         for (auto gopair : getGameObjectsNear(0.0f, entry))
-            if (GameObject* go = map->GetGameObject(gopair->first))
+            if (GameObject* go = map->GetGameObject(ObjectGuid(HIGHGUID_GAMEOBJECT, gopair->second.id, gopair->first)))
                 if (GenericTransport* transport = dynamic_cast<GenericTransport*>(go))
                     transports.insert(transport);
     }

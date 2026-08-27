@@ -1,0 +1,12 @@
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/LootAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/LootAction.cpp
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/LootAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/LootAction.cpp
+@@ -2,7 +2,7 @@
+ {
+     for (int effIndex = 0; effIndex <= EFFECT_INDEX_2; effIndex++)
+     {
+         if (pSpellInfo->Effect[effIndex] != SPELL_EFFECT_OPEN_LOCK && pSpellInfo->Effect[effIndex] != SPELL_EFFECT_SKINNING)
+-            return false;
++            continue;
+ 
+         uint32 lockId = go->GetGOInfo()->GetLockId();

@@ -1,0 +1,20 @@
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/LootAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/LootAction.cpp
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/LootAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/LootAction.cpp
+@@ -1,6 +1,6 @@
+     if (lootObject.skillId == SKILL_MINING)
+-        return ai->HasSkill(SKILL_MINING) ? ai->CastSpell(MINING, bot) : false;
++        return go && ai->HasSkill(SKILL_MINING) ? ai->CastSpell(MINING, go) : false;
+ 
+     if (lootObject.skillId == SKILL_HERBALISM)
+     {
+         // herb-like quest objects
+@@ -15,7 +15,7 @@
+         }
+ 
+         if (!isForQuest)
+         {
+-            return ai->HasSkill(SKILL_HERBALISM) ? ai->CastSpell(HERB_GATHERING, bot) : false;
++            return go && ai->HasSkill(SKILL_HERBALISM) ? ai->CastSpell(HERB_GATHERING, go) : false;
+         }
+     }
