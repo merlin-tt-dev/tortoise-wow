@@ -312,8 +312,11 @@ void TestRegistry::GenerateBossWalkTest()
             if (!mapEntry->IsDungeon())
                 continue;
 
-            const InstanceTemplate* instanceTemplate = point->getInstanceTemplate();
-            if (!instanceTemplate)
+            // Penqle keeps instance capacity on MapEntry and entrance-level
+            // requirements on the native areatrigger teleport. If either piece
+            // is absent, do not invent CMaNGOS InstanceTemplate defaults.
+            AreaTriggerTeleport const* entranceTrigger = sObjectMgr.GetMapEntranceTrigger(mapEntry->id);
+            if (!entranceTrigger || !entranceTrigger->requiredLevel || !mapEntry->maxPlayers)
                 continue;
 
             CreatureInfo const* bossInfo = static_cast<BossTravelDestination*>(destination)->GetCreatureInfo();
@@ -342,7 +345,7 @@ void TestRegistry::GenerateBossWalkTest()
             {
                 for (auto& node : sTravelNodeMap.getNodes())
                 {
-                    if (node->getMapId() != mapEntry->MapID)
+                    if (node->getMapId() != mapEntry->id)
                         continue;
 
                     if (!node->isPortal())
@@ -364,17 +367,10 @@ void TestRegistry::GenerateBossWalkTest()
 
             std::string startCommand = ".bot p @tank co + mark rti";
 
-            std::string maxPlayers = "5";
+            std::string maxPlayers = std::to_string(mapEntry->maxPlayers);
 
             if (mapEntry->IsRaid())
-            {
-#ifdef MANGOS_TWO
-                maxPlayers = std::to_string(instanceTemplate->maxPlayers);
-#else
-                maxPlayers = "25";
-#endif
                 startCommand = ".bot r @tank co + mark rti";
-            }
 
             std::string bossName = std::string(mapEntry->name) + std::string("_") + bossInfo->name;
 
@@ -388,7 +384,7 @@ void TestRegistry::GenerateBossWalkTest()
             RegisterScenarioVariant("scenario_trash", bossName, instanceGroupTemplate, {
                {"timeout_s",        "1200"                                         },
                {"start_command",    startCommand                                   },
-               {"level",            std::to_string(instanceTemplate->levelMin + 10)},
+               {"level",            std::to_string(uint32(entranceTrigger->requiredLevel) + 10)},
                {"group_size",       maxPlayers                                     },
                {"dead_mobs_min",    "5"                                            },
                {"instance_entry",   mapName                                        },

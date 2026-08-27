@@ -26,6 +26,7 @@
 #include "Spells/SpellAuras.h"
 #include "Spells/SpellMgr.h"
 #include "PlayerbotDbStore.h"
+#include "playerbot/PlayerbotSupplementalDBCStore.h"
 #include "strategy/values/PositionValue.h"
 #include "playerbot/ServerFacade.h"
 #include "playerbot/TravelMgr.h"
@@ -2491,13 +2492,12 @@ bool PlayerbotAI::DoSpecificAction(const std::string& name, Event event, bool si
 
 bool PlayerbotAI::PlaySound(uint32 emote)
 {
-    if (EmotesTextSoundEntry const* soundEntry = FindTextSoundEmoteFor(emote, bot->getRace(), bot->getGender()))
-    {
-        bot->PlayDistanceSound(soundEntry->SoundId);
-        return true;
-    }
+    uint32 soundId = 0;
+    if (!sPlayerbotSupplementalDBCStore.GetTextEmoteSound(emote, bot->getRace(), bot->getGender(), soundId))
+        return false;
 
-    return false;
+    bot->PlayDistanceSound(soundId);
+    return true;
 }
 
 bool PlayerbotAI::PlayEmote(uint32 emote)

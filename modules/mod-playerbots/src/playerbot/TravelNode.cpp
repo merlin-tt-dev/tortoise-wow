@@ -12,6 +12,7 @@
 #include "strategy/values/BudgetValues.h"
 #include "strategy/values/LastMovementValue.h"
 #include "playerbot/ServerFacade.h"
+#include "playerbot/PlayerbotSupplementalDBCStore.h"
 #include "Maps/MoveMap.h"
 #include "strategy/values/HazardsValue.h"
 
@@ -2383,24 +2384,33 @@ void TravelNodeMap::generateTransportNodes()
             if (data->displayId == 808) //Remove plunger
                 continue;
 
-            TransportAnimation const* animation = sTransportMgr.GetTransportAnimInfo(entry);
-
-            uint32 pathId = data->moTransport.taxiPathId;
-            float moveSpeed = data->moTransport.moveSpeed;
-            if (pathId >= sTaxiPathNodesByPath.size())
-                continue;
-
-            TaxiPathNodeList const& path = sTaxiPathNodesByPath[pathId];
+            // GAMEOBJECT_TYPE_TRANSPORT and GAMEOBJECT_TYPE_MO_TRANSPORT use
+            // different GameObjectInfo union members. Never read moTransport fields
+            // from an elevator/tram entry.
+            TaxiPathNodeList const* path = nullptr;
+            float moveSpeed = 0.0f;
+            if (data->type == GAMEOBJECT_TYPE_MO_TRANSPORT)
+            {
+                uint32 pathId = data->moTransport.taxiPathId;
+                if (pathId < sTaxiPathNodesByPath.size())
+                {
+                    path = &sTaxiPathNodesByPath[pathId];
+                    moveSpeed = data->moTransport.moveSpeed;
+                }
+            }
 
             std::vector<WorldPosition> ppath;
             TravelNode* prevNode = nullptr;
 
-            //Elevators/Trams
-            if (path.empty())
+            // Elevators/trams use genuine TransportAnimation.dbc data. Penqle
+            // does not need that DBC for core gameplay, so playerbots load it
+            // module-only through Tortoise's native DBCStorage.
+            if (!path || path->empty())
             {
-                if (animation)
+                auto const* animationPath = sPlayerbotSupplementalDBCStore.GetTransportAnimationPath(entry);
+                if (animationPath)
                 {
-                    TransportPathContainer aPath = animation->Path;
+                    auto const& aPath = *animationPath;
                     float timeStart;
 
                     for (auto& transport : WorldPosition().getGameObjectsNear(0, entry))
@@ -2413,14 +2423,14 @@ void TravelNodeMap::generateTransportNodes()
                         for (auto& p : aPath)
                         {
 #ifndef MANGOSBOT_TWO
-                            float dx = cos(basePos.getO()) * p.second->X - sin(basePos.getO()) * p.second->Y;
-                            float dy = sin(basePos.getO()) * p.second->X + cos(basePos.getO()) * p.second->Y;
+                            float dx = cos(basePos.getO()) * p.second.x - sin(basePos.getO()) * p.second.y;
+                            float dy = sin(basePos.getO()) * p.second.x + cos(basePos.getO()) * p.second.y;
 #else
-                            float dx = -1 * p.second->X;
-                            float dy = -1 * p.second->Y;
+                            float dx = -1 * p.second.x;
+                            float dy = -1 * p.second.y;
 #endif
 
-                            WorldPosition pos = WorldPosition(basePos.getMapId(), basePos.getX() + dx, basePos.getY() + dy, basePos.getZ() + p.second->Z, basePos.getO());
+                            WorldPosition pos = WorldPosition(basePos.getMapId(), basePos.getX() + dx, basePos.getY() + dy, basePos.getZ() + p.second.z, basePos.getO());
 
                             if (prevNode)
                             {
@@ -2445,17 +2455,17 @@ void TravelNodeMap::generateTransportNodes()
                                 if (!prevNode)
                                 {
                                     ppath.push_back(pos);
-                                    timeStart = p.second->TimeSeg;
+                                    timeStart = p.second.timeSegment;
                                 }
                                 else
                                 {
-                                    float totalTime = (p.second->TimeSeg - timeStart) / 1000.0f;
+                                    float totalTime = (p.second.timeSegment - timeStart) / 1000.0f;
 
                                     TravelNodePath travelPath(0.1f, totalTime, (uint8)TravelNodePathType::transport, entry, true);
                                     prevNode->setPathTo(node, travelPath);
                                     ppath.clear();
                                     ppath.push_back(pos);
-                                    timeStart = p.second->TimeSeg;
+                                    timeStart = p.second.timeSegment;
                                 }
 
                                 prevNode = node;
@@ -2469,13 +2479,13 @@ void TravelNodeMap::generateTransportNodes()
                             for (auto& p : aPath)
                             {
 #ifndef MANGOSBOT_TWO
-                                float dx = cos(basePos.getO()) * p.second->X - sin(basePos.getO()) * p.second->Y;
-                                float dy = sin(basePos.getO()) * p.second->X + cos(basePos.getO()) * p.second->Y;
+                                float dx = cos(basePos.getO()) * p.second.x - sin(basePos.getO()) * p.second.y;
+                                float dy = sin(basePos.getO()) * p.second.x + cos(basePos.getO()) * p.second.y;
 #else
-                                float dx = -1 * p.second->X;
-                                float dy = -1 * p.second->Y;
+                                float dx = -1 * p.second.x;
+                                float dy = -1 * p.second.y;
 #endif
-                                WorldPosition pos = WorldPosition(basePos.getMapId(), basePos.getX() + dx, basePos.getY() + dy, basePos.getZ() + p.second->Z, basePos.getO());
+                                WorldPosition pos = WorldPosition(basePos.getMapId(), basePos.getX() + dx, basePos.getY() + dy, basePos.getZ() + p.second.z, basePos.getO());
 
                                 ppath.push_back(pos);
 
@@ -2495,17 +2505,17 @@ void TravelNodeMap::generateTransportNodes()
                                     makeDockNode(node, exitPos, "entry");
 
                                     if (node != prevNode) {
-                                        if (p.second->TimeSeg < timeStart)
+                                        if (p.second.timeSegment < timeStart)
                                             timeStart = 0;
 
-                                        float totalTime = (p.second->TimeSeg - timeStart) / 1000.0f;
+                                        float totalTime = (p.second.timeSegment - timeStart) / 1000.0f;
 
                                         TravelNodePath travelPath(0.1f, totalTime, (uint8)TravelNodePathType::transport, entry, true);
                                         travelPath.setPath(ppath);
                                         prevNode->setPathTo(node, travelPath);
                                         ppath.clear();
                                         ppath.push_back(pos);
-                                        timeStart = p.second->TimeSeg;
+                                        timeStart = p.second.timeSegment;
                                     }
                                 }
 
@@ -2520,7 +2530,7 @@ void TravelNodeMap::generateTransportNodes()
             else //Boats/Zepelins
             {
                 //Loop over the path and connect stop locations.
-                for (auto& p : path)
+                for (auto& p : *path)
                 {
                     WorldPosition pos = WorldPosition(p->mapid, p->x, p->y, p->z, 0);
 
@@ -2564,7 +2574,7 @@ void TravelNodeMap::generateTransportNodes()
                 if (prevNode)
                 {
                     //Continue from start until first stop and connect to end.
-                    for (auto& p : path)
+                    for (auto& p : *path)
                     {
                         WorldPosition pos = WorldPosition(p->mapid, p->x, p->y, p->z, 0);
 

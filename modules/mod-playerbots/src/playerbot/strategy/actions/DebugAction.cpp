@@ -1063,8 +1063,6 @@ void DebugAction::FakeSpell(uint32 spellId, Unit* truecaster, Unit* caster, Obje
 
         if (spellInfo && spellInfo->HasAttribute(SPELL_ATTR_RANGED))
             castFlags |= CAST_FLAG_AMMO;                        // arrows/bullets visual
-        if (spellInfo && HasPersistentAuraEffect(spellInfo))
-            castFlags |= CAST_FLAG_PERSISTENT_AA;
 
         WorldPacket data(SMSG_SPELL_GO, 53);                    // guess size
 
@@ -1583,8 +1581,8 @@ bool DebugAction::HandleMotion(Event& event, Player* requester, const std::strin
             mm->MoveFall();
         else if (cmd == "formation")
         {
-            FormationSlotDataSPtr form = std::make_shared<FormationSlotData>(0, bot->GetObjectGuid(), nullptr, SpawnGroupFormationSlotType::SPAWN_GROUP_FORMATION_SLOT_TYPE_STATIC);
-            mm->MoveInFormation(form);
+            ai->TellPlayer(requester, "formation movement is not supported by the Tortoise core");
+            return true;
         }
 
         std::string sType = "TODO"; // GetMoveTypeStr(type);

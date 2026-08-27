@@ -1,4 +1,6 @@
 #include "Config/Config.h"
+#include "AuctionHouse/AuctionHouseMgr.h"
+#include "Database/DBCStores.h"
 
 #include "playerbot/playerbot.h"
 #include "playerbot/PlayerbotAIConfig.h"
@@ -41,6 +43,7 @@
 #include "playerbot/TravelMgr.h"
 #include <iomanip>
 #include <float.h>
+#include <unordered_set>
 
 #if PLATFORM == PLATFORM_WINDOWS
 #include "windows.h"
@@ -4345,16 +4348,24 @@ void RandomPlayerbotMgr::Hotfix(Player* bot, uint32 version)
 
 void RandomPlayerbotMgr::MirrorAh()
 {
-    sRandomPlayerbotMgr.m_ahActionMutex.lock();
+    std::lock_guard<std::mutex> lock(sRandomPlayerbotMgr.m_ahActionMutex);
 
     ahMirror.clear();
 
-    std::vector<AuctionHouseType> houses = { (AuctionHouseType)0,(AuctionHouseType)1,(AuctionHouseType)2 };
-
-    //Now loops over all houses. Can probably be faction specific later.
-    for (auto house : houses)
+    // AuctionHouse.dbc is the authoritative list of houses. Several DBC rows
+    // can resolve to the same AuctionHouseObject (and all rows do when the
+    // core's cross-faction AH option is enabled), so mirror each native object
+    // exactly once.
+    std::unordered_set<AuctionHouseObject*> mirroredHouses;
+    for (uint32 id = 0; id < sAuctionHouseStore.GetNumRows(); ++id)
     {
-        AuctionHouseObject* auctionHouse = sAuctionMgr.GetAuctionsMap(house);
+        AuctionHouseEntry const* houseEntry = sAuctionHouseStore.LookupEntry(id);
+        if (!houseEntry)
+            continue;
+
+        AuctionHouseObject* auctionHouse = sAuctionMgr.GetAuctionsMap(houseEntry);
+        if (!auctionHouse || !mirroredHouses.insert(auctionHouse).second)
+            continue;
 
         AuctionHouseObject::AuctionEntryMap const& map = *auctionHouse->GetAuctions();
 
@@ -4374,7 +4385,6 @@ void RandomPlayerbotMgr::MirrorAh()
             ahMirror[auctionEntry.itemTemplate].push_back(auctionEntry);
         }
     }
-    sRandomPlayerbotMgr.m_ahActionMutex.unlock();
 }
 
 typedef std::unordered_map <uint32, std::list<float>> botPerformanceMetric;

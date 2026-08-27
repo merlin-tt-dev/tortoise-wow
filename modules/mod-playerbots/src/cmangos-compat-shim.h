@@ -77,18 +77,6 @@ public:
     static void SetOutputState(bool /*state*/) {}
 };
 
-// cmangos has InstanceTemplate (sObjectMgr.GetInstanceTemplate). Penqle has
-// no equivalent class. Define a minimal stub with the fields the bot reads,
-// all zero; bot's getInstanceTemplate() returns nullptr in WorldPosition.h
-// so the fields are never read at runtime.
-struct InstanceTemplate {
-    uint32 levelMin = 0;
-    uint32 levelMax = 0;
-    uint32 maxPlayers = 0;
-    uint32 reset_delay = 0;
-    uint32 parent = 0;
-};
-
 // === DBC store aliases ===
 // cmangos accesses spell DBC via `sSpellTemplate.LookupEntry<SpellEntry>(id)`.
 // Penqle uses `sSpellMgr.GetSpellEntry(id)`. The bot's `sSpellTemplate` is used
@@ -267,14 +255,6 @@ inline bool IsAreaAuraEffect(uint32 effect) {
 #define MINIMUM_LOOTING_TIME 1000
 #endif
 
-// === AuctionHouseType (cmangos enum) ===
-enum AuctionHouseType {
-    AUCTION_HOUSE_ALLIANCE = 0,
-    AUCTION_HOUSE_HORDE = 1,
-    AUCTION_HOUSE_NEUTRAL = 2,
-    MAX_AUCTION_HOUSE_TYPE = 3,
-};
-
 // === SPELL_RANGE_FLAG_MELEE / RANGED (cmangos defines on SpellRangeEntry::Flags) ===
 #ifndef SPELL_RANGE_FLAG_MELEE
 #define SPELL_RANGE_FLAG_MELEE 1
@@ -309,9 +289,6 @@ struct CmangosScriptDevAIMgrStub {
 };
 inline CmangosScriptDevAIMgrStub sScriptDevAIMgr;
 
-// === GetSpellCastResultString stub (cmangos free function) ===
-inline char const* GetSpellCastResultString(SpellCastResult /*res*/) { return ""; }
-
 #ifndef SPELL_STATE_TARGETING
 #define SPELL_STATE_TARGETING 0
 #endif
@@ -319,12 +296,6 @@ inline char const* GetSpellCastResultString(SpellCastResult /*res*/) { return ""
 // === MAX_GOSSIP_TEXT_OPTIONS ===
 #ifndef MAX_GOSSIP_TEXT_OPTIONS
 #define MAX_GOSSIP_TEXT_OPTIONS 8
-#endif
-
-// === HasPersistentAuraEffect / CAST_FLAG_PERSISTENT_AA / FACTION_GROUP_MASK ===
-inline bool HasPersistentAuraEffect(SpellEntry const* /*spellInfo*/) { return false; }
-#ifndef CAST_FLAG_PERSISTENT_AA
-#define CAST_FLAG_PERSISTENT_AA 0x40
 #endif
 
 // === SEC_GAMEMASTER alias (cmangos has it; Penqle goes SEC_PLAYER → SEC_ADMINISTRATOR) ===
@@ -367,20 +338,6 @@ struct CmangosTaxiNodesStoreProxy
 };
 inline CmangosTaxiNodesStoreProxy sTaxiNodesStore;
 
-// === TransportAnimation stub (cmangos has TransportAnim.dbc; Penqle doesn't) ===
-struct TransportAnimationNode {
-    uint32 TimeIndex = 0;
-    uint32 TimeSeg = 0;
-    float X = 0, Y = 0, Z = 0;
-};
-struct TransportAnimation {
-    // cmangos uses a time-keyed map of pointers (so iterators yield (uint32, TransportAnimationNode*) pairs).
-    std::map<uint32, TransportAnimationNode*> Path;
-    uint32 TotalTime = 0;
-};
-typedef std::map<uint32, TransportAnimationNode*> TransportPathContainer;
-// Note: Penqle has its own sTransportMgr; we extend TransportMgr inline (see Transports/TransportMgr.h).
-
 // === sLootMgr adapter (cmangos global; Penqle stores Loot on world objects) ===
 // Bot calls sLootMgr.GetLoot(player[, guid]) to fetch the loot the player is currently looking at.
 // Penqle embeds Loot directly in Creature/GameObject, so resolve the target on the player's
@@ -418,24 +375,6 @@ inline CmangosLootMgrStub sLootMgr;
 // === Map::GetHitPosition forwarder (cmangos name) ===
 // Penqle uses GetLosHitPosition. The bot module's call sites were patched at
 // the source level (TravelMgr.cpp / WorldPosition.h).
-
-// === FormationSlotData / SpawnGroupFormationSlotType (cmangos formation system) ===
-// Penqle has no formation system; these are stubs; flesh out if we want bot squads.
-struct FormationSlotData {
-    uint32 slotId = 0;
-    FormationSlotData() = default;
-    // bot calls make_shared<FormationSlotData>(int, ObjectGuid, nullptr, uint32).
-    // Stub ctor accepts those 4 args; only slotId tracked.
-    FormationSlotData(int /*idx*/, ObjectGuid const& /*guid*/, void* /*nullptr*/, uint32 slotId_)
-        : slotId(slotId_) {}
-};
-typedef std::shared_ptr<FormationSlotData> FormationSlotDataSPtr;
-namespace SpawnGroupFormationSlotType {
-    constexpr uint32 SPAWN_GROUP_FORMATION_SLOT_TYPE_STATIC = 0;
-    constexpr uint32 SPAWN_GROUP_FORMATION_SLOT_TYPE_SCRIPT = 1;
-}
-using SpawnGroupFormationSlotType::SPAWN_GROUP_FORMATION_SLOT_TYPE_STATIC;
-using SpawnGroupFormationSlotType::SPAWN_GROUP_FORMATION_SLOT_TYPE_SCRIPT;
 
 // === Free-function helpers (cmangos style) wrapping Penqle SpellEntry methods ===
 // cmangos exposes these as free functions; Penqle wraps them in SpellEntry::method.
@@ -493,10 +432,6 @@ constexpr WorldSession::WorldSessionState WORLD_SESSION_STATE_CREATED = WorldSes
 constexpr WorldSession::WorldSessionState WORLD_SESSION_STATE_READY = WorldSession::WORLD_SESSION_STATE_READY;
 constexpr WorldSession::WorldSessionState WORLD_SESSION_STATE_OFFLINE = WorldSession::WORLD_SESSION_STATE_OFFLINE;
 constexpr WorldSession::WorldSessionState WORLD_SESSION_STATE_REMOVING = WorldSession::WORLD_SESSION_STATE_REMOVING;
-
-// === EmotesTextSoundEntry / FindTextSoundEmoteFor (cmangos) — DBC stubs ===
-struct EmotesTextSoundEntry { uint32 SoundId = 0; };
-inline EmotesTextSoundEntry const* FindTextSoundEmoteFor(uint32 /*textEmoteId*/, uint32 /*race*/, uint32 /*gender*/) { return nullptr; }
 
 // === GetApplicationStartTime (cmangos) — free function returning startup timestamp ===
 inline std::chrono::system_clock::time_point GetApplicationStartTime() {

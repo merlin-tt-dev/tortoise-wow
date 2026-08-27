@@ -241,7 +241,7 @@ bool CastCustomSpellAction::Execute(Event& event)
     {
         std::map<std::string, std::string> args;
         args["%spell"] = replyArgs["%spell"];
-        args["%fail_reason"] = BOT_TEXT2(GetSpellCastResultString(checkResult), args);
+        args["%fail_reason"] = "SpellCastResult=" + std::to_string(static_cast<uint32>(checkResult));
         ai->TellPlayerNoFacing(requester, BOT_TEXT2("cast_spell_command_error", args));
         return false;
     }
