@@ -19,5 +19,8 @@ void NearestFriendlyPlayersValue::FindUnits(std::list<Unit*> &targets)
 bool NearestFriendlyPlayersValue::AcceptUnit(Unit* unit)
 {
     ObjectGuid guid = unit->GetObjectGuid();
-    return guid.IsPlayer() && guid != ai->GetBot()->GetObjectGuid();
+    if (!guid.IsPlayer() || guid == ai->GetBot()->GetObjectGuid())
+        return false;
+
+    return sRandomPlayerbotMgr.IsPlayerVisibleToBots(static_cast<Player*>(unit));
 }

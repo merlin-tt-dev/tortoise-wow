@@ -45,6 +45,9 @@ void PossibleTargetsValue::FindUnits(std::list<Unit*> &targets)
 
 bool PossibleTargetsValue::AcceptUnit(Unit* unit)
 {
+    if (unit && unit->IsPlayer() && !sRandomPlayerbotMgr.IsPlayerVisibleToBots(static_cast<Player*>(unit)))
+        return false;
+
     return IsValid(unit, bot, ignoreLos);
 }
 

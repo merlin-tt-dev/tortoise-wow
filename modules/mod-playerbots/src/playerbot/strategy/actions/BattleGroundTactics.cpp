@@ -75,11 +75,10 @@ enum BattleBotWsgWaitSpot
     BB_WSG_WAIT_SPOT_RIGHT
 };
 
-std::vector<uint32> const vFlagsAB = { BG_AB_BANNER_ALLIANCE , BG_AB_BANNER_CONTESTED_A , BG_AB_BANNER_HORDE , BG_AB_BANNER_CONTESTED_H ,
-                                       BG_AB_BANNER_STABLE, BG_AB_BANNER_BLACKSMITH, BG_AB_BANNER_FARM, BG_AB_BANNER_LUMBER_MILL,
-                                       BG_AB_BANNER_MINE };
+// AB objectives are identified by BattleGroundEventIdx, not GameObject entry IDs.
+std::vector<uint32> const vFlagsAB = {};
 
-std::vector<uint32> const vFlagsWS = { GO_WS_SILVERWING_FLAG, GO_WS_WARSONG_FLAG, GO_WS_SILVERWING_FLAG_DROP, GO_WS_WARSONG_FLAG_DROP };
+std::vector<uint32> const vFlagsWS = { WS_ALLIANCE_FLAG_BASE, WS_HORDE_FLAG_BASE, WS_ALLIANCE_FLAG_GROUND, WS_HORDE_FLAG_GROUND };
 static std::map<uint32, GameObject*> botSelectedObjectives;
 static std::map<uint32, uint32> botObjectiveSelectionTime;
 static std::map<uint32, uint32> botLastObjectiveCheckTime;
@@ -2283,14 +2282,13 @@ std::vector<BattleBotPath*> const vPaths_HordeMine =
     &vPath_AV_Coldtooth_Mine_Entrance_to_Coldtooth_Mine_Boss,
 };
 
-static std::pair<uint32, uint32> AB_AttackObjectives[] =
+static uint32 const AB_AttackObjectives[] =
 {
-    // Attack
-    { BG_AB_NODE_STABLES, BG_AB_BANNER_STABLE },
-    { BG_AB_NODE_BLACKSMITH, BG_AB_BANNER_BLACKSMITH },
-    { BG_AB_NODE_FARM, BG_AB_BANNER_FARM },
-    { BG_AB_NODE_LUMBER_MILL, BG_AB_BANNER_LUMBER_MILL },
-    { BG_AB_NODE_GOLD_MINE, BG_AB_BANNER_MINE }
+    BG_AB_NODE_STABLES,
+    BG_AB_NODE_BLACKSMITH,
+    BG_AB_NODE_FARM,
+    BG_AB_NODE_LUMBER_MILL,
+    BG_AB_NODE_GOLD_MINE
 };
 
 #ifndef MANGOSBOT_ZERO
@@ -3145,16 +3143,16 @@ bool BGTactics::selectObjective(bool reset)
 
         for (const auto& objective : AB_AttackObjectives)
         {
-            bool isActiveNeutral = bg->IsActiveEvent(objective.first, BG_AB_NODE_STATUS_NEUTRAL);
+            bool isActiveNeutral = bg->IsActiveEvent(objective, BG_AB_NODE_TYPE_NEUTRAL);
 
-            bool isOccupied = (bot->GetTeam() == HORDE) ? bg->IsActiveEvent(objective.first, BG_AB_NODE_STATUS_ALLY_OCCUPIED) : bg->IsActiveEvent(objective.first, BG_AB_NODE_STATUS_HORDE_OCCUPIED);
-            bool isContested = (bot->GetTeam() == HORDE) ? bg->IsActiveEvent(objective.first, BG_AB_NODE_STATUS_ALLY_CONTESTED) : bg->IsActiveEvent(objective.first, BG_AB_NODE_STATUS_HORDE_CONTESTED);
-            bool isFriendly = (bot->GetTeam() == HORDE) ? bg->IsActiveEvent(objective.first, BG_AB_NODE_STATUS_HORDE_OCCUPIED) || bg->IsActiveEvent(objective.first, BG_AB_NODE_STATUS_HORDE_CONTESTED) : bg->IsActiveEvent(objective.first, BG_AB_NODE_STATUS_ALLY_OCCUPIED) || bg->IsActiveEvent(objective.first, BG_AB_NODE_STATUS_ALLY_CONTESTED);
+            bool isOccupied = (bot->GetTeam() == HORDE) ? bg->IsActiveEvent(objective, BG_AB_NODE_STATUS_ALLY_OCCUPIED) : bg->IsActiveEvent(objective, BG_AB_NODE_STATUS_HORDE_OCCUPIED);
+            bool isContested = (bot->GetTeam() == HORDE) ? bg->IsActiveEvent(objective, BG_AB_NODE_STATUS_ALLY_CONTESTED) : bg->IsActiveEvent(objective, BG_AB_NODE_STATUS_HORDE_CONTESTED);
+            bool isFriendly = (bot->GetTeam() == HORDE) ? bg->IsActiveEvent(objective, BG_AB_NODE_STATUS_HORDE_OCCUPIED) || bg->IsActiveEvent(objective, BG_AB_NODE_STATUS_HORDE_CONTESTED) : bg->IsActiveEvent(objective, BG_AB_NODE_STATUS_ALLY_OCCUPIED) || bg->IsActiveEvent(objective, BG_AB_NODE_STATUS_ALLY_CONTESTED);
 
             // If we're a defender, target friendly, neutral or under attack objectives (maybe remove the under attack ones?). if we're an attacker, target enemy, neutral or under attack objectives. 
             if ((defender && (isActiveNeutral || isFriendly || isContested)) || (!defender && (isActiveNeutral || isContested || isOccupied)))
             {
-                if (GameObject* pGO = bot->GetMap()->GetGameObject(bg->GetSingleGameObjectGuid(objective.first, BG_AB_NODE_STATUS_NEUTRAL)))
+                if (GameObject* pGO = bot->GetMap()->GetGameObject(bg->GetSingleGameObjectGuid(objective, BG_AB_NODE_TYPE_NEUTRAL)))
                 {
                     // Add it to the list if it's valid.
                     uniqueObjectives.insert(pGO);
@@ -4436,8 +4434,18 @@ bool BGTactics::atFlag(std::vector<BattleBotPath*> const& vPaths, std::vector<ui
         if (!go)
             continue;
 
-        std::vector<uint32>::const_iterator f = find(vFlagIds.begin(), vFlagIds.end(), go->GetEntry());
-        if (f == vFlagIds.end())
+        bool isObjective = false;
+        if (bgType == BATTLEGROUND_AB)
+        {
+            BattleGroundEventIdx event = sBattleGroundMgr.GetGameObjectEventIndex(go->GetGUIDLow());
+            isObjective = event.event1 < BG_AB_NODES_MAX;
+        }
+        else
+        {
+            isObjective = find(vFlagIds.begin(), vFlagIds.end(), go->GetEntry()) != vFlagIds.end();
+        }
+
+        if (!isObjective)
             continue;
 
         if (!sServerFacade.isSpawned(go) || go->IsInUse() || go->GetGoState() != GO_STATE_READY)
@@ -4477,21 +4485,10 @@ bool BGTactics::atFlag(std::vector<BattleBotPath*> const& vPaths, std::vector<ui
             //bot->Say(out.str(), LANG_UNIVERSAL);
             //SetDuration(10000);
 
-            // cast banner spell
             ai->StopMoving();
-
-            SpellEntry const *spellInfo = sServerFacade.LookupSpellInfo(SPELL_CAPTURE_BANNER);
-            if (!spellInfo)
-                return false;
-
-            Spell *spell = new Spell(bot, spellInfo, false);
-            spell->m_targets.setGOTarget(go);
-            spell->SpellStart(&spell->m_targets);
-            ai->WaitForSpellCast(spell);
-
-            //WorldPacket data(CMSG_GAMEOBJ_USE);
-            //data << go->GetObjectGuid();
-            //bot->GetSession()->HandleGameObjectUseOpcode(data);
+            WorldPacket data(CMSG_GAMEOBJ_USE);
+            data << go->GetObjectGuid();
+            bot->GetSession()->HandleGameObjectUseOpcode(data);
             resetObjective();
             return true;
             break;
@@ -4505,13 +4502,13 @@ bool BGTactics::atFlag(std::vector<BattleBotPath*> const& vPaths, std::vector<ui
                     if (bot->GetTeam() == HORDE)
                     {
                         WorldPacket data(CMSG_AREATRIGGER);
-                        data << uint32(WS_AT_WARSONG_ROOM);
+                        data << uint32(AREATRIGGER_HORDE_FLAG_SPAWN);
                         bot->GetSession()->HandleAreaTriggerOpcode(data);
                     }
                     else
                     {
                         WorldPacket data(CMSG_AREATRIGGER);
-                        data << uint32(WS_AT_SILVERWING_ROOM);
+                        data << uint32(AREATRIGGER_ALLIANCE_FLAG_SPAWN);
                         bot->GetSession()->HandleAreaTriggerOpcode(data);
                     }
                     //ostringstream out; out << "Capturing flag!";
@@ -4699,7 +4696,7 @@ uint32 BGTactics::getDefendersCount(Position point, float range, bool combat)
     for (auto& guid : bg->GetBgMap()->GetPlayers())
     {
         Player* player = guid.getSource();
-        if (!player)
+        if (!sRandomPlayerbotMgr.IsPlayerVisibleToBots(player))
             continue;
 
         if (sServerFacade.IsAlive(player) && player->GetTeam() == bot->GetTeam())

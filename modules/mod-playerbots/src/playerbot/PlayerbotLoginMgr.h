@@ -144,7 +144,7 @@ namespace ai
 	private:
 		static BotPool LoadBotsFromDb();
 		void UpdateOnlineBots();
-		static BotInfos FillLoginLogoutQueue(BotPool* pool, const RealPlayers& realPlayers);
+        static BotInfos FillLoginLogoutQueue(BotPool* pool, RealPlayerInfos realPlayerInfos);
 		void LoginLogoutBots(const BotInfos& queue);
 
 		static RealPlayerInfos GetPlayerInfos(const RealPlayers& realPlayers);

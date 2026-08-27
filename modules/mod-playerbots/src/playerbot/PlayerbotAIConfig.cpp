@@ -498,14 +498,70 @@ bool PlayerbotAIConfig::Initialize()
     instantRandomize = config.GetBoolDefault("AiPlayerbot.InstantRandomize", true);
     randomBotRandomPassword = config.GetBoolDefault("AiPlayerbot.RandomBotRandomPassword", true);
     playerbotsXPrate = config.GetFloatDefault("AiPlayerbot.XPRate", 1.0f);
+    // Native-map, opt-in bot AI load controller. Core Player/Map/session updates are never skipped.
+    // Legacy negative switches are retained as hard kill-switches for existing configurations.
     disableBotOptimizations = config.GetBoolDefault("AiPlayerbot.DisableBotOptimizations", false);
     disableActivityPriorities = config.GetBoolDefault("AiPlayerbot.DisableActivityPriorities", false);
     forceActiveWhenNearPlayer = config.GetBoolDefault("AiPlayerbot.ForceActiveWhenNearPlayer", false);
     limitCombatActivity = config.GetBoolDefault("AiPlayerbot.LimitCombatActivity", false);
     guildOrderAlwaysActive = config.GetBoolDefault("AiPlayerbot.GuildOrderAlwaysActive", true);
-    botActiveAlone = config.GetIntDefault("AiPlayerbot.botActiveAlone", 10);
     diffWithPlayer = config.GetIntDefault("AiPlayerbot.DiffWithPlayer", 100);
     diffEmpty = config.GetIntDefault("AiPlayerbot.DiffEmpty", 200);
+
+    auto loadUInt = [&](const char* key, int32 defaultValue, int32 minValue, int32 maxValue) -> uint32
+    {
+        int32 value = config.GetIntDefault(key, defaultValue);
+        value = std::max(minValue, std::min(maxValue, value));
+        return uint32(value);
+    };
+
+    loadOptimizationEnabled = config.GetBoolDefault("AiPlayerbot.LoadOptimization.Enabled", false);
+    loadOptimizationSampleIntervalMs = loadUInt("AiPlayerbot.LoadOptimization.SampleIntervalMs", 1000, 100, 60000);
+    loadOptimizationDecisionCacheMs = loadUInt("AiPlayerbot.LoadOptimization.DecisionCacheMs", 5000, 0, 600000);
+    loadOptimizationRotationIntervalSec = loadUInt("AiPlayerbot.LoadOptimization.RotationIntervalSec", 60, 1, 86400);
+    loadOptimizationBaseActivity = config.GetFloatDefault("AiPlayerbot.LoadOptimization.BaseActivity", 100.0f);
+    loadOptimizationMinActivity = config.GetFloatDefault("AiPlayerbot.LoadOptimization.MinActivity", 10.0f);
+    loadOptimizationMaxActivity = config.GetFloatDefault("AiPlayerbot.LoadOptimization.MaxActivity", 100.0f);
+    loadOptimizationTargetDiffWithPlayers = loadUInt("AiPlayerbot.LoadOptimization.TargetDiffWithPlayers", int32(diffWithPlayer), 1, 10000);
+    loadOptimizationTargetDiffEmpty = loadUInt("AiPlayerbot.LoadOptimization.TargetDiffEmpty", int32(diffEmpty), 1, 10000);
+    loadOptimizationPidKp = std::max(0.0f, config.GetFloatDefault("AiPlayerbot.LoadOptimization.PID.Kp", 0.05f));
+    loadOptimizationPidKi = std::max(0.0f, config.GetFloatDefault("AiPlayerbot.LoadOptimization.PID.Ki", 0.001f));
+    loadOptimizationPidKd = std::max(0.0f, config.GetFloatDefault("AiPlayerbot.LoadOptimization.PID.Kd", 0.05f));
+    loadOptimizationMinimalReactionMultiplier = loadUInt("AiPlayerbot.LoadOptimization.MinimalReactionMultiplier", 10, 1, 1000);
+    loadOptimizationInactiveActionDelayMs = loadUInt("AiPlayerbot.LoadOptimization.InactiveActionDelayMs", 0, 0, 600000);
+    loadOptimizationProtectPlayerInteraction = config.GetBoolDefault("AiPlayerbot.LoadOptimization.Protect.PlayerInteraction", true);
+    loadOptimizationProtectCombat = config.GetBoolDefault("AiPlayerbot.LoadOptimization.Protect.Combat", true);
+    loadOptimizationProtectBattleground = config.GetBoolDefault("AiPlayerbot.LoadOptimization.Protect.Battleground", true);
+    loadOptimizationProtectInstances = config.GetBoolDefault("AiPlayerbot.LoadOptimization.Protect.Instance", true);
+
+    auto loadBracket = [&](const char* name, uint32 defaultMin, uint32 defaultFull)
+    {
+        LoadOptimizationBracket bracket;
+        std::string prefix = std::string("AiPlayerbot.LoadOptimization.Bracket.") + name;
+        bracket.minActivity = loadUInt((prefix + ".Min").c_str(), int32(defaultMin), 0, 100);
+        bracket.fullActivity = loadUInt((prefix + ".Full").c_str(), int32(defaultFull), 0, 100);
+        if (bracket.fullActivity < bracket.minActivity)
+            bracket.fullActivity = bracket.minActivity;
+        return bracket;
+    };
+
+    loadOptimizationPlayerInteractionBracket = loadBracket("PlayerInteraction", 0, 10);
+    loadOptimizationBattlegroundBracket = loadBracket("Battleground", 0, 10);
+    loadOptimizationInstanceBracket = loadBracket("Instance", 0, 5);
+    loadOptimizationCombatBracket = loadBracket("Combat", 0, 10);
+    loadOptimizationBgQueueBracket = loadBracket("BGQueue", 0, 20);
+    loadOptimizationLfgBracket = loadBracket("LFG", 0, 30);
+    loadOptimizationNearbyPlayerBracket = loadBracket("NearbyPlayer", 0, 40);
+    loadOptimizationSocialBracket = loadBracket("Social", 0, 50);
+    loadOptimizationNoPathBracket = loadBracket("NoPath", 50, 99);
+    loadOptimizationActiveAreaBracket = loadBracket("ActiveArea", 50, 100);
+    loadOptimizationEmptyServerBracket = loadBracket("EmptyServer", 50, 100);
+    loadOptimizationActiveMapBracket = loadBracket("ActiveMap", 70, 100);
+    loadOptimizationInactiveMapBracket = loadBracket("InactiveMap", 80, 100);
+
+    loadOptimizationMinActivity = std::max(0.0f, std::min(100.0f, loadOptimizationMinActivity));
+    loadOptimizationMaxActivity = std::max(loadOptimizationMinActivity, std::min(100.0f, loadOptimizationMaxActivity));
+    loadOptimizationBaseActivity = std::max(loadOptimizationMinActivity, std::min(loadOptimizationMaxActivity, loadOptimizationBaseActivity));
     RandombotsWalkingRPG = config.GetBoolDefault("AiPlayerbot.RandombotsWalkingRPG", false);
     RandombotsWalkingRPGInDoors = config.GetBoolDefault("AiPlayerbot.RandombotsWalkingRPG.InDoors", false);
     minEnchantingBotLevel = config.GetIntDefault("AiPlayerbot.minEnchantingBotLevel", 60);

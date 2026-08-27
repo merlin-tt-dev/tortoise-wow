@@ -21,7 +21,8 @@
 | core-0003 Map-only PathFinder / Nav-Area API | eingebaut | ausstehend |
 | core-0004 Native Fixed-Path Motion | eingebaut | ausstehend |
 | 0020 Native Movement / MMap / Triggered Semantics | eingebaut | ausstehend |
-| 0021 Native Loot / Group Roll Semantics | mit diesem Patch | ausstehend |
+| 0021 Native Loot / Group Roll Semantics | eingebaut | ausstehend |
+| 0022 Native BG / Visible Players / Opt-in Load Optimization | mit diesem Patch | ausstehend |
 
 **Wichtig:** „eingebaut“ bedeutet nur statisch/source-seitig portiert. Kein Punkt gilt dadurch als getestet.
 
@@ -74,6 +75,20 @@
 - [ ] 0021: Need/Greed/Pass läuft über Penqles `Group::CountRollVote()` und entfernt den alten `didRoll=false`-Funktionsverlust.
 - [ ] 0021: aktive Rolls werden über Penqles native `LootItem::is_blocked`-Lebensdauer bereinigt.
 - [ ] 0021: GROUP_LOOT/NEED_BEFORE_GREED öffnet eine noch nicht initialisierte Leiche weiterhin einmal, damit Penqle die nativen Rolls startet.
+- [ ] 0022: AV verwendet Penqles native `ALLIANCE/HORDE/NEUTRAL_*` Event-Control-States und Captain-Events; keine Fake-Statuswerte/GO-IDs aus dem Shim.
+- [ ] 0022: AB verwendet Penqles native Node-States und `BattleGroundEventIdx`; Objectives werden nicht über erfundene Banner-Indizes erkannt.
+- [ ] 0022: AV/AB GameObjects werden über `CMSG_GAMEOBJ_USE` wie bei einem echten Client benutzt; Reichweite/Interaktion/BG-Regeln bleiben Core-Semantik.
+- [ ] 0022: WSG verwendet Penqles native Flag- und AreaTrigger-Konstanten.
+- [ ] 0022: `FALL_MOTION_TYPE`-Fake ist entfernt; Fallzustand wird über Penqles `Player::IsFalling()` erkannt.
+- [ ] 0022: Playerbot-Präsenz/aktive Map/aktive Zone basiert direkt auf Penqles `Map::GetPlayers()` plus Visibility-Filter; kein zweiter `Map.cpp`-Playerbot-State.
+- [ ] 0022: GM sichtbar => Bots nehmen ihn normal wahr; GM invisible => Nearby/Social/Targeting/Master/Activity ignorieren ihn dynamisch ohne Relog.
+- [ ] 0022: `GetRandomPlayer()` wählt aus echten gefilterten Spielern statt `std::map` mit numerischem Index zu adressieren.
+- [ ] 0022: `HasManyPlayersNearby(range)` vergleicht echte Distanz mit `range` (nicht `range²`) und nur Spieler derselben Map.
+- [ ] 0022: `AiPlayerbot.LoadOptimization.Enabled=0` bedeutet vollständig ungedrosselte Playerbot-AI; keine versteckte PID-/Activity-Drosselung.
+- [ ] 0022: aktivierte LoadOptimization drosselt ausschließlich Playerbot-AI-Arbeit; Core Player/Map/Session/Transport/Teleport/BG Updates laufen unverändert.
+- [ ] 0022: Schutzschalter und alle Activity-Brackets reagieren entsprechend der Config und widersprechen sich nicht zwischen ALL/REACT/DETAILED_MOVE.
+- [ ] 0022: Async-LoginSpace/Population berücksichtigt nur sichtbare echte Spieler; ein invisible GM löst keine Player-nearby/Login-Priorisierung aus.
+- [ ] 0022: Console-`diff` aktualisiert die laufenden `LoadOptimization.TargetDiff*`-Werte und resetet den PID; Console-`pid` aktualisiert die laufenden Kp/Ki/Kd-Werte.
 - [ ] Rest-Shim-Audit (MMap/BG/Loot/LFG/InstanceTemplate/etc.) vollständig abgeschlossen.
 
 ## A1. Clean Build
@@ -200,7 +215,18 @@ Für jede Rasse:
 - [ ] keine Ghost-Sessions.
 - [ ] keine doppelten Sessions.
 
-## D3. Restart-Persistenz
+## D3. GM Visibility
+
+- [ ] normaler Spieler wird von Nearby/Social/Targeting erkannt.
+- [ ] sichtbarer GM wird wie ein normaler realer Spieler erkannt.
+- [ ] GM schaltet live auf invisible: Bots brechen Wahrnehmung/Targeting/Player-Priority ab, ohne Relog.
+- [ ] invisible GM in Bot-Gruppe wird nicht als realer Master/aktive Spielerpräsenz gewertet.
+- [ ] invisible GM im BG wird nicht als Defender/Enemy/Friendly-Ziel gezählt.
+- [ ] GM schaltet live wieder visible: normale Wahrnehmung funktioniert wieder.
+
+**PASS:** GM-Invisibility ist aus Bot-Sicht konsistent mit der Core-Sichtbarkeit.
+
+## D4. Restart-Persistenz
 
 - [ ] Botzustand bleibt über Serverrestart plausibel.
 - [ ] kein ungewolltes Level-/Position-/Inventory-Reset.
@@ -495,6 +521,11 @@ Für mehrere echte Routen:
 - [ ] Flag Base.
 - [ ] Team/Faction.
 - [ ] AV nodes.
+- [ ] AV Alliance/Horde/Neutral assaulted/controlled state mapping entspricht `BattleGroundAV`.
+- [ ] AV Captain-dead Events entsprechen `BG_AV_NodeEventCaptainDead_A/H`.
+- [ ] AB neutral/contested/occupied state mapping entspricht `BattleGroundAB`.
+- [ ] AV/AB Objective-Klick durchläuft normalen `CMSG_GAMEOBJ_USE`-Corepfad.
+- [ ] WSG Base-/Dropped-Flags und Capture-AreaTrigger verwenden native Penqle-Konstanten.
 - [ ] contested / occupied states.
 - [ ] keine Default-GUID-Platzhalter mehr im aktiven Pfad.
 
@@ -614,6 +645,17 @@ Messen:
 - [ ] Login-Burst.
 - [ ] Logout-Burst.
 - [ ] RandomBot DB Hotpaths.
+- [ ] LoadOptimization **OFF**: Activity=100 %, Verhalten/Progress identisch zu ungedrosseltem Referenzlauf.
+- [ ] LoadOptimization **ON**: PID reagiert auf künstlich erhöhten AverageDiff und erholt sich danach wieder.
+- [ ] Wechsel sichtbarer Spieler vorhanden/nicht vorhanden setzt den PID sauber auf das jeweilige TargetDiff um.
+- [ ] Rotation verteilt gedrosselte Aktivität über die Botpopulation; keine dauerhaft verhungernde Bot-Kohorte.
+- [ ] Protect.PlayerInteraction/Combat/Battleground/Instance jeweils einzeln verifizieren.
+- [ ] Bracket.Min/Full für PlayerInteraction/Battleground/Instance/Combat/BGQueue/LFG/Nearby/Social/NoPath/ActiveArea/EmptyServer/ActiveMap/InactiveMap einzeln stichprobenartig verifizieren.
+- [ ] trotz starker AI-Drosselung funktionieren Session-Pakete, Teleport-ACKs, Transporte und BG-Corezustand normal.
+- [ ] `activity_pid.csv` enthält ActivityPercentage und PID-Correction plausibel.
+- [ ] `diff <player> [empty]` ändert die aktiven TargetDiffs ohne Config-Reload; ein einzelner Wert setzt beide Targets.
+- [ ] `pid <p> <i> <d>` ändert die laufenden PID-Gains; negative Werte werden nicht übernommen.
+- [ ] RandomBot-Autologin aus + LoadOptimization an: Alt-/Free-Bot-AI folgt weiterhin dem Controller, während Session-/Core-Ticks ungedrosselt bleiben.
 - [ ] Index `ai_playerbot_random_bots(owner, bot, event)` falls übernommen.
 
 **PASS:** keine exponentielle Verschlechterung / kein einzelner Hotloop dominiert.

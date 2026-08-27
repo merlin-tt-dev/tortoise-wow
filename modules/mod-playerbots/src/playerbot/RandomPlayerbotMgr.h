@@ -46,6 +46,7 @@ public:
     // min - minimum value of manipulated variable
     botPID(double dt, double max, double min, double Kp, double Ki, double Kd);
     void adjust(double Kp, double Ki, double Kd);
+    void configure(double dt, double max, double min, double Kp, double Ki, double Kd);
     void reset();
    
     double calculate(double setpoint, double pv);
@@ -68,7 +69,7 @@ class RandomPlayerbotMgr : public PlayerbotHolder
 
         virtual void UpdateAIInternal(uint32 elapsed, bool minimal = false) override;
 private:
-        void ScaleBotActivity();
+        void UpdateLoadOptimization();
         void LogPlayerLocation();
         void DelayedFacingFix();
         void LoginFreeBots();
@@ -97,6 +98,11 @@ public:
         void OnPlayerLogout(Player* player);
         void OnPlayerLogin(Player* player);
         void OnPlayerLoginError(uint32 bot);
+        bool IsPlayerVisibleToBots(Player* player) const;
+        bool IsVisibleRealPlayer(Player* player) const;
+        std::vector<Player*> GetVisibleRealPlayers() const;
+        bool HasVisibleRealPlayers() const;
+        bool HasVisibleRealPlayer(Map* map, uint32 zoneId = 0) const;
         Player* GetRandomPlayer();
         PlayerBotMap& GetPlayers() { return players; };
         Player* GetPlayer(uint32 playerGuid);
@@ -172,8 +178,12 @@ public:
         virtual void OnBotLoginInternal(Player * const bot) override;
     private:
         //pid values are set in constructor
-        botPID pid = botPID(1, 50, -50, 0, 0, 0);
-        float activityMod = 0.25;
+        botPID pid = botPID(1, 100, -100, 0, 0, 0);
+        float activityMod = 1.0f;
+        uint32 loadOptimizationLastSample = 0;
+        bool loadOptimizationPidConfigured = false;
+        bool loadOptimizationPresenceInitialized = false;
+        bool loadOptimizationHadVisiblePlayers = false;
         std::map<std::string, uint32> databaseDelay;
         uint32 GetEventValue(uint32 bot, std::string event);
         std::string GetEventData(uint32 bot, std::string event);

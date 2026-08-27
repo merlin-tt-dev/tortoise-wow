@@ -633,13 +633,30 @@ public:
     }
     bool IsSelfMaster() { return master ? (master == bot) : false; }
     //Bot has a master that is a player.
-    bool HasRealPlayerMaster() { return master && (!master->GetPlayerbotAI() || master->GetPlayerbotAI()->IsRealPlayer()); } 
-    //Bot has a master that is actively playing.
-    bool HasActivePlayerMaster() const { return master && !master->GetPlayerbotAI(); }
+    bool HasRealPlayerMaster() { return sRandomPlayerbotMgr.IsVisibleRealPlayer(master); }
+    //Bot has a master that is actively playing and visible to bots.
+    bool HasActivePlayerMaster() const { return master && !master->GetPlayerbotAI() && sRandomPlayerbotMgr.IsVisibleRealPlayer(master); }
     //Checks if the bot is summoned as alt of a player
     bool IsAlt() { return HasRealPlayerMaster() && !sRandomPlayerbotMgr.IsRandomBot(bot); }
-    //Get the group leader or the master of the bot.
-    Player* GetGroupMaster() { return bot->InBattleGround() ? master : bot->GetGroup() ? (sObjectMgr.GetPlayer(bot->GetGroup()->GetLeaderGuid()) ? sObjectMgr.GetPlayer(bot->GetGroup()->GetLeaderGuid()) : master) : master; }
+    // Get the group leader or cached master without exposing a GM who is currently
+    // invisible to bots. Keeping this filter here prevents follow/travel/security/etc.
+    // from re-acquiring a hidden GM through the persistent Group object.
+    Player* GetGroupMaster()
+    {
+        if (bot->InBattleGround())
+            return sRandomPlayerbotMgr.IsPlayerVisibleToBots(master) ? master : nullptr;
+
+        if (Group* group = bot->GetGroup())
+        {
+            if (Player* leader = sObjectMgr.GetPlayer(group->GetLeaderGuid()))
+            {
+                if (sRandomPlayerbotMgr.IsPlayerVisibleToBots(leader))
+                    return leader;
+            }
+        }
+
+        return sRandomPlayerbotMgr.IsPlayerVisibleToBots(master) ? master : nullptr;
+    }
 
     bool IsGroupLeader() { return bot->GetGroup() && bot->GetGroup()->GetLeaderGuid() == bot->GetObjectGuid(); }
 
@@ -784,7 +801,7 @@ protected:
     std::pair<ChatMsg, time_t> currentChat;
     static std::set<std::string> unsecuredCommands;
     bool allowActive[MAX_ACTIVITY_TYPE];
-    time_t allowActiveCheckTimer[MAX_ACTIVITY_TYPE];
+    uint32 allowActiveCheckTimer[MAX_ACTIVITY_TYPE];
     bool inCombat = false;
     bool isMoving = false;
     bool isWaiting = false;

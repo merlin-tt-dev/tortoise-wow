@@ -121,8 +121,8 @@ PlayerbotAI::PlayerbotAI() : PlayerbotAIBase(), bot(NULL), aiObjectContext(NULL)
 
     for (int i = 0; i < MAX_ACTIVITY_TYPE; i++)
     {
-        allowActiveCheckTimer[i] = time(nullptr);
-        allowActive[i] = false;
+        allowActiveCheckTimer[i] = 0;
+        allowActive[i] = true;
     }
 }
 
@@ -138,8 +138,8 @@ PlayerbotAI::PlayerbotAI(Player* bot) :
 
     for (int i = 0; i < MAX_ACTIVITY_TYPE; i++)
     {
-        allowActiveCheckTimer[i] = time(nullptr);
-        allowActive[i] = false;
+        allowActiveCheckTimer[i] = 0;
+        allowActive[i] = true;
     }
 
 	accountId = sObjectMgr.GetPlayerAccountIdByGUID(bot->GetObjectGuid());
@@ -273,7 +273,7 @@ void PlayerbotAI::UpdateAI(uint32 elapsed, bool minimal)
     if (master)
     {
         Player* live = masterGuid ? sObjectAccessor.FindPlayer(masterGuid) : nullptr;
-        if (live != master)
+        if (live != master || !sRandomPlayerbotMgr.IsPlayerVisibleToBots(master))
         {
             master = nullptr;
             masterGuid = ObjectGuid();
@@ -2109,7 +2109,10 @@ void PlayerbotAI::DoNextAction(bool min)
         if (!MovementAction::MinimalMove(this) && !bot->isAFK() && !bot->InBattleGround() && !HasRealPlayerMaster())
             bot->ToggleAFK();
 
-        SetAIInternalUpdateDelay(sPlayerbotAIConfig.passiveDelay);
+        uint32 inactiveDelay = sPlayerbotAIConfig.IsLoadOptimizationEnabled() && sPlayerbotAIConfig.loadOptimizationInactiveActionDelayMs
+            ? sPlayerbotAIConfig.loadOptimizationInactiveActionDelayMs
+            : sPlayerbotAIConfig.passiveDelay;
+        SetAIInternalUpdateDelay(inactiveDelay);
         return;
     }
     else if (bot->isAFK())
@@ -2152,6 +2155,10 @@ void PlayerbotAI::DoNextAction(bool min)
                     continue;
 
                 if (!member->IsInGroup(bot, true))
+                    continue;
+
+                // Do not reacquire an invisible GM (or any non-real player) as a human master.
+                if (!member->GetPlayerbotAI() && !sRandomPlayerbotMgr.IsVisibleRealPlayer(member))
                     continue;
 
                 //Do not make bots your master if they are nog group leader.
@@ -3088,7 +3095,7 @@ bool PlayerbotAI::SayToGuild(std::string msg, bool likePlayer)
 
             for (auto& player : sRandomPlayerbotMgr.GetPlayers())
             {
-                if (player.second->GetGuildId() == bot->GetGuildId())
+                if (sRandomPlayerbotMgr.IsVisibleRealPlayer(player.second) && player.second->GetGuildId() == bot->GetGuildId())
                 {
                     if (likePlayer || (sPlayerbotAIConfig.llmEnabled > 0 && (HasStrategy("ai chat", BotState::BOT_STATE_NON_COMBAT) || sPlayerbotAIConfig.llmEnabled == 3) &&
                         sPlayerbotAIConfig.llmBotToBotChatChance))
@@ -5869,31 +5876,28 @@ bool PlayerbotAI::HasPlayerNearby(WorldPosition pos, float range)
     if (!range)
         range = pos.getVisibilityDistance();
 
+    Map* map = bot->GetMap();
+    if (!map || pos.getMapId() != map->GetId())
+        return false;
+
     float sqRange = range * range;
-    bool nearPlayer = false;
-    for (auto& i : sRandomPlayerbotMgr.GetPlayers())
+    for (auto const& ref : map->GetPlayers())
     {
-        Player* player = i.second;
-        if (!player->IsGameMaster() || player->isGMVisible())
-        {
-            if (player->GetMapId() != bot->GetMapId())
-                continue;
+        Player* player = ref.getSource();
+        if (!sRandomPlayerbotMgr.IsVisibleRealPlayer(player))
+            continue;
 
-            if (pos.sqDistance(WorldPosition(player)) < sqRange)
-                nearPlayer = true;
+        if (pos.sqDistance(WorldPosition(player)) < sqRange)
+            return true;
 
-            // if player is far check farsight/cinematic camera
-            Camera& viewPoint = player->GetCamera();
-            WorldObject* viewObj = viewPoint.GetBody();
-            if (viewObj && viewObj != player)
-            {
-                if (pos.sqDistance(WorldPosition(viewObj)) < sqRange)
-                    nearPlayer = true;
-            }
-        }
+        // Also account for a real player's farsight/cinematic camera.
+        Camera& viewPoint = player->GetCamera();
+        WorldObject* viewObj = viewPoint.GetBody();
+        if (viewObj && viewObj != player && pos.sqDistance(WorldPosition(viewObj)) < sqRange)
+            return true;
     }
 
-    return nearPlayer;
+    return false;
 }
 
 bool PlayerbotAI::HasPlayerNearby(float range)
@@ -5903,20 +5907,22 @@ bool PlayerbotAI::HasPlayerNearby(float range)
 
 bool PlayerbotAI::HasManyPlayersNearby(uint32 trigerrValue, float range)
 {
-    float sqRange = range * range;
+    Map* map = bot->GetMap();
+    if (!map)
+        return false;
+
     uint32 found = 0;
 
-    for (auto& i : sRandomPlayerbotMgr.GetPlayers())
+    for (auto const& ref : map->GetPlayers())
     {
-        Player* player = i.second;
-        if ((!player->IsGameMaster() || player->isGMVisible()) && sServerFacade.GetDistance2d(player, bot) < sqRange)
-        {
-            found++;
+        Player* player = ref.getSource();
+        if (!sRandomPlayerbotMgr.IsVisibleRealPlayer(player))
+            continue;
 
-            if (found >= trigerrValue)
-                return true;
-        }
+        if (sServerFacade.GetDistance2d(player, bot) < range && ++found >= trigerrValue)
+            return true;
     }
+
     return false;
 }
 
@@ -5929,9 +5935,12 @@ bool PlayerbotAI::ChannelHasRealPlayer(std::string channelName)
         {
             ChannelAcces* chna = reinterpret_cast<ChannelAcces*>(chn);
 
-            for (auto& player : sRandomPlayerbotMgr.GetPlayers())
-                if (chna->IsOn(player.second->GetObjectGuid()))
+            for (auto const& entry : sRandomPlayerbotMgr.GetPlayers())
+            {
+                Player* player = entry.second;
+                if (sRandomPlayerbotMgr.IsVisibleRealPlayer(player) && chna->IsOn(player->GetObjectGuid()))
                     return true;
+            }
         }
     }
 
@@ -5959,8 +5968,9 @@ enum ActivityType
 
 ActivePiorityType PlayerbotAI::GetPriorityType()
 {
-    //First priority - priorities disabled or has player master. Always active.
-    if (sPlayerbotAIConfig.disableActivityPriorities || HasRealPlayerMaster())
+    // Priority describes the bot's real situation. Whether load optimisation is enabled
+    // is deliberately handled later by AllowActivity(), never by falsifying this state.
+    if (HasRealPlayerMaster())
         return ActivePiorityType::HAS_REAL_PLAYER_MASTER;
 
     //Self bot in a group with a bot master.
@@ -5980,7 +5990,8 @@ ActivePiorityType PlayerbotAI::GetPriorityType()
             if (member == bot)
                 continue;
 
-            if (!member->GetPlayerbotAI() || (member->GetPlayerbotAI() && member->GetPlayerbotAI()->HasRealPlayerMaster()))
+            if (sRandomPlayerbotMgr.IsVisibleRealPlayer(member) ||
+                (member->GetPlayerbotAI() && member->GetPlayerbotAI()->HasRealPlayerMaster()))
                 return ActivePiorityType::IN_GROUP_WITH_REAL_PLAYER;
         }
     }
@@ -6053,23 +6064,20 @@ ActivePiorityType PlayerbotAI::GetPriorityType()
     {
         AiObjectContext* context = GetAiObjectContext();
         LastMovement& lastMove = AI_VALUE(LastMovement&, "last movement");
-        if (lastMove.lastPath.empty() && !urand(0, 5))
+        if (lastMove.lastPath.empty())
             return ActivePiorityType::NO_PATH;
     }
 
     //If has real players - slow down continents without player
     //This means we first disable bots in a different continent/area.
-    if (sRandomPlayerbotMgr.GetPlayers().empty())
+    if (!sRandomPlayerbotMgr.HasVisibleRealPlayers())
         return ActivePiorityType::IN_EMPTY_SERVER;
 
-    // friends always active
-    for (auto& i : sRandomPlayerbotMgr.GetPlayers())
+    // Visible real-player friends get social priority. Invisible GMs are intentionally absent.
+    for (auto const& entry : sRandomPlayerbotMgr.GetPlayers())
     {
-        Player* player = i.second;
-        if (!player || !player->IsInWorld())
-            continue;
-
-        if (player->GetSocial()->HasFriend(bot->GetObjectGuid()))
+        Player* player = entry.second;
+        if (sRandomPlayerbotMgr.IsVisibleRealPlayer(player) && player->GetSocial()->HasFriend(bot->GetObjectGuid()))
             return ActivePiorityType::PLAYER_FRIEND;
     }
 
@@ -6077,10 +6085,10 @@ ActivePiorityType PlayerbotAI::GetPriorityType()
     if (IsInRealGuild())
         return ActivePiorityType::PLAYER_GUILD;
 
-    if (bot->IsBeingTeleported() || !bot->IsInWorld() || !bot->GetMap()->HasRealPlayers())
+    if (bot->IsBeingTeleported() || !bot->IsInWorld() || !sRandomPlayerbotMgr.HasVisibleRealPlayer(bot->GetMap()))
         return ActivePiorityType::IN_INACTIVE_MAP;
 
-    if (!bot->GetMap()->HasActiveZone(bot->GetZoneId()))
+    if (!sRandomPlayerbotMgr.HasVisibleRealPlayer(bot->GetMap(), bot->GetZoneId()))
         return ActivePiorityType::IN_ACTIVE_MAP;
 
     return ActivePiorityType::IN_ACTIVE_AREA;
@@ -6090,146 +6098,112 @@ ActivePiorityType PlayerbotAI::GetPriorityType()
 //Ie. 10,20 means all bots in this bracket will be inactive below 10% activityMod, all bots in this bracket will be active above 20% activityMod and scale between those values.
 std::pair<uint32, uint32> PlayerbotAI::GetPriorityBracket(ActivePiorityType type)
 {
+    auto pairFor = [](LoadOptimizationBracket const& bracket)
+    {
+        return std::make_pair(bracket.minActivity, bracket.fullActivity);
+    };
+
     switch (type)
     {
-    case ActivePiorityType::HAS_REAL_PLAYER_MASTER:
     case ActivePiorityType::IS_REAL_PLAYER:
+    case ActivePiorityType::IS_ALWAYS_ACTIVE:
+    case ActivePiorityType::IS_RUNNING_TEST:
+        return { 0, 0 };
+    case ActivePiorityType::HAS_REAL_PLAYER_MASTER:
     case ActivePiorityType::IN_GROUP_WITH_REAL_PLAYER:
     case ActivePiorityType::VISIBLE_FOR_PLAYER:
+        return sPlayerbotAIConfig.loadOptimizationProtectPlayerInteraction ? std::make_pair(0u, 0u) : pairFor(sPlayerbotAIConfig.loadOptimizationPlayerInteractionBracket);
     case ActivePiorityType::IN_BATTLEGROUND:
-    case ActivePiorityType::IS_RUNNING_TEST:
-        return { 0,0 };
+        return sPlayerbotAIConfig.loadOptimizationProtectBattleground ? std::make_pair(0u, 0u) : pairFor(sPlayerbotAIConfig.loadOptimizationBattlegroundBracket);
     case ActivePiorityType::IN_INSTANCE:
-        return { 0,5 };
-    case ActivePiorityType::IS_ALWAYS_ACTIVE:
-        return { 0,0 };
+        return sPlayerbotAIConfig.loadOptimizationProtectInstances ? std::make_pair(0u, 0u) : pairFor(sPlayerbotAIConfig.loadOptimizationInstanceBracket);
     case ActivePiorityType::IN_COMBAT:
-    {
+        if (sPlayerbotAIConfig.loadOptimizationProtectCombat)
+            return { 0, 0 };
         if (sPlayerbotAIConfig.limitCombatActivity)
-            return { 99,100 };
-
-        return { 0,10 };
-    }
+            return { 99, 100 };
+        return pairFor(sPlayerbotAIConfig.loadOptimizationCombatBracket);
     case ActivePiorityType::IN_BG_QUEUE:
-        return { 0,20 };
+        return pairFor(sPlayerbotAIConfig.loadOptimizationBgQueueBracket);
     case ActivePiorityType::IN_LFG:
-        return { 0,30 };
+        return pairFor(sPlayerbotAIConfig.loadOptimizationLfgBracket);
     case ActivePiorityType::NEARBY_PLAYER:
-        return { 0,40 };
+        return pairFor(sPlayerbotAIConfig.loadOptimizationNearbyPlayerBracket);
     case ActivePiorityType::PLAYER_FRIEND:
     case ActivePiorityType::PLAYER_GUILD:
-        return { 0,50 };
+        return pairFor(sPlayerbotAIConfig.loadOptimizationSocialBracket);
     case ActivePiorityType::NO_PATH:
-        return { 50, 99};
+        return pairFor(sPlayerbotAIConfig.loadOptimizationNoPathBracket);
     case ActivePiorityType::IN_ACTIVE_AREA:
+        return pairFor(sPlayerbotAIConfig.loadOptimizationActiveAreaBracket);
     case ActivePiorityType::IN_EMPTY_SERVER:
-        return { 50,100 }; //Note lower 100 means multiply by activity percentage.
+        return pairFor(sPlayerbotAIConfig.loadOptimizationEmptyServerBracket);
     case ActivePiorityType::IN_ACTIVE_MAP:
-        return { 70,100 };
+        return pairFor(sPlayerbotAIConfig.loadOptimizationActiveMapBracket);
     case ActivePiorityType::IN_INACTIVE_MAP:
-        return { 80,100 };
-    default :
+        return pairFor(sPlayerbotAIConfig.loadOptimizationInactiveMapBracket);
+    default:
         return { 90, 100 };
     }
-
-    return { 90, 100 };
 }
 
 bool PlayerbotAI::AllowActive(ActivityType activityType)
 {
+    if (!sPlayerbotAIConfig.IsLoadOptimizationEnabled())
+        return true;
+
     ActivePiorityType type = GetPriorityType();
 
-    if (activityType == DETAILED_MOVE_ACTIVITY)
-    {
-        switch (type)
-        {
-        case ActivePiorityType::HAS_REAL_PLAYER_MASTER:
-        case ActivePiorityType::IS_REAL_PLAYER:
-        case ActivePiorityType::IN_GROUP_WITH_REAL_PLAYER:
-        case ActivePiorityType::IN_INSTANCE:
-        case ActivePiorityType::VISIBLE_FOR_PLAYER:
-        case ActivePiorityType::IN_COMBAT:
-        case ActivePiorityType::NEARBY_PLAYER:
-        case ActivePiorityType::IS_RUNNING_TEST:
-            return true;
-            break;
-        case ActivePiorityType::IS_ALWAYS_ACTIVE:
-        case ActivePiorityType::IN_BG_QUEUE:
-        case ActivePiorityType::IN_LFG:
-        case ActivePiorityType::PLAYER_FRIEND:
-        case ActivePiorityType::PLAYER_GUILD:
-        case ActivePiorityType::NO_PATH:
-        case ActivePiorityType::IN_ACTIVE_AREA:
-        case ActivePiorityType::IN_EMPTY_SERVER:
-        case ActivePiorityType::IN_ACTIVE_MAP:
-        case ActivePiorityType::IN_INACTIVE_MAP:
-        default:
-            break;
-        }
-    }
-    else if (activityType == REACT_ACTIVITY)
-    {
-        switch (type)
-        {
-        case ActivePiorityType::HAS_REAL_PLAYER_MASTER:
-        case ActivePiorityType::IS_REAL_PLAYER:
-        case ActivePiorityType::IN_GROUP_WITH_REAL_PLAYER:
-        case ActivePiorityType::IN_INSTANCE:
-        case ActivePiorityType::IS_ALWAYS_ACTIVE:
-        case ActivePiorityType::IS_RUNNING_TEST:
-            return true;
-        case ActivePiorityType::VISIBLE_FOR_PLAYER:
-            if (sPlayerbotAIConfig.forceActiveWhenNearPlayer)
-                return true;
-            break;
-        case ActivePiorityType::IN_COMBAT:
-        case ActivePiorityType::NEARBY_PLAYER:
-        case ActivePiorityType::IN_BG_QUEUE:
-        case ActivePiorityType::IN_LFG:
-        case ActivePiorityType::PLAYER_FRIEND:
-        case ActivePiorityType::PLAYER_GUILD:
-        case ActivePiorityType::NO_PATH:
-        case ActivePiorityType::IN_ACTIVE_AREA:
-        case ActivePiorityType::IN_EMPTY_SERVER:
-        case ActivePiorityType::IN_ACTIVE_MAP:
-        case ActivePiorityType::IN_INACTIVE_MAP:
-        default:
-            break;
-        }
-    }
-
-    std::pair<uint8, uint8> priorityBracket = GetPriorityBracket(type);
-
-    float activityPercentage = sRandomPlayerbotMgr.getActivityPercentage(); //Activity between 0 and 100.
-
-    if (!priorityBracket.second) //No scaling
+    // Explicit legacy override. All other protection decisions are represented by
+    // GetPriorityBracket(), so movement/reaction/all-activity cannot disagree.
+    if (sPlayerbotAIConfig.forceActiveWhenNearPlayer &&
+        (type == ActivePiorityType::VISIBLE_FOR_PLAYER || type == ActivePiorityType::NEARBY_PLAYER))
         return true;
 
-    if (priorityBracket.first >= activityPercentage)
+    std::pair<uint32, uint32> bracket = GetPriorityBracket(type);
+    if (bracket.second == 0)
+        return true;
+
+    float activity = sRandomPlayerbotMgr.getActivityPercentage();
+    if (activity <= bracket.first)
         return false;
-    if (priorityBracket.second <= activityPercentage && priorityBracket.second < 100)
+    if (activity >= bracket.second)
         return true;
+    if (bracket.second <= bracket.first)
+        return activity >= bracket.second;
 
-    float activePerc = (activityPercentage - priorityBracket.first) / (priorityBracket.second - priorityBracket.first);
+    float fraction = (activity - bracket.first) / float(bracket.second - bracket.first);
+    fraction = std::max(0.0f, std::min(1.0f, fraction));
 
-    activePerc *= (priorityBracket.second == 100) ? sPlayerbotAIConfig.botActiveAlone : 100;
+    // Stable distribution with controlled rotation: bots do not all wake/sleep on the same tick,
+    // but the selected subset changes over time so low-priority bots still make progress.
+    uint32 rotation = uint32(time(nullptr) / sPlayerbotAIConfig.loadOptimizationRotationIntervalSec);
+    uint32 guid = bot ? bot->GetObjectGuid().GetCounter() : 0;
+    uint32 hash = guid * 2654435761u;
+    hash ^= rotation * 2246822519u;
+    hash ^= hash >> 16;
+    uint32 bucket = hash % 10000u;
 
-    uint32 ActivityNumber = GetFixedBotNumber(BotTypeNumber::ACTIVITY_TYPE_NUMBER, 100, activePerc * 0.01f); //The last number if the amount it cycles per min. Currently set to 1% of the active bots.
-
-    return ActivityNumber <= (activePerc);           //The given percentage of bots should be active and rotate 1% of those active bots each minute.
+    return bucket < uint32(fraction * 10000.0f);
 }
 
 bool PlayerbotAI::AllowActivity(ActivityType activityType, bool checkNow)
 {
-    if (!allowActiveCheckTimer[activityType])
-        allowActiveCheckTimer[activityType] = time(NULL);
+    if (!sPlayerbotAIConfig.IsLoadOptimizationEnabled())
+    {
+        allowActive[activityType] = true;
+        allowActiveCheckTimer[activityType] = 0;
+        return true;
+    }
 
-    if (!checkNow && time(NULL) < (allowActiveCheckTimer[activityType] + 5))
+    uint32 now = sWorld.GetCurrentMSTime();
+    uint32 cacheMs = sPlayerbotAIConfig.loadOptimizationDecisionCacheMs;
+    if (!checkNow && cacheMs && allowActiveCheckTimer[activityType] && (now - allowActiveCheckTimer[activityType]) < cacheMs)
         return allowActive[activityType];
 
     bool allowed = AllowActive(activityType);
     allowActive[activityType] = allowed;
-    allowActiveCheckTimer[activityType] = time(NULL);
+    allowActiveCheckTimer[activityType] = now;
     return allowed;
 }
 
@@ -8436,10 +8410,6 @@ bool PlayerbotAI::CanMove()
     {
         return false;
     }
-    if (currentMotion == FALL_MOTION_TYPE)
-    {
-        return false;
-    }
 #endif
 #ifdef MANGOS
     if (currentMotion == FLIGHT_MOTION_TYPE)
@@ -8516,9 +8486,10 @@ bool PlayerbotAI::HasPlayerRelation()
     if (!sRandomPlayerbotMgr.IsRandomBot(bot))
         return true;
 
-    for (auto& p : sRandomPlayerbotMgr.GetPlayers())
+    for (auto const& entry : sRandomPlayerbotMgr.GetPlayers())
     {
-        if (p.second && p.second->GetSocial()->HasFriend(bot->GetObjectGuid()))
+        Player* player = entry.second;
+        if (sRandomPlayerbotMgr.IsVisibleRealPlayer(player) && player->GetSocial()->HasFriend(bot->GetObjectGuid()))
         {
             SetPlayerFriend(true);
             return true;

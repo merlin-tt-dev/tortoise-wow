@@ -362,11 +362,13 @@ bool BGJoinAction::shouldJoinBg(BattleGroundQueueTypeId queueTypeId, BattleGroun
     bool isRated = false;
     bool hasTeam = false;
     bool isTeamLead = false;
-    bool noLag = sWorld.GetAverageDiff() < (sRandomPlayerbotMgr.GetPlayers().empty() ? sPlayerbotAIConfig.diffEmpty : sPlayerbotAIConfig.diffWithPlayer) * 1.1;
-
-    if (sPlayerbotAIConfig.disableActivityPriorities)
+    bool noLag = true;
+    if (sPlayerbotAIConfig.IsLoadOptimizationEnabled())
     {
-        noLag = true;
+        uint32 targetDiff = sRandomPlayerbotMgr.HasVisibleRealPlayers()
+            ? sPlayerbotAIConfig.loadOptimizationTargetDiffWithPlayers
+            : sPlayerbotAIConfig.loadOptimizationTargetDiffEmpty;
+        noLag = sWorld.GetAverageDiff() < targetDiff * 1.1f;
     }
 
 #ifndef MANGOSBOT_ZERO
@@ -852,11 +854,13 @@ bool FreeBGJoinAction::shouldJoinBg(BattleGroundQueueTypeId queueTypeId, BattleG
     bool isArena = false;
     bool isRated = false;
     bool hasTeam = false;
-    bool noLag = sWorld.GetAverageDiff() < (sRandomPlayerbotMgr.GetPlayers().empty() ? sPlayerbotAIConfig.diffEmpty : sPlayerbotAIConfig.diffWithPlayer) * 1.5;
-
-    if (sPlayerbotAIConfig.disableActivityPriorities)
+    bool noLag = true;
+    if (sPlayerbotAIConfig.IsLoadOptimizationEnabled())
     {
-        noLag = true;
+        uint32 targetDiff = sRandomPlayerbotMgr.HasVisibleRealPlayers()
+            ? sPlayerbotAIConfig.loadOptimizationTargetDiffWithPlayers
+            : sPlayerbotAIConfig.loadOptimizationTargetDiffEmpty;
+        noLag = sWorld.GetAverageDiff() < targetDiff * 1.5f;
     }
 
 #ifndef MANGOSBOT_ZERO

@@ -167,7 +167,12 @@ public:
     ~botPIDImpl();
     double calculate(double setpoint, double pv);
     void adjust(double Kp, double Ki, double Kd) { _Kp = Kp; _Ki = Ki; _Kd = Kd; }
-    void reset() { _integral = 0; }
+    void configure(double dt, double max, double min, double Kp, double Ki, double Kd)
+    {
+        _dt = dt; _max = max; _min = min; _Kp = Kp; _Ki = Ki; _Kd = Kd;
+        reset();
+    }
+    void reset() { _integral = 0; _pre_error = 0; }
 
 private:
     double _dt;
@@ -188,6 +193,10 @@ botPID::botPID(double dt, double max, double min, double Kp, double Ki, double K
 void botPID::adjust(double Kp, double Ki, double Kd)
 {
     pimpl->adjust(Kp, Ki, Kd);
+}
+void botPID::configure(double dt, double max, double min, double Kp, double Ki, double Kd)
+{
+    pimpl->configure(dt, max, min, Kp, Ki, Kd);
 }
 void botPID::reset()
 {
@@ -288,10 +297,6 @@ RandomPlayerbotMgr::RandomPlayerbotMgr()
             }
         }
 
-        //1) Proportional: Amount activity is adjusted based on diff being above or below wanted diff. (100 wanted diff & 0.1 p = 150 diff = -5% activity)
-        //2) Integral: Same as proportional but builds up each tick. (100 wanted diff & 0.01 i = 150 diff = -0.5% activity each tick)
-        //3) Derative: Based on speed of diff. (+5 diff last tick & 0.05 d = -0.25% activity)
-        pid.adjust(0.05,0.001,0.05);
         BgCheckTimer = 0;
         LfgCheckTimer = 0;
         PlayersCheckTimer = 0;
@@ -654,13 +659,19 @@ void RandomPlayerbotMgr::UpdateAIInternal(uint32 elapsed, bool minimal)
     // same purpose, applied to the random-bot pool.
     UpdateSessions(elapsed);
 
-    if (!sPlayerbotAIConfig.randomBotAutologin || !sPlayerbotAIConfig.enabled)
+    if (!sPlayerbotAIConfig.enabled)
+        return;
+
+    // The controller is global to PlayerbotAI, not to random-bot population management.
+    // Run it even when random-bot autologin is disabled so alt/free bots use the same
+    // opt-in load policy. Core session processing above is never throttled.
+    UpdateLoadOptimization();
+
+    if (!sPlayerbotAIConfig.randomBotAutologin)
         return;
 
     if (!playersLevel)
         playersLevel = sPlayerbotAIConfig.syncLevelNoPlayer;
-
-    ScaleBotActivity();
     if (sPlayerbotAIConfig.asyncBotLogin)
     {
         auto pmo = sPerformanceMonitor.start(PERF_MON_RNDBOT, "AsyncBotLogin");
@@ -693,7 +704,7 @@ void RandomPlayerbotMgr::UpdateAIInternal(uint32 elapsed, bool minimal)
         bool logInAllowed = true;
         if (sPlayerbotAIConfig.randomBotLoginWithPlayer)
         {
-            logInAllowed = !players.empty();
+            logInAllowed = HasVisibleRealPlayers();
         }
 
         if (logInAllowed)
@@ -702,13 +713,13 @@ void RandomPlayerbotMgr::UpdateAIInternal(uint32 elapsed, bool minimal)
         }
     }
 
-    if (sPlayerbotAIConfig.syncLevelWithPlayers && players.size())
+    if (sPlayerbotAIConfig.syncLevelWithPlayers)
     {
         if (time(nullptr) > (PlayersCheckTimer + 60))
             CheckPlayers();
     }
 
-    if (sPlayerbotAIConfig.randomBotJoinLfg && players.size())
+    if (sPlayerbotAIConfig.randomBotJoinLfg && HasVisibleRealPlayers())
     {
         if (time(nullptr) > (LfgCheckTimer + 30))
             CheckLfgQueue();
@@ -720,7 +731,7 @@ void RandomPlayerbotMgr::UpdateAIInternal(uint32 elapsed, bool minimal)
             CheckBgQueue();
     }
 
-    if (time(nullptr) > (OfflineGroupBotsTimer + 5) && players.size())
+    if (time(nullptr) > (OfflineGroupBotsTimer + 5) && HasVisibleRealPlayers())
         AddOfflineGroupBots();
 
     uint32 updateBots = sPlayerbotAIConfig.randomBotsPerInterval == 0 ? UINT32_MAX : sPlayerbotAIConfig.randomBotsPerInterval;
@@ -790,20 +801,51 @@ void RandomPlayerbotMgr::UpdateAIInternal(uint32 elapsed, bool minimal)
     PlayerbotHolder::UpdateAIInternal(elapsed, minimal);
 }
 
-void RandomPlayerbotMgr::ScaleBotActivity()
+void RandomPlayerbotMgr::UpdateLoadOptimization()
 {
-    float activityPercentage = getActivityPercentage();
+    // Opt-out is the fast and safe path: no hidden AI throttling.
+    if (!sPlayerbotAIConfig.IsLoadOptimizationEnabled())
+    {
+        if (getActivityPercentage() != 100.0f)
+            setActivityPercentage(100.0f);
+        if (loadOptimizationPidConfigured)
+            pid.reset();
+        loadOptimizationLastSample = 0;
+        loadOptimizationPidConfigured = false;
+        loadOptimizationPresenceInitialized = false;
+        return;
+    }
 
-    //if (activityPercentage >= 100.0f || activityPercentage <= 0.0f) pid.reset(); //Stop integer buildup during max/min activity
+    uint32 now = sWorld.GetCurrentMSTime();
+    if (loadOptimizationLastSample && (now - loadOptimizationLastSample) < sPlayerbotAIConfig.loadOptimizationSampleIntervalMs)
+        return;
+    loadOptimizationLastSample = now;
 
-    //    % increase/decrease                   wanted diff                                         , avg diff
-    float activityPercentageMod = pid.calculate(sRandomPlayerbotMgr.GetPlayers().empty() ? sPlayerbotAIConfig.diffEmpty : sPlayerbotAIConfig.diffWithPlayer, sWorld.GetAverageDiff());
+    if (!loadOptimizationPidConfigured)
+    {
+        double dt = std::max(0.1, double(sPlayerbotAIConfig.loadOptimizationSampleIntervalMs) / 1000.0);
+        pid.configure(dt, 100.0, -100.0,
+            sPlayerbotAIConfig.loadOptimizationPidKp,
+            sPlayerbotAIConfig.loadOptimizationPidKi,
+            sPlayerbotAIConfig.loadOptimizationPidKd);
+        loadOptimizationPidConfigured = true;
+    }
 
-    activityPercentage = activityPercentageMod + 50;
+    bool hasVisiblePlayers = HasVisibleRealPlayers();
+    if (!loadOptimizationPresenceInitialized || hasVisiblePlayers != loadOptimizationHadVisiblePlayers)
+    {
+        pid.reset();
+        loadOptimizationHadVisiblePlayers = hasVisiblePlayers;
+        loadOptimizationPresenceInitialized = true;
+    }
 
-    //Cap the percentage between 0 and 100.
-    activityPercentage = std::max(0.0f, std::min(100.0f, activityPercentage));
-
+    double targetDiff = hasVisiblePlayers
+        ? sPlayerbotAIConfig.loadOptimizationTargetDiffWithPlayers
+        : sPlayerbotAIConfig.loadOptimizationTargetDiffEmpty;
+    double correction = pid.calculate(targetDiff, sWorld.GetAverageDiff());
+    float activityPercentage = sPlayerbotAIConfig.loadOptimizationBaseActivity + float(correction);
+    activityPercentage = std::max(sPlayerbotAIConfig.loadOptimizationMinActivity,
+        std::min(sPlayerbotAIConfig.loadOptimizationMaxActivity, activityPercentage));
     setActivityPercentage(activityPercentage);
 
     if (sPlayerbotAIConfig.hasLog("activity_pid.csv"))
@@ -823,7 +865,7 @@ void RandomPlayerbotMgr::ScaleBotActivity()
         out << sWorld.GetMaxDiff() << ",";
         out << virtualMemUsedByMe << ",";
         out << activityPercentage << ",";
-        out << activityPercentageMod << ",";
+        out << correction << ",";
         out << activeBots << ",";
         out << GetPlayerbotsAmount() << ",";
 
@@ -905,6 +947,8 @@ void RandomPlayerbotMgr::LoginFreeBots()
                     if (!groupWith.empty())
                     {
                         master = sObjectAccessor.FindPlayerByName(groupWith.c_str());
+                        if (master && !IsPlayerVisibleToBots(master))
+                            master = nullptr;
 
                         if (master)
                         {
@@ -985,6 +1029,9 @@ void RandomPlayerbotMgr::LoginFreeBots()
                 {
                     for (auto& [mGuid, master] : players)
                     {
+                        if (!IsVisibleRealPlayer(master))
+                            continue;
+
                         ObjectGuid masterGuid(ObjectGuid(HIGHGUID_PLAYER, mGuid));
                         if (accountId == sObjectMgr.GetPlayerAccountIdByGUID(masterGuid))
                         {
@@ -1446,12 +1493,8 @@ void RandomPlayerbotMgr::CheckBgQueue()
         }
     }
 
-    for (auto i : players)
+    for (Player* player : GetVisibleRealPlayers())
     {
-        Player* player = i.second;
-
-        if (!player || !player->IsInWorld())
-            continue;
 
         if (!player->InBattleGroundQueue())
             continue;
@@ -1773,12 +1816,8 @@ void RandomPlayerbotMgr::CheckLfgQueue()
     LfgDungeons[HORDE].clear();
     LfgDungeons[ALLIANCE].clear();
 
-    for (auto i : players)
+    for (Player* player : GetVisibleRealPlayers())
     {
-        Player* player = i.second;
-
-        if (!player || !player->IsInWorld())
-            continue;
 
         bool isLFG = false;
 
@@ -1943,7 +1982,7 @@ void RandomPlayerbotMgr::AddOfflineGroupBots()
     {
         Player* player = i.second;
 
-        if (!player || !player->IsInWorld() || !player->GetGroup())
+        if (!IsVisibleRealPlayer(player) || !player->GetGroup())
             continue;
 
         Group* group = player->GetGroup();
@@ -2085,7 +2124,7 @@ void RandomPlayerbotMgr::CheckPlayers()
     {
         Player* player = i.second;
 
-        if (player->IsGameMaster())
+        if (!IsVisibleRealPlayer(player) || player->IsGameMaster())
             continue;
 
         //if (player->GetSession()->GetSecurity() > SEC_PLAYER)
@@ -2204,7 +2243,7 @@ bool RandomPlayerbotMgr::ProcessBot(uint32 bot)
 
     PlayerbotAI* ai = player ? player->GetPlayerbotAI() : NULL;
 
-    bool botsAllowedInWorld = !sPlayerbotAIConfig.randomBotLoginWithPlayer || (!players.empty() && sWorld.GetActiveSessionCount() > 0);
+    bool botsAllowedInWorld = !sPlayerbotAIConfig.randomBotLoginWithPlayer || HasVisibleRealPlayers();
 
     bool isValid = true;
    
@@ -2376,7 +2415,7 @@ bool RandomPlayerbotMgr::ProcessBot(Player* player)
         }
 
         uint32 teleport = GetEventValue(bot, "teleport");
-        if (!teleport && players.size())
+        if (!teleport && HasVisibleRealPlayers())
         {
             if (sPlayerbotAIConfig.enableRandomTeleports)
             {
@@ -2466,59 +2505,32 @@ void RandomPlayerbotMgr::RandomTeleport(Player* bot, std::vector<WorldLocation> 
         {
             uint32 mapId = l.getMapId();
             Map* tMap = sMapMgr.FindMap(mapId, 0);
-            if (tMap && tMap->IsContinent() && tMap->HasActiveZones())
-            {
-                uint32 zoneId = sTerrainMgr.GetZoneId(mapId, l.coord_x, l.coord_y, l.coord_z);
-                if (tMap->HasActiveZone(zoneId))
-                {
-                    if (sPlayerbotAIConfig.randomBotTeleportNearPlayerMaxAmount > 0 && sPlayerbotAIConfig.randomBotTeleportNearPlayerMaxAmountRadius > 0.0f)
-                    {
-                        uint32 botsNearTeleportPoint = 0;
-                        ForEachPlayerbot([&](Player* otherBot)
-                        {
-                            // Only check the bots that are on the same zone
-                            if (otherBot && !otherBot->IsBeingTeleported() && zoneId == otherBot->GetZoneId())
-                            {
-                                if (l.fDist(WorldPosition(otherBot)) <= sPlayerbotAIConfig.randomBotTeleportNearPlayerMaxAmountRadius)
-                                {
-                                    botsNearTeleportPoint++;
-                                }
-                            }
-                        });
+            if (!tMap || !tMap->IsContinent())
+                return true;
 
-                        return botsNearTeleportPoint >= sPlayerbotAIConfig.randomBotTeleportNearPlayerMaxAmount;
-                    }
-                    else
+            uint32 zoneId = sTerrainMgr.GetZoneId(mapId, l.coord_x, l.coord_y, l.coord_z);
+            if (!HasVisibleRealPlayer(tMap, zoneId))
+                return true;
+
+            if (sPlayerbotAIConfig.randomBotTeleportNearPlayerMaxAmount > 0 && sPlayerbotAIConfig.randomBotTeleportNearPlayerMaxAmountRadius > 0.0f)
+            {
+                uint32 botsNearTeleportPoint = 0;
+                ForEachPlayerbot([&](Player* otherBot)
+                {
+                    if (otherBot && !otherBot->IsBeingTeleported() && zoneId == otherBot->GetZoneId() &&
+                        l.fDist(WorldPosition(otherBot)) <= sPlayerbotAIConfig.randomBotTeleportNearPlayerMaxAmountRadius)
                     {
-                        return false;
+                        ++botsNearTeleportPoint;
                     }
-                }
+                });
+
+                return botsNearTeleportPoint >= sPlayerbotAIConfig.randomBotTeleportNearPlayerMaxAmount;
             }
 
-            return true;
+            return false;
         }),
         tlocs.end());
 
-        /*if (!tlocs.empty())
-        {
-            tlocs.erase(std::remove_if(tlocs.begin(), tlocs.end(), [bot](const WorldPosition& l)
-            {
-                uint32 mapId = l.getMapId();
-                Map* tMap = sMapMgr.FindMap(mapId, 0);
-                if (!tMap || !tMap->IsContinent())
-                        return true;
-
-                if (!tMap->HasActiveAreas())
-                    return true;
-
-                AreaTableEntry const* area = l.getArea();
-                if (area)
-                {
-                    if (!tMap->HasActiveZone(area->zone ? area->zone : area->ID))
-                        return true;
-                }
-            }), tlocs.end());
-        }*/
     }
 
     // filter starter zones
@@ -3067,8 +3079,22 @@ void RandomPlayerbotMgr::Randomize(Player* bot)
         initialRandom = true;
 #endif
 
-    // give bot random level if is above or below level sync
-    if (!initialRandom && players.size() && sPlayerbotAIConfig.syncLevelWithPlayers)
+    bool hasLevelSyncPlayer = false;
+    if (sPlayerbotAIConfig.syncLevelWithPlayers)
+    {
+        for (auto const& entry : players)
+        {
+            Player* player = entry.second;
+            if (IsVisibleRealPlayer(player) && !player->IsGameMaster())
+            {
+                hasLevelSyncPlayer = true;
+                break;
+            }
+        }
+    }
+
+    // give bot random level if above or below the visible real-player level window
+    if (!initialRandom && hasLevelSyncPlayer && sPlayerbotAIConfig.syncLevelWithPlayers)
     {
         uint32 maxLevel = std::max(sPlayerbotAIConfig.randomBotMinLevel, std::min(playersLevel + sPlayerbotAIConfig.syncLevelMaxAbove, sWorld.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL)));
         if (bot->GetLevel() > maxLevel || (bot->GetLevel() + sPlayerbotAIConfig.syncLevelMaxAbove) < playersLevel)
@@ -3660,31 +3686,36 @@ void RandomPlayerbotMgr::OnPlayerLogin(Player* player)
     if (!sPlayerbotAIConfig.enabled)
         return;
 
-    ForEachPlayerbot([&](Player* bot)
+    // Keep invisible GMs registered so a live visibility toggle is observed, but do not
+    // let their login become a bot social/master event while they are invisible.
+    if (IsPlayerVisibleToBots(player))
     {
-        if (player == bot)
-            return;
-
-        Group* group = bot->GetGroup();
-        if (!group)
-            return;
-
-        for (GroupReference *gref = group->GetFirstMember(); gref; gref = gref->next())
+        ForEachPlayerbot([&](Player* bot)
         {
-            Player* member = gref->getSource();
-            PlayerbotAI* ai = bot->GetPlayerbotAI();
-            if (member == player && (!ai->GetMaster() || ai->GetMaster()->GetPlayerbotAI()))
+            if (player == bot)
+                return;
+
+            Group* group = bot->GetGroup();
+            if (!group)
+                return;
+
+            for (GroupReference *gref = group->GetFirstMember(); gref; gref = gref->next())
             {
-                if (!bot->InBattleGround())
+                Player* member = gref->getSource();
+                PlayerbotAI* ai = bot->GetPlayerbotAI();
+                if (member == player && (!ai->GetMaster() || ai->GetMaster()->GetPlayerbotAI()))
                 {
-                    ai->SetMaster(player);
-                    ai->ResetStrategies();
-                    ai->TellPlayer(ai->GetMaster(), BOT_TEXT("hello"));
+                    if (!bot->InBattleGround())
+                    {
+                        ai->SetMaster(player);
+                        ai->ResetStrategies();
+                        ai->TellPlayer(ai->GetMaster(), BOT_TEXT("hello"));
+                    }
+                    break;
                 }
-                break;
             }
-        }
-    });
+        });
+    }
 
     if (IsFreeBot(player))
     {
@@ -3706,13 +3737,73 @@ void RandomPlayerbotMgr::OnPlayerLoginError(uint32 bot)
     currentBots.remove(bot);
 }
 
+bool RandomPlayerbotMgr::IsPlayerVisibleToBots(Player* player) const
+{
+    return player && player->IsInWorld() && (!player->IsGameMaster() || player->IsGMVisible());
+}
+
+bool RandomPlayerbotMgr::IsVisibleRealPlayer(Player* player) const
+{
+    if (!IsPlayerVisibleToBots(player))
+        return false;
+
+    if (PlayerbotAI* ai = player->GetPlayerbotAI())
+        return ai->IsRealPlayer();
+
+    return true;
+}
+
+std::vector<Player*> RandomPlayerbotMgr::GetVisibleRealPlayers() const
+{
+    std::vector<Player*> result;
+    result.reserve(players.size());
+
+    for (auto const& entry : players)
+    {
+        Player* player = entry.second;
+        if (IsVisibleRealPlayer(player))
+            result.push_back(player);
+    }
+
+    return result;
+}
+
+bool RandomPlayerbotMgr::HasVisibleRealPlayers() const
+{
+    for (auto const& entry : players)
+    {
+        if (IsVisibleRealPlayer(entry.second))
+            return true;
+    }
+
+    return false;
+}
+
+bool RandomPlayerbotMgr::HasVisibleRealPlayer(Map* map, uint32 zoneId) const
+{
+    if (!map)
+        return false;
+
+    for (auto const& ref : map->GetPlayers())
+    {
+        Player* player = ref.getSource();
+        if (!IsVisibleRealPlayer(player))
+            continue;
+
+        if (!zoneId || player->GetZoneId() == zoneId)
+            return true;
+    }
+
+    return false;
+}
+
 Player* RandomPlayerbotMgr::GetRandomPlayer()
 {
-    if (players.empty())
-        return NULL;
+    std::vector<Player*> visiblePlayers = GetVisibleRealPlayers();
+    if (visiblePlayers.empty())
+        return nullptr;
 
-    uint32 index = urand(0, players.size() - 1);
-    return players[index];
+    return visiblePlayers[urand(0, visiblePlayers.size() - 1)];
 }
 
 Player* RandomPlayerbotMgr::GetPlayer(uint32 playerGuid)
@@ -4054,13 +4145,13 @@ void RandomPlayerbotMgr::ChangeStrategy(Player* player)
     {
         sLog.outDetail("Bot #%d %s:%d <%s>: sent to grind spot", bot, player->GetTeam() == ALLIANCE ? "A" : "H", player->GetLevel(), player->GetName());
         // teleport in different places only if players are online
-        RandomTeleportForLevel(player, players.size());
+        RandomTeleportForLevel(player, HasVisibleRealPlayers());
         ScheduleTeleport(bot);
     }
     else
     {
         sLog.outDetail("Bot #%d %s:%d <%s>: sent to inn", bot, player->GetTeam() == ALLIANCE ? "A" : "H", player->GetLevel(), player->GetName());
-        RandomTeleportForRpg(player, players.size());
+        RandomTeleportForRpg(player, HasVisibleRealPlayers());
         ScheduleTeleport(bot);
     }
 }
@@ -4336,7 +4427,7 @@ std::unordered_map<std::string, std::string> RandomPlayerbotMgr::GetCommandTexts
         {"change_strategy", "Change the AI strategy for random bots.\nUsage: change_strategy <botname> <strategy>"},
         {"remove", "Remove a random bot from the server.\nUsage: remove <botname>"},
         {"reset", "Reset all random bots and clear event cache.\nUsage: reset"},
-        {"diff", "Show server performance metrics.\nUsage: diff [player_diff] [empty_diff]"},
+        {"diff", "Show server performance metrics or update LoadOptimization target diffs.\nUsage: diff [player_diff] [empty_diff]"},
         {"stats", "Print bot statistics.\nUsage: stats"},
         {"update", "Trigger immediate bot AI update.\nUsage: update"},
         {"pid", "Adjust PID controller values.\nUsage: pid p i d"},
@@ -4553,9 +4644,15 @@ std::list<std::string> RandomPlayerbotMgr::HandleConsolePid(std::string param)
         pid.push_back("0");
     if (pid.size() == 2)
         pid.push_back("0");
-    sRandomPlayerbotMgr.pid.adjust(stof(pid[0]), stof(pid[1]), stof(pid[2]));
+    float kp = std::max(0.0f, stof(pid[0]));
+    float ki = std::max(0.0f, stof(pid[1]));
+    float kd = std::max(0.0f, stof(pid[2]));
+    sPlayerbotAIConfig.loadOptimizationPidKp = kp;
+    sPlayerbotAIConfig.loadOptimizationPidKi = ki;
+    sPlayerbotAIConfig.loadOptimizationPidKd = kd;
+    sRandomPlayerbotMgr.pid.adjust(kp, ki, kd);
 
-    std::string msg = "Pid set to p:" + std::to_string(stof(pid[0])) + " i:" + std::to_string(stof(pid[1])) + " d:" + std::to_string(stof(pid[2]));
+    std::string msg = "Load PID set to p:" + std::to_string(kp) + " i:" + std::to_string(ki) + " d:" + std::to_string(kd);
     messages.push_back(msg);
     return messages;
 }
@@ -4570,25 +4667,41 @@ std::list<std::string> RandomPlayerbotMgr::HandleConsoleDiff(std::string param)
         ss << "Max diff: " << sWorld.GetMaxDiff() << "\n";
         ss << "char db ping: " << sRandomPlayerbotMgr.GetDatabaseDelay("CharacterDatabase") << "\n";
         ss << "Sessions online: " << sWorld.GetActiveSessionCount() << "\n";
-        ss << "Bots online: " << sRandomPlayerbotMgr.botCount << " (active: " << sRandomPlayerbotMgr.activeBots << ")";
+        ss << "Bots online: " << sRandomPlayerbotMgr.botCount << " (active: " << sRandomPlayerbotMgr.activeBots << ")\n";
+        ss << "Load optimization: " << (sPlayerbotAIConfig.IsLoadOptimizationEnabled() ? "enabled" : "disabled")
+           << ", activity: " << sRandomPlayerbotMgr.getActivityPercentage() << "%"
+           << ", target diff: " << sPlayerbotAIConfig.loadOptimizationTargetDiffWithPlayers
+           << " (player) / " << sPlayerbotAIConfig.loadOptimizationTargetDiffEmpty << " (empty)";
 
         messages.push_back(ss.str());
         return messages;
     }
-    else if (param.find(" ") != std::string::npos)
+
+    try
     {
         std::vector<std::string> diff = Qualified::getMultiQualifiers(param, " ");
-        if (diff.size() == 0)
-            diff.push_back("100");
+        if (diff.empty())
+            return messages;
         if (diff.size() == 1)
             diff.push_back(diff[0]);
-        sPlayerbotAIConfig.diffWithPlayer = stoi(diff[0]);
-        sPlayerbotAIConfig.diffEmpty = stoi(diff[1]);
 
-        std::string msg = "Diff set to " + std::to_string(stoi(diff[0])) + " (player), " + std::to_string(stoi(diff[1])) + " (empty)";
+        int32 playerDiff = std::max(1, std::min(10000, stoi(diff[0])));
+        int32 emptyDiff = std::max(1, std::min(10000, stoi(diff[1])));
+        sPlayerbotAIConfig.diffWithPlayer = uint32(playerDiff);
+        sPlayerbotAIConfig.diffEmpty = uint32(emptyDiff);
+        sPlayerbotAIConfig.loadOptimizationTargetDiffWithPlayers = uint32(playerDiff);
+        sPlayerbotAIConfig.loadOptimizationTargetDiffEmpty = uint32(emptyDiff);
+        pid.reset();
+        loadOptimizationPresenceInitialized = false;
+
+        std::string msg = "Load target diff set to " + std::to_string(playerDiff) + " (player), " + std::to_string(emptyDiff) + " (empty)";
         messages.push_back(msg);
-        return messages;
     }
+    catch (std::exception const&)
+    {
+        messages.push_back("Invalid diff values. Usage: diff [player_diff] [empty_diff]");
+    }
+
     return messages;
 }
 

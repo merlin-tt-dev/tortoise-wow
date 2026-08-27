@@ -1,0 +1,2589 @@
+diff --git a/LIVINGBOTS_ENDTEST_TODO.md b/LIVINGBOTS_ENDTEST_TODO.md
+index ac7217d..a6520d3 100644
+--- a/LIVINGBOTS_ENDTEST_TODO.md
++++ b/LIVINGBOTS_ENDTEST_TODO.md
+@@ -21,7 +21,8 @@
+ | core-0003 Map-only PathFinder / Nav-Area API | eingebaut | ausstehend |
+ | core-0004 Native Fixed-Path Motion | eingebaut | ausstehend |
+ | 0020 Native Movement / MMap / Triggered Semantics | eingebaut | ausstehend |
+-| 0021 Native Loot / Group Roll Semantics | mit diesem Patch | ausstehend |
++| 0021 Native Loot / Group Roll Semantics | eingebaut | ausstehend |
++| 0022 Native BG / Visible Players / Opt-in Load Optimization | mit diesem Patch | ausstehend |
+ 
+ **Wichtig:** „eingebaut“ bedeutet nur statisch/source-seitig portiert. Kein Punkt gilt dadurch als getestet.
+ 
+@@ -74,6 +75,20 @@
+ - [ ] 0021: Need/Greed/Pass läuft über Penqles `Group::CountRollVote()` und entfernt den alten `didRoll=false`-Funktionsverlust.
+ - [ ] 0021: aktive Rolls werden über Penqles native `LootItem::is_blocked`-Lebensdauer bereinigt.
+ - [ ] 0021: GROUP_LOOT/NEED_BEFORE_GREED öffnet eine noch nicht initialisierte Leiche weiterhin einmal, damit Penqle die nativen Rolls startet.
++- [ ] 0022: AV verwendet Penqles native `ALLIANCE/HORDE/NEUTRAL_*` Event-Control-States und Captain-Events; keine Fake-Statuswerte/GO-IDs aus dem Shim.
++- [ ] 0022: AB verwendet Penqles native Node-States und `BattleGroundEventIdx`; Objectives werden nicht über erfundene Banner-Indizes erkannt.
++- [ ] 0022: AV/AB GameObjects werden über `CMSG_GAMEOBJ_USE` wie bei einem echten Client benutzt; Reichweite/Interaktion/BG-Regeln bleiben Core-Semantik.
++- [ ] 0022: WSG verwendet Penqles native Flag- und AreaTrigger-Konstanten.
++- [ ] 0022: `FALL_MOTION_TYPE`-Fake ist entfernt; Fallzustand wird über Penqles `Player::IsFalling()` erkannt.
++- [ ] 0022: Playerbot-Präsenz/aktive Map/aktive Zone basiert direkt auf Penqles `Map::GetPlayers()` plus Visibility-Filter; kein zweiter `Map.cpp`-Playerbot-State.
++- [ ] 0022: GM sichtbar => Bots nehmen ihn normal wahr; GM invisible => Nearby/Social/Targeting/Master/Activity ignorieren ihn dynamisch ohne Relog.
++- [ ] 0022: `GetRandomPlayer()` wählt aus echten gefilterten Spielern statt `std::map` mit numerischem Index zu adressieren.
++- [ ] 0022: `HasManyPlayersNearby(range)` vergleicht echte Distanz mit `range` (nicht `range²`) und nur Spieler derselben Map.
++- [ ] 0022: `AiPlayerbot.LoadOptimization.Enabled=0` bedeutet vollständig ungedrosselte Playerbot-AI; keine versteckte PID-/Activity-Drosselung.
++- [ ] 0022: aktivierte LoadOptimization drosselt ausschließlich Playerbot-AI-Arbeit; Core Player/Map/Session/Transport/Teleport/BG Updates laufen unverändert.
++- [ ] 0022: Schutzschalter und alle Activity-Brackets reagieren entsprechend der Config und widersprechen sich nicht zwischen ALL/REACT/DETAILED_MOVE.
++- [ ] 0022: Async-LoginSpace/Population berücksichtigt nur sichtbare echte Spieler; ein invisible GM löst keine Player-nearby/Login-Priorisierung aus.
++- [ ] 0022: Console-`diff` aktualisiert die laufenden `LoadOptimization.TargetDiff*`-Werte und resetet den PID; Console-`pid` aktualisiert die laufenden Kp/Ki/Kd-Werte.
+ - [ ] Rest-Shim-Audit (MMap/BG/Loot/LFG/InstanceTemplate/etc.) vollständig abgeschlossen.
+ 
+ ## A1. Clean Build
+@@ -200,7 +215,18 @@ Für jede Rasse:
+ - [ ] keine Ghost-Sessions.
+ - [ ] keine doppelten Sessions.
+ 
+-## D3. Restart-Persistenz
++## D3. GM Visibility
++
++- [ ] normaler Spieler wird von Nearby/Social/Targeting erkannt.
++- [ ] sichtbarer GM wird wie ein normaler realer Spieler erkannt.
++- [ ] GM schaltet live auf invisible: Bots brechen Wahrnehmung/Targeting/Player-Priority ab, ohne Relog.
++- [ ] invisible GM in Bot-Gruppe wird nicht als realer Master/aktive Spielerpräsenz gewertet.
++- [ ] invisible GM im BG wird nicht als Defender/Enemy/Friendly-Ziel gezählt.
++- [ ] GM schaltet live wieder visible: normale Wahrnehmung funktioniert wieder.
++
++**PASS:** GM-Invisibility ist aus Bot-Sicht konsistent mit der Core-Sichtbarkeit.
++
++## D4. Restart-Persistenz
+ 
+ - [ ] Botzustand bleibt über Serverrestart plausibel.
+ - [ ] kein ungewolltes Level-/Position-/Inventory-Reset.
+@@ -495,6 +521,11 @@ Für mehrere echte Routen:
+ - [ ] Flag Base.
+ - [ ] Team/Faction.
+ - [ ] AV nodes.
++- [ ] AV Alliance/Horde/Neutral assaulted/controlled state mapping entspricht `BattleGroundAV`.
++- [ ] AV Captain-dead Events entsprechen `BG_AV_NodeEventCaptainDead_A/H`.
++- [ ] AB neutral/contested/occupied state mapping entspricht `BattleGroundAB`.
++- [ ] AV/AB Objective-Klick durchläuft normalen `CMSG_GAMEOBJ_USE`-Corepfad.
++- [ ] WSG Base-/Dropped-Flags und Capture-AreaTrigger verwenden native Penqle-Konstanten.
+ - [ ] contested / occupied states.
+ - [ ] keine Default-GUID-Platzhalter mehr im aktiven Pfad.
+ 
+@@ -614,6 +645,17 @@ Messen:
+ - [ ] Login-Burst.
+ - [ ] Logout-Burst.
+ - [ ] RandomBot DB Hotpaths.
++- [ ] LoadOptimization **OFF**: Activity=100 %, Verhalten/Progress identisch zu ungedrosseltem Referenzlauf.
++- [ ] LoadOptimization **ON**: PID reagiert auf künstlich erhöhten AverageDiff und erholt sich danach wieder.
++- [ ] Wechsel sichtbarer Spieler vorhanden/nicht vorhanden setzt den PID sauber auf das jeweilige TargetDiff um.
++- [ ] Rotation verteilt gedrosselte Aktivität über die Botpopulation; keine dauerhaft verhungernde Bot-Kohorte.
++- [ ] Protect.PlayerInteraction/Combat/Battleground/Instance jeweils einzeln verifizieren.
++- [ ] Bracket.Min/Full für PlayerInteraction/Battleground/Instance/Combat/BGQueue/LFG/Nearby/Social/NoPath/ActiveArea/EmptyServer/ActiveMap/InactiveMap einzeln stichprobenartig verifizieren.
++- [ ] trotz starker AI-Drosselung funktionieren Session-Pakete, Teleport-ACKs, Transporte und BG-Corezustand normal.
++- [ ] `activity_pid.csv` enthält ActivityPercentage und PID-Correction plausibel.
++- [ ] `diff <player> [empty]` ändert die aktiven TargetDiffs ohne Config-Reload; ein einzelner Wert setzt beide Targets.
++- [ ] `pid <p> <i> <d>` ändert die laufenden PID-Gains; negative Werte werden nicht übernommen.
++- [ ] RandomBot-Autologin aus + LoadOptimization an: Alt-/Free-Bot-AI folgt weiterhin dem Controller, während Session-/Core-Ticks ungedrosselt bleiben.
+ - [ ] Index `ai_playerbot_random_bots(owner, bot, event)` falls übernommen.
+ 
+ **PASS:** keine exponentielle Verschlechterung / kein einzelner Hotloop dominiert.
+diff --git a/modules/mod-playerbots/src/cmangos-compat-shim.h b/modules/mod-playerbots/src/cmangos-compat-shim.h
+index 6fddb90..43fb39f 100644
+--- a/modules/mod-playerbots/src/cmangos-compat-shim.h
++++ b/modules/mod-playerbots/src/cmangos-compat-shim.h
+@@ -205,16 +205,6 @@ inline bool IsPositiveSpell(SpellEntry const* spellInfo, WorldObject const* cast
+ #include <chrono>
+ using TimePoint = std::chrono::system_clock::time_point;
+ 
+-// === BG_AV_NODE_STATUS_ defines ===
+-// cmangos has these in BattleGroundAV.h; Penqle may use different naming.
+-// Define as constants so bot's symbolic references compile.
+-#ifndef BG_AV_NODE_STATUS_ALLY_OCCUPIED
+-#define BG_AV_NODE_STATUS_ALLY_OCCUPIED 0
+-#endif
+-#ifndef BG_AV_NODE_STATUS_HORDE_OCCUPIED
+-#define BG_AV_NODE_STATUS_HORDE_OCCUPIED 1
+-#endif
+-
+ // === Additional cmangos-only DBC store proxies ===
+ // sFactionStore (faction.dbc) — distinct from sFactionTemplateStore (factiontemplate.dbc).
+ struct FactionEntry;  // defined in DBCStructure.h
+@@ -248,14 +238,6 @@ inline const char* strstr(std::string const& haystack, const char* needle) {
+ // === BattleGroundMgr alias ===
+ // Done via forwarder in Penqle's BattleGroundMgr.h (BgTemplateId → BGTemplateId).
+ 
+-// === BG_AV_NODE_STATUS_ contested (additional) ===
+-#ifndef BG_AV_NODE_STATUS_ALLY_CONTESTED
+-#define BG_AV_NODE_STATUS_ALLY_CONTESTED 2
+-#endif
+-#ifndef BG_AV_NODE_STATUS_HORDE_CONTESTED
+-#define BG_AV_NODE_STATUS_HORDE_CONTESTED 3
+-#endif
+-
+ // === TEAM_INDEX_ aliases (cmangos) ===
+ // Penqle uses BG_TEAM_ALLIANCE/BG_TEAM_HORDE. cmangos uses TEAM_INDEX_ALLIANCE/HORDE/NEUTRAL.
+ #ifndef TEAM_INDEX_ALLIANCE
+@@ -296,11 +278,6 @@ inline bool IsAreaAuraEffect(uint32 effect) {
+ #define MINIMUM_LOOTING_TIME 1000
+ #endif
+ 
+-// === FALL_MOTION_TYPE (cmangos motion type) → use a high stub value ===
+-#ifndef FALL_MOTION_TYPE
+-#define FALL_MOTION_TYPE 100
+-#endif
+-
+ // === AuctionHouseType (cmangos enum) ===
+ enum AuctionHouseType {
+     AUCTION_HOUSE_ALLIANCE = 0,
+@@ -317,11 +294,6 @@ enum AuctionHouseType {
+ #define SPELL_RANGE_FLAG_RANGED 2
+ #endif
+ 
+-// === BG_AV_NODE_STATUS_NEUTRAL_OCCUPIED ===
+-#ifndef BG_AV_NODE_STATUS_NEUTRAL_OCCUPIED
+-#define BG_AV_NODE_STATUS_NEUTRAL_OCCUPIED 4
+-#endif
+-
+ // === TAXI_MOTION_TYPE (cmangos) → FLIGHT_MOTION_TYPE (Penqle) ===
+ #ifndef TAXI_MOTION_TYPE
+ #define TAXI_MOTION_TYPE FLIGHT_MOTION_TYPE
+@@ -364,77 +336,6 @@ struct CmangosScriptDevAIMgrStub {
+ };
+ inline CmangosScriptDevAIMgrStub sScriptDevAIMgr;
+ 
+-// === BG_AB GO/banner additional defines (cmangos) ===
+-#ifndef BG_AB_BANNER_ALLIANCE
+-#define BG_AB_BANNER_ALLIANCE 0
+-#endif
+-#ifndef BG_AB_BANNER_HORDE
+-#define BG_AB_BANNER_HORDE 1
+-#endif
+-#ifndef BG_AB_BANNER_CONTESTED_A
+-#define BG_AB_BANNER_CONTESTED_A 2
+-#endif
+-#ifndef BG_AB_BANNER_CONTESTED_H
+-#define BG_AB_BANNER_CONTESTED_H 3
+-#endif
+-
+-// === BG WSG GO defines (cmangos) — Penqle uses BG_OBJECT_* maybe ===
+-#ifndef GO_WS_SILVERWING_FLAG
+-#define GO_WS_SILVERWING_FLAG 179830
+-#endif
+-#ifndef GO_WS_WARSONG_FLAG
+-#define GO_WS_WARSONG_FLAG 179831
+-#endif
+-#ifndef GO_WS_SILVERWING_FLAG_DROP
+-#define GO_WS_SILVERWING_FLAG_DROP 179785
+-#endif
+-#ifndef GO_WS_WARSONG_FLAG_DROP
+-#define GO_WS_WARSONG_FLAG_DROP 179786
+-#endif
+-
+-// === BG WSG areatrigger defines (cmangos) ===
+-#ifndef WS_AT_SILVERWING_ROOM
+-#define WS_AT_SILVERWING_ROOM 3646
+-#endif
+-#ifndef WS_AT_WARSONG_ROOM
+-#define WS_AT_WARSONG_ROOM 3647
+-#endif
+-
+-// === BG_AV node/banner defines (cmangos) ===
+-#ifndef BG_AV_NODE_CAPTAIN_DEAD_A
+-#define BG_AV_NODE_CAPTAIN_DEAD_A 0x10
+-#endif
+-#ifndef BG_AV_NODE_CAPTAIN_DEAD_H
+-#define BG_AV_NODE_CAPTAIN_DEAD_H 0x20
+-#endif
+-#ifndef BG_AV_GO_BANNER_ALLIANCE
+-#define BG_AV_GO_BANNER_ALLIANCE 178925
+-#endif
+-#ifndef BG_AV_GO_BANNER_ALLIANCE_CONT
+-#define BG_AV_GO_BANNER_ALLIANCE_CONT 178940
+-#endif
+-#ifndef BG_AV_GO_BANNER_HORDE
+-#define BG_AV_GO_BANNER_HORDE 178943
+-#endif
+-#ifndef BG_AV_GO_BANNER_HORDE_CONT
+-#define BG_AV_GO_BANNER_HORDE_CONT 178944
+-#endif
+-#ifndef BG_AV_GO_GY_BANNER_ALLIANCE
+-#define BG_AV_GO_GY_BANNER_ALLIANCE 180058
+-#endif
+-#ifndef BG_AV_GO_GY_BANNER_ALLIANCE_CONT
+-#define BG_AV_GO_GY_BANNER_ALLIANCE_CONT 180059
+-#endif
+-#ifndef BG_AV_GO_GY_BANNER_HORDE
+-#define BG_AV_GO_GY_BANNER_HORDE 180060
+-#endif
+-#ifndef BG_AV_GO_GY_BANNER_HORDE_CONT
+-#define BG_AV_GO_GY_BANNER_HORDE_CONT 180061
+-#endif
+-#ifndef BG_AV_GO_GY_BANNER_SNOWFALL
+-#define BG_AV_GO_GY_BANNER_SNOWFALL 180062
+-#endif
+-
+ // === GetSpellCastResultString stub (cmangos free function) ===
+ inline char const* GetSpellCastResultString(SpellCastResult /*res*/) { return ""; }
+ 
+@@ -456,27 +357,6 @@ inline bool HasPersistentAuraEffect(SpellEntry const* /*spellInfo*/) { return fa
+ #define CAST_FLAG_PERSISTENT_AA 0x40
+ #endif
+ 
+-// === BG_AB_BANNER_* / BG_AB_NODE_STATUS_NEUTRAL (cmangos) ===
+-// Penqle has these in BattleGroundAB.h but with different naming.
+-#ifndef BG_AB_NODE_STATUS_NEUTRAL
+-#define BG_AB_NODE_STATUS_NEUTRAL 0
+-#endif
+-#ifndef BG_AB_BANNER_STABLE
+-#define BG_AB_BANNER_STABLE 0
+-#endif
+-#ifndef BG_AB_BANNER_BLACKSMITH
+-#define BG_AB_BANNER_BLACKSMITH 1
+-#endif
+-#ifndef BG_AB_BANNER_FARM
+-#define BG_AB_BANNER_FARM 2
+-#endif
+-#ifndef BG_AB_BANNER_LUMBER_MILL
+-#define BG_AB_BANNER_LUMBER_MILL 3
+-#endif
+-#ifndef BG_AB_BANNER_MINE
+-#define BG_AB_BANNER_MINE 4
+-#endif
+-
+ // === SEC_GAMEMASTER alias (cmangos has it; Penqle goes SEC_PLAYER → SEC_ADMINISTRATOR) ===
+ #ifndef SEC_GAMEMASTER
+ #define SEC_GAMEMASTER SEC_ADMINISTRATOR
+diff --git a/modules/mod-playerbots/src/playerbot/PlayerbotAI.cpp b/modules/mod-playerbots/src/playerbot/PlayerbotAI.cpp
+index 98ea476..a1872f2 100644
+--- a/modules/mod-playerbots/src/playerbot/PlayerbotAI.cpp
++++ b/modules/mod-playerbots/src/playerbot/PlayerbotAI.cpp
+@@ -121,8 +121,8 @@ PlayerbotAI::PlayerbotAI() : PlayerbotAIBase(), bot(NULL), aiObjectContext(NULL)
+ 
+     for (int i = 0; i < MAX_ACTIVITY_TYPE; i++)
+     {
+-        allowActiveCheckTimer[i] = time(nullptr);
+-        allowActive[i] = false;
++        allowActiveCheckTimer[i] = 0;
++        allowActive[i] = true;
+     }
+ }
+ 
+@@ -138,8 +138,8 @@ PlayerbotAI::PlayerbotAI(Player* bot) :
+ 
+     for (int i = 0; i < MAX_ACTIVITY_TYPE; i++)
+     {
+-        allowActiveCheckTimer[i] = time(nullptr);
+-        allowActive[i] = false;
++        allowActiveCheckTimer[i] = 0;
++        allowActive[i] = true;
+     }
+ 
+ 	accountId = sObjectMgr.GetPlayerAccountIdByGUID(bot->GetObjectGuid());
+@@ -273,7 +273,7 @@ void PlayerbotAI::UpdateAI(uint32 elapsed, bool minimal)
+     if (master)
+     {
+         Player* live = masterGuid ? sObjectAccessor.FindPlayer(masterGuid) : nullptr;
+-        if (live != master)
++        if (live != master || !sRandomPlayerbotMgr.IsPlayerVisibleToBots(master))
+         {
+             master = nullptr;
+             masterGuid = ObjectGuid();
+@@ -2109,7 +2109,10 @@ void PlayerbotAI::DoNextAction(bool min)
+         if (!MovementAction::MinimalMove(this) && !bot->isAFK() && !bot->InBattleGround() && !HasRealPlayerMaster())
+             bot->ToggleAFK();
+ 
+-        SetAIInternalUpdateDelay(sPlayerbotAIConfig.passiveDelay);
++        uint32 inactiveDelay = sPlayerbotAIConfig.IsLoadOptimizationEnabled() && sPlayerbotAIConfig.loadOptimizationInactiveActionDelayMs
++            ? sPlayerbotAIConfig.loadOptimizationInactiveActionDelayMs
++            : sPlayerbotAIConfig.passiveDelay;
++        SetAIInternalUpdateDelay(inactiveDelay);
+         return;
+     }
+     else if (bot->isAFK())
+@@ -2154,6 +2157,10 @@ void PlayerbotAI::DoNextAction(bool min)
+                 if (!member->IsInGroup(bot, true))
+                     continue;
+ 
++                // Do not reacquire an invisible GM (or any non-real player) as a human master.
++                if (!member->GetPlayerbotAI() && !sRandomPlayerbotMgr.IsVisibleRealPlayer(member))
++                    continue;
++
+                 //Do not make bots your master if they are nog group leader.
+                 if (member->GetPlayerbotAI() && !bot->InBattleGround())
+                     continue;
+@@ -3088,7 +3095,7 @@ bool PlayerbotAI::SayToGuild(std::string msg, bool likePlayer)
+ 
+             for (auto& player : sRandomPlayerbotMgr.GetPlayers())
+             {
+-                if (player.second->GetGuildId() == bot->GetGuildId())
++                if (sRandomPlayerbotMgr.IsVisibleRealPlayer(player.second) && player.second->GetGuildId() == bot->GetGuildId())
+                 {
+                     if (likePlayer || (sPlayerbotAIConfig.llmEnabled > 0 && (HasStrategy("ai chat", BotState::BOT_STATE_NON_COMBAT) || sPlayerbotAIConfig.llmEnabled == 3) &&
+                         sPlayerbotAIConfig.llmBotToBotChatChance))
+@@ -5869,31 +5876,28 @@ bool PlayerbotAI::HasPlayerNearby(WorldPosition pos, float range)
+     if (!range)
+         range = pos.getVisibilityDistance();
+ 
++    Map* map = bot->GetMap();
++    if (!map || pos.getMapId() != map->GetId())
++        return false;
++
+     float sqRange = range * range;
+-    bool nearPlayer = false;
+-    for (auto& i : sRandomPlayerbotMgr.GetPlayers())
++    for (auto const& ref : map->GetPlayers())
+     {
+-        Player* player = i.second;
+-        if (!player->IsGameMaster() || player->isGMVisible())
+-        {
+-            if (player->GetMapId() != bot->GetMapId())
+-                continue;
++        Player* player = ref.getSource();
++        if (!sRandomPlayerbotMgr.IsVisibleRealPlayer(player))
++            continue;
+ 
+-            if (pos.sqDistance(WorldPosition(player)) < sqRange)
+-                nearPlayer = true;
++        if (pos.sqDistance(WorldPosition(player)) < sqRange)
++            return true;
+ 
+-            // if player is far check farsight/cinematic camera
+-            Camera& viewPoint = player->GetCamera();
+-            WorldObject* viewObj = viewPoint.GetBody();
+-            if (viewObj && viewObj != player)
+-            {
+-                if (pos.sqDistance(WorldPosition(viewObj)) < sqRange)
+-                    nearPlayer = true;
+-            }
+-        }
++        // Also account for a real player's farsight/cinematic camera.
++        Camera& viewPoint = player->GetCamera();
++        WorldObject* viewObj = viewPoint.GetBody();
++        if (viewObj && viewObj != player && pos.sqDistance(WorldPosition(viewObj)) < sqRange)
++            return true;
+     }
+ 
+-    return nearPlayer;
++    return false;
+ }
+ 
+ bool PlayerbotAI::HasPlayerNearby(float range)
+@@ -5903,20 +5907,22 @@ bool PlayerbotAI::HasPlayerNearby(float range)
+ 
+ bool PlayerbotAI::HasManyPlayersNearby(uint32 trigerrValue, float range)
+ {
+-    float sqRange = range * range;
++    Map* map = bot->GetMap();
++    if (!map)
++        return false;
++
+     uint32 found = 0;
+ 
+-    for (auto& i : sRandomPlayerbotMgr.GetPlayers())
++    for (auto const& ref : map->GetPlayers())
+     {
+-        Player* player = i.second;
+-        if ((!player->IsGameMaster() || player->isGMVisible()) && sServerFacade.GetDistance2d(player, bot) < sqRange)
+-        {
+-            found++;
++        Player* player = ref.getSource();
++        if (!sRandomPlayerbotMgr.IsVisibleRealPlayer(player))
++            continue;
+ 
+-            if (found >= trigerrValue)
+-                return true;
+-        }
++        if (sServerFacade.GetDistance2d(player, bot) < range && ++found >= trigerrValue)
++            return true;
+     }
++
+     return false;
+ }
+ 
+@@ -5929,9 +5935,12 @@ bool PlayerbotAI::ChannelHasRealPlayer(std::string channelName)
+         {
+             ChannelAcces* chna = reinterpret_cast<ChannelAcces*>(chn);
+ 
+-            for (auto& player : sRandomPlayerbotMgr.GetPlayers())
+-                if (chna->IsOn(player.second->GetObjectGuid()))
++            for (auto const& entry : sRandomPlayerbotMgr.GetPlayers())
++            {
++                Player* player = entry.second;
++                if (sRandomPlayerbotMgr.IsVisibleRealPlayer(player) && chna->IsOn(player->GetObjectGuid()))
+                     return true;
++            }
+         }
+     }
+ 
+@@ -5959,8 +5968,9 @@ enum ActivityType
+ 
+ ActivePiorityType PlayerbotAI::GetPriorityType()
+ {
+-    //First priority - priorities disabled or has player master. Always active.
+-    if (sPlayerbotAIConfig.disableActivityPriorities || HasRealPlayerMaster())
++    // Priority describes the bot's real situation. Whether load optimisation is enabled
++    // is deliberately handled later by AllowActivity(), never by falsifying this state.
++    if (HasRealPlayerMaster())
+         return ActivePiorityType::HAS_REAL_PLAYER_MASTER;
+ 
+     //Self bot in a group with a bot master.
+@@ -5980,7 +5990,8 @@ ActivePiorityType PlayerbotAI::GetPriorityType()
+             if (member == bot)
+                 continue;
+ 
+-            if (!member->GetPlayerbotAI() || (member->GetPlayerbotAI() && member->GetPlayerbotAI()->HasRealPlayerMaster()))
++            if (sRandomPlayerbotMgr.IsVisibleRealPlayer(member) ||
++                (member->GetPlayerbotAI() && member->GetPlayerbotAI()->HasRealPlayerMaster()))
+                 return ActivePiorityType::IN_GROUP_WITH_REAL_PLAYER;
+         }
+     }
+@@ -6053,23 +6064,20 @@ ActivePiorityType PlayerbotAI::GetPriorityType()
+     {
+         AiObjectContext* context = GetAiObjectContext();
+         LastMovement& lastMove = AI_VALUE(LastMovement&, "last movement");
+-        if (lastMove.lastPath.empty() && !urand(0, 5))
++        if (lastMove.lastPath.empty())
+             return ActivePiorityType::NO_PATH;
+     }
+ 
+     //If has real players - slow down continents without player
+     //This means we first disable bots in a different continent/area.
+-    if (sRandomPlayerbotMgr.GetPlayers().empty())
++    if (!sRandomPlayerbotMgr.HasVisibleRealPlayers())
+         return ActivePiorityType::IN_EMPTY_SERVER;
+ 
+-    // friends always active
+-    for (auto& i : sRandomPlayerbotMgr.GetPlayers())
++    // Visible real-player friends get social priority. Invisible GMs are intentionally absent.
++    for (auto const& entry : sRandomPlayerbotMgr.GetPlayers())
+     {
+-        Player* player = i.second;
+-        if (!player || !player->IsInWorld())
+-            continue;
+-
+-        if (player->GetSocial()->HasFriend(bot->GetObjectGuid()))
++        Player* player = entry.second;
++        if (sRandomPlayerbotMgr.IsVisibleRealPlayer(player) && player->GetSocial()->HasFriend(bot->GetObjectGuid()))
+             return ActivePiorityType::PLAYER_FRIEND;
+     }
+ 
+@@ -6077,10 +6085,10 @@ ActivePiorityType PlayerbotAI::GetPriorityType()
+     if (IsInRealGuild())
+         return ActivePiorityType::PLAYER_GUILD;
+ 
+-    if (bot->IsBeingTeleported() || !bot->IsInWorld() || !bot->GetMap()->HasRealPlayers())
++    if (bot->IsBeingTeleported() || !bot->IsInWorld() || !sRandomPlayerbotMgr.HasVisibleRealPlayer(bot->GetMap()))
+         return ActivePiorityType::IN_INACTIVE_MAP;
+ 
+-    if (!bot->GetMap()->HasActiveZone(bot->GetZoneId()))
++    if (!sRandomPlayerbotMgr.HasVisibleRealPlayer(bot->GetMap(), bot->GetZoneId()))
+         return ActivePiorityType::IN_ACTIVE_MAP;
+ 
+     return ActivePiorityType::IN_ACTIVE_AREA;
+@@ -6090,146 +6098,112 @@ ActivePiorityType PlayerbotAI::GetPriorityType()
+ //Ie. 10,20 means all bots in this bracket will be inactive below 10% activityMod, all bots in this bracket will be active above 20% activityMod and scale between those values.
+ std::pair<uint32, uint32> PlayerbotAI::GetPriorityBracket(ActivePiorityType type)
+ {
++    auto pairFor = [](LoadOptimizationBracket const& bracket)
++    {
++        return std::make_pair(bracket.minActivity, bracket.fullActivity);
++    };
++
+     switch (type)
+     {
+-    case ActivePiorityType::HAS_REAL_PLAYER_MASTER:
+     case ActivePiorityType::IS_REAL_PLAYER:
++    case ActivePiorityType::IS_ALWAYS_ACTIVE:
++    case ActivePiorityType::IS_RUNNING_TEST:
++        return { 0, 0 };
++    case ActivePiorityType::HAS_REAL_PLAYER_MASTER:
+     case ActivePiorityType::IN_GROUP_WITH_REAL_PLAYER:
+     case ActivePiorityType::VISIBLE_FOR_PLAYER:
++        return sPlayerbotAIConfig.loadOptimizationProtectPlayerInteraction ? std::make_pair(0u, 0u) : pairFor(sPlayerbotAIConfig.loadOptimizationPlayerInteractionBracket);
+     case ActivePiorityType::IN_BATTLEGROUND:
+-    case ActivePiorityType::IS_RUNNING_TEST:
+-        return { 0,0 };
++        return sPlayerbotAIConfig.loadOptimizationProtectBattleground ? std::make_pair(0u, 0u) : pairFor(sPlayerbotAIConfig.loadOptimizationBattlegroundBracket);
+     case ActivePiorityType::IN_INSTANCE:
+-        return { 0,5 };
+-    case ActivePiorityType::IS_ALWAYS_ACTIVE:
+-        return { 0,0 };
++        return sPlayerbotAIConfig.loadOptimizationProtectInstances ? std::make_pair(0u, 0u) : pairFor(sPlayerbotAIConfig.loadOptimizationInstanceBracket);
+     case ActivePiorityType::IN_COMBAT:
+-    {
++        if (sPlayerbotAIConfig.loadOptimizationProtectCombat)
++            return { 0, 0 };
+         if (sPlayerbotAIConfig.limitCombatActivity)
+-            return { 99,100 };
+-
+-        return { 0,10 };
+-    }
++            return { 99, 100 };
++        return pairFor(sPlayerbotAIConfig.loadOptimizationCombatBracket);
+     case ActivePiorityType::IN_BG_QUEUE:
+-        return { 0,20 };
++        return pairFor(sPlayerbotAIConfig.loadOptimizationBgQueueBracket);
+     case ActivePiorityType::IN_LFG:
+-        return { 0,30 };
++        return pairFor(sPlayerbotAIConfig.loadOptimizationLfgBracket);
+     case ActivePiorityType::NEARBY_PLAYER:
+-        return { 0,40 };
++        return pairFor(sPlayerbotAIConfig.loadOptimizationNearbyPlayerBracket);
+     case ActivePiorityType::PLAYER_FRIEND:
+     case ActivePiorityType::PLAYER_GUILD:
+-        return { 0,50 };
++        return pairFor(sPlayerbotAIConfig.loadOptimizationSocialBracket);
+     case ActivePiorityType::NO_PATH:
+-        return { 50, 99};
++        return pairFor(sPlayerbotAIConfig.loadOptimizationNoPathBracket);
+     case ActivePiorityType::IN_ACTIVE_AREA:
++        return pairFor(sPlayerbotAIConfig.loadOptimizationActiveAreaBracket);
+     case ActivePiorityType::IN_EMPTY_SERVER:
+-        return { 50,100 }; //Note lower 100 means multiply by activity percentage.
++        return pairFor(sPlayerbotAIConfig.loadOptimizationEmptyServerBracket);
+     case ActivePiorityType::IN_ACTIVE_MAP:
+-        return { 70,100 };
++        return pairFor(sPlayerbotAIConfig.loadOptimizationActiveMapBracket);
+     case ActivePiorityType::IN_INACTIVE_MAP:
+-        return { 80,100 };
+-    default :
++        return pairFor(sPlayerbotAIConfig.loadOptimizationInactiveMapBracket);
++    default:
+         return { 90, 100 };
+     }
+-
+-    return { 90, 100 };
+ }
+ 
+ bool PlayerbotAI::AllowActive(ActivityType activityType)
+ {
+-    ActivePiorityType type = GetPriorityType();
+-
+-    if (activityType == DETAILED_MOVE_ACTIVITY)
+-    {
+-        switch (type)
+-        {
+-        case ActivePiorityType::HAS_REAL_PLAYER_MASTER:
+-        case ActivePiorityType::IS_REAL_PLAYER:
+-        case ActivePiorityType::IN_GROUP_WITH_REAL_PLAYER:
+-        case ActivePiorityType::IN_INSTANCE:
+-        case ActivePiorityType::VISIBLE_FOR_PLAYER:
+-        case ActivePiorityType::IN_COMBAT:
+-        case ActivePiorityType::NEARBY_PLAYER:
+-        case ActivePiorityType::IS_RUNNING_TEST:
+-            return true;
+-            break;
+-        case ActivePiorityType::IS_ALWAYS_ACTIVE:
+-        case ActivePiorityType::IN_BG_QUEUE:
+-        case ActivePiorityType::IN_LFG:
+-        case ActivePiorityType::PLAYER_FRIEND:
+-        case ActivePiorityType::PLAYER_GUILD:
+-        case ActivePiorityType::NO_PATH:
+-        case ActivePiorityType::IN_ACTIVE_AREA:
+-        case ActivePiorityType::IN_EMPTY_SERVER:
+-        case ActivePiorityType::IN_ACTIVE_MAP:
+-        case ActivePiorityType::IN_INACTIVE_MAP:
+-        default:
+-            break;
+-        }
+-    }
+-    else if (activityType == REACT_ACTIVITY)
+-    {
+-        switch (type)
+-        {
+-        case ActivePiorityType::HAS_REAL_PLAYER_MASTER:
+-        case ActivePiorityType::IS_REAL_PLAYER:
+-        case ActivePiorityType::IN_GROUP_WITH_REAL_PLAYER:
+-        case ActivePiorityType::IN_INSTANCE:
+-        case ActivePiorityType::IS_ALWAYS_ACTIVE:
+-        case ActivePiorityType::IS_RUNNING_TEST:
+-            return true;
+-        case ActivePiorityType::VISIBLE_FOR_PLAYER:
+-            if (sPlayerbotAIConfig.forceActiveWhenNearPlayer)
+-                return true;
+-            break;
+-        case ActivePiorityType::IN_COMBAT:
+-        case ActivePiorityType::NEARBY_PLAYER:
+-        case ActivePiorityType::IN_BG_QUEUE:
+-        case ActivePiorityType::IN_LFG:
+-        case ActivePiorityType::PLAYER_FRIEND:
+-        case ActivePiorityType::PLAYER_GUILD:
+-        case ActivePiorityType::NO_PATH:
+-        case ActivePiorityType::IN_ACTIVE_AREA:
+-        case ActivePiorityType::IN_EMPTY_SERVER:
+-        case ActivePiorityType::IN_ACTIVE_MAP:
+-        case ActivePiorityType::IN_INACTIVE_MAP:
+-        default:
+-            break;
+-        }
+-    }
++    if (!sPlayerbotAIConfig.IsLoadOptimizationEnabled())
++        return true;
+ 
+-    std::pair<uint8, uint8> priorityBracket = GetPriorityBracket(type);
++    ActivePiorityType type = GetPriorityType();
+ 
+-    float activityPercentage = sRandomPlayerbotMgr.getActivityPercentage(); //Activity between 0 and 100.
++    // Explicit legacy override. All other protection decisions are represented by
++    // GetPriorityBracket(), so movement/reaction/all-activity cannot disagree.
++    if (sPlayerbotAIConfig.forceActiveWhenNearPlayer &&
++        (type == ActivePiorityType::VISIBLE_FOR_PLAYER || type == ActivePiorityType::NEARBY_PLAYER))
++        return true;
+ 
+-    if (!priorityBracket.second) //No scaling
++    std::pair<uint32, uint32> bracket = GetPriorityBracket(type);
++    if (bracket.second == 0)
+         return true;
+ 
+-    if (priorityBracket.first >= activityPercentage)
++    float activity = sRandomPlayerbotMgr.getActivityPercentage();
++    if (activity <= bracket.first)
+         return false;
+-    if (priorityBracket.second <= activityPercentage && priorityBracket.second < 100)
++    if (activity >= bracket.second)
+         return true;
++    if (bracket.second <= bracket.first)
++        return activity >= bracket.second;
+ 
+-    float activePerc = (activityPercentage - priorityBracket.first) / (priorityBracket.second - priorityBracket.first);
+-
+-    activePerc *= (priorityBracket.second == 100) ? sPlayerbotAIConfig.botActiveAlone : 100;
++    float fraction = (activity - bracket.first) / float(bracket.second - bracket.first);
++    fraction = std::max(0.0f, std::min(1.0f, fraction));
+ 
+-    uint32 ActivityNumber = GetFixedBotNumber(BotTypeNumber::ACTIVITY_TYPE_NUMBER, 100, activePerc * 0.01f); //The last number if the amount it cycles per min. Currently set to 1% of the active bots.
++    // Stable distribution with controlled rotation: bots do not all wake/sleep on the same tick,
++    // but the selected subset changes over time so low-priority bots still make progress.
++    uint32 rotation = uint32(time(nullptr) / sPlayerbotAIConfig.loadOptimizationRotationIntervalSec);
++    uint32 guid = bot ? bot->GetObjectGuid().GetCounter() : 0;
++    uint32 hash = guid * 2654435761u;
++    hash ^= rotation * 2246822519u;
++    hash ^= hash >> 16;
++    uint32 bucket = hash % 10000u;
+ 
+-    return ActivityNumber <= (activePerc);           //The given percentage of bots should be active and rotate 1% of those active bots each minute.
++    return bucket < uint32(fraction * 10000.0f);
+ }
+ 
+ bool PlayerbotAI::AllowActivity(ActivityType activityType, bool checkNow)
+ {
+-    if (!allowActiveCheckTimer[activityType])
+-        allowActiveCheckTimer[activityType] = time(NULL);
++    if (!sPlayerbotAIConfig.IsLoadOptimizationEnabled())
++    {
++        allowActive[activityType] = true;
++        allowActiveCheckTimer[activityType] = 0;
++        return true;
++    }
+ 
+-    if (!checkNow && time(NULL) < (allowActiveCheckTimer[activityType] + 5))
++    uint32 now = sWorld.GetCurrentMSTime();
++    uint32 cacheMs = sPlayerbotAIConfig.loadOptimizationDecisionCacheMs;
++    if (!checkNow && cacheMs && allowActiveCheckTimer[activityType] && (now - allowActiveCheckTimer[activityType]) < cacheMs)
+         return allowActive[activityType];
+ 
+     bool allowed = AllowActive(activityType);
+     allowActive[activityType] = allowed;
+-    allowActiveCheckTimer[activityType] = time(NULL);
++    allowActiveCheckTimer[activityType] = now;
+     return allowed;
+ }
+ 
+@@ -8436,10 +8410,6 @@ bool PlayerbotAI::CanMove()
+     {
+         return false;
+     }
+-    if (currentMotion == FALL_MOTION_TYPE)
+-    {
+-        return false;
+-    }
+ #endif
+ #ifdef MANGOS
+     if (currentMotion == FLIGHT_MOTION_TYPE)
+@@ -8516,9 +8486,10 @@ bool PlayerbotAI::HasPlayerRelation()
+     if (!sRandomPlayerbotMgr.IsRandomBot(bot))
+         return true;
+ 
+-    for (auto& p : sRandomPlayerbotMgr.GetPlayers())
++    for (auto const& entry : sRandomPlayerbotMgr.GetPlayers())
+     {
+-        if (p.second && p.second->GetSocial()->HasFriend(bot->GetObjectGuid()))
++        Player* player = entry.second;
++        if (sRandomPlayerbotMgr.IsVisibleRealPlayer(player) && player->GetSocial()->HasFriend(bot->GetObjectGuid()))
+         {
+             SetPlayerFriend(true);
+             return true;
+diff --git a/modules/mod-playerbots/src/playerbot/PlayerbotAI.h b/modules/mod-playerbots/src/playerbot/PlayerbotAI.h
+index 7a0c11a..6cffa65 100644
+--- a/modules/mod-playerbots/src/playerbot/PlayerbotAI.h
++++ b/modules/mod-playerbots/src/playerbot/PlayerbotAI.h
+@@ -633,13 +633,30 @@ public:
+     }
+     bool IsSelfMaster() { return master ? (master == bot) : false; }
+     //Bot has a master that is a player.
+-    bool HasRealPlayerMaster() { return master && (!master->GetPlayerbotAI() || master->GetPlayerbotAI()->IsRealPlayer()); } 
+-    //Bot has a master that is actively playing.
+-    bool HasActivePlayerMaster() const { return master && !master->GetPlayerbotAI(); }
++    bool HasRealPlayerMaster() { return sRandomPlayerbotMgr.IsVisibleRealPlayer(master); }
++    //Bot has a master that is actively playing and visible to bots.
++    bool HasActivePlayerMaster() const { return master && !master->GetPlayerbotAI() && sRandomPlayerbotMgr.IsVisibleRealPlayer(master); }
+     //Checks if the bot is summoned as alt of a player
+     bool IsAlt() { return HasRealPlayerMaster() && !sRandomPlayerbotMgr.IsRandomBot(bot); }
+-    //Get the group leader or the master of the bot.
+-    Player* GetGroupMaster() { return bot->InBattleGround() ? master : bot->GetGroup() ? (sObjectMgr.GetPlayer(bot->GetGroup()->GetLeaderGuid()) ? sObjectMgr.GetPlayer(bot->GetGroup()->GetLeaderGuid()) : master) : master; }
++    // Get the group leader or cached master without exposing a GM who is currently
++    // invisible to bots. Keeping this filter here prevents follow/travel/security/etc.
++    // from re-acquiring a hidden GM through the persistent Group object.
++    Player* GetGroupMaster()
++    {
++        if (bot->InBattleGround())
++            return sRandomPlayerbotMgr.IsPlayerVisibleToBots(master) ? master : nullptr;
++
++        if (Group* group = bot->GetGroup())
++        {
++            if (Player* leader = sObjectMgr.GetPlayer(group->GetLeaderGuid()))
++            {
++                if (sRandomPlayerbotMgr.IsPlayerVisibleToBots(leader))
++                    return leader;
++            }
++        }
++
++        return sRandomPlayerbotMgr.IsPlayerVisibleToBots(master) ? master : nullptr;
++    }
+ 
+     bool IsGroupLeader() { return bot->GetGroup() && bot->GetGroup()->GetLeaderGuid() == bot->GetObjectGuid(); }
+ 
+@@ -784,7 +801,7 @@ protected:
+     std::pair<ChatMsg, time_t> currentChat;
+     static std::set<std::string> unsecuredCommands;
+     bool allowActive[MAX_ACTIVITY_TYPE];
+-    time_t allowActiveCheckTimer[MAX_ACTIVITY_TYPE];
++    uint32 allowActiveCheckTimer[MAX_ACTIVITY_TYPE];
+     bool inCombat = false;
+     bool isMoving = false;
+     bool isWaiting = false;
+diff --git a/modules/mod-playerbots/src/playerbot/PlayerbotAIBase.cpp b/modules/mod-playerbots/src/playerbot/PlayerbotAIBase.cpp
+index 1fde032..2600757 100644
+--- a/modules/mod-playerbots/src/playerbot/PlayerbotAIBase.cpp
++++ b/modules/mod-playerbots/src/playerbot/PlayerbotAIBase.cpp
+@@ -52,7 +52,10 @@ void PlayerbotAIBase::IncreaseAIInternalUpdateDelay(uint32 delay)
+ void PlayerbotAIBase::YieldAIInternalThread(bool minimal)
+ {
+     if (aiInternalUpdateDelay < sPlayerbotAIConfig.reactDelay)
+-        aiInternalUpdateDelay = minimal ? sPlayerbotAIConfig.reactDelay * 10 : sPlayerbotAIConfig.reactDelay;
++    {
++        uint32 multiplier = sPlayerbotAIConfig.IsLoadOptimizationEnabled() ? sPlayerbotAIConfig.loadOptimizationMinimalReactionMultiplier : 1;
++        aiInternalUpdateDelay = minimal ? sPlayerbotAIConfig.reactDelay * multiplier : sPlayerbotAIConfig.reactDelay;
++    }
+ }
+ 
+ bool PlayerbotAIBase::IsActive() const
+diff --git a/modules/mod-playerbots/src/playerbot/PlayerbotAIConfig.cpp b/modules/mod-playerbots/src/playerbot/PlayerbotAIConfig.cpp
+index ce2c5d2..e01f5c9 100644
+--- a/modules/mod-playerbots/src/playerbot/PlayerbotAIConfig.cpp
++++ b/modules/mod-playerbots/src/playerbot/PlayerbotAIConfig.cpp
+@@ -498,14 +498,70 @@ bool PlayerbotAIConfig::Initialize()
+     instantRandomize = config.GetBoolDefault("AiPlayerbot.InstantRandomize", true);
+     randomBotRandomPassword = config.GetBoolDefault("AiPlayerbot.RandomBotRandomPassword", true);
+     playerbotsXPrate = config.GetFloatDefault("AiPlayerbot.XPRate", 1.0f);
++    // Native-map, opt-in bot AI load controller. Core Player/Map/session updates are never skipped.
++    // Legacy negative switches are retained as hard kill-switches for existing configurations.
+     disableBotOptimizations = config.GetBoolDefault("AiPlayerbot.DisableBotOptimizations", false);
+     disableActivityPriorities = config.GetBoolDefault("AiPlayerbot.DisableActivityPriorities", false);
+     forceActiveWhenNearPlayer = config.GetBoolDefault("AiPlayerbot.ForceActiveWhenNearPlayer", false);
+     limitCombatActivity = config.GetBoolDefault("AiPlayerbot.LimitCombatActivity", false);
+     guildOrderAlwaysActive = config.GetBoolDefault("AiPlayerbot.GuildOrderAlwaysActive", true);
+-    botActiveAlone = config.GetIntDefault("AiPlayerbot.botActiveAlone", 10);
+     diffWithPlayer = config.GetIntDefault("AiPlayerbot.DiffWithPlayer", 100);
+     diffEmpty = config.GetIntDefault("AiPlayerbot.DiffEmpty", 200);
++
++    auto loadUInt = [&](const char* key, int32 defaultValue, int32 minValue, int32 maxValue) -> uint32
++    {
++        int32 value = config.GetIntDefault(key, defaultValue);
++        value = std::max(minValue, std::min(maxValue, value));
++        return uint32(value);
++    };
++
++    loadOptimizationEnabled = config.GetBoolDefault("AiPlayerbot.LoadOptimization.Enabled", false);
++    loadOptimizationSampleIntervalMs = loadUInt("AiPlayerbot.LoadOptimization.SampleIntervalMs", 1000, 100, 60000);
++    loadOptimizationDecisionCacheMs = loadUInt("AiPlayerbot.LoadOptimization.DecisionCacheMs", 5000, 0, 600000);
++    loadOptimizationRotationIntervalSec = loadUInt("AiPlayerbot.LoadOptimization.RotationIntervalSec", 60, 1, 86400);
++    loadOptimizationBaseActivity = config.GetFloatDefault("AiPlayerbot.LoadOptimization.BaseActivity", 100.0f);
++    loadOptimizationMinActivity = config.GetFloatDefault("AiPlayerbot.LoadOptimization.MinActivity", 10.0f);
++    loadOptimizationMaxActivity = config.GetFloatDefault("AiPlayerbot.LoadOptimization.MaxActivity", 100.0f);
++    loadOptimizationTargetDiffWithPlayers = loadUInt("AiPlayerbot.LoadOptimization.TargetDiffWithPlayers", int32(diffWithPlayer), 1, 10000);
++    loadOptimizationTargetDiffEmpty = loadUInt("AiPlayerbot.LoadOptimization.TargetDiffEmpty", int32(diffEmpty), 1, 10000);
++    loadOptimizationPidKp = std::max(0.0f, config.GetFloatDefault("AiPlayerbot.LoadOptimization.PID.Kp", 0.05f));
++    loadOptimizationPidKi = std::max(0.0f, config.GetFloatDefault("AiPlayerbot.LoadOptimization.PID.Ki", 0.001f));
++    loadOptimizationPidKd = std::max(0.0f, config.GetFloatDefault("AiPlayerbot.LoadOptimization.PID.Kd", 0.05f));
++    loadOptimizationMinimalReactionMultiplier = loadUInt("AiPlayerbot.LoadOptimization.MinimalReactionMultiplier", 10, 1, 1000);
++    loadOptimizationInactiveActionDelayMs = loadUInt("AiPlayerbot.LoadOptimization.InactiveActionDelayMs", 0, 0, 600000);
++    loadOptimizationProtectPlayerInteraction = config.GetBoolDefault("AiPlayerbot.LoadOptimization.Protect.PlayerInteraction", true);
++    loadOptimizationProtectCombat = config.GetBoolDefault("AiPlayerbot.LoadOptimization.Protect.Combat", true);
++    loadOptimizationProtectBattleground = config.GetBoolDefault("AiPlayerbot.LoadOptimization.Protect.Battleground", true);
++    loadOptimizationProtectInstances = config.GetBoolDefault("AiPlayerbot.LoadOptimization.Protect.Instance", true);
++
++    auto loadBracket = [&](const char* name, uint32 defaultMin, uint32 defaultFull)
++    {
++        LoadOptimizationBracket bracket;
++        std::string prefix = std::string("AiPlayerbot.LoadOptimization.Bracket.") + name;
++        bracket.minActivity = loadUInt((prefix + ".Min").c_str(), int32(defaultMin), 0, 100);
++        bracket.fullActivity = loadUInt((prefix + ".Full").c_str(), int32(defaultFull), 0, 100);
++        if (bracket.fullActivity < bracket.minActivity)
++            bracket.fullActivity = bracket.minActivity;
++        return bracket;
++    };
++
++    loadOptimizationPlayerInteractionBracket = loadBracket("PlayerInteraction", 0, 10);
++    loadOptimizationBattlegroundBracket = loadBracket("Battleground", 0, 10);
++    loadOptimizationInstanceBracket = loadBracket("Instance", 0, 5);
++    loadOptimizationCombatBracket = loadBracket("Combat", 0, 10);
++    loadOptimizationBgQueueBracket = loadBracket("BGQueue", 0, 20);
++    loadOptimizationLfgBracket = loadBracket("LFG", 0, 30);
++    loadOptimizationNearbyPlayerBracket = loadBracket("NearbyPlayer", 0, 40);
++    loadOptimizationSocialBracket = loadBracket("Social", 0, 50);
++    loadOptimizationNoPathBracket = loadBracket("NoPath", 50, 99);
++    loadOptimizationActiveAreaBracket = loadBracket("ActiveArea", 50, 100);
++    loadOptimizationEmptyServerBracket = loadBracket("EmptyServer", 50, 100);
++    loadOptimizationActiveMapBracket = loadBracket("ActiveMap", 70, 100);
++    loadOptimizationInactiveMapBracket = loadBracket("InactiveMap", 80, 100);
++
++    loadOptimizationMinActivity = std::max(0.0f, std::min(100.0f, loadOptimizationMinActivity));
++    loadOptimizationMaxActivity = std::max(loadOptimizationMinActivity, std::min(100.0f, loadOptimizationMaxActivity));
++    loadOptimizationBaseActivity = std::max(loadOptimizationMinActivity, std::min(loadOptimizationMaxActivity, loadOptimizationBaseActivity));
+     RandombotsWalkingRPG = config.GetBoolDefault("AiPlayerbot.RandombotsWalkingRPG", false);
+     RandombotsWalkingRPGInDoors = config.GetBoolDefault("AiPlayerbot.RandombotsWalkingRPG.InDoors", false);
+     minEnchantingBotLevel = config.GetIntDefault("AiPlayerbot.minEnchantingBotLevel", 60);
+diff --git a/modules/mod-playerbots/src/playerbot/PlayerbotAIConfig.h b/modules/mod-playerbots/src/playerbot/PlayerbotAIConfig.h
+index 671bfe0..b2c24dd 100644
+--- a/modules/mod-playerbots/src/playerbot/PlayerbotAIConfig.h
++++ b/modules/mod-playerbots/src/playerbot/PlayerbotAIConfig.h
+@@ -87,6 +87,12 @@ struct ParsedUrl {
+     bool https;
+ };
+ 
++struct LoadOptimizationBracket
++{
++    uint32 minActivity = 0;
++    uint32 fullActivity = 100;
++};
++
+ //GlyphPrioritySpecMap[specId][level] = {{glyphItemId, prereqTalentSpell}};
+ using GlyphPriority = std::pair<uint32, uint32>;
+ using GlyphPriorityList = std::vector<GlyphPriority>;
+@@ -232,14 +238,52 @@ public:
+     int32 levelCheck;
+ 	bool randomBotPreQuests;
+     float playerbotsXPrate;
++    // Opt-in bot AI load controller. This never throttles core Player/Map/session updates.
++    // The legacy Disable* flags remain compatibility kill-switches.
++    bool loadOptimizationEnabled;
++    uint32 loadOptimizationSampleIntervalMs;
++    uint32 loadOptimizationDecisionCacheMs;
++    uint32 loadOptimizationRotationIntervalSec;
++    float loadOptimizationBaseActivity;
++    float loadOptimizationMinActivity;
++    float loadOptimizationMaxActivity;
++    uint32 loadOptimizationTargetDiffWithPlayers;
++    uint32 loadOptimizationTargetDiffEmpty;
++    float loadOptimizationPidKp;
++    float loadOptimizationPidKi;
++    float loadOptimizationPidKd;
++    uint32 loadOptimizationMinimalReactionMultiplier;
++    uint32 loadOptimizationInactiveActionDelayMs;
++    bool loadOptimizationProtectPlayerInteraction;
++    bool loadOptimizationProtectCombat;
++    bool loadOptimizationProtectBattleground;
++    bool loadOptimizationProtectInstances;
++    LoadOptimizationBracket loadOptimizationPlayerInteractionBracket;
++    LoadOptimizationBracket loadOptimizationBattlegroundBracket;
++    LoadOptimizationBracket loadOptimizationInstanceBracket;
++    LoadOptimizationBracket loadOptimizationCombatBracket;
++    LoadOptimizationBracket loadOptimizationBgQueueBracket;
++    LoadOptimizationBracket loadOptimizationLfgBracket;
++    LoadOptimizationBracket loadOptimizationNearbyPlayerBracket;
++    LoadOptimizationBracket loadOptimizationSocialBracket;
++    LoadOptimizationBracket loadOptimizationNoPathBracket;
++    LoadOptimizationBracket loadOptimizationActiveAreaBracket;
++    LoadOptimizationBracket loadOptimizationEmptyServerBracket;
++    LoadOptimizationBracket loadOptimizationActiveMapBracket;
++    LoadOptimizationBracket loadOptimizationInactiveMapBracket;
++
+     bool disableBotOptimizations;
+     bool disableActivityPriorities;
+     bool forceActiveWhenNearPlayer;
+     bool limitCombatActivity;
+     bool guildOrderAlwaysActive;
+-    uint32 botActiveAlone;
+     uint32 diffWithPlayer;
+     uint32 diffEmpty;
++
++    bool IsLoadOptimizationEnabled() const
++    {
++        return loadOptimizationEnabled && !disableBotOptimizations && !disableActivityPriorities;
++    }
+     uint32 minEnchantingBotLevel;
+     uint32 randombotStartingLevel;
+     bool randomBotSayWithoutMaster;
+diff --git a/modules/mod-playerbots/src/playerbot/PlayerbotLoginMgr.cpp b/modules/mod-playerbots/src/playerbot/PlayerbotLoginMgr.cpp
+index 290f0e7..5a8bdf5 100644
+--- a/modules/mod-playerbots/src/playerbot/PlayerbotLoginMgr.cpp
++++ b/modules/mod-playerbots/src/playerbot/PlayerbotLoginMgr.cpp
+@@ -385,7 +385,11 @@ void PlayerBotLoginMgr::Update(RealPlayers& realPlayers)
+         return;
+     }
+ 
+-    BotInfos queue = GetFuture(FillLoginLogoutQueue, futureQueue, true, &botPool, realPlayers);
++    // Snapshot bot-visible real players on the main update thread. The async queue
++    // builder then works only on value objects and never dereferences a Player that
++    // may log out or toggle GM visibility while the future is running.
++    RealPlayerInfos realPlayerInfos = GetPlayerInfos(realPlayers);
++    BotInfos queue = GetFuture(FillLoginLogoutQueue, futureQueue, true, &botPool, std::move(realPlayerInfos));
+ 
+     if (!queue.empty())
+     {
+@@ -554,7 +558,10 @@ RealPlayerInfos PlayerBotLoginMgr::GetPlayerInfos(const RealPlayers& players)
+ {
+     RealPlayerInfos realPlayers;
+     for (auto& [guid, player] : players)
+-        realPlayers.push_back(player);
++    {
++        if (sRandomPlayerbotMgr.IsVisibleRealPlayer(player))
++            realPlayers.push_back(player);
++    }
+ 
+     return realPlayers;
+ }
+@@ -605,10 +612,10 @@ bool PlayerBotLoginMgr::CriteriaStillValid(const LoginCriterionFailType oldFailT
+     return false;
+ }
+ 
+-BotInfos PlayerBotLoginMgr::FillLoginLogoutQueue(BotPool* pool, const RealPlayers& realPlayers)
++BotInfos PlayerBotLoginMgr::FillLoginLogoutQueue(BotPool* pool, RealPlayerInfos realPlayerInfos)
+ {
+     LoginSpace loginSpace;
+-    loginSpace.realPlayerInfos = GetPlayerInfos(realPlayers);
++    loginSpace.realPlayerInfos = std::move(realPlayerInfos);
+     FillLoginSpace(pool, loginSpace, FillStep::NEXT_STEP);
+ 
+     std::unordered_map<uint32, LoginCriterionFailType> loginFails;
+diff --git a/modules/mod-playerbots/src/playerbot/PlayerbotLoginMgr.h b/modules/mod-playerbots/src/playerbot/PlayerbotLoginMgr.h
+index b96d1ac..ba7be6c 100644
+--- a/modules/mod-playerbots/src/playerbot/PlayerbotLoginMgr.h
++++ b/modules/mod-playerbots/src/playerbot/PlayerbotLoginMgr.h
+@@ -144,7 +144,7 @@ namespace ai
+ 	private:
+ 		static BotPool LoadBotsFromDb();
+ 		void UpdateOnlineBots();
+-		static BotInfos FillLoginLogoutQueue(BotPool* pool, const RealPlayers& realPlayers);
++        static BotInfos FillLoginLogoutQueue(BotPool* pool, RealPlayerInfos realPlayerInfos);
+ 		void LoginLogoutBots(const BotInfos& queue);
+ 
+ 		static RealPlayerInfos GetPlayerInfos(const RealPlayers& realPlayers);
+diff --git a/modules/mod-playerbots/src/playerbot/RandomPlayerbotMgr.cpp b/modules/mod-playerbots/src/playerbot/RandomPlayerbotMgr.cpp
+index 66aa4a8..10af100 100644
+--- a/modules/mod-playerbots/src/playerbot/RandomPlayerbotMgr.cpp
++++ b/modules/mod-playerbots/src/playerbot/RandomPlayerbotMgr.cpp
+@@ -167,7 +167,12 @@ public:
+     ~botPIDImpl();
+     double calculate(double setpoint, double pv);
+     void adjust(double Kp, double Ki, double Kd) { _Kp = Kp; _Ki = Ki; _Kd = Kd; }
+-    void reset() { _integral = 0; }
++    void configure(double dt, double max, double min, double Kp, double Ki, double Kd)
++    {
++        _dt = dt; _max = max; _min = min; _Kp = Kp; _Ki = Ki; _Kd = Kd;
++        reset();
++    }
++    void reset() { _integral = 0; _pre_error = 0; }
+ 
+ private:
+     double _dt;
+@@ -189,6 +194,10 @@ void botPID::adjust(double Kp, double Ki, double Kd)
+ {
+     pimpl->adjust(Kp, Ki, Kd);
+ }
++void botPID::configure(double dt, double max, double min, double Kp, double Ki, double Kd)
++{
++    pimpl->configure(dt, max, min, Kp, Ki, Kd);
++}
+ void botPID::reset()
+ {
+     pimpl->reset();
+@@ -288,10 +297,6 @@ RandomPlayerbotMgr::RandomPlayerbotMgr()
+             }
+         }
+ 
+-        //1) Proportional: Amount activity is adjusted based on diff being above or below wanted diff. (100 wanted diff & 0.1 p = 150 diff = -5% activity)
+-        //2) Integral: Same as proportional but builds up each tick. (100 wanted diff & 0.01 i = 150 diff = -0.5% activity each tick)
+-        //3) Derative: Based on speed of diff. (+5 diff last tick & 0.05 d = -0.25% activity)
+-        pid.adjust(0.05,0.001,0.05);
+         BgCheckTimer = 0;
+         LfgCheckTimer = 0;
+         PlayersCheckTimer = 0;
+@@ -654,13 +659,19 @@ void RandomPlayerbotMgr::UpdateAIInternal(uint32 elapsed, bool minimal)
+     // same purpose, applied to the random-bot pool.
+     UpdateSessions(elapsed);
+ 
+-    if (!sPlayerbotAIConfig.randomBotAutologin || !sPlayerbotAIConfig.enabled)
++    if (!sPlayerbotAIConfig.enabled)
++        return;
++
++    // The controller is global to PlayerbotAI, not to random-bot population management.
++    // Run it even when random-bot autologin is disabled so alt/free bots use the same
++    // opt-in load policy. Core session processing above is never throttled.
++    UpdateLoadOptimization();
++
++    if (!sPlayerbotAIConfig.randomBotAutologin)
+         return;
+ 
+     if (!playersLevel)
+         playersLevel = sPlayerbotAIConfig.syncLevelNoPlayer;
+-
+-    ScaleBotActivity();
+     if (sPlayerbotAIConfig.asyncBotLogin)
+     {
+         auto pmo = sPerformanceMonitor.start(PERF_MON_RNDBOT, "AsyncBotLogin");
+@@ -693,7 +704,7 @@ void RandomPlayerbotMgr::UpdateAIInternal(uint32 elapsed, bool minimal)
+         bool logInAllowed = true;
+         if (sPlayerbotAIConfig.randomBotLoginWithPlayer)
+         {
+-            logInAllowed = !players.empty();
++            logInAllowed = HasVisibleRealPlayers();
+         }
+ 
+         if (logInAllowed)
+@@ -702,13 +713,13 @@ void RandomPlayerbotMgr::UpdateAIInternal(uint32 elapsed, bool minimal)
+         }
+     }
+ 
+-    if (sPlayerbotAIConfig.syncLevelWithPlayers && players.size())
++    if (sPlayerbotAIConfig.syncLevelWithPlayers)
+     {
+         if (time(nullptr) > (PlayersCheckTimer + 60))
+             CheckPlayers();
+     }
+ 
+-    if (sPlayerbotAIConfig.randomBotJoinLfg && players.size())
++    if (sPlayerbotAIConfig.randomBotJoinLfg && HasVisibleRealPlayers())
+     {
+         if (time(nullptr) > (LfgCheckTimer + 30))
+             CheckLfgQueue();
+@@ -720,7 +731,7 @@ void RandomPlayerbotMgr::UpdateAIInternal(uint32 elapsed, bool minimal)
+             CheckBgQueue();
+     }
+ 
+-    if (time(nullptr) > (OfflineGroupBotsTimer + 5) && players.size())
++    if (time(nullptr) > (OfflineGroupBotsTimer + 5) && HasVisibleRealPlayers())
+         AddOfflineGroupBots();
+ 
+     uint32 updateBots = sPlayerbotAIConfig.randomBotsPerInterval == 0 ? UINT32_MAX : sPlayerbotAIConfig.randomBotsPerInterval;
+@@ -790,20 +801,51 @@ void RandomPlayerbotMgr::UpdateAIInternal(uint32 elapsed, bool minimal)
+     PlayerbotHolder::UpdateAIInternal(elapsed, minimal);
+ }
+ 
+-void RandomPlayerbotMgr::ScaleBotActivity()
++void RandomPlayerbotMgr::UpdateLoadOptimization()
+ {
+-    float activityPercentage = getActivityPercentage();
+-
+-    //if (activityPercentage >= 100.0f || activityPercentage <= 0.0f) pid.reset(); //Stop integer buildup during max/min activity
++    // Opt-out is the fast and safe path: no hidden AI throttling.
++    if (!sPlayerbotAIConfig.IsLoadOptimizationEnabled())
++    {
++        if (getActivityPercentage() != 100.0f)
++            setActivityPercentage(100.0f);
++        if (loadOptimizationPidConfigured)
++            pid.reset();
++        loadOptimizationLastSample = 0;
++        loadOptimizationPidConfigured = false;
++        loadOptimizationPresenceInitialized = false;
++        return;
++    }
+ 
+-    //    % increase/decrease                   wanted diff                                         , avg diff
+-    float activityPercentageMod = pid.calculate(sRandomPlayerbotMgr.GetPlayers().empty() ? sPlayerbotAIConfig.diffEmpty : sPlayerbotAIConfig.diffWithPlayer, sWorld.GetAverageDiff());
++    uint32 now = sWorld.GetCurrentMSTime();
++    if (loadOptimizationLastSample && (now - loadOptimizationLastSample) < sPlayerbotAIConfig.loadOptimizationSampleIntervalMs)
++        return;
++    loadOptimizationLastSample = now;
+ 
+-    activityPercentage = activityPercentageMod + 50;
++    if (!loadOptimizationPidConfigured)
++    {
++        double dt = std::max(0.1, double(sPlayerbotAIConfig.loadOptimizationSampleIntervalMs) / 1000.0);
++        pid.configure(dt, 100.0, -100.0,
++            sPlayerbotAIConfig.loadOptimizationPidKp,
++            sPlayerbotAIConfig.loadOptimizationPidKi,
++            sPlayerbotAIConfig.loadOptimizationPidKd);
++        loadOptimizationPidConfigured = true;
++    }
+ 
+-    //Cap the percentage between 0 and 100.
+-    activityPercentage = std::max(0.0f, std::min(100.0f, activityPercentage));
++    bool hasVisiblePlayers = HasVisibleRealPlayers();
++    if (!loadOptimizationPresenceInitialized || hasVisiblePlayers != loadOptimizationHadVisiblePlayers)
++    {
++        pid.reset();
++        loadOptimizationHadVisiblePlayers = hasVisiblePlayers;
++        loadOptimizationPresenceInitialized = true;
++    }
+ 
++    double targetDiff = hasVisiblePlayers
++        ? sPlayerbotAIConfig.loadOptimizationTargetDiffWithPlayers
++        : sPlayerbotAIConfig.loadOptimizationTargetDiffEmpty;
++    double correction = pid.calculate(targetDiff, sWorld.GetAverageDiff());
++    float activityPercentage = sPlayerbotAIConfig.loadOptimizationBaseActivity + float(correction);
++    activityPercentage = std::max(sPlayerbotAIConfig.loadOptimizationMinActivity,
++        std::min(sPlayerbotAIConfig.loadOptimizationMaxActivity, activityPercentage));
+     setActivityPercentage(activityPercentage);
+ 
+     if (sPlayerbotAIConfig.hasLog("activity_pid.csv"))
+@@ -823,7 +865,7 @@ void RandomPlayerbotMgr::ScaleBotActivity()
+         out << sWorld.GetMaxDiff() << ",";
+         out << virtualMemUsedByMe << ",";
+         out << activityPercentage << ",";
+-        out << activityPercentageMod << ",";
++        out << correction << ",";
+         out << activeBots << ",";
+         out << GetPlayerbotsAmount() << ",";
+ 
+@@ -905,6 +947,8 @@ void RandomPlayerbotMgr::LoginFreeBots()
+                     if (!groupWith.empty())
+                     {
+                         master = sObjectAccessor.FindPlayerByName(groupWith.c_str());
++                        if (master && !IsPlayerVisibleToBots(master))
++                            master = nullptr;
+ 
+                         if (master)
+                         {
+@@ -985,6 +1029,9 @@ void RandomPlayerbotMgr::LoginFreeBots()
+                 {
+                     for (auto& [mGuid, master] : players)
+                     {
++                        if (!IsVisibleRealPlayer(master))
++                            continue;
++
+                         ObjectGuid masterGuid(ObjectGuid(HIGHGUID_PLAYER, mGuid));
+                         if (accountId == sObjectMgr.GetPlayerAccountIdByGUID(masterGuid))
+                         {
+@@ -1446,12 +1493,8 @@ void RandomPlayerbotMgr::CheckBgQueue()
+         }
+     }
+ 
+-    for (auto i : players)
++    for (Player* player : GetVisibleRealPlayers())
+     {
+-        Player* player = i.second;
+-
+-        if (!player || !player->IsInWorld())
+-            continue;
+ 
+         if (!player->InBattleGroundQueue())
+             continue;
+@@ -1773,12 +1816,8 @@ void RandomPlayerbotMgr::CheckLfgQueue()
+     LfgDungeons[HORDE].clear();
+     LfgDungeons[ALLIANCE].clear();
+ 
+-    for (auto i : players)
++    for (Player* player : GetVisibleRealPlayers())
+     {
+-        Player* player = i.second;
+-
+-        if (!player || !player->IsInWorld())
+-            continue;
+ 
+         bool isLFG = false;
+ 
+@@ -1943,7 +1982,7 @@ void RandomPlayerbotMgr::AddOfflineGroupBots()
+     {
+         Player* player = i.second;
+ 
+-        if (!player || !player->IsInWorld() || !player->GetGroup())
++        if (!IsVisibleRealPlayer(player) || !player->GetGroup())
+             continue;
+ 
+         Group* group = player->GetGroup();
+@@ -2085,7 +2124,7 @@ void RandomPlayerbotMgr::CheckPlayers()
+     {
+         Player* player = i.second;
+ 
+-        if (player->IsGameMaster())
++        if (!IsVisibleRealPlayer(player) || player->IsGameMaster())
+             continue;
+ 
+         //if (player->GetSession()->GetSecurity() > SEC_PLAYER)
+@@ -2204,7 +2243,7 @@ bool RandomPlayerbotMgr::ProcessBot(uint32 bot)
+ 
+     PlayerbotAI* ai = player ? player->GetPlayerbotAI() : NULL;
+ 
+-    bool botsAllowedInWorld = !sPlayerbotAIConfig.randomBotLoginWithPlayer || (!players.empty() && sWorld.GetActiveSessionCount() > 0);
++    bool botsAllowedInWorld = !sPlayerbotAIConfig.randomBotLoginWithPlayer || HasVisibleRealPlayers();
+ 
+     bool isValid = true;
+    
+@@ -2376,7 +2415,7 @@ bool RandomPlayerbotMgr::ProcessBot(Player* player)
+         }
+ 
+         uint32 teleport = GetEventValue(bot, "teleport");
+-        if (!teleport && players.size())
++        if (!teleport && HasVisibleRealPlayers())
+         {
+             if (sPlayerbotAIConfig.enableRandomTeleports)
+             {
+@@ -2466,59 +2505,32 @@ void RandomPlayerbotMgr::RandomTeleport(Player* bot, std::vector<WorldLocation>
+         {
+             uint32 mapId = l.getMapId();
+             Map* tMap = sMapMgr.FindMap(mapId, 0);
+-            if (tMap && tMap->IsContinent() && tMap->HasActiveZones())
++            if (!tMap || !tMap->IsContinent())
++                return true;
++
++            uint32 zoneId = sTerrainMgr.GetZoneId(mapId, l.coord_x, l.coord_y, l.coord_z);
++            if (!HasVisibleRealPlayer(tMap, zoneId))
++                return true;
++
++            if (sPlayerbotAIConfig.randomBotTeleportNearPlayerMaxAmount > 0 && sPlayerbotAIConfig.randomBotTeleportNearPlayerMaxAmountRadius > 0.0f)
+             {
+-                uint32 zoneId = sTerrainMgr.GetZoneId(mapId, l.coord_x, l.coord_y, l.coord_z);
+-                if (tMap->HasActiveZone(zoneId))
++                uint32 botsNearTeleportPoint = 0;
++                ForEachPlayerbot([&](Player* otherBot)
+                 {
+-                    if (sPlayerbotAIConfig.randomBotTeleportNearPlayerMaxAmount > 0 && sPlayerbotAIConfig.randomBotTeleportNearPlayerMaxAmountRadius > 0.0f)
+-                    {
+-                        uint32 botsNearTeleportPoint = 0;
+-                        ForEachPlayerbot([&](Player* otherBot)
+-                        {
+-                            // Only check the bots that are on the same zone
+-                            if (otherBot && !otherBot->IsBeingTeleported() && zoneId == otherBot->GetZoneId())
+-                            {
+-                                if (l.fDist(WorldPosition(otherBot)) <= sPlayerbotAIConfig.randomBotTeleportNearPlayerMaxAmountRadius)
+-                                {
+-                                    botsNearTeleportPoint++;
+-                                }
+-                            }
+-                        });
+-
+-                        return botsNearTeleportPoint >= sPlayerbotAIConfig.randomBotTeleportNearPlayerMaxAmount;
+-                    }
+-                    else
++                    if (otherBot && !otherBot->IsBeingTeleported() && zoneId == otherBot->GetZoneId() &&
++                        l.fDist(WorldPosition(otherBot)) <= sPlayerbotAIConfig.randomBotTeleportNearPlayerMaxAmountRadius)
+                     {
+-                        return false;
++                        ++botsNearTeleportPoint;
+                     }
+-                }
++                });
++
++                return botsNearTeleportPoint >= sPlayerbotAIConfig.randomBotTeleportNearPlayerMaxAmount;
+             }
+ 
+-            return true;
++            return false;
+         }),
+         tlocs.end());
+ 
+-        /*if (!tlocs.empty())
+-        {
+-            tlocs.erase(std::remove_if(tlocs.begin(), tlocs.end(), [bot](const WorldPosition& l)
+-            {
+-                uint32 mapId = l.getMapId();
+-                Map* tMap = sMapMgr.FindMap(mapId, 0);
+-                if (!tMap || !tMap->IsContinent())
+-                        return true;
+-
+-                if (!tMap->HasActiveAreas())
+-                    return true;
+-
+-                AreaTableEntry const* area = l.getArea();
+-                if (area)
+-                {
+-                    if (!tMap->HasActiveZone(area->zone ? area->zone : area->ID))
+-                        return true;
+-                }
+-            }), tlocs.end());
+-        }*/
+     }
+ 
+     // filter starter zones
+@@ -3067,8 +3079,22 @@ void RandomPlayerbotMgr::Randomize(Player* bot)
+         initialRandom = true;
+ #endif
+ 
+-    // give bot random level if is above or below level sync
+-    if (!initialRandom && players.size() && sPlayerbotAIConfig.syncLevelWithPlayers)
++    bool hasLevelSyncPlayer = false;
++    if (sPlayerbotAIConfig.syncLevelWithPlayers)
++    {
++        for (auto const& entry : players)
++        {
++            Player* player = entry.second;
++            if (IsVisibleRealPlayer(player) && !player->IsGameMaster())
++            {
++                hasLevelSyncPlayer = true;
++                break;
++            }
++        }
++    }
++
++    // give bot random level if above or below the visible real-player level window
++    if (!initialRandom && hasLevelSyncPlayer && sPlayerbotAIConfig.syncLevelWithPlayers)
+     {
+         uint32 maxLevel = std::max(sPlayerbotAIConfig.randomBotMinLevel, std::min(playersLevel + sPlayerbotAIConfig.syncLevelMaxAbove, sWorld.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL)));
+         if (bot->GetLevel() > maxLevel || (bot->GetLevel() + sPlayerbotAIConfig.syncLevelMaxAbove) < playersLevel)
+@@ -3660,31 +3686,36 @@ void RandomPlayerbotMgr::OnPlayerLogin(Player* player)
+     if (!sPlayerbotAIConfig.enabled)
+         return;
+ 
+-    ForEachPlayerbot([&](Player* bot)
++    // Keep invisible GMs registered so a live visibility toggle is observed, but do not
++    // let their login become a bot social/master event while they are invisible.
++    if (IsPlayerVisibleToBots(player))
+     {
+-        if (player == bot)
+-            return;
++        ForEachPlayerbot([&](Player* bot)
++        {
++            if (player == bot)
++                return;
+ 
+-        Group* group = bot->GetGroup();
+-        if (!group)
+-            return;
++            Group* group = bot->GetGroup();
++            if (!group)
++                return;
+ 
+-        for (GroupReference *gref = group->GetFirstMember(); gref; gref = gref->next())
+-        {
+-            Player* member = gref->getSource();
+-            PlayerbotAI* ai = bot->GetPlayerbotAI();
+-            if (member == player && (!ai->GetMaster() || ai->GetMaster()->GetPlayerbotAI()))
++            for (GroupReference *gref = group->GetFirstMember(); gref; gref = gref->next())
+             {
+-                if (!bot->InBattleGround())
++                Player* member = gref->getSource();
++                PlayerbotAI* ai = bot->GetPlayerbotAI();
++                if (member == player && (!ai->GetMaster() || ai->GetMaster()->GetPlayerbotAI()))
+                 {
+-                    ai->SetMaster(player);
+-                    ai->ResetStrategies();
+-                    ai->TellPlayer(ai->GetMaster(), BOT_TEXT("hello"));
++                    if (!bot->InBattleGround())
++                    {
++                        ai->SetMaster(player);
++                        ai->ResetStrategies();
++                        ai->TellPlayer(ai->GetMaster(), BOT_TEXT("hello"));
++                    }
++                    break;
+                 }
+-                break;
+             }
+-        }
+-    });
++        });
++    }
+ 
+     if (IsFreeBot(player))
+     {
+@@ -3706,13 +3737,73 @@ void RandomPlayerbotMgr::OnPlayerLoginError(uint32 bot)
+     currentBots.remove(bot);
+ }
+ 
++bool RandomPlayerbotMgr::IsPlayerVisibleToBots(Player* player) const
++{
++    return player && player->IsInWorld() && (!player->IsGameMaster() || player->IsGMVisible());
++}
++
++bool RandomPlayerbotMgr::IsVisibleRealPlayer(Player* player) const
++{
++    if (!IsPlayerVisibleToBots(player))
++        return false;
++
++    if (PlayerbotAI* ai = player->GetPlayerbotAI())
++        return ai->IsRealPlayer();
++
++    return true;
++}
++
++std::vector<Player*> RandomPlayerbotMgr::GetVisibleRealPlayers() const
++{
++    std::vector<Player*> result;
++    result.reserve(players.size());
++
++    for (auto const& entry : players)
++    {
++        Player* player = entry.second;
++        if (IsVisibleRealPlayer(player))
++            result.push_back(player);
++    }
++
++    return result;
++}
++
++bool RandomPlayerbotMgr::HasVisibleRealPlayers() const
++{
++    for (auto const& entry : players)
++    {
++        if (IsVisibleRealPlayer(entry.second))
++            return true;
++    }
++
++    return false;
++}
++
++bool RandomPlayerbotMgr::HasVisibleRealPlayer(Map* map, uint32 zoneId) const
++{
++    if (!map)
++        return false;
++
++    for (auto const& ref : map->GetPlayers())
++    {
++        Player* player = ref.getSource();
++        if (!IsVisibleRealPlayer(player))
++            continue;
++
++        if (!zoneId || player->GetZoneId() == zoneId)
++            return true;
++    }
++
++    return false;
++}
++
+ Player* RandomPlayerbotMgr::GetRandomPlayer()
+ {
+-    if (players.empty())
+-        return NULL;
++    std::vector<Player*> visiblePlayers = GetVisibleRealPlayers();
++    if (visiblePlayers.empty())
++        return nullptr;
+ 
+-    uint32 index = urand(0, players.size() - 1);
+-    return players[index];
++    return visiblePlayers[urand(0, visiblePlayers.size() - 1)];
+ }
+ 
+ Player* RandomPlayerbotMgr::GetPlayer(uint32 playerGuid)
+@@ -4054,13 +4145,13 @@ void RandomPlayerbotMgr::ChangeStrategy(Player* player)
+     {
+         sLog.outDetail("Bot #%d %s:%d <%s>: sent to grind spot", bot, player->GetTeam() == ALLIANCE ? "A" : "H", player->GetLevel(), player->GetName());
+         // teleport in different places only if players are online
+-        RandomTeleportForLevel(player, players.size());
++        RandomTeleportForLevel(player, HasVisibleRealPlayers());
+         ScheduleTeleport(bot);
+     }
+     else
+     {
+         sLog.outDetail("Bot #%d %s:%d <%s>: sent to inn", bot, player->GetTeam() == ALLIANCE ? "A" : "H", player->GetLevel(), player->GetName());
+-        RandomTeleportForRpg(player, players.size());
++        RandomTeleportForRpg(player, HasVisibleRealPlayers());
+         ScheduleTeleport(bot);
+     }
+ }
+@@ -4336,7 +4427,7 @@ std::unordered_map<std::string, std::string> RandomPlayerbotMgr::GetCommandTexts
+         {"change_strategy", "Change the AI strategy for random bots.\nUsage: change_strategy <botname> <strategy>"},
+         {"remove", "Remove a random bot from the server.\nUsage: remove <botname>"},
+         {"reset", "Reset all random bots and clear event cache.\nUsage: reset"},
+-        {"diff", "Show server performance metrics.\nUsage: diff [player_diff] [empty_diff]"},
++        {"diff", "Show server performance metrics or update LoadOptimization target diffs.\nUsage: diff [player_diff] [empty_diff]"},
+         {"stats", "Print bot statistics.\nUsage: stats"},
+         {"update", "Trigger immediate bot AI update.\nUsage: update"},
+         {"pid", "Adjust PID controller values.\nUsage: pid p i d"},
+@@ -4553,9 +4644,15 @@ std::list<std::string> RandomPlayerbotMgr::HandleConsolePid(std::string param)
+         pid.push_back("0");
+     if (pid.size() == 2)
+         pid.push_back("0");
+-    sRandomPlayerbotMgr.pid.adjust(stof(pid[0]), stof(pid[1]), stof(pid[2]));
+-
+-    std::string msg = "Pid set to p:" + std::to_string(stof(pid[0])) + " i:" + std::to_string(stof(pid[1])) + " d:" + std::to_string(stof(pid[2]));
++    float kp = std::max(0.0f, stof(pid[0]));
++    float ki = std::max(0.0f, stof(pid[1]));
++    float kd = std::max(0.0f, stof(pid[2]));
++    sPlayerbotAIConfig.loadOptimizationPidKp = kp;
++    sPlayerbotAIConfig.loadOptimizationPidKi = ki;
++    sPlayerbotAIConfig.loadOptimizationPidKd = kd;
++    sRandomPlayerbotMgr.pid.adjust(kp, ki, kd);
++
++    std::string msg = "Load PID set to p:" + std::to_string(kp) + " i:" + std::to_string(ki) + " d:" + std::to_string(kd);
+     messages.push_back(msg);
+     return messages;
+ }
+@@ -4570,25 +4667,41 @@ std::list<std::string> RandomPlayerbotMgr::HandleConsoleDiff(std::string param)
+         ss << "Max diff: " << sWorld.GetMaxDiff() << "\n";
+         ss << "char db ping: " << sRandomPlayerbotMgr.GetDatabaseDelay("CharacterDatabase") << "\n";
+         ss << "Sessions online: " << sWorld.GetActiveSessionCount() << "\n";
+-        ss << "Bots online: " << sRandomPlayerbotMgr.botCount << " (active: " << sRandomPlayerbotMgr.activeBots << ")";
++        ss << "Bots online: " << sRandomPlayerbotMgr.botCount << " (active: " << sRandomPlayerbotMgr.activeBots << ")\n";
++        ss << "Load optimization: " << (sPlayerbotAIConfig.IsLoadOptimizationEnabled() ? "enabled" : "disabled")
++           << ", activity: " << sRandomPlayerbotMgr.getActivityPercentage() << "%"
++           << ", target diff: " << sPlayerbotAIConfig.loadOptimizationTargetDiffWithPlayers
++           << " (player) / " << sPlayerbotAIConfig.loadOptimizationTargetDiffEmpty << " (empty)";
+ 
+         messages.push_back(ss.str());
+         return messages;
+     }
+-    else if (param.find(" ") != std::string::npos)
++
++    try
+     {
+         std::vector<std::string> diff = Qualified::getMultiQualifiers(param, " ");
+-        if (diff.size() == 0)
+-            diff.push_back("100");
++        if (diff.empty())
++            return messages;
+         if (diff.size() == 1)
+             diff.push_back(diff[0]);
+-        sPlayerbotAIConfig.diffWithPlayer = stoi(diff[0]);
+-        sPlayerbotAIConfig.diffEmpty = stoi(diff[1]);
+ 
+-        std::string msg = "Diff set to " + std::to_string(stoi(diff[0])) + " (player), " + std::to_string(stoi(diff[1])) + " (empty)";
++        int32 playerDiff = std::max(1, std::min(10000, stoi(diff[0])));
++        int32 emptyDiff = std::max(1, std::min(10000, stoi(diff[1])));
++        sPlayerbotAIConfig.diffWithPlayer = uint32(playerDiff);
++        sPlayerbotAIConfig.diffEmpty = uint32(emptyDiff);
++        sPlayerbotAIConfig.loadOptimizationTargetDiffWithPlayers = uint32(playerDiff);
++        sPlayerbotAIConfig.loadOptimizationTargetDiffEmpty = uint32(emptyDiff);
++        pid.reset();
++        loadOptimizationPresenceInitialized = false;
++
++        std::string msg = "Load target diff set to " + std::to_string(playerDiff) + " (player), " + std::to_string(emptyDiff) + " (empty)";
+         messages.push_back(msg);
+-        return messages;
+     }
++    catch (std::exception const&)
++    {
++        messages.push_back("Invalid diff values. Usage: diff [player_diff] [empty_diff]");
++    }
++
+     return messages;
+ }
+ 
+diff --git a/modules/mod-playerbots/src/playerbot/RandomPlayerbotMgr.h b/modules/mod-playerbots/src/playerbot/RandomPlayerbotMgr.h
+index a5b882e..b5b925f 100644
+--- a/modules/mod-playerbots/src/playerbot/RandomPlayerbotMgr.h
++++ b/modules/mod-playerbots/src/playerbot/RandomPlayerbotMgr.h
+@@ -46,6 +46,7 @@ public:
+     // min - minimum value of manipulated variable
+     botPID(double dt, double max, double min, double Kp, double Ki, double Kd);
+     void adjust(double Kp, double Ki, double Kd);
++    void configure(double dt, double max, double min, double Kp, double Ki, double Kd);
+     void reset();
+    
+     double calculate(double setpoint, double pv);
+@@ -68,7 +69,7 @@ class RandomPlayerbotMgr : public PlayerbotHolder
+ 
+         virtual void UpdateAIInternal(uint32 elapsed, bool minimal = false) override;
+ private:
+-        void ScaleBotActivity();
++        void UpdateLoadOptimization();
+         void LogPlayerLocation();
+         void DelayedFacingFix();
+         void LoginFreeBots();
+@@ -97,6 +98,11 @@ public:
+         void OnPlayerLogout(Player* player);
+         void OnPlayerLogin(Player* player);
+         void OnPlayerLoginError(uint32 bot);
++        bool IsPlayerVisibleToBots(Player* player) const;
++        bool IsVisibleRealPlayer(Player* player) const;
++        std::vector<Player*> GetVisibleRealPlayers() const;
++        bool HasVisibleRealPlayers() const;
++        bool HasVisibleRealPlayer(Map* map, uint32 zoneId = 0) const;
+         Player* GetRandomPlayer();
+         PlayerBotMap& GetPlayers() { return players; };
+         Player* GetPlayer(uint32 playerGuid);
+@@ -172,8 +178,12 @@ public:
+         virtual void OnBotLoginInternal(Player * const bot) override;
+     private:
+         //pid values are set in constructor
+-        botPID pid = botPID(1, 50, -50, 0, 0, 0);
+-        float activityMod = 0.25;
++        botPID pid = botPID(1, 100, -100, 0, 0, 0);
++        float activityMod = 1.0f;
++        uint32 loadOptimizationLastSample = 0;
++        bool loadOptimizationPidConfigured = false;
++        bool loadOptimizationPresenceInitialized = false;
++        bool loadOptimizationHadVisiblePlayers = false;
+         std::map<std::string, uint32> databaseDelay;
+         uint32 GetEventValue(uint32 bot, std::string event);
+         std::string GetEventData(uint32 bot, std::string event);
+diff --git a/modules/mod-playerbots/src/playerbot/TravelMgr.cpp b/modules/mod-playerbots/src/playerbot/TravelMgr.cpp
+index 321ee12..29a6561 100644
+--- a/modules/mod-playerbots/src/playerbot/TravelMgr.cpp
++++ b/modules/mod-playerbots/src/playerbot/TravelMgr.cpp
+@@ -1504,7 +1504,7 @@ void TravelMgr::LoadQuestTravelTable()
+         out << "sWorld.GetMaxDiff(),";
+         out << "virtualMemUsedByMe" << ",";
+         out << "activityPercentage,";
+-        out << "activityPercentageMod,";
++        out << "pidCorrection,";
+         out << "activeBots,";
+         out << "playerBots.size(),";
+         out << "totalLevel,";
+diff --git a/modules/mod-playerbots/src/playerbot/aiplayerbot.conf.dist.in b/modules/mod-playerbots/src/playerbot/aiplayerbot.conf.dist.in
+index 20b60d1..9716d30 100644
+--- a/modules/mod-playerbots/src/playerbot/aiplayerbot.conf.dist.in
++++ b/modules/mod-playerbots/src/playerbot/aiplayerbot.conf.dist.in
+@@ -63,30 +63,88 @@ AiPlayerbot.RandomBotMaxLevel = 60
+ AiPlayerbot.RandomBotAccountPrefix = RNDBOT
+ AiPlayerbot.RandomBotAccountCount = 200
+ 
+-# Disable core mangos map/bot optimizations which hinders bot activity
+-# Works best together with AiPlayerbot.DisableActivityPriorities = 1
+-# (0-1), default 0
+-# AiPlayerbot.DisableBotOptimizations = 0
+-
+-# Disable bot activity priorities, to make all bots ACTUALLY active without player in the zones or server (unless AiPlayerbot.DisableBotOptimizations = 0)
+-# This setting is added for the sake of having all bots always active regardless of anything
+-# With this enabled, if you get lags - then you need to reduce amount of online bots, rather than relying on optimizations
+-# This will ingore the AiPlayerbot.botActiveAlone setting, all bots will be active regardless
+-# Works best together with AiPlayerbot.DisableBotOptimizations = 1
+-# (0-1), default 0
+-# AiPlayerbot.DisableActivityPriorities = 0
+-
+-# Force bots to become active when a player is nearby
+-#AiPlayerbot.ForceActiveWhenNearPlayer = 0
+-
+-# Force bots to become active when guild orders are enabled
+-#AiPlayerbot.GuildOrderAlwaysActive = 1
+-
+-# Limit combat activity for slight performance boost.
+-#AiPlayerbot.LimitCombatActivity = 0
+-
+-# Percentage of fully active bots. Default is 10, higher numbers may affect performance
+-# AiPlayerbot.botActiveAlone = 10
++# Optional bot-AI load controller. DEFAULT: OFF.
++# This never skips core Player/Map/session/transport/teleport/Battleground updates.
++# It only reduces expensive Playerbot-AI work when enabled. Native Map::GetPlayers()
++# remains the source of truth for player presence; invisible GMs do not count.
++AiPlayerbot.LoadOptimization.Enabled = 0
++
++# Controller cadence. SampleIntervalMs controls PID sampling; DecisionCacheMs avoids
++# recalculating an individual bot's activity state every AI tick. RotationIntervalSec
++# rotates the selected low-priority bot subset so throttled bots still make progress.
++AiPlayerbot.LoadOptimization.SampleIntervalMs = 1000
++AiPlayerbot.LoadOptimization.DecisionCacheMs = 5000
++AiPlayerbot.LoadOptimization.RotationIntervalSec = 60
++
++# Global controller output in percent. BaseActivity is the nominal value at target load.
++# Min/Max clamp the PID output; protected states below ignore this clamp and stay active.
++AiPlayerbot.LoadOptimization.BaseActivity = 100
++AiPlayerbot.LoadOptimization.MinActivity = 10
++AiPlayerbot.LoadOptimization.MaxActivity = 100
++
++# Desired average world tick (milliseconds). Separate targets allow more aggressive
++# throttling when nobody visible to bots is online.
++AiPlayerbot.LoadOptimization.TargetDiffWithPlayers = 100
++AiPlayerbot.LoadOptimization.TargetDiffEmpty = 200
++
++# PID tuning. Higher Kp reacts harder to current lag; Ki reacts to sustained lag;
++# Kd damps rapid changes. Start with defaults and change one parameter at a time.
++AiPlayerbot.LoadOptimization.PID.Kp = 0.05
++AiPlayerbot.LoadOptimization.PID.Ki = 0.001
++AiPlayerbot.LoadOptimization.PID.Kd = 0.05
++
++# MinimalReactionMultiplier stretches the internal reaction interval only for AI that
++# is already classified as minimal. InactiveActionDelayMs=0 keeps PassiveDelay.
++AiPlayerbot.LoadOptimization.MinimalReactionMultiplier = 10
++AiPlayerbot.LoadOptimization.InactiveActionDelayMs = 0
++
++# Safety protections. With these defaults, player-facing, combat, Battleground and
++# instance bots stay fully active even when the controller throttles background bots.
++AiPlayerbot.LoadOptimization.Protect.PlayerInteraction = 1
++AiPlayerbot.LoadOptimization.Protect.Combat = 1
++AiPlayerbot.LoadOptimization.Protect.Battleground = 1
++AiPlayerbot.LoadOptimization.Protect.Instance = 1
++
++# Priority brackets use controller activity percentages. Below .Min none of that class
++# is selected; between .Min and .Full a stable rotating subset runs; at/above .Full all
++# bots in that class run. A 0/0 bracket means always active.
++AiPlayerbot.LoadOptimization.Bracket.PlayerInteraction.Min = 0
++AiPlayerbot.LoadOptimization.Bracket.PlayerInteraction.Full = 10
++AiPlayerbot.LoadOptimization.Bracket.Battleground.Min = 0
++AiPlayerbot.LoadOptimization.Bracket.Battleground.Full = 10
++AiPlayerbot.LoadOptimization.Bracket.Instance.Min = 0
++AiPlayerbot.LoadOptimization.Bracket.Instance.Full = 5
++AiPlayerbot.LoadOptimization.Bracket.Combat.Min = 0
++AiPlayerbot.LoadOptimization.Bracket.Combat.Full = 10
++AiPlayerbot.LoadOptimization.Bracket.BGQueue.Min = 0
++AiPlayerbot.LoadOptimization.Bracket.BGQueue.Full = 20
++AiPlayerbot.LoadOptimization.Bracket.LFG.Min = 0
++AiPlayerbot.LoadOptimization.Bracket.LFG.Full = 30
++AiPlayerbot.LoadOptimization.Bracket.NearbyPlayer.Min = 0
++AiPlayerbot.LoadOptimization.Bracket.NearbyPlayer.Full = 40
++AiPlayerbot.LoadOptimization.Bracket.Social.Min = 0
++AiPlayerbot.LoadOptimization.Bracket.Social.Full = 50
++AiPlayerbot.LoadOptimization.Bracket.NoPath.Min = 50
++AiPlayerbot.LoadOptimization.Bracket.NoPath.Full = 99
++AiPlayerbot.LoadOptimization.Bracket.ActiveArea.Min = 50
++AiPlayerbot.LoadOptimization.Bracket.ActiveArea.Full = 100
++AiPlayerbot.LoadOptimization.Bracket.EmptyServer.Min = 50
++AiPlayerbot.LoadOptimization.Bracket.EmptyServer.Full = 100
++AiPlayerbot.LoadOptimization.Bracket.ActiveMap.Min = 70
++AiPlayerbot.LoadOptimization.Bracket.ActiveMap.Full = 100
++AiPlayerbot.LoadOptimization.Bracket.InactiveMap.Min = 80
++AiPlayerbot.LoadOptimization.Bracket.InactiveMap.Full = 100
++
++# Legacy compatibility kill-switches. Either value=1 forces the new load controller OFF.
++# They no longer enable a separate Map.cpp playerbot optimization path.
++AiPlayerbot.DisableBotOptimizations = 0
++AiPlayerbot.DisableActivityPriorities = 0
++
++# Legacy behaviour knobs retained for compatibility. ForceActiveWhenNearPlayer and
++# LimitCombatActivity only matter when load optimization is enabled.
++AiPlayerbot.ForceActiveWhenNearPlayer = 0
++AiPlayerbot.GuildOrderAlwaysActive = 1
++AiPlayerbot.LimitCombatActivity = 0
+ 
+ # Limit random bot max level to online players max level + 5 and uses reference level 1 without a player.
+ # AiPlayerbot.SyncLevelWithPlayers = 0
+@@ -1032,7 +1090,8 @@ AiPlayerbot.PerfMonEnabled = 0
+ # AiPlayerbot.RandomBotRandomPassword = 1
+ 
+ 
+-# Diff with/without player in server. The server will tune bot activity to reach the desired server tick speed (in ms).
++# Legacy target-diff names retained as fallbacks for LoadOptimization.TargetDiff*.
++# They do nothing by themselves while AiPlayerbot.LoadOptimization.Enabled = 0.
+ # AiPlayerbot.DiffWithPlayer = 100
+ # AiPlayerbot.DiffEmpty = 200
+ 
+diff --git a/modules/mod-playerbots/src/playerbot/aiplayerbot.conf.dist.in.tbc b/modules/mod-playerbots/src/playerbot/aiplayerbot.conf.dist.in.tbc
+index 544e6cc..29039c9 100644
+--- a/modules/mod-playerbots/src/playerbot/aiplayerbot.conf.dist.in.tbc
++++ b/modules/mod-playerbots/src/playerbot/aiplayerbot.conf.dist.in.tbc
+@@ -57,30 +57,88 @@ AiPlayerbot.RandomBotMaxLevel = 70
+ AiPlayerbot.RandomBotAccountPrefix = RNDBOT
+ AiPlayerbot.RandomBotAccountCount = 200
+ 
+-# Disable core mangos map/bot optimizations which hinders bot activity
+-# Works best together with AiPlayerbot.DisableActivityPriorities = 1
+-# (0-1), default 0
+-# AiPlayerbot.DisableBotOptimizations = 0
+-
+-# Disable bot activity priorities, to make all bots ACTUALLY active without player in the zones or server (unless AiPlayerbot.DisableBotOptimizations = 0)
+-# This setting is added for the sake of having all bots always active regardless of anything
+-# With this enabled, if you get lags - then you need to reduce amount of online bots, rather than relying on optimizations
+-# This will ingore the AiPlayerbot.botActiveAlone setting, all bots will be active regardless
+-# Works best together with AiPlayerbot.DisableBotOptimizations = 1
+-# (0-1), default 0
+-# AiPlayerbot.DisableActivityPriorities = 0
+-
+-# Force bots to become active when a player is nearby
+-#AiPlayerbot.ForceActiveWhenNearPlayer = 0
+-
+-# Force bots to become active when guild orders are enabled
+-#AiPlayerbot.GuildOrderAlwaysActive = 1
+-
+-# Limit combat activity for slight performance boost.
+-#AiPlayerbot.LimitCombatActivity = 0
+-
+-# Percentage of fully active bots. Default is 10, higher numbers may affect performance
+-# AiPlayerbot.botActiveAlone = 10
++# Optional bot-AI load controller. DEFAULT: OFF.
++# This never skips core Player/Map/session/transport/teleport/Battleground updates.
++# It only reduces expensive Playerbot-AI work when enabled. Native Map::GetPlayers()
++# remains the source of truth for player presence; invisible GMs do not count.
++AiPlayerbot.LoadOptimization.Enabled = 0
++
++# Controller cadence. SampleIntervalMs controls PID sampling; DecisionCacheMs avoids
++# recalculating an individual bot's activity state every AI tick. RotationIntervalSec
++# rotates the selected low-priority bot subset so throttled bots still make progress.
++AiPlayerbot.LoadOptimization.SampleIntervalMs = 1000
++AiPlayerbot.LoadOptimization.DecisionCacheMs = 5000
++AiPlayerbot.LoadOptimization.RotationIntervalSec = 60
++
++# Global controller output in percent. BaseActivity is the nominal value at target load.
++# Min/Max clamp the PID output; protected states below ignore this clamp and stay active.
++AiPlayerbot.LoadOptimization.BaseActivity = 100
++AiPlayerbot.LoadOptimization.MinActivity = 10
++AiPlayerbot.LoadOptimization.MaxActivity = 100
++
++# Desired average world tick (milliseconds). Separate targets allow more aggressive
++# throttling when nobody visible to bots is online.
++AiPlayerbot.LoadOptimization.TargetDiffWithPlayers = 100
++AiPlayerbot.LoadOptimization.TargetDiffEmpty = 200
++
++# PID tuning. Higher Kp reacts harder to current lag; Ki reacts to sustained lag;
++# Kd damps rapid changes. Start with defaults and change one parameter at a time.
++AiPlayerbot.LoadOptimization.PID.Kp = 0.05
++AiPlayerbot.LoadOptimization.PID.Ki = 0.001
++AiPlayerbot.LoadOptimization.PID.Kd = 0.05
++
++# MinimalReactionMultiplier stretches the internal reaction interval only for AI that
++# is already classified as minimal. InactiveActionDelayMs=0 keeps PassiveDelay.
++AiPlayerbot.LoadOptimization.MinimalReactionMultiplier = 10
++AiPlayerbot.LoadOptimization.InactiveActionDelayMs = 0
++
++# Safety protections. With these defaults, player-facing, combat, Battleground and
++# instance bots stay fully active even when the controller throttles background bots.
++AiPlayerbot.LoadOptimization.Protect.PlayerInteraction = 1
++AiPlayerbot.LoadOptimization.Protect.Combat = 1
++AiPlayerbot.LoadOptimization.Protect.Battleground = 1
++AiPlayerbot.LoadOptimization.Protect.Instance = 1
++
++# Priority brackets use controller activity percentages. Below .Min none of that class
++# is selected; between .Min and .Full a stable rotating subset runs; at/above .Full all
++# bots in that class run. A 0/0 bracket means always active.
++AiPlayerbot.LoadOptimization.Bracket.PlayerInteraction.Min = 0
++AiPlayerbot.LoadOptimization.Bracket.PlayerInteraction.Full = 10
++AiPlayerbot.LoadOptimization.Bracket.Battleground.Min = 0
++AiPlayerbot.LoadOptimization.Bracket.Battleground.Full = 10
++AiPlayerbot.LoadOptimization.Bracket.Instance.Min = 0
++AiPlayerbot.LoadOptimization.Bracket.Instance.Full = 5
++AiPlayerbot.LoadOptimization.Bracket.Combat.Min = 0
++AiPlayerbot.LoadOptimization.Bracket.Combat.Full = 10
++AiPlayerbot.LoadOptimization.Bracket.BGQueue.Min = 0
++AiPlayerbot.LoadOptimization.Bracket.BGQueue.Full = 20
++AiPlayerbot.LoadOptimization.Bracket.LFG.Min = 0
++AiPlayerbot.LoadOptimization.Bracket.LFG.Full = 30
++AiPlayerbot.LoadOptimization.Bracket.NearbyPlayer.Min = 0
++AiPlayerbot.LoadOptimization.Bracket.NearbyPlayer.Full = 40
++AiPlayerbot.LoadOptimization.Bracket.Social.Min = 0
++AiPlayerbot.LoadOptimization.Bracket.Social.Full = 50
++AiPlayerbot.LoadOptimization.Bracket.NoPath.Min = 50
++AiPlayerbot.LoadOptimization.Bracket.NoPath.Full = 99
++AiPlayerbot.LoadOptimization.Bracket.ActiveArea.Min = 50
++AiPlayerbot.LoadOptimization.Bracket.ActiveArea.Full = 100
++AiPlayerbot.LoadOptimization.Bracket.EmptyServer.Min = 50
++AiPlayerbot.LoadOptimization.Bracket.EmptyServer.Full = 100
++AiPlayerbot.LoadOptimization.Bracket.ActiveMap.Min = 70
++AiPlayerbot.LoadOptimization.Bracket.ActiveMap.Full = 100
++AiPlayerbot.LoadOptimization.Bracket.InactiveMap.Min = 80
++AiPlayerbot.LoadOptimization.Bracket.InactiveMap.Full = 100
++
++# Legacy compatibility kill-switches. Either value=1 forces the new load controller OFF.
++# They no longer enable a separate Map.cpp playerbot optimization path.
++AiPlayerbot.DisableBotOptimizations = 0
++AiPlayerbot.DisableActivityPriorities = 0
++
++# Legacy behaviour knobs retained for compatibility. ForceActiveWhenNearPlayer and
++# LimitCombatActivity only matter when load optimization is enabled.
++AiPlayerbot.ForceActiveWhenNearPlayer = 0
++AiPlayerbot.GuildOrderAlwaysActive = 1
++AiPlayerbot.LimitCombatActivity = 0
+ 
+ # Limit random bot max level to online players max level + 5 and uses reference level 1 without a player.
+ # AiPlayerbot.SyncLevelWithPlayers = 0
+@@ -1043,7 +1101,8 @@ AiPlayerbot.PerfMonEnabled = 0
+ # AiPlayerbot.RandomBotRandomPassword = 1
+ 
+ 
+-# Diff with/without player in server. The server will tune bot activity to reach the desired server tick speed (in ms).
++# Legacy target-diff names retained as fallbacks for LoadOptimization.TargetDiff*.
++# They do nothing by themselves while AiPlayerbot.LoadOptimization.Enabled = 0.
+ # AiPlayerbot.DiffWithPlayer = 100
+ # AiPlayerbot.DiffEmpty = 200
+ 
+diff --git a/modules/mod-playerbots/src/playerbot/aiplayerbot.conf.dist.in.wotlk b/modules/mod-playerbots/src/playerbot/aiplayerbot.conf.dist.in.wotlk
+index f8fedf4..e34ba37 100644
+--- a/modules/mod-playerbots/src/playerbot/aiplayerbot.conf.dist.in.wotlk
++++ b/modules/mod-playerbots/src/playerbot/aiplayerbot.conf.dist.in.wotlk
+@@ -57,30 +57,88 @@ AiPlayerbot.RandomBotMaxLevel = 80
+ AiPlayerbot.RandomBotAccountPrefix = RNDBOT
+ AiPlayerbot.RandomBotAccountCount = 200
+ 
+-# Disable core mangos map/bot optimizations which hinders bot activity
+-# Works best together with AiPlayerbot.DisableActivityPriorities = 1
+-# (0-1), default 0
+-# AiPlayerbot.DisableBotOptimizations = 0
+-
+-# Disable bot activity priorities, to make all bots ACTUALLY active without player in the zones or server (unless AiPlayerbot.DisableBotOptimizations = 0)
+-# This setting is added for the sake of having all bots always active regardless of anything
+-# With this enabled, if you get lags - then you need to reduce amount of online bots, rather than relying on optimizations
+-# This will ingore the AiPlayerbot.botActiveAlone setting, all bots will be active regardless
+-# Works best together with AiPlayerbot.DisableBotOptimizations = 1
+-# (0-1), default 0
+-# AiPlayerbot.DisableActivityPriorities = 0
+-
+-# Force bots to become active when a player is nearby
+-#AiPlayerbot.ForceActiveWhenNearPlayer = 0
+-
+-# Force bots to become active when guild orders are enabled
+-#AiPlayerbot.GuildOrderAlwaysActive = 1
+-
+-# Limit combat activity for slight performance boost.
+-#AiPlayerbot.LimitCombatActivity = 0
+-
+-# Percentage of fully active bots. Default is 10, higher numbers may affect performance
+-# AiPlayerbot.botActiveAlone = 10
++# Optional bot-AI load controller. DEFAULT: OFF.
++# This never skips core Player/Map/session/transport/teleport/Battleground updates.
++# It only reduces expensive Playerbot-AI work when enabled. Native Map::GetPlayers()
++# remains the source of truth for player presence; invisible GMs do not count.
++AiPlayerbot.LoadOptimization.Enabled = 0
++
++# Controller cadence. SampleIntervalMs controls PID sampling; DecisionCacheMs avoids
++# recalculating an individual bot's activity state every AI tick. RotationIntervalSec
++# rotates the selected low-priority bot subset so throttled bots still make progress.
++AiPlayerbot.LoadOptimization.SampleIntervalMs = 1000
++AiPlayerbot.LoadOptimization.DecisionCacheMs = 5000
++AiPlayerbot.LoadOptimization.RotationIntervalSec = 60
++
++# Global controller output in percent. BaseActivity is the nominal value at target load.
++# Min/Max clamp the PID output; protected states below ignore this clamp and stay active.
++AiPlayerbot.LoadOptimization.BaseActivity = 100
++AiPlayerbot.LoadOptimization.MinActivity = 10
++AiPlayerbot.LoadOptimization.MaxActivity = 100
++
++# Desired average world tick (milliseconds). Separate targets allow more aggressive
++# throttling when nobody visible to bots is online.
++AiPlayerbot.LoadOptimization.TargetDiffWithPlayers = 100
++AiPlayerbot.LoadOptimization.TargetDiffEmpty = 200
++
++# PID tuning. Higher Kp reacts harder to current lag; Ki reacts to sustained lag;
++# Kd damps rapid changes. Start with defaults and change one parameter at a time.
++AiPlayerbot.LoadOptimization.PID.Kp = 0.05
++AiPlayerbot.LoadOptimization.PID.Ki = 0.001
++AiPlayerbot.LoadOptimization.PID.Kd = 0.05
++
++# MinimalReactionMultiplier stretches the internal reaction interval only for AI that
++# is already classified as minimal. InactiveActionDelayMs=0 keeps PassiveDelay.
++AiPlayerbot.LoadOptimization.MinimalReactionMultiplier = 10
++AiPlayerbot.LoadOptimization.InactiveActionDelayMs = 0
++
++# Safety protections. With these defaults, player-facing, combat, Battleground and
++# instance bots stay fully active even when the controller throttles background bots.
++AiPlayerbot.LoadOptimization.Protect.PlayerInteraction = 1
++AiPlayerbot.LoadOptimization.Protect.Combat = 1
++AiPlayerbot.LoadOptimization.Protect.Battleground = 1
++AiPlayerbot.LoadOptimization.Protect.Instance = 1
++
++# Priority brackets use controller activity percentages. Below .Min none of that class
++# is selected; between .Min and .Full a stable rotating subset runs; at/above .Full all
++# bots in that class run. A 0/0 bracket means always active.
++AiPlayerbot.LoadOptimization.Bracket.PlayerInteraction.Min = 0
++AiPlayerbot.LoadOptimization.Bracket.PlayerInteraction.Full = 10
++AiPlayerbot.LoadOptimization.Bracket.Battleground.Min = 0
++AiPlayerbot.LoadOptimization.Bracket.Battleground.Full = 10
++AiPlayerbot.LoadOptimization.Bracket.Instance.Min = 0
++AiPlayerbot.LoadOptimization.Bracket.Instance.Full = 5
++AiPlayerbot.LoadOptimization.Bracket.Combat.Min = 0
++AiPlayerbot.LoadOptimization.Bracket.Combat.Full = 10
++AiPlayerbot.LoadOptimization.Bracket.BGQueue.Min = 0
++AiPlayerbot.LoadOptimization.Bracket.BGQueue.Full = 20
++AiPlayerbot.LoadOptimization.Bracket.LFG.Min = 0
++AiPlayerbot.LoadOptimization.Bracket.LFG.Full = 30
++AiPlayerbot.LoadOptimization.Bracket.NearbyPlayer.Min = 0
++AiPlayerbot.LoadOptimization.Bracket.NearbyPlayer.Full = 40
++AiPlayerbot.LoadOptimization.Bracket.Social.Min = 0
++AiPlayerbot.LoadOptimization.Bracket.Social.Full = 50
++AiPlayerbot.LoadOptimization.Bracket.NoPath.Min = 50
++AiPlayerbot.LoadOptimization.Bracket.NoPath.Full = 99
++AiPlayerbot.LoadOptimization.Bracket.ActiveArea.Min = 50
++AiPlayerbot.LoadOptimization.Bracket.ActiveArea.Full = 100
++AiPlayerbot.LoadOptimization.Bracket.EmptyServer.Min = 50
++AiPlayerbot.LoadOptimization.Bracket.EmptyServer.Full = 100
++AiPlayerbot.LoadOptimization.Bracket.ActiveMap.Min = 70
++AiPlayerbot.LoadOptimization.Bracket.ActiveMap.Full = 100
++AiPlayerbot.LoadOptimization.Bracket.InactiveMap.Min = 80
++AiPlayerbot.LoadOptimization.Bracket.InactiveMap.Full = 100
++
++# Legacy compatibility kill-switches. Either value=1 forces the new load controller OFF.
++# They no longer enable a separate Map.cpp playerbot optimization path.
++AiPlayerbot.DisableBotOptimizations = 0
++AiPlayerbot.DisableActivityPriorities = 0
++
++# Legacy behaviour knobs retained for compatibility. ForceActiveWhenNearPlayer and
++# LimitCombatActivity only matter when load optimization is enabled.
++AiPlayerbot.ForceActiveWhenNearPlayer = 0
++AiPlayerbot.GuildOrderAlwaysActive = 1
++AiPlayerbot.LimitCombatActivity = 0
+ 
+ # Limit random bot max level to online players max level + 5 and uses reference level 1 without a player.
+ # AiPlayerbot.SyncLevelWithPlayers = 0
+@@ -1038,7 +1096,8 @@ AiPlayerbot.PerfMonEnabled = 0
+ # AiPlayerbot.RandomBotRandomPassword = 1
+ 
+ 
+-# Diff with/without player in server. The server will tune bot activity to reach the desired server tick speed (in ms).
++# Legacy target-diff names retained as fallbacks for LoadOptimization.TargetDiff*.
++# They do nothing by themselves while AiPlayerbot.LoadOptimization.Enabled = 0.
+ # AiPlayerbot.DiffWithPlayer = 100
+ # AiPlayerbot.DiffEmpty = 200
+ 
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/BattleGroundJoinAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/BattleGroundJoinAction.cpp
+index 4ec0a27..4670d1b 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/BattleGroundJoinAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/BattleGroundJoinAction.cpp
+@@ -362,11 +362,13 @@ bool BGJoinAction::shouldJoinBg(BattleGroundQueueTypeId queueTypeId, BattleGroun
+     bool isRated = false;
+     bool hasTeam = false;
+     bool isTeamLead = false;
+-    bool noLag = sWorld.GetAverageDiff() < (sRandomPlayerbotMgr.GetPlayers().empty() ? sPlayerbotAIConfig.diffEmpty : sPlayerbotAIConfig.diffWithPlayer) * 1.1;
+-
+-    if (sPlayerbotAIConfig.disableActivityPriorities)
++    bool noLag = true;
++    if (sPlayerbotAIConfig.IsLoadOptimizationEnabled())
+     {
+-        noLag = true;
++        uint32 targetDiff = sRandomPlayerbotMgr.HasVisibleRealPlayers()
++            ? sPlayerbotAIConfig.loadOptimizationTargetDiffWithPlayers
++            : sPlayerbotAIConfig.loadOptimizationTargetDiffEmpty;
++        noLag = sWorld.GetAverageDiff() < targetDiff * 1.1f;
+     }
+ 
+ #ifndef MANGOSBOT_ZERO
+@@ -852,11 +854,13 @@ bool FreeBGJoinAction::shouldJoinBg(BattleGroundQueueTypeId queueTypeId, BattleG
+     bool isArena = false;
+     bool isRated = false;
+     bool hasTeam = false;
+-    bool noLag = sWorld.GetAverageDiff() < (sRandomPlayerbotMgr.GetPlayers().empty() ? sPlayerbotAIConfig.diffEmpty : sPlayerbotAIConfig.diffWithPlayer) * 1.5;
+-
+-    if (sPlayerbotAIConfig.disableActivityPriorities)
++    bool noLag = true;
++    if (sPlayerbotAIConfig.IsLoadOptimizationEnabled())
+     {
+-        noLag = true;
++        uint32 targetDiff = sRandomPlayerbotMgr.HasVisibleRealPlayers()
++            ? sPlayerbotAIConfig.loadOptimizationTargetDiffWithPlayers
++            : sPlayerbotAIConfig.loadOptimizationTargetDiffEmpty;
++        noLag = sWorld.GetAverageDiff() < targetDiff * 1.5f;
+     }
+ 
+ #ifndef MANGOSBOT_ZERO
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/BattleGroundTactics.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/BattleGroundTactics.cpp
+index 3478834..aa7dbc6 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/BattleGroundTactics.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/BattleGroundTactics.cpp
+@@ -75,11 +75,10 @@ enum BattleBotWsgWaitSpot
+     BB_WSG_WAIT_SPOT_RIGHT
+ };
+ 
+-std::vector<uint32> const vFlagsAB = { BG_AB_BANNER_ALLIANCE , BG_AB_BANNER_CONTESTED_A , BG_AB_BANNER_HORDE , BG_AB_BANNER_CONTESTED_H ,
+-                                       BG_AB_BANNER_STABLE, BG_AB_BANNER_BLACKSMITH, BG_AB_BANNER_FARM, BG_AB_BANNER_LUMBER_MILL,
+-                                       BG_AB_BANNER_MINE };
++// AB objectives are identified by BattleGroundEventIdx, not GameObject entry IDs.
++std::vector<uint32> const vFlagsAB = {};
+ 
+-std::vector<uint32> const vFlagsWS = { GO_WS_SILVERWING_FLAG, GO_WS_WARSONG_FLAG, GO_WS_SILVERWING_FLAG_DROP, GO_WS_WARSONG_FLAG_DROP };
++std::vector<uint32> const vFlagsWS = { WS_ALLIANCE_FLAG_BASE, WS_HORDE_FLAG_BASE, WS_ALLIANCE_FLAG_GROUND, WS_HORDE_FLAG_GROUND };
+ static std::map<uint32, GameObject*> botSelectedObjectives;
+ static std::map<uint32, uint32> botObjectiveSelectionTime;
+ static std::map<uint32, uint32> botLastObjectiveCheckTime;
+@@ -2283,14 +2282,13 @@ std::vector<BattleBotPath*> const vPaths_HordeMine =
+     &vPath_AV_Coldtooth_Mine_Entrance_to_Coldtooth_Mine_Boss,
+ };
+ 
+-static std::pair<uint32, uint32> AB_AttackObjectives[] =
++static uint32 const AB_AttackObjectives[] =
+ {
+-    // Attack
+-    { BG_AB_NODE_STABLES, BG_AB_BANNER_STABLE },
+-    { BG_AB_NODE_BLACKSMITH, BG_AB_BANNER_BLACKSMITH },
+-    { BG_AB_NODE_FARM, BG_AB_BANNER_FARM },
+-    { BG_AB_NODE_LUMBER_MILL, BG_AB_BANNER_LUMBER_MILL },
+-    { BG_AB_NODE_GOLD_MINE, BG_AB_BANNER_MINE }
++    BG_AB_NODE_STABLES,
++    BG_AB_NODE_BLACKSMITH,
++    BG_AB_NODE_FARM,
++    BG_AB_NODE_LUMBER_MILL,
++    BG_AB_NODE_GOLD_MINE
+ };
+ 
+ #ifndef MANGOSBOT_ZERO
+@@ -3145,16 +3143,16 @@ bool BGTactics::selectObjective(bool reset)
+ 
+         for (const auto& objective : AB_AttackObjectives)
+         {
+-            bool isActiveNeutral = bg->IsActiveEvent(objective.first, BG_AB_NODE_STATUS_NEUTRAL);
++            bool isActiveNeutral = bg->IsActiveEvent(objective, BG_AB_NODE_TYPE_NEUTRAL);
+ 
+-            bool isOccupied = (bot->GetTeam() == HORDE) ? bg->IsActiveEvent(objective.first, BG_AB_NODE_STATUS_ALLY_OCCUPIED) : bg->IsActiveEvent(objective.first, BG_AB_NODE_STATUS_HORDE_OCCUPIED);
+-            bool isContested = (bot->GetTeam() == HORDE) ? bg->IsActiveEvent(objective.first, BG_AB_NODE_STATUS_ALLY_CONTESTED) : bg->IsActiveEvent(objective.first, BG_AB_NODE_STATUS_HORDE_CONTESTED);
+-            bool isFriendly = (bot->GetTeam() == HORDE) ? bg->IsActiveEvent(objective.first, BG_AB_NODE_STATUS_HORDE_OCCUPIED) || bg->IsActiveEvent(objective.first, BG_AB_NODE_STATUS_HORDE_CONTESTED) : bg->IsActiveEvent(objective.first, BG_AB_NODE_STATUS_ALLY_OCCUPIED) || bg->IsActiveEvent(objective.first, BG_AB_NODE_STATUS_ALLY_CONTESTED);
++            bool isOccupied = (bot->GetTeam() == HORDE) ? bg->IsActiveEvent(objective, BG_AB_NODE_STATUS_ALLY_OCCUPIED) : bg->IsActiveEvent(objective, BG_AB_NODE_STATUS_HORDE_OCCUPIED);
++            bool isContested = (bot->GetTeam() == HORDE) ? bg->IsActiveEvent(objective, BG_AB_NODE_STATUS_ALLY_CONTESTED) : bg->IsActiveEvent(objective, BG_AB_NODE_STATUS_HORDE_CONTESTED);
++            bool isFriendly = (bot->GetTeam() == HORDE) ? bg->IsActiveEvent(objective, BG_AB_NODE_STATUS_HORDE_OCCUPIED) || bg->IsActiveEvent(objective, BG_AB_NODE_STATUS_HORDE_CONTESTED) : bg->IsActiveEvent(objective, BG_AB_NODE_STATUS_ALLY_OCCUPIED) || bg->IsActiveEvent(objective, BG_AB_NODE_STATUS_ALLY_CONTESTED);
+ 
+             // If we're a defender, target friendly, neutral or under attack objectives (maybe remove the under attack ones?). if we're an attacker, target enemy, neutral or under attack objectives. 
+             if ((defender && (isActiveNeutral || isFriendly || isContested)) || (!defender && (isActiveNeutral || isContested || isOccupied)))
+             {
+-                if (GameObject* pGO = bot->GetMap()->GetGameObject(bg->GetSingleGameObjectGuid(objective.first, BG_AB_NODE_STATUS_NEUTRAL)))
++                if (GameObject* pGO = bot->GetMap()->GetGameObject(bg->GetSingleGameObjectGuid(objective, BG_AB_NODE_TYPE_NEUTRAL)))
+                 {
+                     // Add it to the list if it's valid.
+                     uniqueObjectives.insert(pGO);
+@@ -4436,8 +4434,18 @@ bool BGTactics::atFlag(std::vector<BattleBotPath*> const& vPaths, std::vector<ui
+         if (!go)
+             continue;
+ 
+-        std::vector<uint32>::const_iterator f = find(vFlagIds.begin(), vFlagIds.end(), go->GetEntry());
+-        if (f == vFlagIds.end())
++        bool isObjective = false;
++        if (bgType == BATTLEGROUND_AB)
++        {
++            BattleGroundEventIdx event = sBattleGroundMgr.GetGameObjectEventIndex(go->GetGUIDLow());
++            isObjective = event.event1 < BG_AB_NODES_MAX;
++        }
++        else
++        {
++            isObjective = find(vFlagIds.begin(), vFlagIds.end(), go->GetEntry()) != vFlagIds.end();
++        }
++
++        if (!isObjective)
+             continue;
+ 
+         if (!sServerFacade.isSpawned(go) || go->IsInUse() || go->GetGoState() != GO_STATE_READY)
+@@ -4477,21 +4485,10 @@ bool BGTactics::atFlag(std::vector<BattleBotPath*> const& vPaths, std::vector<ui
+             //bot->Say(out.str(), LANG_UNIVERSAL);
+             //SetDuration(10000);
+ 
+-            // cast banner spell
+             ai->StopMoving();
+-
+-            SpellEntry const *spellInfo = sServerFacade.LookupSpellInfo(SPELL_CAPTURE_BANNER);
+-            if (!spellInfo)
+-                return false;
+-
+-            Spell *spell = new Spell(bot, spellInfo, false);
+-            spell->m_targets.setGOTarget(go);
+-            spell->SpellStart(&spell->m_targets);
+-            ai->WaitForSpellCast(spell);
+-
+-            //WorldPacket data(CMSG_GAMEOBJ_USE);
+-            //data << go->GetObjectGuid();
+-            //bot->GetSession()->HandleGameObjectUseOpcode(data);
++            WorldPacket data(CMSG_GAMEOBJ_USE);
++            data << go->GetObjectGuid();
++            bot->GetSession()->HandleGameObjectUseOpcode(data);
+             resetObjective();
+             return true;
+             break;
+@@ -4505,13 +4502,13 @@ bool BGTactics::atFlag(std::vector<BattleBotPath*> const& vPaths, std::vector<ui
+                     if (bot->GetTeam() == HORDE)
+                     {
+                         WorldPacket data(CMSG_AREATRIGGER);
+-                        data << uint32(WS_AT_WARSONG_ROOM);
++                        data << uint32(AREATRIGGER_HORDE_FLAG_SPAWN);
+                         bot->GetSession()->HandleAreaTriggerOpcode(data);
+                     }
+                     else
+                     {
+                         WorldPacket data(CMSG_AREATRIGGER);
+-                        data << uint32(WS_AT_SILVERWING_ROOM);
++                        data << uint32(AREATRIGGER_ALLIANCE_FLAG_SPAWN);
+                         bot->GetSession()->HandleAreaTriggerOpcode(data);
+                     }
+                     //ostringstream out; out << "Capturing flag!";
+@@ -4699,7 +4696,7 @@ uint32 BGTactics::getDefendersCount(Position point, float range, bool combat)
+     for (auto& guid : bg->GetBgMap()->GetPlayers())
+     {
+         Player* player = guid.getSource();
+-        if (!player)
++        if (!sRandomPlayerbotMgr.IsPlayerVisibleToBots(player))
+             continue;
+ 
+         if (sServerFacade.IsAlive(player) && player->GetTeam() == bot->GetTeam())
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/BattleGroundTacticsAV.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/BattleGroundTacticsAV.cpp
+index 4f83d96..b86f8d5 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/BattleGroundTacticsAV.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/BattleGroundTacticsAV.cpp
+@@ -7,27 +7,27 @@ static std::tuple<uint32, uint32, std::string> AV_HordeAttackObjectives[] =
+ {
+     // Attack
+ #ifndef MANGOSBOT_TWO  
+-    { BG_AV_NODES_STONEHEART_BUNKER, BG_AV_NODE_STATUS_ALLY_OCCUPIED, "AV_STONEHEART_BUNKER"},
+-    { BG_AV_NODES_STONEHEART_GRAVE, BG_AV_NODE_STATUS_ALLY_CONTESTED, "AV_STONEHEART_GRAVEYARD" },
+-    { BG_AV_NODES_STONEHEART_GRAVE, BG_AV_NODE_STATUS_ALLY_OCCUPIED, "AV_STONEHEART_GRAVEYARD" },
+-    { BG_AV_NODES_ICEWING_BUNKER, BG_AV_NODE_STATUS_ALLY_OCCUPIED, "AV_ICEWING_BUNKER" },
+-    { BG_AV_NODES_STORMPIKE_GRAVE, BG_AV_NODE_STATUS_ALLY_CONTESTED, "AV_STORMPIKE_GRAVEYARD" },
+-    { BG_AV_NODES_STORMPIKE_GRAVE, BG_AV_NODE_STATUS_ALLY_OCCUPIED, "AV_STORMPIKE_GRAVEYARD" },
+-    { BG_AV_NODES_DUNBALDAR_SOUTH, BG_AV_NODE_STATUS_ALLY_OCCUPIED, "AV_DUNBALDAR_SOUTH" },
+-    { BG_AV_NODES_DUNBALDAR_NORTH, BG_AV_NODE_STATUS_ALLY_OCCUPIED, "AV_DUNBALDAR_NORTH" },
+-    { BG_AV_NODES_FIRSTAID_STATION, BG_AV_NODE_STATUS_ALLY_CONTESTED, "AV_STORMPIKE_AID_STATION" },
+-    { BG_AV_NODES_FIRSTAID_STATION, BG_AV_NODE_STATUS_ALLY_OCCUPIED, "AV_STORMPIKE_AID_STATION" },
++    { BG_AV_NODES_STONEHEART_BUNKER, ALLIANCE_CONTROLLED, "AV_STONEHEART_BUNKER"},
++    { BG_AV_NODES_STONEHEART_GRAVE, ALLIANCE_ASSAULTED, "AV_STONEHEART_GRAVEYARD" },
++    { BG_AV_NODES_STONEHEART_GRAVE, ALLIANCE_CONTROLLED, "AV_STONEHEART_GRAVEYARD" },
++    { BG_AV_NODES_ICEWING_BUNKER, ALLIANCE_CONTROLLED, "AV_ICEWING_BUNKER" },
++    { BG_AV_NODES_STORMPIKE_GRAVE, ALLIANCE_ASSAULTED, "AV_STORMPIKE_GRAVEYARD" },
++    { BG_AV_NODES_STORMPIKE_GRAVE, ALLIANCE_CONTROLLED, "AV_STORMPIKE_GRAVEYARD" },
++    { BG_AV_NODES_DUNBALDAR_SOUTH, ALLIANCE_CONTROLLED, "AV_DUNBALDAR_SOUTH" },
++    { BG_AV_NODES_DUNBALDAR_NORTH, ALLIANCE_CONTROLLED, "AV_DUNBALDAR_NORTH" },
++    { BG_AV_NODES_FIRSTAID_STATION, ALLIANCE_ASSAULTED, "AV_STORMPIKE_AID_STATION" },
++    { BG_AV_NODES_FIRSTAID_STATION, ALLIANCE_CONTROLLED, "AV_STORMPIKE_AID_STATION" },
+ #else
+-    { BG_AV_NODE_STONEHEART_BUNKER, BG_AV_NODE_STATUS_ALLY_OCCUPIED, "AV_STONEHEART_BUNKER" },
+-    { BG_AV_NODE_GY_STONEHEARTH, BG_AV_NODE_STATUS_ALLY_CONTESTED, "AV_STONEHEART_GRAVEYARD" },
+-    { BG_AV_NODE_GY_STONEHEARTH, BG_AV_NODE_STATUS_ALLY_OCCUPIED, "AV_STONEHEART_GRAVEYARD" },
+-    { BG_AV_NODE_ICEWING_BUNKER, BG_AV_NODE_STATUS_ALLY_OCCUPIED, "AV_ICEWING_BUNKER" },
+-    { BG_AV_NODE_GY_STORMPIKE, BG_AV_NODE_STATUS_ALLY_CONTESTED, "AV_STORMPIKE_GRAVEYARD" },
+-    { BG_AV_NODE_GY_STORMPIKE, BG_AV_NODE_STATUS_ALLY_OCCUPIED, "AV_STORMPIKE_GRAVEYARD" },
+-    { BG_AV_NODE_DUNBALDAR_SOUTH, BG_AV_NODE_STATUS_ALLY_OCCUPIED, "AV_DUNBALDAR_SOUTH" },
+-    { BG_AV_NODE_DUNBALDAR_NORTH, BG_AV_NODE_STATUS_ALLY_OCCUPIED, "AV_DUNBALDAR_NORTH" },
+-    { BG_AV_NODE_GY_DUN_BALDAR, BG_AV_NODE_STATUS_ALLY_CONTESTED, "AV_STORMPIKE_AID_STATION" },
+-    { BG_AV_NODE_GY_DUN_BALDAR, BG_AV_NODE_STATUS_ALLY_OCCUPIED, "AV_STORMPIKE_AID_STATION" },
++    { BG_AV_NODE_STONEHEART_BUNKER, ALLIANCE_CONTROLLED, "AV_STONEHEART_BUNKER" },
++    { BG_AV_NODE_GY_STONEHEARTH, ALLIANCE_ASSAULTED, "AV_STONEHEART_GRAVEYARD" },
++    { BG_AV_NODE_GY_STONEHEARTH, ALLIANCE_CONTROLLED, "AV_STONEHEART_GRAVEYARD" },
++    { BG_AV_NODE_ICEWING_BUNKER, ALLIANCE_CONTROLLED, "AV_ICEWING_BUNKER" },
++    { BG_AV_NODE_GY_STORMPIKE, ALLIANCE_ASSAULTED, "AV_STORMPIKE_GRAVEYARD" },
++    { BG_AV_NODE_GY_STORMPIKE, ALLIANCE_CONTROLLED, "AV_STORMPIKE_GRAVEYARD" },
++    { BG_AV_NODE_DUNBALDAR_SOUTH, ALLIANCE_CONTROLLED, "AV_DUNBALDAR_SOUTH" },
++    { BG_AV_NODE_DUNBALDAR_NORTH, ALLIANCE_CONTROLLED, "AV_DUNBALDAR_NORTH" },
++    { BG_AV_NODE_GY_DUN_BALDAR, ALLIANCE_ASSAULTED, "AV_STORMPIKE_AID_STATION" },
++    { BG_AV_NODE_GY_DUN_BALDAR, ALLIANCE_CONTROLLED, "AV_STORMPIKE_AID_STATION" },
+ #endif
+ };
+ 
+@@ -35,19 +35,19 @@ static std::tuple<uint32, uint32, std::string> AV_HordeDefendObjectives[] =
+ {
+     // Defend
+ #ifndef MANGOSBOT_TWO
+-    { BG_AV_NODES_FROSTWOLF_GRAVE, BG_AV_NODE_STATUS_ALLY_CONTESTED, "AV_FROSTWOLF_GRAVEYARD" },
+-    { BG_AV_NODES_FROSTWOLF_GRAVE, BG_AV_NODE_STATUS_ALLY_OCCUPIED, "AV_FROSTWOLF_GRAVEYARD" },
+-    { BG_AV_NODES_FROSTWOLF_ETOWER, BG_AV_NODE_STATUS_ALLY_CONTESTED, "AV_EAST_FROSTWOLF_TOWER" },
+-    { BG_AV_NODES_FROSTWOLF_WTOWER, BG_AV_NODE_STATUS_ALLY_CONTESTED, "AV_WEST_FROSTWOLF_TOWER" },
+-    { BG_AV_NODES_TOWER_POINT, BG_AV_NODE_STATUS_ALLY_CONTESTED, "AV_TOWERPOINT" },
+-    { BG_AV_NODES_ICEBLOOD_TOWER, BG_AV_NODE_STATUS_ALLY_CONTESTED, "AV_ICEBLOOD_TOWER" },
++    { BG_AV_NODES_FROSTWOLF_GRAVE, ALLIANCE_ASSAULTED, "AV_FROSTWOLF_GRAVEYARD" },
++    { BG_AV_NODES_FROSTWOLF_GRAVE, ALLIANCE_CONTROLLED, "AV_FROSTWOLF_GRAVEYARD" },
++    { BG_AV_NODES_FROSTWOLF_ETOWER, ALLIANCE_ASSAULTED, "AV_EAST_FROSTWOLF_TOWER" },
++    { BG_AV_NODES_FROSTWOLF_WTOWER, ALLIANCE_ASSAULTED, "AV_WEST_FROSTWOLF_TOWER" },
++    { BG_AV_NODES_TOWER_POINT, ALLIANCE_ASSAULTED, "AV_TOWERPOINT" },
++    { BG_AV_NODES_ICEBLOOD_TOWER, ALLIANCE_ASSAULTED, "AV_ICEBLOOD_TOWER" },
+ #else
+-    { BG_AV_NODE_GY_FROSTWOLF, BG_AV_NODE_STATUS_ALLY_CONTESTED, "AV_FROSTWOLF_GRAVEYARD" },
+-    { BG_AV_NODE_GY_FROSTWOLF, BG_AV_NODE_STATUS_ALLY_OCCUPIED, "AV_FROSTWOLF_GRAVEYARD" },
+-    { BG_AV_NODE_FROSTWOLF_EAST, BG_AV_NODE_STATUS_ALLY_CONTESTED, "AV_EAST_FROSTWOLF_TOWER" },
+-    { BG_AV_NODE_FROSTWOLF_WEST, BG_AV_NODE_STATUS_ALLY_CONTESTED, "AV_WEST_FROSTWOLF_TOWER" },
+-    { BG_AV_NODE_TOWER_POINT, BG_AV_NODE_STATUS_ALLY_CONTESTED, "AV_TOWERPOINT" },
+-    { BG_AV_NODE_ICEBLOOD_TOWER, BG_AV_NODE_STATUS_ALLY_CONTESTED, "AV_ICEBLOOD_TOWER" },
++    { BG_AV_NODE_GY_FROSTWOLF, ALLIANCE_ASSAULTED, "AV_FROSTWOLF_GRAVEYARD" },
++    { BG_AV_NODE_GY_FROSTWOLF, ALLIANCE_CONTROLLED, "AV_FROSTWOLF_GRAVEYARD" },
++    { BG_AV_NODE_FROSTWOLF_EAST, ALLIANCE_ASSAULTED, "AV_EAST_FROSTWOLF_TOWER" },
++    { BG_AV_NODE_FROSTWOLF_WEST, ALLIANCE_ASSAULTED, "AV_WEST_FROSTWOLF_TOWER" },
++    { BG_AV_NODE_TOWER_POINT, ALLIANCE_ASSAULTED, "AV_TOWERPOINT" },
++    { BG_AV_NODE_ICEBLOOD_TOWER, ALLIANCE_ASSAULTED, "AV_ICEBLOOD_TOWER" },
+ #endif
+ };
+ 
+@@ -55,27 +55,27 @@ static std::tuple<uint32, uint32, std::string> AV_AllianceAttackObjectives[] =
+ {
+     // Attack
+ #ifndef MANGOSBOT_TWO  
+-    { BG_AV_NODES_ICEBLOOD_TOWER, BG_AV_NODE_STATUS_HORDE_OCCUPIED, "AV_ICEBLOOD_TOWER" },
+-    { BG_AV_NODES_ICEBLOOD_GRAVE, BG_AV_NODE_STATUS_HORDE_CONTESTED, "AV_ICEBLOOD_GRAVEYARD" },
+-    { BG_AV_NODES_ICEBLOOD_GRAVE, BG_AV_NODE_STATUS_HORDE_OCCUPIED, "AV_ICEBLOOD_GRAVEYARD" },
+-    { BG_AV_NODES_TOWER_POINT, BG_AV_NODE_STATUS_HORDE_OCCUPIED, "AV_TOWERPOINT" },
+-    { BG_AV_NODES_FROSTWOLF_GRAVE, BG_AV_NODE_STATUS_HORDE_CONTESTED, "AV_FROSTWOLF_GRAVEYARD" },
+-    { BG_AV_NODES_FROSTWOLF_GRAVE, BG_AV_NODE_STATUS_HORDE_OCCUPIED, "AV_FROSTWOLF_GRAVEYARD" },
+-    { BG_AV_NODES_FROSTWOLF_ETOWER, BG_AV_NODE_STATUS_HORDE_OCCUPIED, "AV_EAST_FROSTWOLF_TOWER" },
+-    { BG_AV_NODES_FROSTWOLF_WTOWER, BG_AV_NODE_STATUS_HORDE_OCCUPIED, "AV_WEST_FROSTWOLF_TOWER" },
+-    { BG_AV_NODES_FROSTWOLF_HUT, BG_AV_NODE_STATUS_HORDE_CONTESTED, "AV_FROSTWOLF_RELIEF_HUT" },
+-    { BG_AV_NODES_FROSTWOLF_HUT, BG_AV_NODE_STATUS_HORDE_OCCUPIED, "AV_FROSTWOLF_RELIEF_HUT" },
++    { BG_AV_NODES_ICEBLOOD_TOWER, HORDE_CONTROLLED, "AV_ICEBLOOD_TOWER" },
++    { BG_AV_NODES_ICEBLOOD_GRAVE, HORDE_ASSAULTED, "AV_ICEBLOOD_GRAVEYARD" },
++    { BG_AV_NODES_ICEBLOOD_GRAVE, HORDE_CONTROLLED, "AV_ICEBLOOD_GRAVEYARD" },
++    { BG_AV_NODES_TOWER_POINT, HORDE_CONTROLLED, "AV_TOWERPOINT" },
++    { BG_AV_NODES_FROSTWOLF_GRAVE, HORDE_ASSAULTED, "AV_FROSTWOLF_GRAVEYARD" },
++    { BG_AV_NODES_FROSTWOLF_GRAVE, HORDE_CONTROLLED, "AV_FROSTWOLF_GRAVEYARD" },
++    { BG_AV_NODES_FROSTWOLF_ETOWER, HORDE_CONTROLLED, "AV_EAST_FROSTWOLF_TOWER" },
++    { BG_AV_NODES_FROSTWOLF_WTOWER, HORDE_CONTROLLED, "AV_WEST_FROSTWOLF_TOWER" },
++    { BG_AV_NODES_FROSTWOLF_HUT, HORDE_ASSAULTED, "AV_FROSTWOLF_RELIEF_HUT" },
++    { BG_AV_NODES_FROSTWOLF_HUT, HORDE_CONTROLLED, "AV_FROSTWOLF_RELIEF_HUT" },
+ #else
+-    { BG_AV_NODE_ICEBLOOD_TOWER, BG_AV_NODE_STATUS_HORDE_OCCUPIED, "AV_ICEBLOOD_TOWER" },
+-    { BG_AV_NODE_GY_ICEBLOOD, BG_AV_NODE_STATUS_HORDE_CONTESTED, "AV_ICEBLOOD_GRAVEYARD" },
+-    { BG_AV_NODE_GY_ICEBLOOD, BG_AV_NODE_STATUS_HORDE_OCCUPIED, "AV_ICEBLOOD_GRAVEYARD" },
+-    { BG_AV_NODE_TOWER_POINT, BG_AV_NODE_STATUS_HORDE_OCCUPIED, "AV_TOWERPOINT" },
+-    { BG_AV_NODE_GY_FROSTWOLF, BG_AV_NODE_STATUS_HORDE_CONTESTED, "AV_FROSTWOLF_GRAVEYARD" },
+-    { BG_AV_NODE_GY_FROSTWOLF, BG_AV_NODE_STATUS_HORDE_OCCUPIED, "AV_FROSTWOLF_GRAVEYARD" },
+-    { BG_AV_NODE_FROSTWOLF_EAST, BG_AV_NODE_STATUS_HORDE_OCCUPIED, "AV_EAST_FROSTWOLF_TOWER" },
+-    { BG_AV_NODE_FROSTWOLF_WEST, BG_AV_NODE_STATUS_HORDE_OCCUPIED, "AV_WEST_FROSTWOLF_TOWER" },
+-    { BG_AV_NODE_GY_FROSTWOLF_KEEP, BG_AV_NODE_STATUS_HORDE_CONTESTED, "AV_FROSTWOLF_RELIEF_HUT" },
+-    { BG_AV_NODE_GY_FROSTWOLF_KEEP, BG_AV_NODE_STATUS_HORDE_OCCUPIED, "AV_FROSTWOLF_RELIEF_HUT" },
++    { BG_AV_NODE_ICEBLOOD_TOWER, HORDE_CONTROLLED, "AV_ICEBLOOD_TOWER" },
++    { BG_AV_NODE_GY_ICEBLOOD, HORDE_ASSAULTED, "AV_ICEBLOOD_GRAVEYARD" },
++    { BG_AV_NODE_GY_ICEBLOOD, HORDE_CONTROLLED, "AV_ICEBLOOD_GRAVEYARD" },
++    { BG_AV_NODE_TOWER_POINT, HORDE_CONTROLLED, "AV_TOWERPOINT" },
++    { BG_AV_NODE_GY_FROSTWOLF, HORDE_ASSAULTED, "AV_FROSTWOLF_GRAVEYARD" },
++    { BG_AV_NODE_GY_FROSTWOLF, HORDE_CONTROLLED, "AV_FROSTWOLF_GRAVEYARD" },
++    { BG_AV_NODE_FROSTWOLF_EAST, HORDE_CONTROLLED, "AV_EAST_FROSTWOLF_TOWER" },
++    { BG_AV_NODE_FROSTWOLF_WEST, HORDE_CONTROLLED, "AV_WEST_FROSTWOLF_TOWER" },
++    { BG_AV_NODE_GY_FROSTWOLF_KEEP, HORDE_ASSAULTED, "AV_FROSTWOLF_RELIEF_HUT" },
++    { BG_AV_NODE_GY_FROSTWOLF_KEEP, HORDE_CONTROLLED, "AV_FROSTWOLF_RELIEF_HUT" },
+ #endif
+ };
+ 
+@@ -83,19 +83,19 @@ static std::tuple<uint32, uint32, std::string> AV_AllianceDefendObjectives[] =
+ {
+     // Defend
+ #ifndef MANGOSBOT_TWO
+-    { BG_AV_NODES_STORMPIKE_GRAVE, BG_AV_NODE_STATUS_HORDE_CONTESTED, "AV_STORMPIKE_GRAVEYARD" },
+-    { BG_AV_NODES_STORMPIKE_GRAVE, BG_AV_NODE_STATUS_HORDE_OCCUPIED, "AV_STORMPIKE_GRAVEYARD" },
+-    { BG_AV_NODES_DUNBALDAR_SOUTH, BG_AV_NODE_STATUS_HORDE_CONTESTED, "AV_DUNBALDAR_SOUTH" },
+-    { BG_AV_NODES_DUNBALDAR_NORTH, BG_AV_NODE_STATUS_HORDE_CONTESTED, "AV_DUNBALDAR_NORTH" },
+-    { BG_AV_NODES_ICEWING_BUNKER, BG_AV_NODE_STATUS_HORDE_CONTESTED, "AV_ICEWING_BUNKER" },
+-    { BG_AV_NODES_STONEHEART_BUNKER, BG_AV_NODE_STATUS_HORDE_CONTESTED, "AV_STONEHEART_BUNKER" },
++    { BG_AV_NODES_STORMPIKE_GRAVE, HORDE_ASSAULTED, "AV_STORMPIKE_GRAVEYARD" },
++    { BG_AV_NODES_STORMPIKE_GRAVE, HORDE_CONTROLLED, "AV_STORMPIKE_GRAVEYARD" },
++    { BG_AV_NODES_DUNBALDAR_SOUTH, HORDE_ASSAULTED, "AV_DUNBALDAR_SOUTH" },
++    { BG_AV_NODES_DUNBALDAR_NORTH, HORDE_ASSAULTED, "AV_DUNBALDAR_NORTH" },
++    { BG_AV_NODES_ICEWING_BUNKER, HORDE_ASSAULTED, "AV_ICEWING_BUNKER" },
++    { BG_AV_NODES_STONEHEART_BUNKER, HORDE_ASSAULTED, "AV_STONEHEART_BUNKER" },
+ #else
+-    { BG_AV_NODE_GY_STORMPIKE, BG_AV_NODE_STATUS_HORDE_CONTESTED, "AV_STORMPIKE_GRAVEYARD" },
+-    { BG_AV_NODE_GY_STORMPIKE, BG_AV_NODE_STATUS_HORDE_OCCUPIED, "AV_STORMPIKE_GRAVEYARD" },
+-    { BG_AV_NODE_DUNBALDAR_SOUTH, BG_AV_NODE_STATUS_HORDE_CONTESTED, "AV_DUNBALDAR_SOUTH" },
+-    { BG_AV_NODE_DUNBALDAR_NORTH, BG_AV_NODE_STATUS_HORDE_CONTESTED, "AV_DUNBALDAR_NORTH" },
+-    { BG_AV_NODE_ICEWING_BUNKER, BG_AV_NODE_STATUS_HORDE_CONTESTED, "AV_ICEWING_BUNKER" },
+-    { BG_AV_NODE_STONEHEART_BUNKER, BG_AV_NODE_STATUS_HORDE_CONTESTED, "AV_STONEHEART_BUNKER" },
++    { BG_AV_NODE_GY_STORMPIKE, HORDE_ASSAULTED, "AV_STORMPIKE_GRAVEYARD" },
++    { BG_AV_NODE_GY_STORMPIKE, HORDE_CONTROLLED, "AV_STORMPIKE_GRAVEYARD" },
++    { BG_AV_NODE_DUNBALDAR_SOUTH, HORDE_ASSAULTED, "AV_DUNBALDAR_SOUTH" },
++    { BG_AV_NODE_DUNBALDAR_NORTH, HORDE_ASSAULTED, "AV_DUNBALDAR_NORTH" },
++    { BG_AV_NODE_ICEWING_BUNKER, HORDE_ASSAULTED, "AV_ICEWING_BUNKER" },
++    { BG_AV_NODE_STONEHEART_BUNKER, HORDE_ASSAULTED, "AV_STONEHEART_BUNKER" },
+ #endif
+ };
+ 
+@@ -109,17 +109,17 @@ bool BGTactics::SelectAvObjectiveAlliance(WorldLocation& objectiveLocation)
+ 
+     // End boss
+ #ifndef MANGOSBOT_TWO  
+-    if (!bg->IsActiveEvent(BG_AV_NODES_ICEBLOOD_TOWER, BG_AV_NODE_STATUS_HORDE_OCCUPIED) &&
+-        !bg->IsActiveEvent(BG_AV_NODES_TOWER_POINT, BG_AV_NODE_STATUS_HORDE_OCCUPIED) &&
+-        !bg->IsActiveEvent(BG_AV_NODES_FROSTWOLF_ETOWER, BG_AV_NODE_STATUS_HORDE_OCCUPIED) &&
+-        !bg->IsActiveEvent(BG_AV_NODES_FROSTWOLF_WTOWER, BG_AV_NODE_STATUS_HORDE_OCCUPIED) &&
+-        !bg->IsActiveEvent(BG_AV_NODES_FROSTWOLF_HUT, BG_AV_NODE_STATUS_HORDE_OCCUPIED))
++    if (!bg->IsActiveEvent(BG_AV_NODES_ICEBLOOD_TOWER, HORDE_CONTROLLED) &&
++        !bg->IsActiveEvent(BG_AV_NODES_TOWER_POINT, HORDE_CONTROLLED) &&
++        !bg->IsActiveEvent(BG_AV_NODES_FROSTWOLF_ETOWER, HORDE_CONTROLLED) &&
++        !bg->IsActiveEvent(BG_AV_NODES_FROSTWOLF_WTOWER, HORDE_CONTROLLED) &&
++        !bg->IsActiveEvent(BG_AV_NODES_FROSTWOLF_HUT, HORDE_CONTROLLED))
+ #else
+-    if (!bg->IsActiveEvent(BG_AV_NODE_ICEBLOOD_TOWER, BG_AV_NODE_STATUS_HORDE_OCCUPIED) &&
+-        !bg->IsActiveEvent(BG_AV_NODE_TOWER_POINT, BG_AV_NODE_STATUS_HORDE_OCCUPIED) &&
+-        !bg->IsActiveEvent(BG_AV_NODE_FROSTWOLF_EAST, BG_AV_NODE_STATUS_HORDE_OCCUPIED) &&
+-        !bg->IsActiveEvent(BG_AV_NODE_FROSTWOLF_WEST, BG_AV_NODE_STATUS_HORDE_OCCUPIED) &&
+-        !bg->IsActiveEvent(BG_AV_NODE_GY_FROSTWOLF_KEEP, BG_AV_NODE_STATUS_HORDE_OCCUPIED))
++    if (!bg->IsActiveEvent(BG_AV_NODE_ICEBLOOD_TOWER, HORDE_CONTROLLED) &&
++        !bg->IsActiveEvent(BG_AV_NODE_TOWER_POINT, HORDE_CONTROLLED) &&
++        !bg->IsActiveEvent(BG_AV_NODE_FROSTWOLF_EAST, HORDE_CONTROLLED) &&
++        !bg->IsActiveEvent(BG_AV_NODE_FROSTWOLF_WEST, HORDE_CONTROLLED) &&
++        !bg->IsActiveEvent(BG_AV_NODE_GY_FROSTWOLF_KEEP, HORDE_CONTROLLED))
+ #endif
+     {
+         if (Creature* pDrek = bot->GetMap()->GetCreature(bg->GetSingleCreatureGuid(BG_AV_BOSS_H, 0)))
+@@ -135,10 +135,10 @@ bool BGTactics::SelectAvObjectiveAlliance(WorldLocation& objectiveLocation)
+ 
+     // Only go to Snowfall Graveyard if already close to it.
+ #ifndef MANGOSBOT_TWO  
+-    if (supporter && (bg->IsActiveEvent(BG_AV_NODES_SNOWFALL_GRAVE, BG_AV_NODE_STATUS_HORDE_CONTESTED) || bg->IsActiveEvent(BG_AV_NODES_SNOWFALL_GRAVE, BG_AV_NODE_STATUS_HORDE_OCCUPIED) || bg->IsActiveEvent(BG_AV_NODES_SNOWFALL_GRAVE, BG_AV_NODE_STATUS_NEUTRAL_OCCUPIED)))
++    if (supporter && (bg->IsActiveEvent(BG_AV_NODES_SNOWFALL_GRAVE, HORDE_ASSAULTED) || bg->IsActiveEvent(BG_AV_NODES_SNOWFALL_GRAVE, HORDE_CONTROLLED) || bg->IsActiveEvent(BG_AV_NODES_SNOWFALL_GRAVE, NEUTRAL_CONTROLLED)))
+     {
+ #else
+-    if (supporter && (bg->IsActiveEvent(BG_AV_NODE_GY_SNOWFALL, BG_AV_NODE_STATUS_HORDE_CONTESTED) || bg->IsActiveEvent(BG_AV_NODE_GY_SNOWFALL, BG_AV_NODE_STATUS_HORDE_OCCUPIED) || bg->IsActiveEvent(BG_AV_NODE_GY_SNOWFALL, BG_AV_NODE_STATUS_NEUTRAL_OCCUPIED)))
++    if (supporter && (bg->IsActiveEvent(BG_AV_NODE_GY_SNOWFALL, HORDE_ASSAULTED) || bg->IsActiveEvent(BG_AV_NODE_GY_SNOWFALL, HORDE_CONTROLLED) || bg->IsActiveEvent(BG_AV_NODE_GY_SNOWFALL, NEUTRAL_CONTROLLED)))
+     {
+ #endif
+         if (WorldLocation snowfallGraveyard; sRandomPlayerbotMgr.GetNamedLocation("AV_SNOWFALL_GRAVEYARD", snowfallGraveyard))
+@@ -152,7 +152,7 @@ bool BGTactics::SelectAvObjectiveAlliance(WorldLocation& objectiveLocation)
+     }
+ 
+     // Galv
+-    if (!supporter && !bg->IsActiveEvent(BG_AV_NODE_CAPTAIN_DEAD_H, 0))
++    if (!supporter && !bg->IsActiveEvent(BG_AV_NodeEventCaptainDead_H, 0))
+     {
+         if (Creature* pGalvangar = bot->GetMap()->GetCreature(bg->GetSingleCreatureGuid(BG_AV_CAPTAIN_H, 0)))
+         {
+@@ -238,9 +238,9 @@ bool BGTactics::SelectAvObjectiveAlliance(WorldLocation& objectiveLocation)
+ 
+             // Split team to capture 2 towers at same time
+ #ifndef MANGOSBOT_TWO  
+-            if (urand(0, 1) && nodeId == BG_AV_NODES_FROSTWOLF_ETOWER && bg->IsActiveEvent(BG_AV_NODES_FROSTWOLF_WTOWER, BG_AV_NODE_STATUS_HORDE_OCCUPIED))
++            if (urand(0, 1) && nodeId == BG_AV_NODES_FROSTWOLF_ETOWER && bg->IsActiveEvent(BG_AV_NODES_FROSTWOLF_WTOWER, HORDE_CONTROLLED))
+ #else
+-            if (urand(0, 1) && nodeId == BG_AV_NODE_FROSTWOLF_EAST && bg->IsActiveEvent(BG_AV_NODE_FROSTWOLF_WEST, BG_AV_NODE_STATUS_HORDE_OCCUPIED))
++            if (urand(0, 1) && nodeId == BG_AV_NODE_FROSTWOLF_EAST && bg->IsActiveEvent(BG_AV_NODE_FROSTWOLF_WEST, HORDE_CONTROLLED))
+ #endif
+                 continue;
+ 
+@@ -270,17 +270,17 @@ bool BGTactics::SelectAvObjectiveHorde(WorldLocation& objectiveLocation)
+ 
+     // End Boss
+ #ifndef MANGOSBOT_TWO  
+-    if (!bg->IsActiveEvent(BG_AV_NODES_DUNBALDAR_SOUTH, BG_AV_NODE_STATUS_ALLY_OCCUPIED) &&
+-        !bg->IsActiveEvent(BG_AV_NODES_DUNBALDAR_NORTH, BG_AV_NODE_STATUS_ALLY_OCCUPIED) &&
+-        !bg->IsActiveEvent(BG_AV_NODES_ICEWING_BUNKER, BG_AV_NODE_STATUS_ALLY_OCCUPIED) &&
+-        !bg->IsActiveEvent(BG_AV_NODES_STONEHEART_BUNKER, BG_AV_NODE_STATUS_ALLY_OCCUPIED) &&
+-        !bg->IsActiveEvent(BG_AV_NODES_FIRSTAID_STATION, BG_AV_NODE_STATUS_ALLY_OCCUPIED))
++    if (!bg->IsActiveEvent(BG_AV_NODES_DUNBALDAR_SOUTH, ALLIANCE_CONTROLLED) &&
++        !bg->IsActiveEvent(BG_AV_NODES_DUNBALDAR_NORTH, ALLIANCE_CONTROLLED) &&
++        !bg->IsActiveEvent(BG_AV_NODES_ICEWING_BUNKER, ALLIANCE_CONTROLLED) &&
++        !bg->IsActiveEvent(BG_AV_NODES_STONEHEART_BUNKER, ALLIANCE_CONTROLLED) &&
++        !bg->IsActiveEvent(BG_AV_NODES_FIRSTAID_STATION, ALLIANCE_CONTROLLED))
+ #else
+-    if (!bg->IsActiveEvent(BG_AV_NODE_DUNBALDAR_SOUTH, BG_AV_NODE_STATUS_ALLY_OCCUPIED) &&
+-        !bg->IsActiveEvent(BG_AV_NODE_DUNBALDAR_NORTH, BG_AV_NODE_STATUS_ALLY_OCCUPIED) &&
+-        !bg->IsActiveEvent(BG_AV_NODE_ICEWING_BUNKER, BG_AV_NODE_STATUS_ALLY_OCCUPIED) &&
+-        !bg->IsActiveEvent(BG_AV_NODE_STONEHEART_BUNKER, BG_AV_NODE_STATUS_ALLY_OCCUPIED) &&
+-        !bg->IsActiveEvent(BG_AV_NODE_GY_DUN_BALDAR, BG_AV_NODE_STATUS_ALLY_OCCUPIED))
++    if (!bg->IsActiveEvent(BG_AV_NODE_DUNBALDAR_SOUTH, ALLIANCE_CONTROLLED) &&
++        !bg->IsActiveEvent(BG_AV_NODE_DUNBALDAR_NORTH, ALLIANCE_CONTROLLED) &&
++        !bg->IsActiveEvent(BG_AV_NODE_ICEWING_BUNKER, ALLIANCE_CONTROLLED) &&
++        !bg->IsActiveEvent(BG_AV_NODE_STONEHEART_BUNKER, ALLIANCE_CONTROLLED) &&
++        !bg->IsActiveEvent(BG_AV_NODE_GY_DUN_BALDAR, ALLIANCE_CONTROLLED))
+ #endif
+     {
+         if (Creature* pVanndar = bot->GetMap()->GetCreature(bg->GetSingleCreatureGuid(BG_AV_BOSS_A, 0)))
+@@ -296,10 +296,10 @@ bool BGTactics::SelectAvObjectiveHorde(WorldLocation& objectiveLocation)
+ 
+     // Only go to Snowfall Graveyard if already close to it.
+ #ifndef MANGOSBOT_TWO  
+-    if (supporter && (bg->IsActiveEvent(BG_AV_NODES_SNOWFALL_GRAVE, BG_AV_NODE_STATUS_ALLY_CONTESTED) || bg->IsActiveEvent(BG_AV_NODES_SNOWFALL_GRAVE, BG_AV_NODE_STATUS_ALLY_OCCUPIED) || bg->IsActiveEvent(BG_AV_NODES_SNOWFALL_GRAVE, BG_AV_NODE_STATUS_NEUTRAL_OCCUPIED)))
++    if (supporter && (bg->IsActiveEvent(BG_AV_NODES_SNOWFALL_GRAVE, ALLIANCE_ASSAULTED) || bg->IsActiveEvent(BG_AV_NODES_SNOWFALL_GRAVE, ALLIANCE_CONTROLLED) || bg->IsActiveEvent(BG_AV_NODES_SNOWFALL_GRAVE, NEUTRAL_CONTROLLED)))
+     {
+ #else
+-    if (supporter && (bg->IsActiveEvent(BG_AV_NODE_GY_SNOWFALL, BG_AV_NODE_STATUS_ALLY_CONTESTED) || bg->IsActiveEvent(BG_AV_NODE_GY_SNOWFALL, BG_AV_NODE_STATUS_ALLY_OCCUPIED) || bg->IsActiveEvent(BG_AV_NODE_GY_SNOWFALL, BG_AV_NODE_STATUS_NEUTRAL_OCCUPIED)))
++    if (supporter && (bg->IsActiveEvent(BG_AV_NODE_GY_SNOWFALL, ALLIANCE_ASSAULTED) || bg->IsActiveEvent(BG_AV_NODE_GY_SNOWFALL, ALLIANCE_CONTROLLED) || bg->IsActiveEvent(BG_AV_NODE_GY_SNOWFALL, NEUTRAL_CONTROLLED)))
+     {
+ #endif
+         if (WorldLocation snowfallGraveyard; sRandomPlayerbotMgr.GetNamedLocation("AV_SNOWFALL_GRAVEYARD", snowfallGraveyard))
+@@ -313,7 +313,7 @@ bool BGTactics::SelectAvObjectiveHorde(WorldLocation& objectiveLocation)
+     }
+ 
+     // Balinda
+-    if (!supporter && !bg->IsActiveEvent(BG_AV_NODE_CAPTAIN_DEAD_A, 0))
++    if (!supporter && !bg->IsActiveEvent(BG_AV_NodeEventCaptainDead_A, 0))
+     {
+         if (Creature* pBalinda = bot->GetMap()->GetCreature(bg->GetSingleCreatureGuid(BG_AV_CAPTAIN_A, 0)))
+         {
+@@ -367,10 +367,10 @@ bool BGTactics::SelectAvObjectiveHorde(WorldLocation& objectiveLocation)
+     // Mine capture (need paths & script fix)
+ #ifndef MANGOSBOT_TWO  
+     if (!supporter && (bg->IsActiveEvent(BG_AV_MINE_BOSSES_NORTH, TEAM_INDEX_ALLIANCE) || bg->IsActiveEvent(BG_AV_MINE_BOSSES_NORTH, TEAM_INDEX_NEUTRAL)) &&
+-        !bg->IsActiveEvent(BG_AV_NODES_STORMPIKE_GRAVE, BG_AV_NODE_STATUS_ALLY_OCCUPIED))
++        !bg->IsActiveEvent(BG_AV_NODES_STORMPIKE_GRAVE, ALLIANCE_CONTROLLED))
+ #else
+     if (!supporter && (bg->IsActiveEvent(BG_AV_MINE_BOSSES_NORTH, TEAM_INDEX_ALLIANCE) || bg->IsActiveEvent(BG_AV_MINE_BOSSES_NORTH, TEAM_INDEX_NEUTRAL)) &&
+-        !bg->IsActiveEvent(BG_AV_NODE_GY_STORMPIKE, BG_AV_NODE_STATUS_ALLY_OCCUPIED))
++        !bg->IsActiveEvent(BG_AV_NODE_GY_STORMPIKE, ALLIANCE_CONTROLLED))
+ #endif
+     {
+         if (Creature* neutralMineBoss = bot->GetMap()->GetCreature(bg->GetSingleCreatureGuid(BG_AV_MINE_BOSSES_NORTH, TEAM_INDEX_NEUTRAL)))
+@@ -405,9 +405,9 @@ bool BGTactics::SelectAvObjectiveHorde(WorldLocation& objectiveLocation)
+ 
+             // Split team to capture 2 towers at same time
+ #ifndef MANGOSBOT_TWO  
+-            if (urand(0, 1) && nodeId == BG_AV_NODES_DUNBALDAR_SOUTH && bg->IsActiveEvent(BG_AV_NODES_DUNBALDAR_NORTH, BG_AV_NODE_STATUS_ALLY_OCCUPIED))
++            if (urand(0, 1) && nodeId == BG_AV_NODES_DUNBALDAR_SOUTH && bg->IsActiveEvent(BG_AV_NODES_DUNBALDAR_NORTH, ALLIANCE_CONTROLLED))
+ #else
+-            if (urand(0, 1) && nodeId == BG_AV_NODE_DUNBALDAR_SOUTH && bg->IsActiveEvent(BG_AV_NODE_DUNBALDAR_NORTH, BG_AV_NODE_STATUS_ALLY_OCCUPIED))
++            if (urand(0, 1) && nodeId == BG_AV_NODE_DUNBALDAR_SOUTH && bg->IsActiveEvent(BG_AV_NODE_DUNBALDAR_NORTH, ALLIANCE_CONTROLLED))
+ #endif
+                 continue;
+ 
+@@ -427,19 +427,6 @@ bool BGTactics::SelectAvObjectiveHorde(WorldLocation& objectiveLocation)
+     return false;
+ }
+ 
+-std::vector<uint32> const FlagEntries =
+-{
+-    BG_AV_GO_BANNER_ALLIANCE,
+-    BG_AV_GO_BANNER_ALLIANCE_CONT,
+-    BG_AV_GO_BANNER_HORDE,
+-    BG_AV_GO_BANNER_HORDE_CONT,
+-    BG_AV_GO_GY_BANNER_ALLIANCE,
+-    BG_AV_GO_GY_BANNER_ALLIANCE_CONT,
+-    BG_AV_GO_GY_BANNER_HORDE,
+-    BG_AV_GO_GY_BANNER_HORDE_CONT,
+-    BG_AV_GO_GY_BANNER_SNOWFALL,
+-};
+-
+ bool BGTactics::CheckFlagAv()
+ {
+     BattleGround* bg = bot->GetBattleGround();
+@@ -465,8 +452,8 @@ bool BGTactics::CheckFlagAv()
+         if (!go)
+             continue;
+ 
+-        std::vector<uint32>::const_iterator f = std::find(FlagEntries.begin(), FlagEntries.end(), go->GetEntry());
+-        if (f == FlagEntries.end())
++        BattleGroundEventIdx event = sBattleGroundMgr.GetGameObjectEventIndex(go->GetGUIDLow());
++        if (event.event1 >= BG_AV_NODES_MAX)
+             continue;
+ 
+         if (!sServerFacade.isSpawned(go) || go->IsInUse() || go->GetGoState() != GO_STATE_READY)
+@@ -484,21 +471,12 @@ bool BGTactics::CheckFlagAv()
+         if (bot->IsInDisallowedMountForm())
+             bot->RemoveSpellsCausingAura(SPELL_AURA_MOD_SHAPESHIFT);
+ 
+-        // cast banner spell
++        // Use the same interaction path as a real client. The core owns
++        // range, interaction, capture spell and battleground state checks.
+         ai->StopMoving();
+-
+-        SpellEntry const* spellInfo = sServerFacade.LookupSpellInfo(SPELL_CAPTURE_BANNER);
+-        if (!spellInfo)
+-            return false;
+-
+-        Spell* spell = new Spell(bot, spellInfo, false);
+-        spell->m_targets.setGOTarget(go);
+-        spell->SpellStart(&spell->m_targets);
+-        ai->WaitForSpellCast(spell);
+-
+-        //WorldPacket data(CMSG_GAMEOBJ_USE);
+-        //data << go->GetObjectGuid();
+-        //bot->GetSession()->HandleGameObjectUseOpcode(data);
++        WorldPacket data(CMSG_GAMEOBJ_USE);
++        data << go->GetObjectGuid();
++        bot->GetSession()->HandleGameObjectUseOpcode(data);
+ 
+         resetObjective();
+ 
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/EnemyPlayerValue.cpp b/modules/mod-playerbots/src/playerbot/strategy/values/EnemyPlayerValue.cpp
+index a9ffe1b..5e769a3 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/EnemyPlayerValue.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/EnemyPlayerValue.cpp
+@@ -46,6 +46,9 @@ bool EnemyPlayersValue::IsValid(Unit* target, Player* player)
+         Player* enemyPlayer = dynamic_cast<Player*>(target);
+         if (enemyPlayer)
+         {
++            if (!sRandomPlayerbotMgr.IsPlayerVisibleToBots(enemyPlayer))
++                return false;
++
+             // If the target is friendly to the player
+             if (sServerFacade.IsFriendlyTo(target, player))
+             {
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/NearestFriendlyPlayersValue.cpp b/modules/mod-playerbots/src/playerbot/strategy/values/NearestFriendlyPlayersValue.cpp
+index 95ef77a..5ea5e31 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/NearestFriendlyPlayersValue.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/NearestFriendlyPlayersValue.cpp
+@@ -19,5 +19,8 @@ void NearestFriendlyPlayersValue::FindUnits(std::list<Unit*> &targets)
+ bool NearestFriendlyPlayersValue::AcceptUnit(Unit* unit)
+ {
+     ObjectGuid guid = unit->GetObjectGuid();
+-    return guid.IsPlayer() && guid != ai->GetBot()->GetObjectGuid();
++    if (!guid.IsPlayer() || guid == ai->GetBot()->GetObjectGuid())
++        return false;
++
++    return sRandomPlayerbotMgr.IsPlayerVisibleToBots(static_cast<Player*>(unit));
+ }
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/NearestNonBotPlayersValue.cpp b/modules/mod-playerbots/src/playerbot/strategy/values/NearestNonBotPlayersValue.cpp
+index 487fe3a..94d9668 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/NearestNonBotPlayersValue.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/NearestNonBotPlayersValue.cpp
+@@ -19,10 +19,5 @@ void NearestNonBotPlayersValue::FindUnits(std::list<Unit*> &targets)
+ bool NearestNonBotPlayersValue::AcceptUnit(Unit* unit)
+ {
+     ObjectGuid guid = unit->GetObjectGuid();
+-#ifdef MANGOS
+-    return guid.IsPlayer() && !((Player*)unit)->GetPlayerbotAI() && (!((Player*)unit)->isGameMaster() || ((Player*)unit)->isGMVisible());
+-#endif
+-#ifdef CMANGOS
+-    return guid.IsPlayer() && !((Player*)unit)->GetPlayerbotAI() && (!((Player*)unit)->IsGameMaster() || ((Player*)unit)->isGMVisible());
+-#endif
++    return guid.IsPlayer() && sRandomPlayerbotMgr.IsVisibleRealPlayer(static_cast<Player*>(unit));
+ }
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/PossibleTargetsValue.cpp b/modules/mod-playerbots/src/playerbot/strategy/values/PossibleTargetsValue.cpp
+index 97f443b..bf03334 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/PossibleTargetsValue.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/PossibleTargetsValue.cpp
+@@ -45,6 +45,9 @@ void PossibleTargetsValue::FindUnits(std::list<Unit*> &targets)
+ 
+ bool PossibleTargetsValue::AcceptUnit(Unit* unit)
+ {
++    if (unit && unit->IsPlayer() && !sRandomPlayerbotMgr.IsPlayerVisibleToBots(static_cast<Player*>(unit)))
++        return false;
++
+     return IsValid(unit, bot, ignoreLos);
+ }
+ 

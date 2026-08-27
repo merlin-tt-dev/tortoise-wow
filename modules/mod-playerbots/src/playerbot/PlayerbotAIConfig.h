@@ -87,6 +87,12 @@ struct ParsedUrl {
     bool https;
 };
 
+struct LoadOptimizationBracket
+{
+    uint32 minActivity = 0;
+    uint32 fullActivity = 100;
+};
+
 //GlyphPrioritySpecMap[specId][level] = {{glyphItemId, prereqTalentSpell}};
 using GlyphPriority = std::pair<uint32, uint32>;
 using GlyphPriorityList = std::vector<GlyphPriority>;
@@ -232,14 +238,52 @@ public:
     int32 levelCheck;
 	bool randomBotPreQuests;
     float playerbotsXPrate;
+    // Opt-in bot AI load controller. This never throttles core Player/Map/session updates.
+    // The legacy Disable* flags remain compatibility kill-switches.
+    bool loadOptimizationEnabled;
+    uint32 loadOptimizationSampleIntervalMs;
+    uint32 loadOptimizationDecisionCacheMs;
+    uint32 loadOptimizationRotationIntervalSec;
+    float loadOptimizationBaseActivity;
+    float loadOptimizationMinActivity;
+    float loadOptimizationMaxActivity;
+    uint32 loadOptimizationTargetDiffWithPlayers;
+    uint32 loadOptimizationTargetDiffEmpty;
+    float loadOptimizationPidKp;
+    float loadOptimizationPidKi;
+    float loadOptimizationPidKd;
+    uint32 loadOptimizationMinimalReactionMultiplier;
+    uint32 loadOptimizationInactiveActionDelayMs;
+    bool loadOptimizationProtectPlayerInteraction;
+    bool loadOptimizationProtectCombat;
+    bool loadOptimizationProtectBattleground;
+    bool loadOptimizationProtectInstances;
+    LoadOptimizationBracket loadOptimizationPlayerInteractionBracket;
+    LoadOptimizationBracket loadOptimizationBattlegroundBracket;
+    LoadOptimizationBracket loadOptimizationInstanceBracket;
+    LoadOptimizationBracket loadOptimizationCombatBracket;
+    LoadOptimizationBracket loadOptimizationBgQueueBracket;
+    LoadOptimizationBracket loadOptimizationLfgBracket;
+    LoadOptimizationBracket loadOptimizationNearbyPlayerBracket;
+    LoadOptimizationBracket loadOptimizationSocialBracket;
+    LoadOptimizationBracket loadOptimizationNoPathBracket;
+    LoadOptimizationBracket loadOptimizationActiveAreaBracket;
+    LoadOptimizationBracket loadOptimizationEmptyServerBracket;
+    LoadOptimizationBracket loadOptimizationActiveMapBracket;
+    LoadOptimizationBracket loadOptimizationInactiveMapBracket;
+
     bool disableBotOptimizations;
     bool disableActivityPriorities;
     bool forceActiveWhenNearPlayer;
     bool limitCombatActivity;
     bool guildOrderAlwaysActive;
-    uint32 botActiveAlone;
     uint32 diffWithPlayer;
     uint32 diffEmpty;
+
+    bool IsLoadOptimizationEnabled() const
+    {
+        return loadOptimizationEnabled && !disableBotOptimizations && !disableActivityPriorities;
+    }
     uint32 minEnchantingBotLevel;
     uint32 randombotStartingLevel;
     bool randomBotSayWithoutMaster;

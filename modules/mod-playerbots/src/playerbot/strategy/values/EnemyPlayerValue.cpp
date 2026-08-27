@@ -46,6 +46,9 @@ bool EnemyPlayersValue::IsValid(Unit* target, Player* player)
         Player* enemyPlayer = dynamic_cast<Player*>(target);
         if (enemyPlayer)
         {
+            if (!sRandomPlayerbotMgr.IsPlayerVisibleToBots(enemyPlayer))
+                return false;
+
             // If the target is friendly to the player
             if (sServerFacade.IsFriendlyTo(target, player))
             {

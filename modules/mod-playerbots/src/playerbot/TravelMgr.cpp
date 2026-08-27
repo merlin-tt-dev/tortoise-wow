@@ -1504,7 +1504,7 @@ void TravelMgr::LoadQuestTravelTable()
         out << "sWorld.GetMaxDiff(),";
         out << "virtualMemUsedByMe" << ",";
         out << "activityPercentage,";
-        out << "activityPercentageMod,";
+        out << "pidCorrection,";
         out << "activeBots,";
         out << "playerBots.size(),";
         out << "totalLevel,";

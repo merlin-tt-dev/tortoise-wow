@@ -52,7 +52,10 @@ void PlayerbotAIBase::IncreaseAIInternalUpdateDelay(uint32 delay)
 void PlayerbotAIBase::YieldAIInternalThread(bool minimal)
 {
     if (aiInternalUpdateDelay < sPlayerbotAIConfig.reactDelay)
-        aiInternalUpdateDelay = minimal ? sPlayerbotAIConfig.reactDelay * 10 : sPlayerbotAIConfig.reactDelay;
+    {
+        uint32 multiplier = sPlayerbotAIConfig.IsLoadOptimizationEnabled() ? sPlayerbotAIConfig.loadOptimizationMinimalReactionMultiplier : 1;
+        aiInternalUpdateDelay = minimal ? sPlayerbotAIConfig.reactDelay * multiplier : sPlayerbotAIConfig.reactDelay;
+    }
 }
 
 bool PlayerbotAIBase::IsActive() const

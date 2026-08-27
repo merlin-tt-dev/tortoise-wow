@@ -205,16 +205,6 @@ inline bool IsPositiveSpell(SpellEntry const* spellInfo, WorldObject const* cast
 #include <chrono>
 using TimePoint = std::chrono::system_clock::time_point;
 
-// === BG_AV_NODE_STATUS_ defines ===
-// cmangos has these in BattleGroundAV.h; Penqle may use different naming.
-// Define as constants so bot's symbolic references compile.
-#ifndef BG_AV_NODE_STATUS_ALLY_OCCUPIED
-#define BG_AV_NODE_STATUS_ALLY_OCCUPIED 0
-#endif
-#ifndef BG_AV_NODE_STATUS_HORDE_OCCUPIED
-#define BG_AV_NODE_STATUS_HORDE_OCCUPIED 1
-#endif
-
 // === Additional cmangos-only DBC store proxies ===
 // sFactionStore (faction.dbc) — distinct from sFactionTemplateStore (factiontemplate.dbc).
 struct FactionEntry;  // defined in DBCStructure.h
@@ -247,14 +237,6 @@ inline const char* strstr(std::string const& haystack, const char* needle) {
 
 // === BattleGroundMgr alias ===
 // Done via forwarder in Penqle's BattleGroundMgr.h (BgTemplateId → BGTemplateId).
-
-// === BG_AV_NODE_STATUS_ contested (additional) ===
-#ifndef BG_AV_NODE_STATUS_ALLY_CONTESTED
-#define BG_AV_NODE_STATUS_ALLY_CONTESTED 2
-#endif
-#ifndef BG_AV_NODE_STATUS_HORDE_CONTESTED
-#define BG_AV_NODE_STATUS_HORDE_CONTESTED 3
-#endif
 
 // === TEAM_INDEX_ aliases (cmangos) ===
 // Penqle uses BG_TEAM_ALLIANCE/BG_TEAM_HORDE. cmangos uses TEAM_INDEX_ALLIANCE/HORDE/NEUTRAL.
@@ -296,11 +278,6 @@ inline bool IsAreaAuraEffect(uint32 effect) {
 #define MINIMUM_LOOTING_TIME 1000
 #endif
 
-// === FALL_MOTION_TYPE (cmangos motion type) → use a high stub value ===
-#ifndef FALL_MOTION_TYPE
-#define FALL_MOTION_TYPE 100
-#endif
-
 // === AuctionHouseType (cmangos enum) ===
 enum AuctionHouseType {
     AUCTION_HOUSE_ALLIANCE = 0,
@@ -315,11 +292,6 @@ enum AuctionHouseType {
 #endif
 #ifndef SPELL_RANGE_FLAG_RANGED
 #define SPELL_RANGE_FLAG_RANGED 2
-#endif
-
-// === BG_AV_NODE_STATUS_NEUTRAL_OCCUPIED ===
-#ifndef BG_AV_NODE_STATUS_NEUTRAL_OCCUPIED
-#define BG_AV_NODE_STATUS_NEUTRAL_OCCUPIED 4
 #endif
 
 // === TAXI_MOTION_TYPE (cmangos) → FLIGHT_MOTION_TYPE (Penqle) ===
@@ -364,77 +336,6 @@ struct CmangosScriptDevAIMgrStub {
 };
 inline CmangosScriptDevAIMgrStub sScriptDevAIMgr;
 
-// === BG_AB GO/banner additional defines (cmangos) ===
-#ifndef BG_AB_BANNER_ALLIANCE
-#define BG_AB_BANNER_ALLIANCE 0
-#endif
-#ifndef BG_AB_BANNER_HORDE
-#define BG_AB_BANNER_HORDE 1
-#endif
-#ifndef BG_AB_BANNER_CONTESTED_A
-#define BG_AB_BANNER_CONTESTED_A 2
-#endif
-#ifndef BG_AB_BANNER_CONTESTED_H
-#define BG_AB_BANNER_CONTESTED_H 3
-#endif
-
-// === BG WSG GO defines (cmangos) — Penqle uses BG_OBJECT_* maybe ===
-#ifndef GO_WS_SILVERWING_FLAG
-#define GO_WS_SILVERWING_FLAG 179830
-#endif
-#ifndef GO_WS_WARSONG_FLAG
-#define GO_WS_WARSONG_FLAG 179831
-#endif
-#ifndef GO_WS_SILVERWING_FLAG_DROP
-#define GO_WS_SILVERWING_FLAG_DROP 179785
-#endif
-#ifndef GO_WS_WARSONG_FLAG_DROP
-#define GO_WS_WARSONG_FLAG_DROP 179786
-#endif
-
-// === BG WSG areatrigger defines (cmangos) ===
-#ifndef WS_AT_SILVERWING_ROOM
-#define WS_AT_SILVERWING_ROOM 3646
-#endif
-#ifndef WS_AT_WARSONG_ROOM
-#define WS_AT_WARSONG_ROOM 3647
-#endif
-
-// === BG_AV node/banner defines (cmangos) ===
-#ifndef BG_AV_NODE_CAPTAIN_DEAD_A
-#define BG_AV_NODE_CAPTAIN_DEAD_A 0x10
-#endif
-#ifndef BG_AV_NODE_CAPTAIN_DEAD_H
-#define BG_AV_NODE_CAPTAIN_DEAD_H 0x20
-#endif
-#ifndef BG_AV_GO_BANNER_ALLIANCE
-#define BG_AV_GO_BANNER_ALLIANCE 178925
-#endif
-#ifndef BG_AV_GO_BANNER_ALLIANCE_CONT
-#define BG_AV_GO_BANNER_ALLIANCE_CONT 178940
-#endif
-#ifndef BG_AV_GO_BANNER_HORDE
-#define BG_AV_GO_BANNER_HORDE 178943
-#endif
-#ifndef BG_AV_GO_BANNER_HORDE_CONT
-#define BG_AV_GO_BANNER_HORDE_CONT 178944
-#endif
-#ifndef BG_AV_GO_GY_BANNER_ALLIANCE
-#define BG_AV_GO_GY_BANNER_ALLIANCE 180058
-#endif
-#ifndef BG_AV_GO_GY_BANNER_ALLIANCE_CONT
-#define BG_AV_GO_GY_BANNER_ALLIANCE_CONT 180059
-#endif
-#ifndef BG_AV_GO_GY_BANNER_HORDE
-#define BG_AV_GO_GY_BANNER_HORDE 180060
-#endif
-#ifndef BG_AV_GO_GY_BANNER_HORDE_CONT
-#define BG_AV_GO_GY_BANNER_HORDE_CONT 180061
-#endif
-#ifndef BG_AV_GO_GY_BANNER_SNOWFALL
-#define BG_AV_GO_GY_BANNER_SNOWFALL 180062
-#endif
-
 // === GetSpellCastResultString stub (cmangos free function) ===
 inline char const* GetSpellCastResultString(SpellCastResult /*res*/) { return ""; }
 
@@ -454,27 +355,6 @@ inline char const* GetSpellCastResultString(SpellCastResult /*res*/) { return ""
 inline bool HasPersistentAuraEffect(SpellEntry const* /*spellInfo*/) { return false; }
 #ifndef CAST_FLAG_PERSISTENT_AA
 #define CAST_FLAG_PERSISTENT_AA 0x40
-#endif
-
-// === BG_AB_BANNER_* / BG_AB_NODE_STATUS_NEUTRAL (cmangos) ===
-// Penqle has these in BattleGroundAB.h but with different naming.
-#ifndef BG_AB_NODE_STATUS_NEUTRAL
-#define BG_AB_NODE_STATUS_NEUTRAL 0
-#endif
-#ifndef BG_AB_BANNER_STABLE
-#define BG_AB_BANNER_STABLE 0
-#endif
-#ifndef BG_AB_BANNER_BLACKSMITH
-#define BG_AB_BANNER_BLACKSMITH 1
-#endif
-#ifndef BG_AB_BANNER_FARM
-#define BG_AB_BANNER_FARM 2
-#endif
-#ifndef BG_AB_BANNER_LUMBER_MILL
-#define BG_AB_BANNER_LUMBER_MILL 3
-#endif
-#ifndef BG_AB_BANNER_MINE
-#define BG_AB_BANNER_MINE 4
 #endif
 
 // === SEC_GAMEMASTER alias (cmangos has it; Penqle goes SEC_PLAYER → SEC_ADMINISTRATOR) ===

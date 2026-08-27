@@ -63,30 +63,88 @@ AiPlayerbot.RandomBotMaxLevel = 60
 AiPlayerbot.RandomBotAccountPrefix = RNDBOT
 AiPlayerbot.RandomBotAccountCount = 200
 
-# Disable core mangos map/bot optimizations which hinders bot activity
-# Works best together with AiPlayerbot.DisableActivityPriorities = 1
-# (0-1), default 0
-# AiPlayerbot.DisableBotOptimizations = 0
+# Optional bot-AI load controller. DEFAULT: OFF.
+# This never skips core Player/Map/session/transport/teleport/Battleground updates.
+# It only reduces expensive Playerbot-AI work when enabled. Native Map::GetPlayers()
+# remains the source of truth for player presence; invisible GMs do not count.
+AiPlayerbot.LoadOptimization.Enabled = 0
 
-# Disable bot activity priorities, to make all bots ACTUALLY active without player in the zones or server (unless AiPlayerbot.DisableBotOptimizations = 0)
-# This setting is added for the sake of having all bots always active regardless of anything
-# With this enabled, if you get lags - then you need to reduce amount of online bots, rather than relying on optimizations
-# This will ingore the AiPlayerbot.botActiveAlone setting, all bots will be active regardless
-# Works best together with AiPlayerbot.DisableBotOptimizations = 1
-# (0-1), default 0
-# AiPlayerbot.DisableActivityPriorities = 0
+# Controller cadence. SampleIntervalMs controls PID sampling; DecisionCacheMs avoids
+# recalculating an individual bot's activity state every AI tick. RotationIntervalSec
+# rotates the selected low-priority bot subset so throttled bots still make progress.
+AiPlayerbot.LoadOptimization.SampleIntervalMs = 1000
+AiPlayerbot.LoadOptimization.DecisionCacheMs = 5000
+AiPlayerbot.LoadOptimization.RotationIntervalSec = 60
 
-# Force bots to become active when a player is nearby
-#AiPlayerbot.ForceActiveWhenNearPlayer = 0
+# Global controller output in percent. BaseActivity is the nominal value at target load.
+# Min/Max clamp the PID output; protected states below ignore this clamp and stay active.
+AiPlayerbot.LoadOptimization.BaseActivity = 100
+AiPlayerbot.LoadOptimization.MinActivity = 10
+AiPlayerbot.LoadOptimization.MaxActivity = 100
 
-# Force bots to become active when guild orders are enabled
-#AiPlayerbot.GuildOrderAlwaysActive = 1
+# Desired average world tick (milliseconds). Separate targets allow more aggressive
+# throttling when nobody visible to bots is online.
+AiPlayerbot.LoadOptimization.TargetDiffWithPlayers = 100
+AiPlayerbot.LoadOptimization.TargetDiffEmpty = 200
 
-# Limit combat activity for slight performance boost.
-#AiPlayerbot.LimitCombatActivity = 0
+# PID tuning. Higher Kp reacts harder to current lag; Ki reacts to sustained lag;
+# Kd damps rapid changes. Start with defaults and change one parameter at a time.
+AiPlayerbot.LoadOptimization.PID.Kp = 0.05
+AiPlayerbot.LoadOptimization.PID.Ki = 0.001
+AiPlayerbot.LoadOptimization.PID.Kd = 0.05
 
-# Percentage of fully active bots. Default is 10, higher numbers may affect performance
-# AiPlayerbot.botActiveAlone = 10
+# MinimalReactionMultiplier stretches the internal reaction interval only for AI that
+# is already classified as minimal. InactiveActionDelayMs=0 keeps PassiveDelay.
+AiPlayerbot.LoadOptimization.MinimalReactionMultiplier = 10
+AiPlayerbot.LoadOptimization.InactiveActionDelayMs = 0
+
+# Safety protections. With these defaults, player-facing, combat, Battleground and
+# instance bots stay fully active even when the controller throttles background bots.
+AiPlayerbot.LoadOptimization.Protect.PlayerInteraction = 1
+AiPlayerbot.LoadOptimization.Protect.Combat = 1
+AiPlayerbot.LoadOptimization.Protect.Battleground = 1
+AiPlayerbot.LoadOptimization.Protect.Instance = 1
+
+# Priority brackets use controller activity percentages. Below .Min none of that class
+# is selected; between .Min and .Full a stable rotating subset runs; at/above .Full all
+# bots in that class run. A 0/0 bracket means always active.
+AiPlayerbot.LoadOptimization.Bracket.PlayerInteraction.Min = 0
+AiPlayerbot.LoadOptimization.Bracket.PlayerInteraction.Full = 10
+AiPlayerbot.LoadOptimization.Bracket.Battleground.Min = 0
+AiPlayerbot.LoadOptimization.Bracket.Battleground.Full = 10
+AiPlayerbot.LoadOptimization.Bracket.Instance.Min = 0
+AiPlayerbot.LoadOptimization.Bracket.Instance.Full = 5
+AiPlayerbot.LoadOptimization.Bracket.Combat.Min = 0
+AiPlayerbot.LoadOptimization.Bracket.Combat.Full = 10
+AiPlayerbot.LoadOptimization.Bracket.BGQueue.Min = 0
+AiPlayerbot.LoadOptimization.Bracket.BGQueue.Full = 20
+AiPlayerbot.LoadOptimization.Bracket.LFG.Min = 0
+AiPlayerbot.LoadOptimization.Bracket.LFG.Full = 30
+AiPlayerbot.LoadOptimization.Bracket.NearbyPlayer.Min = 0
+AiPlayerbot.LoadOptimization.Bracket.NearbyPlayer.Full = 40
+AiPlayerbot.LoadOptimization.Bracket.Social.Min = 0
+AiPlayerbot.LoadOptimization.Bracket.Social.Full = 50
+AiPlayerbot.LoadOptimization.Bracket.NoPath.Min = 50
+AiPlayerbot.LoadOptimization.Bracket.NoPath.Full = 99
+AiPlayerbot.LoadOptimization.Bracket.ActiveArea.Min = 50
+AiPlayerbot.LoadOptimization.Bracket.ActiveArea.Full = 100
+AiPlayerbot.LoadOptimization.Bracket.EmptyServer.Min = 50
+AiPlayerbot.LoadOptimization.Bracket.EmptyServer.Full = 100
+AiPlayerbot.LoadOptimization.Bracket.ActiveMap.Min = 70
+AiPlayerbot.LoadOptimization.Bracket.ActiveMap.Full = 100
+AiPlayerbot.LoadOptimization.Bracket.InactiveMap.Min = 80
+AiPlayerbot.LoadOptimization.Bracket.InactiveMap.Full = 100
+
+# Legacy compatibility kill-switches. Either value=1 forces the new load controller OFF.
+# They no longer enable a separate Map.cpp playerbot optimization path.
+AiPlayerbot.DisableBotOptimizations = 0
+AiPlayerbot.DisableActivityPriorities = 0
+
+# Legacy behaviour knobs retained for compatibility. ForceActiveWhenNearPlayer and
+# LimitCombatActivity only matter when load optimization is enabled.
+AiPlayerbot.ForceActiveWhenNearPlayer = 0
+AiPlayerbot.GuildOrderAlwaysActive = 1
+AiPlayerbot.LimitCombatActivity = 0
 
 # Limit random bot max level to online players max level + 5 and uses reference level 1 without a player.
 # AiPlayerbot.SyncLevelWithPlayers = 0
@@ -1032,7 +1090,8 @@ AiPlayerbot.PerfMonEnabled = 0
 # AiPlayerbot.RandomBotRandomPassword = 1
 
 
-# Diff with/without player in server. The server will tune bot activity to reach the desired server tick speed (in ms).
+# Legacy target-diff names retained as fallbacks for LoadOptimization.TargetDiff*.
+# They do nothing by themselves while AiPlayerbot.LoadOptimization.Enabled = 0.
 # AiPlayerbot.DiffWithPlayer = 100
 # AiPlayerbot.DiffEmpty = 200
 

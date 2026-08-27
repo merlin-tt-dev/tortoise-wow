@@ -385,7 +385,11 @@ void PlayerBotLoginMgr::Update(RealPlayers& realPlayers)
         return;
     }
 
-    BotInfos queue = GetFuture(FillLoginLogoutQueue, futureQueue, true, &botPool, realPlayers);
+    // Snapshot bot-visible real players on the main update thread. The async queue
+    // builder then works only on value objects and never dereferences a Player that
+    // may log out or toggle GM visibility while the future is running.
+    RealPlayerInfos realPlayerInfos = GetPlayerInfos(realPlayers);
+    BotInfos queue = GetFuture(FillLoginLogoutQueue, futureQueue, true, &botPool, std::move(realPlayerInfos));
 
     if (!queue.empty())
     {
@@ -554,7 +558,10 @@ RealPlayerInfos PlayerBotLoginMgr::GetPlayerInfos(const RealPlayers& players)
 {
     RealPlayerInfos realPlayers;
     for (auto& [guid, player] : players)
-        realPlayers.push_back(player);
+    {
+        if (sRandomPlayerbotMgr.IsVisibleRealPlayer(player))
+            realPlayers.push_back(player);
+    }
 
     return realPlayers;
 }
@@ -605,10 +612,10 @@ bool PlayerBotLoginMgr::CriteriaStillValid(const LoginCriterionFailType oldFailT
     return false;
 }
 
-BotInfos PlayerBotLoginMgr::FillLoginLogoutQueue(BotPool* pool, const RealPlayers& realPlayers)
+BotInfos PlayerBotLoginMgr::FillLoginLogoutQueue(BotPool* pool, RealPlayerInfos realPlayerInfos)
 {
     LoginSpace loginSpace;
-    loginSpace.realPlayerInfos = GetPlayerInfos(realPlayers);
+    loginSpace.realPlayerInfos = std::move(realPlayerInfos);
     FillLoginSpace(pool, loginSpace, FillStep::NEXT_STEP);
 
     std::unordered_map<uint32, LoginCriterionFailType> loginFails;
