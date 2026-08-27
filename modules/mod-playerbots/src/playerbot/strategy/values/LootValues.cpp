@@ -419,10 +419,10 @@ bool ShouldLootObject::Calculate()
 	if (!object)
 		return false;
 
-	// Penqle has m_loot only on Creature/GameObject; check via cast.
-	Loot* objLoot = nullptr;
-	if (object->IsCreature()) objLoot = ((Creature*)object)->m_loot;
-	else if (object->IsGameObject()) objLoot = ((GameObject*)object)->m_loot;
+    // Penqle embeds Loot directly in Creature/GameObject.
+    Loot* objLoot = nullptr;
+    if (object->IsCreature()) objLoot = &((Creature*)object)->loot;
+    else if (object->IsGameObject()) objLoot = &((GameObject*)object)->loot;
 	if (!objLoot)
     {
 		if (!object->IsGameObject())
@@ -456,18 +456,10 @@ bool ShouldLootObject::Calculate()
 		return true;				
     }
 
-	// Dispatch via cast to access m_loot (lives on Creature/GameObject only).
-	Loot* objLoot2 = nullptr;
-	if (object->IsCreature()) objLoot2 = ((Creature*)object)->m_loot;
-	else if (object->IsGameObject()) objLoot2 = ((GameObject*)object)->m_loot;
-	if (objLoot2 && objLoot2->GetGoldAmount() > 0)
+    if (objLoot->GetGoldAmount() > 0)
 		return true;
 
-	// LootAccess wraps a Loot* now.
-	if (!objLoot2)
-		return false;
-
-	LootAccess lootAccess(objLoot2);
+    LootAccess lootAccess(objLoot);
 
 	if (lootAccess.lootMethod() != NOT_GROUP_TYPE_LOOT && !lootAccess.isChecked()) //Open loot once to start rolls.
 		return true;

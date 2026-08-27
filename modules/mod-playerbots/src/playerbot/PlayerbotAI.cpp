@@ -331,8 +331,7 @@ void PlayerbotAI::UpdateAI(uint32 elapsed, bool minimal)
                 if (lootObject.IsUnit())
                 {
                     Unit* unitTarget = (Unit*)loot->GetLootTarget();
-                    // Unit doesn't have m_loot; only Creature does.
-                    Loot* utLoot = (unitTarget && unitTarget->GetTypeId() == TYPEID_UNIT) ? ((Creature*)unitTarget)->m_loot : nullptr;
+                    Loot* utLoot = (unitTarget && unitTarget->GetTypeId() == TYPEID_UNIT) ? &((Creature*)unitTarget)->loot : nullptr;
                     // LootAccess wraps Loot* now (no more reinterpret_cast layout-cheat).
                     LootAccess lootAccess(utLoot);
                     if (utLoot && lootAccess.playersLooting().count(bot->GetObjectGuid()) == 0)
@@ -345,7 +344,7 @@ void PlayerbotAI::UpdateAI(uint32 elapsed, bool minimal)
                 {
                     GameObject* gameobjectTarget = (GameObject*)loot->GetLootTarget();
                     // LootAccess wraps Loot* now.
-                    LootAccess lootAccess(gameobjectTarget ? gameobjectTarget->m_loot : nullptr);
+                    LootAccess lootAccess(gameobjectTarget ? &gameobjectTarget->loot : nullptr);
                     if (!lootAccess.playersLooting().count(bot->GetObjectGuid()))
                     {
                         // You shouldn't release if you aren't looting already
@@ -7184,10 +7183,10 @@ bool PlayerbotAI::HasQuestItemsInWOLootList(WorldObject* wo)
 
     LootItemList lootItemList = {};
 
-    // Penqle's loot is on Creature/GameObject; dispatch via cast.
+    // Penqle embeds Loot directly in Creature/GameObject.
     Loot* woLoot = nullptr;
-    if (wo->IsCreature()) woLoot = ((Creature*)wo)->m_loot;
-    else if (wo->IsGameObject()) woLoot = ((GameObject*)wo)->m_loot;
+    if (wo->IsCreature()) woLoot = &((Creature*)wo)->loot;
+    else if (wo->IsGameObject()) woLoot = &((GameObject*)wo)->loot;
     if (woLoot)
         woLoot->GetLootItemsListFor(bot, lootItemList);
 
@@ -7223,14 +7222,13 @@ bool PlayerbotAI::CanLootSomethingFromWO(WorldObject* wo)
         Creature* creature = GetCreature(guid);
         if (creature && sServerFacade.GetDeathState(creature) == CORPSE)
         {
-            if (creature->m_loot->GetGoldAmount() > 0)
+            if (creature->loot.GetGoldAmount() > 0)
             {
                 return true;
             }
             LootItemList lootItemList = {};
 
-            if (creature->m_loot)
-                creature->m_loot->GetLootItemsListFor(bot, lootItemList);
+            creature->loot.GetLootItemsListFor(bot, lootItemList);
 
             if (HasNotFullStacksInBagsForLootItems(lootItemList))
             {
@@ -7245,8 +7243,7 @@ bool PlayerbotAI::CanLootSomethingFromWO(WorldObject* wo)
         {
             LootItemList lootItemList = {};
 
-            if (go->m_loot)
-                go->m_loot->GetLootItemsListFor(bot, lootItemList);
+            go->loot.GetLootItemsListFor(bot, lootItemList);
 
             if (HasNotFullStacksInBagsForLootItems(lootItemList))
             {
@@ -7748,10 +7745,10 @@ void PlayerbotAI::AccelerateRespawn(Creature* creature, float accelMod)
 
     creature->SetRespawnDelay(m_respawnDelay / IN_MILLISECONDS,true);
 
-    if (!m_corpseAccelerationDecayDelay && creature->m_loot)
+    if (!m_corpseAccelerationDecayDelay)
     {
-        // LootAccess wraps Loot* now.
-        LootAccess lootAccess(creature->m_loot);
+        // Penqle embeds Loot directly in Creature.
+        LootAccess lootAccess(&creature->loot);
 
         if (lootAccess.IsLootedForAll()) //No loot left. Just despawn the corpse.
         {

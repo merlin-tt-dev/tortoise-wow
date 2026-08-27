@@ -712,13 +712,37 @@ struct TransportAnimation {
 typedef std::map<uint32, TransportAnimationNode*> TransportPathContainer;
 // Note: Penqle has its own sTransportMgr; we extend TransportMgr inline (see Transports/TransportMgr.h).
 
-// === sLootMgr stub (cmangos global; Penqle has LootStore but no equivalent singleton) ===
+// === sLootMgr adapter (cmangos global; Penqle stores Loot on world objects) ===
 // Bot calls sLootMgr.GetLoot(player[, guid]) to fetch the loot the player is currently looking at.
-// Penqle stores Loot directly on Creature/GameObject. Stub returns nullptr; loot UI bot logic is a
-// stub: symbol needs to resolve, value never actually consulted.
+// Penqle embeds Loot directly in Creature/GameObject, so resolve the target on the player's
+// current map and return the address of that native Loot object.
 struct CmangosLootMgrStub
 {
-    Loot* GetLoot(Player* /*player*/, ObjectGuid /*guid*/ = ObjectGuid()) const { return nullptr; }
+    Loot* GetLoot(Player* player, ObjectGuid guid = ObjectGuid()) const
+    {
+        if (!player)
+            return nullptr;
+
+        if (!guid)
+            guid = player->GetLootGuid();
+
+        if (!guid || !player->GetMap())
+            return nullptr;
+
+        if (guid.IsCreature())
+        {
+            Creature* creature = player->GetMap()->GetCreature(guid);
+            return creature ? &creature->loot : nullptr;
+        }
+
+        if (guid.IsGameObject())
+        {
+            GameObject* gameObject = player->GetMap()->GetGameObject(guid);
+            return gameObject ? &gameObject->loot : nullptr;
+        }
+
+        return nullptr;
+    }
 };
 inline CmangosLootMgrStub sLootMgr;
 
