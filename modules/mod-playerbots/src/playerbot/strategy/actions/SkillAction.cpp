@@ -71,7 +71,7 @@ bool SkillAction::Execute(Event& event)
             {
                 args["%skillname"] = ChatHelper::formatSkill(id);
 
-                if (!bot->GetSkillInfo(uint16(id), ([](SkillRaceClassInfoEntry const& entry) { return (entry.flags & SKILL_FLAG_CAN_UNLEARN); })))
+                if (!bot->GetSkillInfo(uint16(id), ([](SkillRaceClassInfoEntry const& entry) { return (entry.flags & SKILL_FLAG_UNLEARNABLE); })))
                 {
                     ai->TellPlayerNoFacing(requester, BOT_TEXT2("Unable to unlearn %skillname", args));
                     return false;

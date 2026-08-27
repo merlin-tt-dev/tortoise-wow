@@ -47,7 +47,7 @@ bool GossipHelloAction::Execute(Event& event)
 
         if (pCreature)
         {
-            if (!sScriptDevAIMgr.OnGossipHello(bot, pCreature))
+            if (!sScriptMgr.OnGossipHello(bot, pCreature))
             {
                 bot->PrepareGossipMenu(pCreature, pCreature->GetDefaultGossipMenuId());
             }

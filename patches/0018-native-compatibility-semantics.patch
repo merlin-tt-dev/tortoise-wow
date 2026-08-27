@@ -1,0 +1,430 @@
+diff --git a/LIVINGBOTS_ENDTEST_TODO.md b/LIVINGBOTS_ENDTEST_TODO.md
+index a0d1c0a..de05234 100644
+--- a/LIVINGBOTS_ENDTEST_TODO.md
++++ b/LIVINGBOTS_ENDTEST_TODO.md
+@@ -13,7 +13,10 @@
+ | 0012 Open-Lock: alle Spell-Effects prüfen | eingebaut | ausstehend |
+ | 0013 Mining/Herbalism auf echtes GameObject | eingebaut | ausstehend |
+ | 0014 Native Penqle Loot Access | eingebaut | ausstehend |
+-| 0015 Native Quest-Relation Access | mit diesem Patch | ausstehend |
++| 0015 Native Quest-Relation Access | eingebaut | ausstehend |
++| 0016 Native Travel Metadata | eingebaut | ausstehend |
++| 0017 Native Config IncludeDir | eingebaut | ausstehend |
++| 0018 Native Compatibility Semantics I | mit diesem Patch | ausstehend |
+ 
+ **Wichtig:** „eingebaut“ bedeutet nur statisch/source-seitig portiert. Kein Punkt gilt dadurch als getestet.
+ 
+@@ -36,6 +39,17 @@
+ 
+ # A. Build / Start / Shutdown
+ 
++## Compatibility-/Shim-Audit
++
++- [ ] 0018: Bewegungsstatus verwendet Penqles `MOVEFLAG_MASK_MOVING`, nicht eine All-Bits-Maske.
++- [ ] 0018: `UNIT_FLAG_DISABLE_MOVE` blockiert Bot-Bewegung an den ehemaligen `CLIENT_CONTROL_LOST`-Stellen.
++- [ ] 0018: Spell-Attribute/Interrupt-/Target-Flags verwenden Penqles native 1.12-Symbole und Bitwerte.
++- [ ] 0018: Unique-equipped- und unlearnable-Skill-Prüfungen verwenden Penqles native Flags.
++- [ ] 0018: unsichtbare Creature-Templates werden über `flags_extra` / `CREATURE_FLAG_EXTRA_INVISIBLE` gefiltert.
++- [ ] 0018: Channeling wird über Penqles nativen `SPELL_STATE_CASTING`-Zustand erkannt.
++- [ ] 0018: GossipHello läuft über `sScriptMgr`; kein No-op-Compatibility-Hook.
++- [ ] Rest-Shim-Audit (MMap/BG/Loot/LFG/ChatChannel/InstanceTemplate/Autocast/etc.) vollständig abgeschlossen.
++
+ ## A1. Clean Build
+ 
+ - [ ] vollständiger Clean Build ohne Alt-Artefakte.
+diff --git a/modules/mod-playerbots/src/cmangos-compat-shim.h b/modules/mod-playerbots/src/cmangos-compat-shim.h
+index 393f4f6..e1b7e01 100644
+--- a/modules/mod-playerbots/src/cmangos-compat-shim.h
++++ b/modules/mod-playerbots/src/cmangos-compat-shim.h
+@@ -80,19 +80,6 @@ typedef AreaTriggerEntry AreaTrigger;
+ enum DistanceCalculation { DIST_CALC_NONE = 0, DIST_CALC_BOUNDING_RADIUS = 1, DIST_CALC_COMBAT_REACH = 2 };
+ #endif
+ 
+-// cmangos has UNIT_FLAG_CLIENT_CONTROL_LOST. Penqle may use a different name
+-// or omit it entirely. Define as 0 so the bit-flag operations parse, even if
+-// they're effectively no-ops at runtime
+-#ifndef UNIT_FLAG_CLIENT_CONTROL_LOST
+-#define UNIT_FLAG_CLIENT_CONTROL_LOST 0
+-#endif
+-
+-// cmangos has movementFlagsMask as "all movement flags" sentinel. Penqle uses
+-// MOVEMENTFLAG_MASK_MOVING or specific flag combos. Define as all bits.
+-#ifndef movementFlagsMask
+-constexpr uint32 movementFlagsMask = 0xFFFFFFFFu;
+-#endif
+-
+ // cmangos has BarGoLink (console progress bar). Penqle has no equivalent.
+ // Define as a complete stub class so the bot's BarGoLink pointer dereferences
+ // and method calls compile (no-op at runtime).
+@@ -187,11 +174,6 @@ inline CmangosFactionTemplateStoreProxy sFactionTemplateStore;
+ #define ITEM_FLAG_HAS_LOOT ITEM_FLAG_LOOTABLE
+ #endif
+ 
+-// cmangos has SPELL_ATTR_NO_IMMUNITIES; Penqle uses SPELL_ATTR_EX_NO_IMMUNITIES or similar.
+-#ifndef SPELL_ATTR_NO_IMMUNITIES
+-#define SPELL_ATTR_NO_IMMUNITIES 0
+-#endif
+-
+ // === Type renames (cmangos→Penqle struct name diffs) ===
+ // cmangos's ItemPrototype has _Spell substruct (older naming);
+ // Penqle uses _ItemSpell (current naming). They're the same shape.
+@@ -416,11 +398,6 @@ enum AuctionHouseType {
+     MAX_AUCTION_HOUSE_TYPE = 3,
+ };
+ 
+-// === SPELL_INTERRUPT_FLAG_COMBAT ===
+-#ifndef SPELL_INTERRUPT_FLAG_COMBAT
+-#define SPELL_INTERRUPT_FLAG_COMBAT 0x10
+-#endif
+-
+ // === SPELL_RANGE_FLAG_MELEE / RANGED (cmangos defines on SpellRangeEntry::Flags) ===
+ #ifndef SPELL_RANGE_FLAG_MELEE
+ #define SPELL_RANGE_FLAG_MELEE 1
+@@ -429,26 +406,11 @@ enum AuctionHouseType {
+ #define SPELL_RANGE_FLAG_RANGED 2
+ #endif
+ 
+-// === SPELL_ATTR_USES_RANGED_SLOT (cmangos) ===
+-#ifndef SPELL_ATTR_USES_RANGED_SLOT
+-#define SPELL_ATTR_USES_RANGED_SLOT 0x00000010
+-#endif
+-
+ // === BG_AV_NODE_STATUS_NEUTRAL_OCCUPIED ===
+ #ifndef BG_AV_NODE_STATUS_NEUTRAL_OCCUPIED
+ #define BG_AV_NODE_STATUS_NEUTRAL_OCCUPIED 4
+ #endif
+ 
+-// === CREATURE_EXTRA_FLAG_INVISIBLE ===
+-#ifndef CREATURE_EXTRA_FLAG_INVISIBLE
+-#define CREATURE_EXTRA_FLAG_INVISIBLE 0x00040000
+-#endif
+-
+-// === TARGET_FLAG_GAMEOBJECT (cmangos) ===
+-#ifndef TARGET_FLAG_GAMEOBJECT
+-#define TARGET_FLAG_GAMEOBJECT 0x800
+-#endif
+-
+ // === TAXI_MOTION_TYPE (cmangos) → FLIGHT_MOTION_TYPE (Penqle) ===
+ #ifndef TAXI_MOTION_TYPE
+ #define TAXI_MOTION_TYPE FLIGHT_MOTION_TYPE
+@@ -484,30 +446,19 @@ namespace Taxi {
+ }
+ 
+ // === Other small defines ===
+-#ifndef ITEM_FLAG_UNIQUE_EQUIPPABLE
+-#define ITEM_FLAG_UNIQUE_EQUIPPABLE 0
+-#endif
+ #ifndef LOOT_SLOT_NORMAL
+ #define LOOT_SLOT_NORMAL 0
+ #endif
+ #ifndef ROLL_DISENCHANT
+ #define ROLL_DISENCHANT 4
+ #endif
+-#ifndef SPELL_STATE_CHANNELING
+-#define SPELL_STATE_CHANNELING 3
+-#endif
+-#ifndef SKILL_FLAG_CAN_UNLEARN
+-#define SKILL_FLAG_CAN_UNLEARN 0x10
+-#endif
+-
+-// === sScriptDevAIMgr (cmangos has ScriptDevAI; Penqle uses sScriptMgr) ===
+-// Stub so symbol resolves; bot's calls are no-ops. The variadic template
+-// absorbs whatever cmangos's OnGossipHello signature looks like in the
+-// vendor tree — we don't care, we just need a callable returning false.
+-// Penqle's own sScriptMgr is wired separately.
++// === Remaining ScriptDevAI compatibility ===
++// Penqle has native sScriptMgr.OnGossipHello(), used directly by the bot now.
++// OnNpcSpellClick has no verified Penqle equivalent yet, so keep only this
++// legacy hook as an explicit no-op until the remaining shim audit resolves it.
+ struct CmangosScriptDevAIMgrStub {
+     template<typename... Args>
+-    bool OnGossipHello(Args... /*args*/) { return false; }
++    bool OnNpcSpellClick(Args... /*args*/) { return false; }
+ };
+ inline CmangosScriptDevAIMgrStub sScriptDevAIMgr;
+ 
+@@ -585,10 +536,6 @@ inline CmangosScriptDevAIMgrStub sScriptDevAIMgr;
+ // === GetSpellCastResultString stub (cmangos free function) ===
+ inline char const* GetSpellCastResultString(SpellCastResult /*res*/) { return ""; }
+ 
+-// === TARGET_FLAG_LOCKED / SPELL_STATE_TARGETING (cmangos) ===
+-#ifndef TARGET_FLAG_LOCKED
+-#define TARGET_FLAG_LOCKED 0x100
+-#endif
+ #ifndef SPELL_STATE_TARGETING
+ #define SPELL_STATE_TARGETING 0
+ #endif
+@@ -606,12 +553,6 @@ inline bool HasPersistentAuraEffect(SpellEntry const* /*spellInfo*/) { return fa
+ #ifndef CAST_FLAG_PERSISTENT_AA
+ #define CAST_FLAG_PERSISTENT_AA 0x40
+ #endif
+-#ifndef FACTION_GROUP_MASK_ALLIANCE
+-#define FACTION_GROUP_MASK_ALLIANCE 0x4
+-#endif
+-#ifndef FACTION_GROUP_MASK_HORDE
+-#define FACTION_GROUP_MASK_HORDE 0x2
+-#endif
+ 
+ // === BG_AB_BANNER_* / BG_AB_NODE_STATUS_NEUTRAL (cmangos) ===
+ // Penqle has these in BattleGroundAB.h but with different naming.
+diff --git a/modules/mod-playerbots/src/playerbot/PlayerbotAI.cpp b/modules/mod-playerbots/src/playerbot/PlayerbotAI.cpp
+index e138280..0668f04 100644
+--- a/modules/mod-playerbots/src/playerbot/PlayerbotAI.cpp
++++ b/modules/mod-playerbots/src/playerbot/PlayerbotAI.cpp
+@@ -3996,7 +3996,7 @@ bool PlayerbotAI::GetSpellRange(std::string name, float* maxRange, float* minRan
+                     spellMaxRange = spellRangeEntry->maxRange;
+                 }
+ 
+-                if (spellInfo->HasAttribute(SPELL_ATTR_USES_RANGED_SLOT))
++                if (spellInfo->HasAttribute(SPELL_ATTR_RANGED))
+                 {
+                     if (Item* rangedWeapon = bot->GetWeaponForAttack(RANGED_ATTACK))
+                     {
+@@ -5502,7 +5502,7 @@ bool PlayerbotAI::IsInterruptableSpellCasting(Unit* target, std::string spell, u
+ 
+ 	for (int32 i = EFFECT_INDEX_0; i <= EFFECT_INDEX_2; i++)
+ 	{
+-		if ((spellInfo->InterruptFlags & SPELL_INTERRUPT_FLAG_COMBAT) && spellInfo->PreventionType == SPELL_PREVENTION_TYPE_SILENCE)
++        if ((spellInfo->InterruptFlags & SPELL_INTERRUPT_FLAG_AUTOATTACK) && spellInfo->PreventionType == SPELL_PREVENTION_TYPE_SILENCE)
+ 			return true;
+ 
+ 		if ((spellInfo->Effect[i] == SPELL_EFFECT_INTERRUPT_CAST) &&
+@@ -8267,7 +8267,7 @@ void PlayerbotAI::ImbueItem(Item* item, uint32 targetFlag, ObjectGuid targetGUID
+ #endif
+ 
+ #ifdef CMANGOS
+-   if (targetFlag & (TARGET_FLAG_UNIT | TARGET_FLAG_ITEM | TARGET_FLAG_GAMEOBJECT))
++   if (targetFlag & (TARGET_FLAG_UNIT | TARGET_FLAG_ITEM | TARGET_FLAG_OBJECT))
+ #endif
+ #ifdef MANGOS
+    if (targetFlag & (TARGET_FLAG_UNIT | TARGET_FLAG_ITEM | TARGET_FLAG_OBJECT))
+@@ -8413,7 +8413,7 @@ bool PlayerbotAI::CanMove()
+     {
+         return false;
+     }
+-    if (bot->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_CLIENT_CONTROL_LOST))
++    if (bot->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_DISABLE_MOVE))
+     {
+         return false;
+     }
+diff --git a/modules/mod-playerbots/src/playerbot/PlayerbotFactory.cpp b/modules/mod-playerbots/src/playerbot/PlayerbotFactory.cpp
+index 9a2333d..31041b2 100644
+--- a/modules/mod-playerbots/src/playerbot/PlayerbotFactory.cpp
++++ b/modules/mod-playerbots/src/playerbot/PlayerbotFactory.cpp
+@@ -3205,7 +3205,7 @@ void PlayerbotFactory::InitEquipment(bool incremental, bool syncWithMaster, bool
+                         continue;
+ 
+                     // skip unique-equippable items if already have one in inventory
+-                    if (proto->Flags & ITEM_FLAG_UNIQUE_EQUIPPABLE && bot->HasItemCount(proto->ItemId, 1))
++                    if (proto->Flags & ITEM_FLAG_UNIQUE_EQUIPPED && bot->HasItemCount(proto->ItemId, 1))
+                         continue;
+ 
+                     if (proto->MaxCount && bot->HasItemCount(proto->ItemId, proto->MaxCount))
+@@ -3355,7 +3355,7 @@ void PlayerbotFactory::InitEquipment(bool incremental, bool syncWithMaster, bool
+                         continue;
+ 
+                     // skip unique-equippable items if already have one in inventory
+-                    if (proto->Flags & ITEM_FLAG_UNIQUE_EQUIPPABLE && bot->HasItemCount(proto->ItemId, 1))
++                    if (proto->Flags & ITEM_FLAG_UNIQUE_EQUIPPED && bot->HasItemCount(proto->ItemId, 1))
+                         continue;
+ 
+                     if (proto->MaxCount && bot->HasItemCount(proto->ItemId, proto->MaxCount))
+@@ -5371,7 +5371,7 @@ void PlayerbotFactory::LoadEnchantContainer()
+                                             uint32 GemColor = gemProperty->color;
+ 
+                                             // check unique-equipped on item
+-                                            if (gemProto->Flags & ITEM_FLAG_UNIQUE_EQUIPPABLE)
++                                            if (gemProto->Flags & ITEM_FLAG_UNIQUE_EQUIPPED)
+                                             {
+                                                 // there is an equip limit on this item and also we dont want to have more than 1 anywhere
+                                                 if ((bot->HasItemOrGemWithIdEquipped(gemProto->ItemId, 1)) || (bot->HasItemCount(gemProto->ItemId, 1)))
+@@ -5515,7 +5515,7 @@ void PlayerbotFactory::InitGems() //WIP
+                                         uint32 GemColor = gemProperty->color;
+ 
+                                       // check unique-equipped on item
+-                                        if (gemProto->Flags & ITEM_FLAG_UNIQUE_EQUIPPABLE)
++                                        if (gemProto->Flags & ITEM_FLAG_UNIQUE_EQUIPPED)
+                                         {
+                                             // there is an equip limit on this item and also we dont want to have more than 1 anywhere
+                                             if ((bot->HasItemOrGemWithIdEquipped(gemProto->ItemId, 1)) || (bot->HasItemCount(gemProto->ItemId, 1)))
+diff --git a/modules/mod-playerbots/src/playerbot/RandomPlayerbotMgr.cpp b/modules/mod-playerbots/src/playerbot/RandomPlayerbotMgr.cpp
+index 1bed124..7f19b6b 100644
+--- a/modules/mod-playerbots/src/playerbot/RandomPlayerbotMgr.cpp
++++ b/modules/mod-playerbots/src/playerbot/RandomPlayerbotMgr.cpp
+@@ -2899,7 +2899,7 @@ void RandomPlayerbotMgr::PrepareTeleportCache()
+         if (!cInfo)
+             continue;
+ 
+-        if (cInfo->ExtraFlags & CREATURE_EXTRA_FLAG_INVISIBLE)
++        if (cInfo->flags_extra & CREATURE_FLAG_EXTRA_INVISIBLE)
+             continue;
+ 
+         std::vector<uint32> allowedNpcFlags;
+diff --git a/modules/mod-playerbots/src/playerbot/ServerFacade.cpp b/modules/mod-playerbots/src/playerbot/ServerFacade.cpp
+index d39d5e6..3951cc7 100644
+--- a/modules/mod-playerbots/src/playerbot/ServerFacade.cpp
++++ b/modules/mod-playerbots/src/playerbot/ServerFacade.cpp
+@@ -163,7 +163,7 @@ float ServerFacade::GetChaseOffset(Unit* /*target*/) { return 0.0f; }
+ bool ServerFacade::isMoving(Unit *unit)
+ {
+ #ifdef MANGOS
+-    return unit->m_movementInfo.HasMovementFlag(movementFlagsMask);
++    return unit->m_movementInfo.HasMovementFlag(MOVEFLAG_MASK_MOVING);
+ #endif
+ #ifdef CMANGOS
+ #ifdef MANGOSBOT_ONE
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/AttackAction.h b/modules/mod-playerbots/src/playerbot/strategy/actions/AttackAction.h
+index 7bd8c80..16b59a5 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/AttackAction.h
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/AttackAction.h
+@@ -12,7 +12,7 @@ namespace ai
+ 
+     public:
+         virtual bool Execute(Event& event) override;
+-        virtual bool isPossible() override { return !bot->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_CLIENT_CONTROL_LOST); }; //Override movement stay.
++        virtual bool isPossible() override { return !bot->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_DISABLE_MOVE); }; //Override movement stay.
+ 
+     protected:
+         bool Attack(Player* requester, Unit* target);
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/DebugAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/DebugAction.cpp
+index 75c0322..6e08e98 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/DebugAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/DebugAction.cpp
+@@ -1024,7 +1024,7 @@ void DebugAction::FakeSpell(uint32 spellId, Unit* truecaster, Unit* caster, Obje
+     {
+         uint32 castFlags = CAST_FLAG_UNKNOWN2;
+ 
+-        if (spellInfo && spellInfo->HasAttribute(SPELL_ATTR_USES_RANGED_SLOT))
++        if (spellInfo && spellInfo->HasAttribute(SPELL_ATTR_RANGED))
+             castFlags |= CAST_FLAG_AMMO;                        // arrows/bullets visual
+ 
+         WorldPacket data(SMSG_SPELL_START, (8 + 8 + 4 + 2 + 4));
+@@ -1061,7 +1061,7 @@ void DebugAction::FakeSpell(uint32 spellId, Unit* truecaster, Unit* caster, Obje
+ 
+ 
+ 
+-        if (spellInfo && spellInfo->HasAttribute(SPELL_ATTR_USES_RANGED_SLOT))
++        if (spellInfo && spellInfo->HasAttribute(SPELL_ATTR_RANGED))
+             castFlags |= CAST_FLAG_AMMO;                        // arrows/bullets visual
+         if (spellInfo && HasPersistentAuraEffect(spellInfo))
+             castFlags |= CAST_FLAG_PERSISTENT_AA;
+@@ -1225,7 +1225,7 @@ bool DebugAction::HandleArea(Event& event, Player* requester, const std::string&
+     AreaTableEntry const* area = point.GetArea();
+     std::ostringstream out;
+     out << point.getAreaName(true, false); 
+-    out << "," << area->team << " (" << (area->team != FACTION_GROUP_MASK_ALLIANCE ? (area->team != FACTION_GROUP_MASK_HORDE ? "neutral" : "horde") : "alliance") << ")";
++    out << "," << area->team << " (" << (area->team != FACTION_MASK_ALLIANCE ? (area->team != FACTION_MASK_HORDE ? "neutral" : "horde") : "alliance") << ")";
+     ai->TellPlayerNoFacing(requester, out, PlayerbotSecurityLevel::PLAYERBOT_SECURITY_ALLOW_ALL, true, false);
+     return true;
+ }
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/GossipHelloAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/GossipHelloAction.cpp
+index dcfb019..c3f993a 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/GossipHelloAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/GossipHelloAction.cpp
+@@ -47,7 +47,7 @@ bool GossipHelloAction::Execute(Event& event)
+ 
+         if (pCreature)
+         {
+-            if (!sScriptDevAIMgr.OnGossipHello(bot, pCreature))
++            if (!sScriptMgr.OnGossipHello(bot, pCreature))
+             {
+                 bot->PrepareGossipMenu(pCreature, pCreature->GetDefaultGossipMenuId());
+             }
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/ReachTargetActions.h b/modules/mod-playerbots/src/playerbot/strategy/actions/ReachTargetActions.h
+index 4c8d9a9..e223d22 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/ReachTargetActions.h
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/ReachTargetActions.h
+@@ -53,7 +53,7 @@ namespace ai
+                     chaseDist = (chaseDist - sPlayerbotAIConfig.contactDistance);
+                 }
+ 
+-                if (MoveStyleValue::WaitForEnemy(ai) && target->m_movementInfo.HasMovementFlag(movementFlagsMask) &&
++                if (MoveStyleValue::WaitForEnemy(ai) && target->m_movementInfo.HasMovementFlag(MOVEFLAG_MASK_MOVING) &&
+                         sServerFacade.IsInFront(target, bot, sPlayerbotAIConfig.sightDistance, CAST_ANGLE_IN_FRONT) &&
+                         sServerFacade.IsDistanceGreaterThan(distanceToTarget, sPlayerbotAIConfig.tooCloseDistance))
+                 {
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/SkillAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/SkillAction.cpp
+index dc602c4..f657112 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/SkillAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/SkillAction.cpp
+@@ -71,7 +71,7 @@ bool SkillAction::Execute(Event& event)
+             {
+                 args["%skillname"] = ChatHelper::formatSkill(id);
+ 
+-                if (!bot->GetSkillInfo(uint16(id), ([](SkillRaceClassInfoEntry const& entry) { return (entry.flags & SKILL_FLAG_CAN_UNLEARN); })))
++                if (!bot->GetSkillInfo(uint16(id), ([](SkillRaceClassInfoEntry const& entry) { return (entry.flags & SKILL_FLAG_UNLEARNABLE); })))
+                 {
+                     ai->TellPlayerNoFacing(requester, BOT_TEXT2("Unable to unlearn %skillname", args));
+                     return false;
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/UseItemAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/UseItemAction.cpp
+index 531944c..eab8542 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/UseItemAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/UseItemAction.cpp
+@@ -592,13 +592,13 @@ bool UseAction::UseItemInternal(Player* requester, uint32 itemId, Unit* unit, Ga
+             }
+         }
+         
+-        if ((spellTargets & TARGET_FLAG_GAMEOBJECT || spellTargets & TARGET_FLAG_LOCKED) && !validTarget)
++        if ((spellTargets & TARGET_FLAG_OBJECT || spellTargets & TARGET_FLAG_UNK1) && !validTarget)
+         {
+             if (gameObject && gameObject->IsSpawned())
+             {
+                 gameObjectTarget = gameObject;
+                 targets.setGOTarget(gameObject);
+-                targets.m_targetMask = TARGET_FLAG_GAMEOBJECT;
++                targets.m_targetMask = TARGET_FLAG_OBJECT;
+                 validTarget = true;
+             }
+         }
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/triggers/GenericTriggers.h b/modules/mod-playerbots/src/playerbot/strategy/triggers/GenericTriggers.h
+index 79d304b..b5882b8 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/triggers/GenericTriggers.h
++++ b/modules/mod-playerbots/src/playerbot/strategy/triggers/GenericTriggers.h
+@@ -1107,7 +1107,7 @@ namespace ai
+                 if (((1 << spell->Dispel) & disMask) || ((1 << spell->Dispel) & poisMask))
+                     return true;
+ 
+-                if (!spell->HasAttribute(SPELL_ATTR_NO_IMMUNITIES) && itr.second->HasMechanicMask(bleedType))
++                if (!spell->HasAttribute(SPELL_ATTR_UNAFFECTED_BY_INVULNERABILITY) && itr.second->HasMechanicMask(bleedType))
+                     return true;
+             }
+             return false;
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/triggers/RpgTriggers.cpp b/modules/mod-playerbots/src/playerbot/strategy/triggers/RpgTriggers.cpp
+index a809649..3863f6a 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/triggers/RpgTriggers.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/triggers/RpgTriggers.cpp
+@@ -913,7 +913,7 @@ bool RpgGossipTalkTrigger::IsActive()
+     }
+ #endif
+ 
+-    if (!sScriptDevAIMgr.OnGossipHello(bot, creature))
++    if (!sScriptMgr.OnGossipHello(bot, creature))
+     {
+         bot->PrepareGossipMenu(creature, creature->GetDefaultGossipMenuId());
+     }
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/AttackersValue.cpp b/modules/mod-playerbots/src/playerbot/strategy/values/AttackersValue.cpp
+index 901f494..a4b7e48 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/AttackersValue.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/AttackersValue.cpp
+@@ -23,7 +23,7 @@ std::list<ObjectGuid> AttackersValue::Calculate()
+         return result;
+ 
+     // lost control, e.g. BG ended
+-    if (bot->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_CLIENT_CONTROL_LOST))
++    if (bot->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_DISABLE_MOVE))
+         return result;
+ 
+     if (ai->HasStrategy("focus rti targets", BotState::BOT_STATE_COMBAT))
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/SpellCastUsefulValue.cpp b/modules/mod-playerbots/src/playerbot/strategy/values/SpellCastUsefulValue.cpp
+index 97ed767..73be09e 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/SpellCastUsefulValue.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/SpellCastUsefulValue.cpp
+@@ -37,7 +37,7 @@ bool SpellCastUsefulValue::Calculate()
+         if (spellid == lastSpellId)
+         {
+             Spell* const pSpell = bot->FindCurrentSpellBySpellId(lastSpellId);
+-            if (pSpell && (pSpell->getState() == SPELL_STATE_CASTING || pSpell->getState() == SPELL_STATE_CHANNELING))
++            if (pSpell && pSpell->getState() == SPELL_STATE_CASTING)
+                 return false;
+         }
+ 	}

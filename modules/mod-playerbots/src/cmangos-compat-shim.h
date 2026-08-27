@@ -80,19 +80,6 @@ typedef AreaTriggerEntry AreaTrigger;
 enum DistanceCalculation { DIST_CALC_NONE = 0, DIST_CALC_BOUNDING_RADIUS = 1, DIST_CALC_COMBAT_REACH = 2 };
 #endif
 
-// cmangos has UNIT_FLAG_CLIENT_CONTROL_LOST. Penqle may use a different name
-// or omit it entirely. Define as 0 so the bit-flag operations parse, even if
-// they're effectively no-ops at runtime
-#ifndef UNIT_FLAG_CLIENT_CONTROL_LOST
-#define UNIT_FLAG_CLIENT_CONTROL_LOST 0
-#endif
-
-// cmangos has movementFlagsMask as "all movement flags" sentinel. Penqle uses
-// MOVEMENTFLAG_MASK_MOVING or specific flag combos. Define as all bits.
-#ifndef movementFlagsMask
-constexpr uint32 movementFlagsMask = 0xFFFFFFFFu;
-#endif
-
 // cmangos has BarGoLink (console progress bar). Penqle has no equivalent.
 // Define as a complete stub class so the bot's BarGoLink pointer dereferences
 // and method calls compile (no-op at runtime).
@@ -185,11 +172,6 @@ inline CmangosFactionTemplateStoreProxy sFactionTemplateStore;
 // cmangos has ITEM_FLAG_HAS_LOOT (lootable item). Penqle uses ITEM_FLAG_HAS_LOOT or ITEM_FLAG_OPENABLE.
 #ifndef ITEM_FLAG_HAS_LOOT
 #define ITEM_FLAG_HAS_LOOT ITEM_FLAG_LOOTABLE
-#endif
-
-// cmangos has SPELL_ATTR_NO_IMMUNITIES; Penqle uses SPELL_ATTR_EX_NO_IMMUNITIES or similar.
-#ifndef SPELL_ATTR_NO_IMMUNITIES
-#define SPELL_ATTR_NO_IMMUNITIES 0
 #endif
 
 // === Type renames (cmangos→Penqle struct name diffs) ===
@@ -416,11 +398,6 @@ enum AuctionHouseType {
     MAX_AUCTION_HOUSE_TYPE = 3,
 };
 
-// === SPELL_INTERRUPT_FLAG_COMBAT ===
-#ifndef SPELL_INTERRUPT_FLAG_COMBAT
-#define SPELL_INTERRUPT_FLAG_COMBAT 0x10
-#endif
-
 // === SPELL_RANGE_FLAG_MELEE / RANGED (cmangos defines on SpellRangeEntry::Flags) ===
 #ifndef SPELL_RANGE_FLAG_MELEE
 #define SPELL_RANGE_FLAG_MELEE 1
@@ -429,24 +406,9 @@ enum AuctionHouseType {
 #define SPELL_RANGE_FLAG_RANGED 2
 #endif
 
-// === SPELL_ATTR_USES_RANGED_SLOT (cmangos) ===
-#ifndef SPELL_ATTR_USES_RANGED_SLOT
-#define SPELL_ATTR_USES_RANGED_SLOT 0x00000010
-#endif
-
 // === BG_AV_NODE_STATUS_NEUTRAL_OCCUPIED ===
 #ifndef BG_AV_NODE_STATUS_NEUTRAL_OCCUPIED
 #define BG_AV_NODE_STATUS_NEUTRAL_OCCUPIED 4
-#endif
-
-// === CREATURE_EXTRA_FLAG_INVISIBLE ===
-#ifndef CREATURE_EXTRA_FLAG_INVISIBLE
-#define CREATURE_EXTRA_FLAG_INVISIBLE 0x00040000
-#endif
-
-// === TARGET_FLAG_GAMEOBJECT (cmangos) ===
-#ifndef TARGET_FLAG_GAMEOBJECT
-#define TARGET_FLAG_GAMEOBJECT 0x800
 #endif
 
 // === TAXI_MOTION_TYPE (cmangos) → FLIGHT_MOTION_TYPE (Penqle) ===
@@ -484,30 +446,19 @@ namespace Taxi {
 }
 
 // === Other small defines ===
-#ifndef ITEM_FLAG_UNIQUE_EQUIPPABLE
-#define ITEM_FLAG_UNIQUE_EQUIPPABLE 0
-#endif
 #ifndef LOOT_SLOT_NORMAL
 #define LOOT_SLOT_NORMAL 0
 #endif
 #ifndef ROLL_DISENCHANT
 #define ROLL_DISENCHANT 4
 #endif
-#ifndef SPELL_STATE_CHANNELING
-#define SPELL_STATE_CHANNELING 3
-#endif
-#ifndef SKILL_FLAG_CAN_UNLEARN
-#define SKILL_FLAG_CAN_UNLEARN 0x10
-#endif
-
-// === sScriptDevAIMgr (cmangos has ScriptDevAI; Penqle uses sScriptMgr) ===
-// Stub so symbol resolves; bot's calls are no-ops. The variadic template
-// absorbs whatever cmangos's OnGossipHello signature looks like in the
-// vendor tree — we don't care, we just need a callable returning false.
-// Penqle's own sScriptMgr is wired separately.
+// === Remaining ScriptDevAI compatibility ===
+// Penqle has native sScriptMgr.OnGossipHello(), used directly by the bot now.
+// OnNpcSpellClick has no verified Penqle equivalent yet, so keep only this
+// legacy hook as an explicit no-op until the remaining shim audit resolves it.
 struct CmangosScriptDevAIMgrStub {
     template<typename... Args>
-    bool OnGossipHello(Args... /*args*/) { return false; }
+    bool OnNpcSpellClick(Args... /*args*/) { return false; }
 };
 inline CmangosScriptDevAIMgrStub sScriptDevAIMgr;
 
@@ -585,10 +536,6 @@ inline CmangosScriptDevAIMgrStub sScriptDevAIMgr;
 // === GetSpellCastResultString stub (cmangos free function) ===
 inline char const* GetSpellCastResultString(SpellCastResult /*res*/) { return ""; }
 
-// === TARGET_FLAG_LOCKED / SPELL_STATE_TARGETING (cmangos) ===
-#ifndef TARGET_FLAG_LOCKED
-#define TARGET_FLAG_LOCKED 0x100
-#endif
 #ifndef SPELL_STATE_TARGETING
 #define SPELL_STATE_TARGETING 0
 #endif
@@ -605,12 +552,6 @@ inline char const* GetSpellCastResultString(SpellCastResult /*res*/) { return ""
 inline bool HasPersistentAuraEffect(SpellEntry const* /*spellInfo*/) { return false; }
 #ifndef CAST_FLAG_PERSISTENT_AA
 #define CAST_FLAG_PERSISTENT_AA 0x40
-#endif
-#ifndef FACTION_GROUP_MASK_ALLIANCE
-#define FACTION_GROUP_MASK_ALLIANCE 0x4
-#endif
-#ifndef FACTION_GROUP_MASK_HORDE
-#define FACTION_GROUP_MASK_HORDE 0x2
 #endif
 
 // === BG_AB_BANNER_* / BG_AB_NODE_STATUS_NEUTRAL (cmangos) ===

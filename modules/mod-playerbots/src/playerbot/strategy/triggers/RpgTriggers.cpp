@@ -913,7 +913,7 @@ bool RpgGossipTalkTrigger::IsActive()
     }
 #endif
 
-    if (!sScriptDevAIMgr.OnGossipHello(bot, creature))
+    if (!sScriptMgr.OnGossipHello(bot, creature))
     {
         bot->PrepareGossipMenu(creature, creature->GetDefaultGossipMenuId());
     }

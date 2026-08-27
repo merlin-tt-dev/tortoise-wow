@@ -1107,7 +1107,7 @@ namespace ai
                 if (((1 << spell->Dispel) & disMask) || ((1 << spell->Dispel) & poisMask))
                     return true;
 
-                if (!spell->HasAttribute(SPELL_ATTR_NO_IMMUNITIES) && itr.second->HasMechanicMask(bleedType))
+                if (!spell->HasAttribute(SPELL_ATTR_UNAFFECTED_BY_INVULNERABILITY) && itr.second->HasMechanicMask(bleedType))
                     return true;
             }
             return false;

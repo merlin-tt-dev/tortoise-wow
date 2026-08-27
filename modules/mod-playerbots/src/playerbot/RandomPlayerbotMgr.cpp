@@ -2899,7 +2899,7 @@ void RandomPlayerbotMgr::PrepareTeleportCache()
         if (!cInfo)
             continue;
 
-        if (cInfo->ExtraFlags & CREATURE_EXTRA_FLAG_INVISIBLE)
+        if (cInfo->flags_extra & CREATURE_FLAG_EXTRA_INVISIBLE)
             continue;
 
         std::vector<uint32> allowedNpcFlags;

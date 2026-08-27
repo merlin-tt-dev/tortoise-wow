@@ -1024,7 +1024,7 @@ void DebugAction::FakeSpell(uint32 spellId, Unit* truecaster, Unit* caster, Obje
     {
         uint32 castFlags = CAST_FLAG_UNKNOWN2;
 
-        if (spellInfo && spellInfo->HasAttribute(SPELL_ATTR_USES_RANGED_SLOT))
+        if (spellInfo && spellInfo->HasAttribute(SPELL_ATTR_RANGED))
             castFlags |= CAST_FLAG_AMMO;                        // arrows/bullets visual
 
         WorldPacket data(SMSG_SPELL_START, (8 + 8 + 4 + 2 + 4));
@@ -1061,7 +1061,7 @@ void DebugAction::FakeSpell(uint32 spellId, Unit* truecaster, Unit* caster, Obje
 
 
 
-        if (spellInfo && spellInfo->HasAttribute(SPELL_ATTR_USES_RANGED_SLOT))
+        if (spellInfo && spellInfo->HasAttribute(SPELL_ATTR_RANGED))
             castFlags |= CAST_FLAG_AMMO;                        // arrows/bullets visual
         if (spellInfo && HasPersistentAuraEffect(spellInfo))
             castFlags |= CAST_FLAG_PERSISTENT_AA;
@@ -1225,7 +1225,7 @@ bool DebugAction::HandleArea(Event& event, Player* requester, const std::string&
     AreaTableEntry const* area = point.GetArea();
     std::ostringstream out;
     out << point.getAreaName(true, false); 
-    out << "," << area->team << " (" << (area->team != FACTION_GROUP_MASK_ALLIANCE ? (area->team != FACTION_GROUP_MASK_HORDE ? "neutral" : "horde") : "alliance") << ")";
+    out << "," << area->team << " (" << (area->team != FACTION_MASK_ALLIANCE ? (area->team != FACTION_MASK_HORDE ? "neutral" : "horde") : "alliance") << ")";
     ai->TellPlayerNoFacing(requester, out, PlayerbotSecurityLevel::PLAYERBOT_SECURITY_ALLOW_ALL, true, false);
     return true;
 }

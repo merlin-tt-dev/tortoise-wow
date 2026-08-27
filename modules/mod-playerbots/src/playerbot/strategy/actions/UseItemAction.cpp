@@ -592,13 +592,13 @@ bool UseAction::UseItemInternal(Player* requester, uint32 itemId, Unit* unit, Ga
             }
         }
         
-        if ((spellTargets & TARGET_FLAG_GAMEOBJECT || spellTargets & TARGET_FLAG_LOCKED) && !validTarget)
+        if ((spellTargets & TARGET_FLAG_OBJECT || spellTargets & TARGET_FLAG_UNK1) && !validTarget)
         {
             if (gameObject && gameObject->IsSpawned())
             {
                 gameObjectTarget = gameObject;
                 targets.setGOTarget(gameObject);
-                targets.m_targetMask = TARGET_FLAG_GAMEOBJECT;
+                targets.m_targetMask = TARGET_FLAG_OBJECT;
                 validTarget = true;
             }
         }

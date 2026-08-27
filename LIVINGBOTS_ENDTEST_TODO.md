@@ -13,7 +13,10 @@
 | 0012 Open-Lock: alle Spell-Effects prüfen | eingebaut | ausstehend |
 | 0013 Mining/Herbalism auf echtes GameObject | eingebaut | ausstehend |
 | 0014 Native Penqle Loot Access | eingebaut | ausstehend |
-| 0015 Native Quest-Relation Access | mit diesem Patch | ausstehend |
+| 0015 Native Quest-Relation Access | eingebaut | ausstehend |
+| 0016 Native Travel Metadata | eingebaut | ausstehend |
+| 0017 Native Config IncludeDir | eingebaut | ausstehend |
+| 0018 Native Compatibility Semantics I | mit diesem Patch | ausstehend |
 
 **Wichtig:** „eingebaut“ bedeutet nur statisch/source-seitig portiert. Kein Punkt gilt dadurch als getestet.
 
@@ -35,6 +38,17 @@
 ---
 
 # A. Build / Start / Shutdown
+
+## Compatibility-/Shim-Audit
+
+- [ ] 0018: Bewegungsstatus verwendet Penqles `MOVEFLAG_MASK_MOVING`, nicht eine All-Bits-Maske.
+- [ ] 0018: `UNIT_FLAG_DISABLE_MOVE` blockiert Bot-Bewegung an den ehemaligen `CLIENT_CONTROL_LOST`-Stellen.
+- [ ] 0018: Spell-Attribute/Interrupt-/Target-Flags verwenden Penqles native 1.12-Symbole und Bitwerte.
+- [ ] 0018: Unique-equipped- und unlearnable-Skill-Prüfungen verwenden Penqles native Flags.
+- [ ] 0018: unsichtbare Creature-Templates werden über `flags_extra` / `CREATURE_FLAG_EXTRA_INVISIBLE` gefiltert.
+- [ ] 0018: Channeling wird über Penqles nativen `SPELL_STATE_CASTING`-Zustand erkannt.
+- [ ] 0018: GossipHello läuft über `sScriptMgr`; kein No-op-Compatibility-Hook.
+- [ ] Rest-Shim-Audit (MMap/BG/Loot/LFG/ChatChannel/InstanceTemplate/Autocast/etc.) vollständig abgeschlossen.
 
 ## A1. Clean Build
 

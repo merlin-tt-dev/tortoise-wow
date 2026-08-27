@@ -3205,7 +3205,7 @@ void PlayerbotFactory::InitEquipment(bool incremental, bool syncWithMaster, bool
                         continue;
 
                     // skip unique-equippable items if already have one in inventory
-                    if (proto->Flags & ITEM_FLAG_UNIQUE_EQUIPPABLE && bot->HasItemCount(proto->ItemId, 1))
+                    if (proto->Flags & ITEM_FLAG_UNIQUE_EQUIPPED && bot->HasItemCount(proto->ItemId, 1))
                         continue;
 
                     if (proto->MaxCount && bot->HasItemCount(proto->ItemId, proto->MaxCount))
@@ -3355,7 +3355,7 @@ void PlayerbotFactory::InitEquipment(bool incremental, bool syncWithMaster, bool
                         continue;
 
                     // skip unique-equippable items if already have one in inventory
-                    if (proto->Flags & ITEM_FLAG_UNIQUE_EQUIPPABLE && bot->HasItemCount(proto->ItemId, 1))
+                    if (proto->Flags & ITEM_FLAG_UNIQUE_EQUIPPED && bot->HasItemCount(proto->ItemId, 1))
                         continue;
 
                     if (proto->MaxCount && bot->HasItemCount(proto->ItemId, proto->MaxCount))
@@ -5371,7 +5371,7 @@ void PlayerbotFactory::LoadEnchantContainer()
                                             uint32 GemColor = gemProperty->color;
 
                                             // check unique-equipped on item
-                                            if (gemProto->Flags & ITEM_FLAG_UNIQUE_EQUIPPABLE)
+                                            if (gemProto->Flags & ITEM_FLAG_UNIQUE_EQUIPPED)
                                             {
                                                 // there is an equip limit on this item and also we dont want to have more than 1 anywhere
                                                 if ((bot->HasItemOrGemWithIdEquipped(gemProto->ItemId, 1)) || (bot->HasItemCount(gemProto->ItemId, 1)))
@@ -5515,7 +5515,7 @@ void PlayerbotFactory::InitGems() //WIP
                                         uint32 GemColor = gemProperty->color;
 
                                       // check unique-equipped on item
-                                        if (gemProto->Flags & ITEM_FLAG_UNIQUE_EQUIPPABLE)
+                                        if (gemProto->Flags & ITEM_FLAG_UNIQUE_EQUIPPED)
                                         {
                                             // there is an equip limit on this item and also we dont want to have more than 1 anywhere
                                             if ((bot->HasItemOrGemWithIdEquipped(gemProto->ItemId, 1)) || (bot->HasItemCount(gemProto->ItemId, 1)))

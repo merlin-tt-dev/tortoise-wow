@@ -3996,7 +3996,7 @@ bool PlayerbotAI::GetSpellRange(std::string name, float* maxRange, float* minRan
                     spellMaxRange = spellRangeEntry->maxRange;
                 }
 
-                if (spellInfo->HasAttribute(SPELL_ATTR_USES_RANGED_SLOT))
+                if (spellInfo->HasAttribute(SPELL_ATTR_RANGED))
                 {
                     if (Item* rangedWeapon = bot->GetWeaponForAttack(RANGED_ATTACK))
                     {
@@ -5502,7 +5502,7 @@ bool PlayerbotAI::IsInterruptableSpellCasting(Unit* target, std::string spell, u
 
 	for (int32 i = EFFECT_INDEX_0; i <= EFFECT_INDEX_2; i++)
 	{
-		if ((spellInfo->InterruptFlags & SPELL_INTERRUPT_FLAG_COMBAT) && spellInfo->PreventionType == SPELL_PREVENTION_TYPE_SILENCE)
+        if ((spellInfo->InterruptFlags & SPELL_INTERRUPT_FLAG_AUTOATTACK) && spellInfo->PreventionType == SPELL_PREVENTION_TYPE_SILENCE)
 			return true;
 
 		if ((spellInfo->Effect[i] == SPELL_EFFECT_INTERRUPT_CAST) &&
@@ -8267,7 +8267,7 @@ void PlayerbotAI::ImbueItem(Item* item, uint32 targetFlag, ObjectGuid targetGUID
 #endif
 
 #ifdef CMANGOS
-   if (targetFlag & (TARGET_FLAG_UNIT | TARGET_FLAG_ITEM | TARGET_FLAG_GAMEOBJECT))
+   if (targetFlag & (TARGET_FLAG_UNIT | TARGET_FLAG_ITEM | TARGET_FLAG_OBJECT))
 #endif
 #ifdef MANGOS
    if (targetFlag & (TARGET_FLAG_UNIT | TARGET_FLAG_ITEM | TARGET_FLAG_OBJECT))
@@ -8413,7 +8413,7 @@ bool PlayerbotAI::CanMove()
     {
         return false;
     }
-    if (bot->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_CLIENT_CONTROL_LOST))
+    if (bot->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_DISABLE_MOVE))
     {
         return false;
     }

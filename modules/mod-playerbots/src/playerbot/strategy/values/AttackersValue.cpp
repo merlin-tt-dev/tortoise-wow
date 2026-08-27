@@ -23,7 +23,7 @@ std::list<ObjectGuid> AttackersValue::Calculate()
         return result;
 
     // lost control, e.g. BG ended
-    if (bot->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_CLIENT_CONTROL_LOST))
+    if (bot->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_DISABLE_MOVE))
         return result;
 
     if (ai->HasStrategy("focus rti targets", BotState::BOT_STATE_COMBAT))
