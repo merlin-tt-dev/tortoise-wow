@@ -206,7 +206,7 @@ bool OpenLootAction::CanOpenLock(LootObject& lootObject, const SpellEntry* pSpel
     for (int effIndex = 0; effIndex <= EFFECT_INDEX_2; effIndex++)
     {
         if (pSpellInfo->Effect[effIndex] != SPELL_EFFECT_OPEN_LOCK && pSpellInfo->Effect[effIndex] != SPELL_EFFECT_SKINNING)
-            return false;
+            continue;
 
         uint32 lockId = go->GetGOInfo()->GetLockId();
         if (!lockId)
