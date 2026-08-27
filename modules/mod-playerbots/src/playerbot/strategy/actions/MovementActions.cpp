@@ -20,6 +20,30 @@
 
 using namespace ai;
 
+bool ai::GetTaxiFlightMapEnd(Player* player, WorldPosition& endPosition)
+{
+    if (!player || !player->IsTaxiFlying())
+        return false;
+
+    MotionMaster* motionMaster = player->GetMotionMaster();
+    if (!motionMaster || motionMaster->GetCurrentMovementGeneratorType() != FLIGHT_MOTION_TYPE)
+        return false;
+
+    FlightPathMovementGenerator* flight = static_cast<FlightPathMovementGenerator*>(motionMaster->top());
+    if (!flight)
+        return false;
+
+    TaxiPathNodeList const& path = flight->GetPath();
+    uint32 const currentNode = flight->GetCurrentNode();
+    uint32 const mapEnd = flight->GetPathAtMapEnd();
+    if (path.empty() || currentNode >= path.size() || mapEnd <= currentNode || mapEnd > path.size())
+        return false;
+
+    TaxiPathNodeEntry const& endNode = path[mapEnd - 1];
+    endPosition = WorldPosition(endNode.mapid, endNode.x, endNode.y, endNode.z);
+    return true;
+}
+
 void MovementAction::CreateWp(Player* wpOwner, float x, float y, float z, float o, uint32 entry, bool important)
 {
     float dist = wpOwner->GetDistance(x, y, z);
@@ -2348,16 +2372,11 @@ bool MovementAction::Follow(Unit* target, float distance, float angle)
                 }
             }
 
-            if (player->IsTaxiFlying()) //Move to where the player is flying to.
+            if (player->IsTaxiFlying()) // Move to the end of the player's current map-local taxi spline.
             {
-                const Taxi::Map tMap = player->GetTaxiPathSpline();
-                if (!tMap.empty())
-                {
-                    auto tEnd = tMap.back();
-
-                    if (tEnd)
-                        return MoveTo(tEnd->mapid, tEnd->x, tEnd->y, tEnd->z);
-                }
+                WorldPosition taxiEnd;
+                if (GetTaxiFlightMapEnd(player, taxiEnd))
+                    return MoveTo(taxiEnd.getMapId(), taxiEnd.getX(), taxiEnd.getY(), taxiEnd.getZ());
             }
         }
         if (!target->IsTaxiFlying()/* || bot->GetTransport()*/)

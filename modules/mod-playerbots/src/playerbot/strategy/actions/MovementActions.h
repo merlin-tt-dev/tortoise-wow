@@ -10,6 +10,8 @@
 
 namespace ai
 {
+    bool GetTaxiFlightMapEnd(Player* player, WorldPosition& endPosition);
+
     class MovementAction : public Action
     {
     public:

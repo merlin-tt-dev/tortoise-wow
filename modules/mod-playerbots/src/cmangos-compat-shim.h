@@ -292,22 +292,6 @@ enum AuctionHouseType {
 typedef ClassRoles LfgRoles;
 typedef RolesPriority LfgRolePriority;
 
-// === Taxi namespace stub (cmangos has Taxi::Map for in-flight spline tracking) ===
-// Penqle has no equivalent; bot uses GetTaxiPathSpline() which we stub to return nullptr/empty.
-namespace Taxi {
-    struct PathNode {
-        uint32 mapid = 0; float x = 0, y = 0, z = 0;
-    };
-    class Map {
-    public:
-        Map() {}
-        Map(void*) {}  // accept the void* from Player::GetTaxiPathSpline stub
-        bool empty() const { return true; }
-        PathNode const* back() const { return nullptr; }
-        PathNode const* front() const { return nullptr; }
-    };
-}
-
 // === Other small defines ===
 #ifndef LOOT_SLOT_NORMAL
 #define LOOT_SLOT_NORMAL 0
