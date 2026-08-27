@@ -1,0 +1,952 @@
+diff --git a/LIVINGBOTS_ENDTEST_TODO.md b/LIVINGBOTS_ENDTEST_TODO.md
+index a6520d304a0020b38c2557c5d4f120e82e215aba..5e8edd61417261d96863b12661fef3c11f2f329e 100644
+--- a/LIVINGBOTS_ENDTEST_TODO.md
++++ b/LIVINGBOTS_ENDTEST_TODO.md
+@@ -185,6 +185,13 @@ Falls bis dahin implementiert:
+ Für jede Rasse:
+ 
+ - [ ] zulässige Klassen korrekt.
++- [ ] Race/Class-Matrix folgt ausschließlich `playercreateinfo`; keine Playerbot-Allow-/Forbidden-Liste beeinflusst die Auswahl.
++- [ ] eine in `playercreateinfo` neu hinzugefügte gültige Kombination benötigt keinen Playerbot-Codepatch.
++- [ ] eine nicht in `playercreateinfo` vorhandene Kombination wird zuverlässig abgewiesen.
++- [ ] `CharSections.dbc` wird vom Modul über Penqles/Tortoises nativen `DBCStorage` geladen; kein eigener WDBC-Parser.
++- [ ] männliche und weibliche Appearance-Werte stammen bei vorhandenen Daten aus `CharSections.dbc`.
++- [ ] `SECTION_FLAG_UNAVAILABLE` wird nicht ausgewählt.
++- [ ] fehlt `CharSections.dbc`, bleibt Erstellung über den dokumentierten nativen Tortoise-0..5-Fallback möglich und der Fehler wird klar geloggt.
+ - [ ] Erscheinungsdaten gültig.
+ - [ ] Startposition korrekt.
+ - [ ] Homebind korrekt.
+@@ -193,9 +200,17 @@ Für jede Rasse:
+ - [ ] Startskills korrekt.
+ - [ ] Sprache(n) korrekt.
+ - [ ] Startquests erreichbar.
+-- [ ] keine Human-/Orc-Fallback-Semantik für High Elf/Goblin.
+-
+-**PASS:** jeder erzeugte Bot entspricht `playercreateinfo` und Turtle-Daten.
++- [ ] keine Human-/Orc-Fallback-Semantik für High Elf/Goblin bei Race/Class, Startposition oder Homebind.
++- [ ] Human Hunter und weitere Turtle-Custom-Kombinationen werden erzeugt, wenn `playercreateinfo` sie erlaubt und ihr Configgewicht > 0 ist.
++- [ ] 9 Charaktere auf einem Classic-Botaccount werden vollständig gespeichert und nach Neustart wiedergefunden.
++- [ ] fehlgeschlagene Character-Creation erhöht weder Bot-Zähler noch FixedClassRace-Restmenge fälschlich.
++- [ ] ungültige/unspeicherbare FixedClassRace-Konfiguration terminiert mit verständlichem Fehler statt Endlosschleife.
++- [ ] Config-Reload leert alte `fixedClassRaceCounts`; entfernte Kombinationen bleiben nicht aus einer vorherigen Konfiguration erhalten.
++- [ ] Bot-Erstellung während laufendem Server speichert/entfernt keine bereits eingeloggten RealPlayer oder andere globale `ObjectAccessor`-Player.
++- [ ] `PLAYERHOOK_ON_CREATE` wird wie bei normaler Character-Erstellung ausgeführt.
++- [ ] Realm-Charcount und ObjectMgr-Playercache enthalten den neu gespeicherten Bot.
++
++**PASS:** jeder erzeugte Bot entspricht `playercreateinfo` und Turtle-Daten; Erstellung besitzt nur ihre lokalen temporären Player/Session-Objekte.
+ 
+ ---
+ 
+diff --git a/modules/mod-playerbots/src/cmangos-compat-shim.h b/modules/mod-playerbots/src/cmangos-compat-shim.h
+index 43fb39f6e6a02e85584f97f735e8992031d56fc9..d21239f3ae1edabb26d1b9f2019d56614e6c79ab 100644
+--- a/modules/mod-playerbots/src/cmangos-compat-shim.h
++++ b/modules/mod-playerbots/src/cmangos-compat-shim.h
+@@ -510,31 +510,6 @@ inline AreaEntry const* GetAreaEntryByMapId(uint32 mapId) {
+ // Definition lives in LFGMgr.h so both host (game.vcxproj) and bot module see the same type.
+ typedef std::vector<MeetingStoneInfo> MeetingStoneSet;
+ 
+-// === CharSections (cmangos-only DBC) ===
+-// Penqle has no CharSections.dbc loader. The types are stubbed with an empty
+-// static map so the bot's character-randomization code compiles. The factory
+-// falls back to a default appearance when the map is empty.
+-// SECTION_TYPE_* (cmangos CharSection types)
+-enum CharSectionType {
+-    SECTION_TYPE_SKIN = 0,
+-    SECTION_TYPE_FACE = 1,
+-    SECTION_TYPE_FACIAL_HAIR = 2,
+-    SECTION_TYPE_HAIR = 3,
+-    SECTION_TYPE_UNDERWEAR = 4,
+-};
+-struct CharSectionsEntry {
+-    uint32 Race = 0;
+-    uint32 Gender = 0;
+-    uint32 Type = 0;
+-    uint32 Section = 0;
+-    uint32 ColorIndex = 0;
+-    uint32 Color = 0;
+-    uint32 VariationIndex = 0;
+-    uint32 BaseSection = 0;
+-};
+-typedef std::map<uint32, CharSectionsEntry const*> CharSectionsMap;
+-inline CharSectionsMap sCharSectionMap;
+-
+ // === LFGQueue ===
+ // Penqle has its own LFGQueue in src/game/LFG/LFGMgr.h with stub methods added.
+ // World::GetLFGQueue() forwards to sLFGMgr. Bot module uses the existing types.
+diff --git a/modules/mod-playerbots/src/playerbot/PlayerbotAIConfig.cpp b/modules/mod-playerbots/src/playerbot/PlayerbotAIConfig.cpp
+index e01f5c9be52715384214b7ffe5785be4d870980b..10137964cf7ae186043fae54e9feb351fa90f742 100644
+--- a/modules/mod-playerbots/src/playerbot/PlayerbotAIConfig.cpp
++++ b/modules/mod-playerbots/src/playerbot/PlayerbotAIConfig.cpp
+@@ -349,6 +349,7 @@ bool PlayerbotAIConfig::Initialize()
+     classRaceProbabilityTotal = 0;
+ 
+     useFixedClassRaceCounts = config.GetBoolDefault("AiPlayerbot.ClassRace.UseFixedClassRaceCounts", false);
++    fixedClassRaceCounts.clear();
+     RandomPlayerbotFactory factory(0);
+ 
+     for (uint32 race = 1; race < MAX_RACES; ++race)
+diff --git a/modules/mod-playerbots/src/playerbot/PlayerbotAppearanceStore.cpp b/modules/mod-playerbots/src/playerbot/PlayerbotAppearanceStore.cpp
+new file mode 100644
+index 0000000000000000000000000000000000000000..06f129cb14be7a8acf48bb9748ca01abb43557cf
+--- /dev/null
++++ b/modules/mod-playerbots/src/playerbot/PlayerbotAppearanceStore.cpp
+@@ -0,0 +1,151 @@
++#include "playerbot/PlayerbotAppearanceStore.h"
++
++#include "World.h"
++
++#include <algorithm>
++
++namespace
++{
++char const PlayerbotCharSectionsEntryfmt[] = "diiiiixxxi";
++}
++
++PlayerbotAppearanceStore sPlayerbotAppearanceStore;
++
++PlayerbotAppearanceStore::PlayerbotAppearanceStore() : m_store(PlayerbotCharSectionsEntryfmt)
++{
++    static_assert(sizeof(CharSectionsEntry) == 6 * sizeof(uint32),
++        "Playerbot CharSectionsEntry must match the native DBCStorage format");
++}
++
++bool PlayerbotAppearanceStore::Load()
++{
++    std::call_once(m_loadOnce, [this]()
++    {
++        if (DBCFileLoader::GetFormatRecordSize(PlayerbotCharSectionsEntryfmt) != sizeof(CharSectionsEntry))
++        {
++            sLog.outError("Playerbot CharSections DBC format does not match its entry structure; using Tortoise appearance fallback.");
++            return;
++        }
++
++        std::string path = sWorld.GetDataPath() + "dbc/CharSections.dbc";
++        if (!m_store.Load(path.c_str()))
++        {
++            sLog.outError("Playerbot could not load '%s' with Tortoise DBCStorage; using Tortoise appearance fallback.", path.c_str());
++            return;
++        }
++
++        for (uint32 id = 0; id < m_store.GetNumRows(); ++id)
++        {
++            CharSectionsEntry const* entry = m_store.LookupEntry(id);
++            if (!entry || !entry->Race || entry->Race >= MAX_RACES || entry->Gender > GENDER_FEMALE ||
++                entry->BaseSection > SECTION_HAIR || entry->VariationIndex > 0xFF || entry->ColorIndex > 0xFF)
++                continue;
++            if (entry->Flags & SECTION_FLAG_UNAVAILABLE)
++                continue;
++
++            m_sections[MakeKey(uint8(entry->Race), uint8(entry->Gender), uint8(entry->BaseSection))].push_back(entry);
++        }
++
++        if (m_sections.empty())
++        {
++            sLog.outError("Playerbot loaded CharSections.dbc but found no usable appearance sections; using Tortoise appearance fallback.");
++            return;
++        }
++
++        m_loaded = true;
++        sLog.outString("Playerbot loaded CharSections.dbc through native Tortoise DBCStorage (%zu indexed section groups).", m_sections.size());
++    });
++
++    return m_loaded;
++}
++
++PlayerbotAppearanceStore::SectionList const* PlayerbotAppearanceStore::GetSections(
++    uint8 race, uint8 gender, CharSectionType section) const
++{
++    auto itr = m_sections.find(MakeKey(race, gender, uint8(section)));
++    return itr == m_sections.end() ? nullptr : &itr->second;
++}
++
++
++void PlayerbotAppearanceStore::WarnMissingSectionsOnce(uint8 race, uint8 gender)
++{
++    uint32 key = uint32(race) | (uint32(gender) << 8);
++    std::lock_guard<std::mutex> lock(m_warningMutex);
++    if (!m_warnedRaceGenders.insert(key).second)
++        return;
++
++    sLog.outError("Playerbot CharSections.dbc has no complete usable appearance for race %u gender %u; using native Tortoise 0..5 fallback.",
++        race, gender);
++}
++
++void PlayerbotAppearanceStore::FillFallback(PlayerbotAppearance& out)
++{
++    // This intentionally matches Tortoise's native PlayerBotAI::SpawnNewPlayer
++    // fallback. Player::Create remains the final character-creation authority.
++    out.skin = uint8(urand(0, 5));
++    out.face = uint8(urand(0, 5));
++    out.hairStyle = uint8(urand(0, 5));
++    out.hairColor = uint8(urand(0, 5));
++    out.facialHair = uint8(urand(0, 5));
++}
++
++bool PlayerbotAppearanceStore::GetRandomAppearance(uint8 race, uint8 gender, PlayerbotAppearance& out)
++{
++    if (!Load())
++    {
++        FillFallback(out);
++        return false;
++    }
++
++    SectionList const* skins = GetSections(race, gender, SECTION_SKIN);
++    SectionList const* faces = GetSections(race, gender, SECTION_FACE);
++    SectionList const* hairs = GetSections(race, gender, SECTION_HAIR);
++    SectionList const* facialHairs = GetSections(race, gender, SECTION_FACIAL_HAIR);
++
++    if (!skins || skins->empty() || !faces || faces->empty() || !hairs || hairs->empty())
++    {
++        WarnMissingSectionsOnce(race, gender);
++        FillFallback(out);
++        return false;
++    }
++
++    // CMaNGOS' proven Classic semantics use a FACE entry's ColorIndex as the
++    // selected skin colour. Filter against actual skin sections so custom
++    // Turtle races cannot select a face backed by an unavailable skin.
++    std::vector<CharSectionsEntry const*> compatibleFaces;
++    compatibleFaces.reserve(faces->size());
++    for (CharSectionsEntry const* face : *faces)
++    {
++        bool hasSkin = std::any_of(skins->begin(), skins->end(), [face](CharSectionsEntry const* skin)
++        {
++            return skin->ColorIndex == face->ColorIndex;
++        });
++        if (hasSkin)
++            compatibleFaces.push_back(face);
++    }
++
++    if (compatibleFaces.empty())
++    {
++        WarnMissingSectionsOnce(race, gender);
++        FillFallback(out);
++        return false;
++    }
++
++    CharSectionsEntry const* face = compatibleFaces[urand(0, compatibleFaces.size() - 1)];
++    CharSectionsEntry const* hair = (*hairs)[urand(0, hairs->size() - 1)];
++
++    out.skin = uint8(face->ColorIndex);
++    out.face = uint8(face->VariationIndex);
++    out.hairStyle = uint8(hair->VariationIndex);
++    out.hairColor = uint8(hair->ColorIndex);
++    out.facialHair = 0;
++
++    // Keep the historical CMaNGOS field interpretation: ColorIndex is the
++    // customization byte passed as facialHair. Unlike the old factory, do not
++    // hardcode race/gender exclusions; the DBC itself decides whether choices
++    // exist for a race/gender.
++    if (facialHairs && !facialHairs->empty())
++        out.facialHair = uint8((*facialHairs)[urand(0, facialHairs->size() - 1)]->ColorIndex);
++
++    return true;
++}
+diff --git a/modules/mod-playerbots/src/playerbot/PlayerbotAppearanceStore.h b/modules/mod-playerbots/src/playerbot/PlayerbotAppearanceStore.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..c7814bdb0babb2adfe428afe84ca52543aec9eca
+--- /dev/null
++++ b/modules/mod-playerbots/src/playerbot/PlayerbotAppearanceStore.h
+@@ -0,0 +1,83 @@
++#ifndef _PLAYERBOT_APPEARANCE_STORE_H
++#define _PLAYERBOT_APPEARANCE_STORE_H
++
++#include "Common.h"
++#include "Database/DBCStore.h"
++
++#include <mutex>
++#include <unordered_map>
++#include <unordered_set>
++#include <vector>
++
++struct PlayerbotAppearance
++{
++    uint8 skin = 0;
++    uint8 face = 0;
++    uint8 hairStyle = 0;
++    uint8 hairColor = 0;
++    uint8 facialHair = 0;
++};
++
++// Module-owned CharSections.dbc reader. It deliberately uses Tortoise's native
++// DBCStorage/DBCFileLoader instead of duplicating the WDBC parser in the
++// compatibility shim or extending the core DBC store API solely for bots.
++class PlayerbotAppearanceStore
++{
++public:
++    PlayerbotAppearanceStore();
++
++    // Loads DataDir/dbc/CharSections.dbc once. Failure is non-fatal because
++    // Tortoise itself can create players using its historic 0..5 appearance
++    // fallback; callers can distinguish that through the return value.
++    bool Load();
++
++    // Returns true when an appearance was selected from CharSections.dbc.
++    // Returns false when the DBC is unavailable or has no usable entries for
++    // this race/gender; out is then filled with Tortoise's native 0..5 fallback.
++    bool GetRandomAppearance(uint8 race, uint8 gender, PlayerbotAppearance& out);
++
++    bool IsLoaded() const { return m_loaded; }
++
++private:
++    struct CharSectionsEntry
++    {
++        uint32 Race;
++        uint32 Gender;
++        uint32 BaseSection;
++        uint32 VariationIndex;
++        uint32 ColorIndex;
++        uint32 Flags;
++    };
++
++    enum CharSectionType : uint8
++    {
++        SECTION_SKIN = 0,
++        SECTION_FACE = 1,
++        SECTION_FACIAL_HAIR = 2,
++        SECTION_HAIR = 3,
++    };
++
++    static constexpr uint32 SECTION_FLAG_UNAVAILABLE = 0x01;
++
++    using SectionList = std::vector<CharSectionsEntry const*>;
++
++    static uint32 MakeKey(uint8 race, uint8 gender, uint8 section)
++    {
++        return uint32(section) | (uint32(gender) << 8) | (uint32(race) << 16);
++    }
++
++    SectionList const* GetSections(uint8 race, uint8 gender, CharSectionType section) const;
++    static void FillFallback(PlayerbotAppearance& out);
++    void WarnMissingSectionsOnce(uint8 race, uint8 gender);
++
++    DBCStorage<CharSectionsEntry> m_store;
++    std::unordered_map<uint32, SectionList> m_sections;
++    std::once_flag m_loadOnce;
++    std::mutex m_warningMutex;
++    std::unordered_set<uint32> m_warnedRaceGenders;
++    bool m_loaded = false;
++};
++
++extern PlayerbotAppearanceStore sPlayerbotAppearanceStore;
++
++#endif
+diff --git a/modules/mod-playerbots/src/playerbot/RandomPlayerbotFactory.cpp b/modules/mod-playerbots/src/playerbot/RandomPlayerbotFactory.cpp
+index 21fdc04941b1e6dd322082b766c2bdc6460e5f97..dd7ae9c5f6446a7e18d88dba7c1cf64fd65b956b 100644
+--- a/modules/mod-playerbots/src/playerbot/RandomPlayerbotFactory.cpp
++++ b/modules/mod-playerbots/src/playerbot/RandomPlayerbotFactory.cpp
+@@ -9,9 +9,12 @@
+ #include "PlayerbotAI.h"
+ #include "Objects/Player.h"
+ #include "RandomPlayerbotFactory.h"
++#include "PlayerbotAppearanceStore.h"
+ #include "SystemConfig.h"
+ #include "SocialMgr.h"
+ #include "Guild/GuildMgr.h"
++#include "MapNodes/MasterPlayer.h"
++#include "ScriptObjects.h"
+ 
+ #ifndef MANGOSBOT_ZERO
+ #ifdef CMANGOS
+@@ -24,8 +27,6 @@
+ 
+ #include <random>
+ 
+-std::map<uint8, std::vector<uint8> > RandomPlayerbotFactory::availableRaces;
+-
+ std::unordered_map<RandomPlayerbotFactory::NameRaceAndGender, std::vector<std::string>> RandomPlayerbotFactory::freeNames;
+ std::unordered_map<RandomPlayerbotFactory::NameRaceAndGender, std::vector<std::string>> RandomPlayerbotFactory::allNames;
+ std::mutex RandomPlayerbotFactory::nameMutex;
+@@ -33,99 +34,6 @@ bool RandomPlayerbotFactory::namesInitialized = false;
+ 
+ RandomPlayerbotFactory::RandomPlayerbotFactory(uint32 accountId) : accountId(accountId)
+ {
+-    // This legacy cache is no longer the source of truth; avoid growing it
+-    // every time a factory is constructed while it remains for compatibility.
+-    if (!availableRaces.empty())
+-        return;
+-    availableRaces[CLASS_WARRIOR].push_back(RACE_HUMAN);
+-    availableRaces[CLASS_WARRIOR].push_back(RACE_NIGHTELF);
+-    availableRaces[CLASS_WARRIOR].push_back(RACE_GNOME);
+-    availableRaces[CLASS_WARRIOR].push_back(RACE_DWARF);
+-    availableRaces[CLASS_WARRIOR].push_back(RACE_ORC);
+-    availableRaces[CLASS_WARRIOR].push_back(RACE_UNDEAD);
+-    availableRaces[CLASS_WARRIOR].push_back(RACE_TAUREN);
+-    availableRaces[CLASS_WARRIOR].push_back(RACE_TROLL);
+-#ifndef MANGOSBOT_ZERO
+-    availableRaces[CLASS_WARRIOR].push_back(RACE_DRAENEI);
+-#endif
+-
+-    availableRaces[CLASS_PALADIN].push_back(RACE_HUMAN);
+-    availableRaces[CLASS_PALADIN].push_back(RACE_DWARF);
+-#ifndef MANGOSBOT_ZERO
+-    availableRaces[CLASS_PALADIN].push_back(RACE_DRAENEI);
+-    availableRaces[CLASS_PALADIN].push_back(RACE_BLOODELF);
+-#endif
+-
+-    availableRaces[CLASS_ROGUE].push_back(RACE_HUMAN);
+-    availableRaces[CLASS_ROGUE].push_back(RACE_DWARF);
+-    availableRaces[CLASS_ROGUE].push_back(RACE_NIGHTELF);
+-    availableRaces[CLASS_ROGUE].push_back(RACE_GNOME);
+-    availableRaces[CLASS_ROGUE].push_back(RACE_ORC);
+-    availableRaces[CLASS_ROGUE].push_back(RACE_UNDEAD);
+-    availableRaces[CLASS_ROGUE].push_back(RACE_TROLL);
+-#ifndef MANGOSBOT_ZERO
+-    availableRaces[CLASS_ROGUE].push_back(RACE_BLOODELF);
+-#endif
+-
+-    availableRaces[CLASS_PRIEST].push_back(RACE_HUMAN);
+-    availableRaces[CLASS_PRIEST].push_back(RACE_DWARF);
+-    availableRaces[CLASS_PRIEST].push_back(RACE_NIGHTELF);
+-    availableRaces[CLASS_PRIEST].push_back(RACE_TROLL);
+-    availableRaces[CLASS_PRIEST].push_back(RACE_UNDEAD);
+-#ifndef MANGOSBOT_ZERO
+-    availableRaces[CLASS_PRIEST].push_back(RACE_DRAENEI);
+-    availableRaces[CLASS_PRIEST].push_back(RACE_BLOODELF);
+-#endif
+-
+-    availableRaces[CLASS_MAGE].push_back(RACE_HUMAN);
+-    availableRaces[CLASS_MAGE].push_back(RACE_GNOME);
+-    availableRaces[CLASS_MAGE].push_back(RACE_UNDEAD);
+-    availableRaces[CLASS_MAGE].push_back(RACE_TROLL);
+-#ifndef MANGOSBOT_ZERO
+-    availableRaces[CLASS_MAGE].push_back(RACE_DRAENEI);
+-    availableRaces[CLASS_MAGE].push_back(RACE_BLOODELF);
+-#endif
+-
+-    availableRaces[CLASS_WARLOCK].push_back(RACE_HUMAN);
+-    availableRaces[CLASS_WARLOCK].push_back(RACE_GNOME);
+-    availableRaces[CLASS_WARLOCK].push_back(RACE_UNDEAD);
+-    availableRaces[CLASS_WARLOCK].push_back(RACE_ORC);
+-#ifndef MANGOSBOT_ZERO
+-    availableRaces[CLASS_WARLOCK].push_back(RACE_BLOODELF);
+-#endif
+-
+-    availableRaces[CLASS_SHAMAN].push_back(RACE_ORC);
+-    availableRaces[CLASS_SHAMAN].push_back(RACE_TAUREN);
+-    availableRaces[CLASS_SHAMAN].push_back(RACE_TROLL);
+-#ifndef MANGOSBOT_ZERO
+-    availableRaces[CLASS_SHAMAN].push_back(RACE_DRAENEI);
+-#endif
+-
+-    availableRaces[CLASS_HUNTER].push_back(RACE_DWARF);
+-    availableRaces[CLASS_HUNTER].push_back(RACE_NIGHTELF);
+-    availableRaces[CLASS_HUNTER].push_back(RACE_ORC);
+-    availableRaces[CLASS_HUNTER].push_back(RACE_TAUREN);
+-    availableRaces[CLASS_HUNTER].push_back(RACE_TROLL);
+-#ifndef MANGOSBOT_ZERO
+-    availableRaces[CLASS_HUNTER].push_back(RACE_DRAENEI);
+-    availableRaces[CLASS_HUNTER].push_back(RACE_BLOODELF);
+-#endif
+-
+-    availableRaces[CLASS_DRUID].push_back(RACE_NIGHTELF);
+-    availableRaces[CLASS_DRUID].push_back(RACE_TAUREN);
+-
+-#ifdef MANGOSBOT_TWO
+-    availableRaces[CLASS_DEATH_KNIGHT].push_back(RACE_NIGHTELF);
+-    availableRaces[CLASS_DEATH_KNIGHT].push_back(RACE_TAUREN);
+-    availableRaces[CLASS_DEATH_KNIGHT].push_back(RACE_HUMAN);
+-    availableRaces[CLASS_DEATH_KNIGHT].push_back(RACE_ORC);
+-    availableRaces[CLASS_DEATH_KNIGHT].push_back(RACE_UNDEAD);
+-    availableRaces[CLASS_DEATH_KNIGHT].push_back(RACE_TROLL);
+-    availableRaces[CLASS_DEATH_KNIGHT].push_back(RACE_BLOODELF);
+-    availableRaces[CLASS_DEATH_KNIGHT].push_back(RACE_DRAENEI);
+-    availableRaces[CLASS_DEATH_KNIGHT].push_back(RACE_GNOME);
+-    availableRaces[CLASS_DEATH_KNIGHT].push_back(RACE_DWARF);
+-#endif
+ }
+ 
+ bool RandomPlayerbotFactory::isAvailableRace(uint8 cls, uint8 race)
+@@ -133,6 +41,12 @@ bool RandomPlayerbotFactory::isAvailableRace(uint8 cls, uint8 race)
+     if (!race || race >= MAX_RACES || !cls || cls >= MAX_CLASSES)
+         return false;
+ 
++    ChrClassesEntry const* classEntry = sChrClassesStore.LookupEntry(cls);
++    ChrRacesEntry const* raceEntry = sChrRacesStore.LookupEntry(race);
++    if (!classEntry || !raceEntry || raceEntry->HasFlag(CHRRACES_FLAGS_NOT_PLAYABLE))
++        return false;
++
++    // playercreateinfo is the authoritative Turtle race/class matrix.
+     return sObjectMgr.GetPlayerInfo(race, cls) != nullptr;
+ }
+ 
+@@ -167,7 +81,7 @@ bool RandomPlayerbotFactory::isAvailableRole(uint8 cls, BotRoles role)
+ uint8 RandomPlayerbotFactory::GetRandomClass(uint8 useRace, BotRoles role)
+ {
+     uint32 classProb[MAX_CLASSES] = { 0 };
+-
++    uint32 totalProb = 0;
+ 
+     for (uint32 race = 1; race < MAX_RACES; ++race)
+     {
+@@ -179,78 +93,54 @@ uint8 RandomPlayerbotFactory::GetRandomClass(uint8 useRace, BotRoles role)
+             if (!isAvailableRole(cls, role) || !isAvailableRace(cls, race))
+                 continue;
+ 
+-            classProb[cls] += sPlayerbotAIConfig.classRaceProbability[cls][race];
++            uint32 weight = sPlayerbotAIConfig.classRaceProbability[cls][race];
++            classProb[cls] += weight;
++            totalProb += weight;
+         }
+     }
+ 
+-    uint32 randomProb = urand(0, sPlayerbotAIConfig.classRaceProbabilityTotal);
++    if (!totalProb)
++        return 0;
+ 
++    uint32 randomProb = urand(0, totalProb - 1);
+     for (uint32 cls = 1; cls < MAX_CLASSES; ++cls)
+     {
+-        if (!isAvailableRole(cls, role))
+-            continue;
+-
+-        if (classProb[cls] > 0 && randomProb < classProb[cls])
++        if (randomProb < classProb[cls])
+             return cls;
+-
+         randomProb -= classProb[cls];
+     }
+ 
+-    for (uint32 cls = 1; cls < MAX_CLASSES; ++cls)
+-    {
+-        if (!isAvailableRole(cls, role))
+-            continue;
+-
+-        if (classProb[cls] > 0)
+-            return cls;
+-    }
+-
+-    return 1;
++    return 0;
+ }
+ 
+ bool RandomPlayerbotFactory::isRaceForTeam(uint8 race, Team team)
+ {
+-    if (team == Team::TEAM_BOTH_ALLOWED)
+-        return true;
+-
+-    uint32 raceBit = 1 << (race - 1);
+-
+-    if (team == Team::ALLIANCE && (raceBit & RACEMASK_ALLIANCE))
+-        return true;
+-
+-    if (team == Team::HORDE && (raceBit & RACEMASK_HORDE))
+-        return true;
+-
+-    return false;
++    return team == Team::TEAM_BOTH_ALLOWED || Player::TeamForRace(race) == team;
+ }
+ 
+ uint8 RandomPlayerbotFactory::GetRandomRace(uint8 cls, Team team)
+ {
+-    uint32 totalClassProb = 0;
++    uint32 totalProb = 0;
+     for (uint32 race = 1; race < MAX_RACES; ++race)
+     {
+         if (!isRaceForTeam(race, team) || !isAvailableRace(cls, race))
+             continue;
+-        totalClassProb += sPlayerbotAIConfig.classRaceProbability[cls][race];
++        totalProb += sPlayerbotAIConfig.classRaceProbability[cls][race];
+     }
+ 
+-    uint32 randomProb = urand(0, totalClassProb);
++    if (!totalProb)
++        return 0;
+ 
++    uint32 randomProb = urand(0, totalProb - 1);
+     for (uint32 race = 1; race < MAX_RACES; ++race)
+     {
+         if (!isRaceForTeam(race, team) || !isAvailableRace(cls, race))
+             continue;
+ 
+-        if (sPlayerbotAIConfig.classRaceProbability[cls][race] > 0 && randomProb < sPlayerbotAIConfig.classRaceProbability[cls][race])
+-            return race;
+-
+-        randomProb -= sPlayerbotAIConfig.classRaceProbability[cls][race];
+-    }
+-
+-    for (uint32 race = 1; race < MAX_RACES; ++race)
+-    {
+-        if (isRaceForTeam(race, team) && isAvailableRace(cls, race))
++        uint32 weight = sPlayerbotAIConfig.classRaceProbability[cls][race];
++        if (randomProb < weight)
+             return race;
++        randomProb -= weight;
+     }
+ 
+     return 0;
+@@ -258,152 +148,79 @@ uint8 RandomPlayerbotFactory::GetRandomRace(uint8 cls, Team team)
+ 
+ bool RandomPlayerbotFactory::CreateRandomBot(uint8 cls, uint8 inputRace)
+ {
+-    std::lock_guard<std::mutex> lock(nameMutex);
+-    EnsureNamesInitialized();
+-
+-    sLog.outDebug( "Creating new random bot for class %d", cls);
++    sLog.outDebug("Creating new random bot for class %u", cls);
+ 
+     uint8 gender = urand(0, 1) ? GENDER_MALE : GENDER_FEMALE;
+-
+-    uint8 race = inputRace == 0 ? GetRandomRace(cls) : inputRace;
+-
++    uint8 race = inputRace ? inputRace : GetRandomRace(cls);
+     if (!race || !isAvailableRace(cls, race))
+     {
+-        sLog.outError("Invalid playercreateinfo combination for bot race %u class %u", race, cls);
++        sLog.outError("No valid playercreateinfo combination for bot race %u class %u", race, cls);
+         return false;
+     }
+ 
+     NameRaceAndGender raceAndGender = CombineRaceAndGender(gender, race);
+-
+-    std::string name;
+-    auto it = freeNames.find(raceAndGender);
+-    if (it == freeNames.end() || it->second.empty())
+-    {
+-        // Try fallback: generate new name with suffix if all names exhausted
+-        // First try other gender
+-        std::string baseName = CreateRandomBotName(raceAndGender);
+-        if (baseName.empty())
+-            return false;
+-        name = baseName;
+-    }
+-    else
+-    {
+-        uint32 i = urand(0, it->second.size() - 1);
+-        name = it->second[i];
+-        swap(it->second[i], it->second.back());
+-        it->second.pop_back();
+-    }
+-
++    std::string name = CreateRandomBotName(raceAndGender);
+     if (name.empty())
+         return false;
+ 
+-    std::vector<uint8> skinColors, facialHairTypes;
+-    std::vector<std::pair<uint8,uint8>> faces, hairs;
+-    for (CharSectionsMap::const_iterator itr = sCharSectionMap.begin(); itr != sCharSectionMap.end(); ++itr)
++    if (!normalizePlayerName(name) || ObjectMgr::CheckPlayerName(name, true) != CHAR_NAME_SUCCESS || sObjectMgr.IsReservedName(name))
+     {
+-        CharSectionsEntry const* entry = itr->second;
+-        if (entry->Race != race || entry->Gender != gender)
+-            continue;
+-
+-#ifndef MANGOSBOT_TWO
+-        switch (entry->BaseSection)
+-        {
+-        case SECTION_TYPE_SKIN:
+-            skinColors.push_back(entry->ColorIndex);
+-            break;
+-        case SECTION_TYPE_FACE:
+-            faces.push_back(std::pair<uint8,uint8>(entry->VariationIndex, entry->ColorIndex));
+-            break;
+-        case SECTION_TYPE_FACIAL_HAIR:
+-            facialHairTypes.push_back(entry->ColorIndex);
+-            break;
+-        case SECTION_TYPE_HAIR:
+-            hairs.push_back(std::pair<uint8,uint8>(entry->VariationIndex, entry->ColorIndex));
+-            break;
+-        }
+-#else
+-        switch (entry->BaseSection)
+-        {
+-        case SECTION_TYPE_SKIN:
+-            skinColors.push_back(entry->Color);
+-            break;
+-        case SECTION_TYPE_FACE:
+-            faces.push_back(std::pair<uint8, uint8>(entry->VariationIndex, entry->Color));
+-            break;
+-        case SECTION_TYPE_FACIAL_HAIR:
+-            facialHairTypes.push_back(entry->Color);
+-            break;
+-        case SECTION_TYPE_HAIR:
+-            hairs.push_back(std::pair<uint8, uint8>(entry->VariationIndex, entry->Color));
+-            break;
+-        }
+-#endif
+-    }
+-
+-    if (skinColors.empty() || faces.empty() || hairs.empty())
+-    {
+-        sLog.outError("No CharSections appearance data for race %u gender %u - bot creation skipped.", race, gender);
++        sLog.outError("Generated random bot name '%s' is not valid for normal character creation.", name.c_str());
+         return false;
+     }
+ 
+-    uint8 skinColor = skinColors[urand(0, skinColors.size() - 1)];
+-    std::pair<uint8,uint8> face = faces[urand(0, faces.size() - 1)];
+-    std::pair<uint8,uint8> hair = hairs[urand(0, hairs.size() - 1)];
+-
+-	bool excludeCheck = (race == RACE_TAUREN) || (gender == GENDER_FEMALE && race != RACE_NIGHTELF && race != RACE_UNDEAD);
+-#ifndef MANGOSBOT_TWO
+-    uint8 facialHair = (excludeCheck || facialHairTypes.empty()) ? 0 : facialHairTypes[urand(0, facialHairTypes.size() - 1)];
+-#else
+-	uint8 facialHair = 0;
+-#endif
+-	//TODO vector crash on cmangos TWO when creating one of the first bot characters, need a fix
+-
+-	// remote_ip MUST be "disconnected/bot" — see comment in PlayerbotMgr::HandlePlayerBotLoginCallback.
+-	// Empty string makes PlayerbotAI::IsRealPlayer() return TRUE, breaking HandleTeleportAck.
+-	WorldSession* session = new WorldSession(accountId, NULL, SEC_PLAYER,
++    PlayerbotAppearance appearance;
++    sPlayerbotAppearanceStore.GetRandomAppearance(race, gender, appearance);
+ 
++    std::unique_ptr<WorldSession> session = std::make_unique<WorldSession>(accountId, nullptr, SEC_PLAYER,
+ #ifdef MANGOSBOT_TWO
+         2, 0, LOCALE_enUS, "disconnected/bot", 0, 0, false);
+ #endif
+ #ifdef MANGOSBOT_ONE
+-		2, 0, LOCALE_enUS, "disconnected/bot", 0, 0, false);
++        2, 0, LOCALE_enUS, "disconnected/bot", 0, 0, false);
+ #endif
+ #ifdef MANGOSBOT_ZERO
+         0, LOCALE_enUS, "disconnected/bot", 0);
+ #endif
+ 
+-    Player* player = new Player(session);
+-    if (!player || !session)
++    std::unique_ptr<Player> player = std::make_unique<Player>(session.get());
++    if (!player->Create(sObjectMgr.GeneratePlayerLowGuid(), name, race, cls, gender,
++            appearance.skin, appearance.face, appearance.hairStyle, appearance.hairColor, appearance.facialHair))
+     {
+-        sLog.outError("BOTS: Unable to create session or player for random acc %d - name: \"%s\"; race: %u; class: %u", accountId, name.c_str(), race, cls);
++        sLog.outError("Unable to create random bot for account %u - name: \"%s\"; race: %u; class: %u",
++            accountId, name.c_str(), race, cls);
+         return false;
+     }
+-	if (!player->Create(sObjectMgr.GeneratePlayerLowGuid(), name, race, cls, gender,
+-	        face.second, // skinColor,
+-	        face.first,
+-	        hair.first,
+-	        hair.second, // hairColor,
+-	        facialHair, 0))
++
++    MasterPlayer masterPlayer(session.get());
++    masterPlayer.Create(player.get());
++
++    player->SetCinematic(2);
++    player->SetAtLoginFlag(AT_LOGIN_FIRST);
++
++    if (sPlayerbotAIConfig.disableRandomLevels && sPlayerbotAIConfig.randombotStartingLevel > 1)
++        player->GiveLevel(sPlayerbotAIConfig.randombotStartingLevel);
++
++    if (!player->SaveToDB(false, true, false))
+     {
+-        player->DeleteFromDB(player->GetObjectGuid(), accountId, true, true);
+-        delete session;
+-        delete player;
+-        sLog.outError("Unable to create random bot for account %d - name: \"%s\"; race: %u; class: %u",
+-                accountId, name.c_str(), race, cls);
++        sLog.outError("Unable to save random bot for account %u - name: \"%s\"; race: %u; class: %u",
++            accountId, name.c_str(), race, cls);
+         return false;
+     }
+ 
+-    player->setCinematic(2);
+-    player->SetAtLoginFlag(AT_LOGIN_NONE);
+-    //player->SetSemaphoreTeleportFar(true); //Fake teleport to delay sql save
+-    //player->SaveToDB();
+-    //player->SetSemaphoreTeleportFar(false);
++    masterPlayer.SaveToDB();
++    sObjectMgr.InsertPlayerInCache(player.get());
++    sObjectMgr.UpdatePlayerCachedPosition(player.get());
++    sWorld.UpdateRealmCharCount(accountId);
+ 
+-    sObjectAccessor.AddObject(player);
+-
+-    sLog.outDebug( "Random bot created for account %d - name: \"%s\"; race: %u; class: %u",
+-            accountId, name.c_str(), race, cls);
++    ScriptRegistry<PlayerScript>::ForEachEnabledHook(PLAYERHOOK_ON_CREATE, [&](PlayerScript* script)
++    {
++        script->OnCreate(player.get());
++    });
++    sObjectMgr.IncreaseActivePlayersCount(Player::TeamForRace(race));
+ 
++    sLog.outDebug("Random bot created for account %u - name: \"%s\"; race: %u; class: %u",
++        accountId, name.c_str(), race, cls);
+     return true;
+ }
+ 
+@@ -874,78 +691,77 @@ void RandomPlayerbotFactory::CreateRandomBots()
+             continue;
+         }
+ 
+-	RandomPlayerbotFactory factory(accountId);
+-	if (sPlayerbotAIConfig.useFixedClassRaceCounts)
+-	{
++        RandomPlayerbotFactory factory(accountId);
++        if (sPlayerbotAIConfig.useFixedClassRaceCounts)
++        {
+ #ifdef MANGOSBOT_TWO
+-	    uint32 maxAllowed = 10 - count;
++            uint32 maxAllowed = 10 - count;
+ #else
+-	    uint32 maxAllowed = 9 - count;
++            uint32 maxAllowed = 9 - count;
+ #endif
+-	    uint32 created = 0;
++            uint32 created = 0;
++
++            while (!remaining.empty() && created < maxAllowed)
++            {
++                std::vector<std::pair<uint8, uint8>> shuffledKeys;
++                for (const auto& entry : remaining)
++                    shuffledKeys.push_back(entry.first);
+ 
+-	    while (!remaining.empty() && created < maxAllowed)
+-	    {
+-	        std::vector<std::pair<uint8, uint8>> shuffledKeys;
+-	        for (const auto& entry : remaining)
+-	            shuffledKeys.push_back(entry.first);
++                std::random_device rnd;
++                std::mt19937 rng(rnd());
++                std::shuffle(shuffledKeys.begin(), shuffledKeys.end(), rng);
+ 
+-	        // Shuffle the keys of the map
+-	        std::random_device rnd;
+-		std::mt19937 rng(rnd()); // Mersenne Twister RNG
+-		std::shuffle(shuffledKeys.begin(), shuffledKeys.end(), rng);
++                bool progress = false;
++                for (const auto& key : shuffledKeys)
++                {
++                    if (created >= maxAllowed)
++                        break;
+ 
+-	        for (const auto& key : shuffledKeys)
+-	        {
+-	            if (created >= maxAllowed)
+-	                break;
++                    uint8 cls = key.first;
++                    uint8 race = key.second;
++                    if (!factory.isAvailableRace(cls, race))
++                        continue;
+ 
+-	            uint8 cls = key.first;
+-	            uint8 race = key.second;
++                    if (!factory.CreateRandomBot(cls, race))
++                        continue;
+ 
+-	            if (!((1 << (cls - 1)) & CLASSMASK_ALL_PLAYABLE) || !sChrClassesStore.LookupEntry(cls))
+-	                continue;
++                    progress = true;
++                    ++created;
++                    ++botsCreated;
++                    bar1.step();
++                    if (--remaining[key] == 0)
++                        remaining.erase(key);
++                }
+ 
++                // Invalid/unsaveable fixed combinations must be reported, not spin forever.
++                if (!progress)
++                    break;
++            }
++        }
++        else
++        {
+ #ifdef MANGOSBOT_TWO
+-	            if (cls == 10)
+-	                continue;
++            uint32 maxAllowed = 10 - count;
+ #else
+-	            if (cls == 10 || cls == 6)
+-	                continue;
++            uint32 maxAllowed = 9 - count;
+ #endif
+-
+-	            if (factory.CreateRandomBot(cls, race))
+-	            {
+-	                created++;
+-	                botsCreated++;
+-	                bar1.step();
+-	                if (--remaining[key] == 0)
+-	                    remaining.erase(key);
+-	            }
+-	        }
+-	    }
+-	}
+-	else
+-	{
+-            for (uint8 cls = CLASS_WARRIOR; cls < MAX_CLASSES - count; ++cls)
++            uint32 created = 0;
++            uint32 attempts = 0;
++            uint32 maxAttempts = std::max<uint32>(maxAllowed * MAX_CLASSES, maxAllowed);
++            while (created < maxAllowed && attempts++ < maxAttempts)
+             {
+-                // skip nonexistent classes
+-                if (!((1 << (cls - 1)) & CLASSMASK_ALL_PLAYABLE) || !sChrClassesStore.LookupEntry(cls))
++                uint8 randomClass = factory.GetRandomClass();
++                if (!randomClass)
++                    break;
++
++                if (!factory.CreateRandomBot(randomClass))
+                     continue;
+ 
+-#ifdef MANGOSBOT_TWO
+-                if (cls != 10)
+-#else
+-                if (cls != 10 && cls != 6)
+-#endif
+-                {
+-                    uint8 rclss = factory.GetRandomClass();
+-                    botsCreated++;
+-                    factory.CreateRandomBot(rclss);
+-                    bar1.step();
+-                }
++                ++created;
++                ++botsCreated;
++                bar1.step();
+             }
+-	}
++        }
+ 
+         totalRandomBotChars += sAccountMgr.GetCharactersCount(accountId);
+     }
+@@ -980,35 +796,7 @@ void RandomPlayerbotFactory::CreateRandomBots()
+         return;
+     }
+ 
+-    std::vector<std::future<void>> bot_creations;
+-
+-    BarGoLink bar2(sObjectAccessor.GetPlayers().size());
+-    for (auto pl : sObjectAccessor.GetPlayers())
+-    {
+-        Player* player = pl.second;
+-        account_creations.push_back(std::async([player] {player->SaveToDB(); }));
+-    }
+-
+-    for (uint32 i = 0; i < account_creations.size(); i++)
+-    {
+-        bar2.step();
+-        account_creations[i].wait();
+-    }
+-
+-    std::vector<Player*> players;
+-
+-    for (auto pl : sObjectAccessor.GetPlayers())
+-        players.push_back(pl.second);
+-
+-    for (auto player : players)
+-    {
+-        WorldSession* session = player->GetSession();
+-        session->LogoutPlayer();
+-        sObjectAccessor.RemoveObject(player);
+-        delete player;
+-        delete session;
+-    }
+-    sLog.outString("%zu random bot accounts with %d characters available", sPlayerbotAIConfig.randomBotAccounts.size(), totalRandomBotChars+botsCreated);
++    sLog.outString("%zu random bot accounts with %d characters available", sPlayerbotAIConfig.randomBotAccounts.size(), totalRandomBotChars);
+ }
+ 
+ 
+diff --git a/modules/mod-playerbots/src/playerbot/RandomPlayerbotFactory.h b/modules/mod-playerbots/src/playerbot/RandomPlayerbotFactory.h
+index 0a11ebd86436c3c1124e0561dee4be3875a6b1ae..7aade583bc7b338245770e8d77f757cab225a2c2 100644
+--- a/modules/mod-playerbots/src/playerbot/RandomPlayerbotFactory.h
++++ b/modules/mod-playerbots/src/playerbot/RandomPlayerbotFactory.h
+@@ -83,7 +83,6 @@ class RandomPlayerbotFactory
+         static bool namesInitialized;
+ 
+         uint32 accountId;
+-        static std::map<uint8, std::vector<uint8> > availableRaces;
+ };
+ 
+ #endif
