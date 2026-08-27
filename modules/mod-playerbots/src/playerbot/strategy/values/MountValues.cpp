@@ -210,11 +210,9 @@ std::vector<MountValue> FullMountListValue::Calculate()
 {
     std::vector<MountValue> mounts;
 
-    for (uint32 id = 0; id < sItemStorage.GetMaxEntry(); ++id)
+    for (auto const& itemEntry : sObjectMgr.GetItemPrototypeMap())
     {
-        ItemPrototype const* pProto = sItemStorage.LookupEntry<ItemPrototype>(id);
-        if (!pProto)
-            continue;
+        ItemPrototype const* pProto = &itemEntry.second;
 
         if (!MountValue::GetMountSpell(pProto->ItemId))
             continue;

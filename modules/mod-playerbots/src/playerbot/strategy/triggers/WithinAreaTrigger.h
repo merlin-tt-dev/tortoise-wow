@@ -16,11 +16,11 @@ namespace ai
             if (!movement.lastAreaTrigger)
                 return false;
 
-            AreaTriggerEntry const* atEntry = sAreaTriggerStore.LookupEntry(movement.lastAreaTrigger);
+            AreaTriggerEntry const* atEntry = sObjectMgr.GetAreaTrigger(movement.lastAreaTrigger);
             if(!atEntry)
                 return false;
 
-            AreaTrigger const* at = sObjectMgr.GetAreaTrigger(movement.lastAreaTrigger);
+            AreaTriggerTeleport const* at = sObjectMgr.GetAreaTriggerTeleport(movement.lastAreaTrigger);
             if (!at)
                 return false;
 

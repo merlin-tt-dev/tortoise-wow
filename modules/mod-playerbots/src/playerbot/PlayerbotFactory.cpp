@@ -559,11 +559,10 @@ void PlayerbotFactory::InitPet()
             return;
 
         std::vector<uint32> ids;
-        for (uint32 id = 0; id < sCreatureStorage.GetMaxEntry(); ++id)
+        for (auto const& creatureEntry : sObjectMgr.GetCreatureInfoMap())
         {
-            CreatureInfo const* co = sCreatureStorage.LookupEntry<CreatureInfo>(id);
-			if (!co)
-				continue;
+            uint32 id = creatureEntry.first;
+            CreatureInfo const* co = creatureEntry.second.get();
 
 #ifdef MANGOSBOT_TWO
             if (!co->isTameable(bot->CanTameExoticPets()))
@@ -3638,11 +3637,10 @@ void PlayerbotFactory::InitSecondEquipmentSet()
 
     do
     {
-        for (uint32 itemId = 0; itemId < sItemStorage.GetMaxEntry(); ++itemId)
+        for (auto const& itemEntry : sObjectMgr.GetItemPrototypeMap())
         {
-            ItemPrototype const* proto = sObjectMgr.GetItemPrototype(itemId);
-            if (!proto)
-                continue;
+            uint32 itemId = itemEntry.first;
+            ItemPrototype const* proto = &itemEntry.second;
 
             // filter item level
             if (proto->ItemLevel > sPlayerbotAIConfig.randomGearMaxLevel)
@@ -3971,11 +3969,10 @@ void PlayerbotFactory::InitTradeSkills()
 #endif
 
     // learn recipies
-    for (uint32 id = 0; id < sCreatureStorage.GetMaxEntry(); ++id)
+    for (auto const& creatureEntry : sObjectMgr.GetCreatureInfoMap())
     {
-        CreatureInfo const* co = sCreatureStorage.LookupEntry<CreatureInfo>(id);
-        if (!co)
-            continue;
+        uint32 id = creatureEntry.first;
+        CreatureInfo const* co = creatureEntry.second.get();
 
         if (co->TrainerType != TRAINER_TYPE_TRADESKILLS)
             continue;
@@ -5014,11 +5011,10 @@ void PlayerbotFactory::InitInventoryEquip()
         desiredQuality--;
     }
 
-    for (uint32 itemId = 0; itemId < sItemStorage.GetMaxEntry(); ++itemId)
+    for (auto const& itemEntry : sObjectMgr.GetItemPrototypeMap())
     {
-        ItemPrototype const* proto = sObjectMgr.GetItemPrototype(itemId);
-        if (!proto)
-            continue;
+        uint32 itemId = itemEntry.first;
+        ItemPrototype const* proto = &itemEntry.second;
 
         if (proto->ItemLevel > sPlayerbotAIConfig.randomGearMaxLevel)
             continue;

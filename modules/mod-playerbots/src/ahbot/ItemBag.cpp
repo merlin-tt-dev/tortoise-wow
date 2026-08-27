@@ -179,14 +179,15 @@ void AvailableItemsBag::Load()
           } while (results->NextRow());
       }
 
-      BarGoLink bar(sItemStorage.GetMaxEntry());
-      for (uint32 itemId = 0; itemId < sItemStorage.GetMaxEntry(); ++itemId)
+      BarGoLink bar(sObjectMgr.GetItemPrototypeMap().size());
+      for (auto const& itemEntry : sObjectMgr.GetItemPrototypeMap())
       {
+          uint32 itemId = itemEntry.first;
           if (vendorItems.find(itemId) == vendorItems.end() || sAhBotConfig.ignoreVendorItemIds.find(itemId) != sAhBotConfig.ignoreVendorItemIds.end())
-              Add(sObjectMgr.GetItemPrototype(itemId));
+              Add(&itemEntry.second);
 
           bar.step();
-    }
+      }
 
 }
 

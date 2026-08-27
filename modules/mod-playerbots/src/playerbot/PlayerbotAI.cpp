@@ -883,70 +883,61 @@ void PlayerbotAI::UpdateTalentSpec(PlayerTalentSpec spec)
     aiObjectContext->GetValue<PlayerTalentSpec>("talent spec")->Set(spec);
 }
 
-bool PlayerbotAI::CanEnterArea(const AreaTrigger* area)
+bool PlayerbotAI::CanEnterArea(AreaTriggerTeleport const* area)
 {
-    if (sRandomPlayerbotMgr.IsRandomBot(GetBot()))
+    if (!area || !sRandomPlayerbotMgr.IsRandomBot(GetBot()))
+        return false;
+
+    uint32 targetMapId = area->destination.mapId;
+    DungeonPersistentState* state = bot->GetBoundInstanceSaveForSelfOrGroup(targetMapId);
+    Map* map = sMapMgr.FindMap(targetMapId, state ? state->GetInstanceId() : 0);
+    MapEntry const* mapEntry = sMapStore.LookupEntry(targetMapId);
+    if (!mapEntry)
+        return false;
+
+    // check if this account tries to abuse resetting instance
+#ifdef MANGOSBOT_ZERO
+    if (mapEntry->IsNonRaidDungeon())
+#elif MANGOSBOT_ONE
+    if (mapEntry->IsNonRaidDungeon() && ((map && map->GetDifficulty() == DUNGEON_DIFFICULTY_NORMAL) || (bot->GetDifficulty() == DUNGEON_DIFFICULTY_NORMAL)))
+#else
+    if (mapEntry->IsNonRaidDungeon() && ((map && map->GetDifficulty() == DUNGEON_DIFFICULTY_NORMAL) || (bot->GetDifficulty(false) == DUNGEON_DIFFICULTY_NORMAL)))
+#endif
     {
-        DungeonPersistentState* state = bot->GetBoundInstanceSaveForSelfOrGroup(area->target_mapId);
-        Map* map = sMapMgr.FindMap(area->target_mapId, state ? state->GetInstanceId() : 0);
-        const MapEntry* mapEntry = sMapStore.LookupEntry(area->target_mapId);
-
-        // check if this account try to abuse reseting instance
-#ifdef MANGOSBOT_ZERO
-        if (mapEntry->IsNonRaidDungeon())
-#elif MANGOSBOT_ONE
-        if (mapEntry->IsNonRaidDungeon() && ((map && map->GetDifficulty() == DUNGEON_DIFFICULTY_NORMAL) || (bot->GetDifficulty() == DUNGEON_DIFFICULTY_NORMAL)))
-#else
-        if (mapEntry->IsNonRaidDungeon() && ((map && map->GetDifficulty() == DUNGEON_DIFFICULTY_NORMAL) || (bot->GetDifficulty(false) == DUNGEON_DIFFICULTY_NORMAL)))
-#endif
-        {
-            if (!bot->CanEnterNewInstance(state ? state->GetInstanceId() : 0))
-            {
-                return false;
-            }
-        }
-
-        // Map's state check
-        if (map && map->IsDungeon())
-        {
-            // cannot enter if the instance is full (player cap), GMs don't count, must not check when teleporting around the same map
-            if (bot->GetMapId() != area->target_mapId)
-            {
-                if (((DungeonMap*)map)->GetPlayersCountExceptGMs() >= ((DungeonMap*)map)->GetMaxPlayers())
-                {
-                    return false;
-                }
-
-                // In Combat check
-                if (map && map->GetInstanceData() && map->GetInstanceData()->IsEncounterInProgress())
-                {
-                    return false;
-                }
-
-                // Bind Checks
-#ifdef MANGOSBOT_ZERO
-                InstancePlayerBind* pBind = bot->GetBoundInstance(area->target_mapId);
-#elif MANGOSBOT_ONE
-                InstancePlayerBind* pBind = bot->GetBoundInstance(area->target_mapId, bot->GetDifficulty());
-#else
-                InstancePlayerBind* pBind = bot->GetBoundInstance(area->target_mapId, bot->GetDifficulty(mapEntry->IsRaid()));
-#endif
-                if (pBind && pBind->perm && pBind->state != state)
-                {
-                    return false;
-                }
-
-                if (pBind && pBind->perm && pBind->state != map->GetPersistentState())
-                {
-                    return false;
-                }
-            }
-        }
-
-        return true;
+        if (!bot->CanEnterNewInstance(state ? state->GetInstanceId() : 0))
+            return false;
     }
 
-    return false;
+    // Map's state check
+    if (map && map->IsDungeon())
+    {
+        // cannot enter if the instance is full (player cap), GMs don't count, must not check when teleporting around the same map
+        if (bot->GetMapId() != targetMapId)
+        {
+            if (((DungeonMap*)map)->GetPlayersCountExceptGMs() >= ((DungeonMap*)map)->GetMaxPlayers())
+                return false;
+
+            // In Combat check
+            if (map->GetInstanceData() && map->GetInstanceData()->IsEncounterInProgress())
+                return false;
+
+            // Bind Checks
+#ifdef MANGOSBOT_ZERO
+            InstancePlayerBind* pBind = bot->GetBoundInstance(targetMapId);
+#elif MANGOSBOT_ONE
+            InstancePlayerBind* pBind = bot->GetBoundInstance(targetMapId, bot->GetDifficulty());
+#else
+            InstancePlayerBind* pBind = bot->GetBoundInstance(targetMapId, bot->GetDifficulty(mapEntry->IsRaid()));
+#endif
+            if (pBind && pBind->perm && pBind->state != state)
+                return false;
+
+            if (pBind && pBind->perm && pBind->state != map->GetPersistentState())
+                return false;
+        }
+    }
+
+    return true;
 }
 
 void PlayerbotAI::Unmount()

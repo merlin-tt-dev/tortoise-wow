@@ -218,12 +218,11 @@ void RandomItemMgr::BuildRandomItemCache()
     }
     else
     {
-        sLog.outString("Building random item cache from %u items", sItemStorage.GetMaxEntry());
-        for (uint32 itemId = 0; itemId < sItemStorage.GetMaxEntry(); ++itemId)
+        sLog.outString("Building random item cache from %u items", uint32(sObjectMgr.GetItemPrototypeMap().size()));
+        for (auto const& itemEntry : sObjectMgr.GetItemPrototypeMap())
         {
-            ItemPrototype const* proto = sObjectMgr.GetItemPrototype(itemId);
-            if (!proto)
-                continue;
+            uint32 itemId = itemEntry.first;
+            ItemPrototype const* proto = &itemEntry.second;
 
             if (proto->Duration & 0x80000000)
                 continue;
@@ -949,8 +948,9 @@ void RandomItemMgr::BuildItemInfoCache()
 
     int32 sEntry;
 
-    for (uint32 entry = 0; entry < sCreatureStorage.GetMaxEntry(); entry++)
+    for (auto const& creatureEntry : sObjectMgr.GetCreatureInfoMap())
     {
+        uint32 entry = creatureEntry.first;
         sEntry = entry;
 
         LootTemplateAccess const* lTemplateA = DropMapValue::GetLootTemplate(ObjectGuid(HIGHGUID_UNIT, entry, uint32(1)), LOOT_CORPSE);
@@ -960,8 +960,9 @@ void RandomItemMgr::BuildItemInfoCache()
                 dropMap->insert(std::make_pair(lItem.itemid, sEntry));
     }
 
-    for (uint32 entry = 0; entry < sGOStorage.GetMaxEntry(); entry++)
+    for (auto const& gameObjectEntry : sObjectMgr.GetGameObjectInfoMap())
     {
+        uint32 entry = gameObjectEntry.first;
         sEntry = entry;
 
         LootTemplateAccess const* lTemplateA = DropMapValue::GetLootTemplate(ObjectGuid(HIGHGUID_GAMEOBJECT, entry, uint32(1)), LOOT_CORPSE);
@@ -973,19 +974,18 @@ void RandomItemMgr::BuildItemInfoCache()
 
     sLog.outString("Loaded %d loot templates...", (uint32)dropMap->size());
 
-    sLog.outString("Calculating stat weights for %d items...", sItemStorage.GetMaxEntry());
-    BarGoLink bar(sItemStorage.GetMaxEntry());
+    sLog.outString("Calculating stat weights for %d items...", uint32(sObjectMgr.GetItemPrototypeMap().size()));
+    BarGoLink bar(uint32(sObjectMgr.GetItemPrototypeMap().size()));
 
     CharacterDatabase.BeginTransaction();
 
     // generate stat weights for classes/specs
-    for (uint32 itemId = 0; itemId < sItemStorage.GetMaxEntry(); ++itemId)
+    for (auto const& itemEntry : sObjectMgr.GetItemPrototypeMap())
     {
         bar.step();
 
-        ItemPrototype const* proto = sObjectMgr.GetItemPrototype(itemId);
-        if (!proto)
-            continue;
+        uint32 itemId = itemEntry.first;
+        ItemPrototype const* proto = &itemEntry.second;
 
         // skip non armor/weapon
         if (proto->Class != ITEM_CLASS_WEAPON &&
@@ -3306,7 +3306,7 @@ void RandomItemMgr::BuildEquipCache()
     if (results)
     {
         sLog.outString("Loading equipment cache for %d classes, %d levels, %d slots, %d quality from %d items",
-                MAX_CLASSES, maxLevel, EQUIPMENT_SLOT_END, ITEM_QUALITY_ARTIFACT, sItemStorage.GetMaxEntry());
+                MAX_CLASSES, maxLevel, EQUIPMENT_SLOT_END, ITEM_QUALITY_ARTIFACT, uint32(sObjectMgr.GetItemPrototypeMap().size()));
         int count = 0;
         do
         {
@@ -3329,7 +3329,7 @@ void RandomItemMgr::BuildEquipCache()
     {
         uint64 total = uint64(MAX_CLASSES * 3 * maxLevel * EQUIPMENT_SLOT_END * ITEM_QUALITY_ARTIFACT);
         sLog.outString("Building equipment cache for %d classes, %d specs, %d levels, %d slots, %d quality from %d items (%zu total)",
-                MAX_CLASSES, MAX_STAT_SCALES, maxLevel, EQUIPMENT_SLOT_END, ITEM_QUALITY_ARTIFACT, sItemStorage.GetMaxEntry(), total);
+                MAX_CLASSES, MAX_STAT_SCALES, maxLevel, EQUIPMENT_SLOT_END, ITEM_QUALITY_ARTIFACT, uint32(sObjectMgr.GetItemPrototypeMap().size()), total);
 
         BarGoLink bar(total);
         RandomItemList tabardsList;
@@ -3369,11 +3369,10 @@ void RandomItemMgr::BuildEquipCache()
                             BotEquipKey key(level, clazz, spec, slot, quality);
 
                             RandomItemList items;
-                            for (uint32 itemId = 0; itemId < sItemStorage.GetMaxEntry(); ++itemId)
+                            for (auto const& itemEntry : sObjectMgr.GetItemPrototypeMap())
                             {
-                                ItemPrototype const* proto = sObjectMgr.GetItemPrototype(itemId);
-                                if (!proto)
-                                    continue;
+                                uint32 itemId = itemEntry.first;
+                                ItemPrototype const* proto = &itemEntry.second;
 
                                 if (proto->Quality != key.quality)
                                     continue;
@@ -3538,11 +3537,10 @@ void RandomItemMgr::BuildPotionCache()
         {
             uint32 effect = effects[i];
 
-            for (uint32 itemId = 0; itemId < sItemStorage.GetMaxEntry(); ++itemId)
+            for (auto const& itemEntry : sObjectMgr.GetItemPrototypeMap())
             {
-                ItemPrototype const* proto = sObjectMgr.GetItemPrototype(itemId);
-                if (!proto)
-                    continue;
+                uint32 itemId = itemEntry.first;
+                ItemPrototype const* proto = &itemEntry.second;
 
                 if (proto->Class != ITEM_CLASS_CONSUMABLE ||
                     (proto->SubClass != ITEM_SUBCLASS_POTION && proto->SubClass != ITEM_SUBCLASS_FLASK) ||
@@ -3609,11 +3607,10 @@ void RandomItemMgr::BuildFoodCache()
         {
             uint32 category = categories[i];
 
-            for (uint32 itemId = 0; itemId < sItemStorage.GetMaxEntry(); ++itemId)
+            for (auto const& itemEntry : sObjectMgr.GetItemPrototypeMap())
             {
-                ItemPrototype const* proto = sObjectMgr.GetItemPrototype(itemId);
-                if (!proto)
-                    continue;
+                uint32 itemId = itemEntry.first;
+                ItemPrototype const* proto = &itemEntry.second;
 
                 if (proto->Class != ITEM_CLASS_CONSUMABLE ||
                     (proto->SubClass != ITEM_SUBCLASS_FOOD && proto->SubClass != ITEM_SUBCLASS_CONSUMABLE) ||
@@ -3753,11 +3750,10 @@ void RandomItemMgr::BuildTradeCache()
 	int counter4 = 0;
     for (uint32 level = 1; level <= maxLevel+1; level+=10)
     {
-        for (uint32 itemId = 0; itemId < sItemStorage.GetMaxEntry(); ++itemId)
+        for (auto const& itemEntry : sObjectMgr.GetItemPrototypeMap())
         {
-            ItemPrototype const* proto = sObjectMgr.GetItemPrototype(itemId);
-            if (!proto)
-                continue;
+            uint32 itemId = itemEntry.first;
+            ItemPrototype const* proto = &itemEntry.second;
 
             if (proto->Class != ITEM_CLASS_TRADE_GOODS || proto->Bonding != NO_BIND)
                 continue;
@@ -3798,11 +3794,10 @@ std::vector<uint32> RandomItemMgr::GetGemsList()
 #ifndef MANGOSBOT_ZERO
     if (_gems.empty())
     {
-        for (uint32 itemId = 0; itemId < sItemStorage.GetMaxEntry(); ++itemId)
+        for (auto const& itemEntry : sObjectMgr.GetItemPrototypeMap())
         {
-            ItemPrototype const* proto = sObjectMgr.GetItemPrototype(itemId);
-            if (!proto)
-                continue;
+            uint32 itemId = itemEntry.first;
+            ItemPrototype const* proto = &itemEntry.second;
 
             if (proto->Class != ITEM_CLASS_GEM)
                 continue;
@@ -3838,14 +3833,13 @@ void RandomItemMgr::BuildRarityCache()
     }
     else
     {
-        sLog.outBasic("Building item rarity cache from %u items", sItemStorage.GetMaxEntry());
-        BarGoLink bar(sItemStorage.GetMaxEntry());
-        for (uint32 itemId = 0; itemId < sItemStorage.GetMaxEntry(); ++itemId)
+        sLog.outBasic("Building item rarity cache from %u items", uint32(sObjectMgr.GetItemPrototypeMap().size()));
+        BarGoLink bar(uint32(sObjectMgr.GetItemPrototypeMap().size()));
+        for (auto const& itemEntry : sObjectMgr.GetItemPrototypeMap())
         {
             bar.step();
-            ItemPrototype const* proto = sObjectMgr.GetItemPrototype(itemId);
-            if (!proto)
-                continue;
+            uint32 itemId = itemEntry.first;
+            ItemPrototype const* proto = &itemEntry.second;
 
             if (proto->Duration & 0x80000000)
                 continue;
@@ -3952,19 +3946,18 @@ void RandomItemMgr::BuildRarityCache()
                 }
             }
         }
-        sLog.outString("Item rarity cache built from %u items", sItemStorage.GetMaxEntry());
+        sLog.outString("Item rarity cache built from %u items", uint32(sObjectMgr.GetItemPrototypeMap().size()));
     }
 }
 
 #ifdef MANGOSBOT_TWO
 void RandomItemMgr::BuildGlyphCache()
 {
-    sLog.outString("Building glyphCache", sItemStorage.GetMaxEntry());
-    for (uint32 itemId = 0; itemId < sItemStorage.GetMaxEntry(); ++itemId)
+    sLog.outString("Building glyphCache from %u items", uint32(sObjectMgr.GetItemPrototypeMap().size()));
+    for (auto const& itemEntry : sObjectMgr.GetItemPrototypeMap())
     {
-        ItemPrototype const* proto = sObjectMgr.GetItemPrototype(itemId);
-        if (!proto)
-            continue;
+        uint32 itemId = itemEntry.first;
+        ItemPrototype const* proto = &itemEntry.second;
 
         if (proto->Class != ITEM_CLASS_GLYPH)
             continue;

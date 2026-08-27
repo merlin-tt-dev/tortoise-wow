@@ -66,11 +66,10 @@ void AutoLearnSpellAction::LearnTrainerSpells(std::ostringstream* out)
 {
     bot->learnDefaultSpells();
 
-    for (uint32 id = 0; id < sCreatureStorage.GetMaxEntry(); ++id)
+    for (auto const& creatureEntry : sObjectMgr.GetCreatureInfoMap())
     {
-        CreatureInfo const* co = sCreatureStorage.LookupEntry<CreatureInfo>(id);
-        if (!co)
-            continue;
+        uint32 id = creatureEntry.first;
+        CreatureInfo const* co = creatureEntry.second.get();
 
         if (co->TrainerType != TRAINER_TYPE_CLASS && 
             co->TrainerType != TRAINER_TYPE_TRADESKILLS &&

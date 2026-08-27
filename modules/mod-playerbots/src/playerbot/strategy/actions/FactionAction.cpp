@@ -36,20 +36,10 @@ bool FactionAction::Execute(Event& event)
 
     bool factionFound = false;
     std::map<std::string, std::string> args;
-#ifndef MANGOSBOT_ONE
-    for (uint32 id = 0; id < sFactionStore.GetNumRows(); ++id)
-#else
-    for (uint32 id = 0; id < sFactionStore.GetMaxEntry(); ++id)
-#endif
+    for (auto const& factionData : sObjectMgr.GetFactionMap())
     {
-#ifndef MANGOSBOT_ONE
-        const FactionEntry* factionEntry = sFactionStore.LookupEntry(id);
-#else
-        const FactionEntry* factionEntry = sFactionStore.LookupEntry<FactionEntry>(id);
-#endif
-
-        if (!factionEntry)
-            continue;
+        uint32 id = factionData.first;
+        FactionEntry const* factionEntry = &factionData.second;
 
         FactionState const* repState = mgr.GetState(factionEntry);
 

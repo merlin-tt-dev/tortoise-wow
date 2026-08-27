@@ -16,7 +16,8 @@
 | 0015 Native Quest-Relation Access | eingebaut | ausstehend |
 | 0016 Native Travel Metadata | eingebaut | ausstehend |
 | 0017 Native Config IncludeDir | eingebaut | ausstehend |
-| 0018 Native Compatibility Semantics I | mit diesem Patch | ausstehend |
+| 0018 Native Compatibility Semantics I | eingebaut | ausstehend |
+| 0019 Native Stores / AreaTriggers / Channels / Pet Autocast | mit diesem Patch | ausstehend |
 
 **Wichtig:** „eingebaut“ bedeutet nur statisch/source-seitig portiert. Kein Punkt gilt dadurch als getestet.
 
@@ -48,7 +49,14 @@
 - [ ] 0018: unsichtbare Creature-Templates werden über `flags_extra` / `CREATURE_FLAG_EXTRA_INVISIBLE` gefiltert.
 - [ ] 0018: Channeling wird über Penqles nativen `SPELL_STATE_CASTING`-Zustand erkannt.
 - [ ] 0018: GossipHello läuft über `sScriptMgr`; kein No-op-Compatibility-Hook.
-- [ ] Rest-Shim-Audit (MMap/BG/Loot/LFG/ChatChannel/InstanceTemplate/Autocast/etc.) vollständig abgeschlossen.
+- [ ] 0019: Item-/Creature-/GameObject-/Faction-Scans iterieren Penqles tatsächlich geladene ObjectMgr-Maps ohne künstliche ID-Hardlimits.
+- [ ] 0019: AreaTrigger-Geometrie und Teleport-Metadaten verwenden getrennt `AreaTriggerEntry` und `AreaTriggerTeleport`.
+- [ ] 0019: AreaTrigger-Conditions verwenden Penqles `CONDITION_FROM_AREATRIGGER`-Semantik.
+- [ ] 0019: Standard-ChatChannels werden aus Penqles geladenen `chat_channels`-Metadaten aufgebaut; kein leerer DBC-Store-Shim.
+- [ ] 0019: Pet-Autocast wird nicht mehr global durch `IsAutocastable() == false` deaktiviert.
+- [ ] core-chat-channel-loaded-id: `LoadChatChannels()` erhält die echte DB-ID jedes Standardchannels.
+- [ ] core-chat-channel-name-match: feste Channel-Namen matchen exakt; zonenabhängige Namen matchen das `%s`-Pattern ohne Substring-Kollisionen.
+- [ ] Rest-Shim-Audit (MMap/BG/Loot/LFG/InstanceTemplate/etc.) vollständig abgeschlossen.
 
 ## A1. Clean Build
 

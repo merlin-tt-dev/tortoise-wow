@@ -124,16 +124,11 @@ float TravelNodePath::getCost(Unit* unit, uint32 cGold)
         //Check if we can use this area trigger.
         if (getPathType() == TravelNodePathType::areaTrigger && pathObject)
         {
-            uint32 triggerId = getPathObject();
-            AreaTriggerEntry const* atEntry = sAreaTriggerStore.LookupEntry(pathObject);
-            AreaTrigger const* at = sObjectMgr.GetAreaTrigger(pathObject);
-            if (atEntry && at && atEntry->mapid == bot->GetMapId())
-            {
-                Map* map = WorldPosition(atEntry->mapid, atEntry->box_x, atEntry->box_y, atEntry->box_z).getMap(bot->GetInstanceId());
-                if (map)
-                    if (at && at->conditionId && !sObjectMgr.IsConditionSatisfied(at->conditionId, bot, map, nullptr, (ConditionSource)CONDITION_FROM_AREATRIGGER_TELEPORT))
-                        return -1;
-            }
+            AreaTriggerEntry const* atEntry = sObjectMgr.GetAreaTrigger(pathObject);
+            AreaTriggerTeleport const* at = sObjectMgr.GetAreaTriggerTeleport(pathObject);
+            if (atEntry && at && atEntry->mapid == bot->GetMapId() && at->requiredCondition &&
+                !sObjectMgr.IsConditionSatisfied(at->requiredCondition, bot, bot->GetMap(), bot, CONDITION_FROM_AREATRIGGER))
+                return -1;
         }
 
         if (getPathType() == TravelNodePathType::staticPortal && pathObject)
@@ -243,7 +238,7 @@ uint32 TravelNode::getAreaTriggerId()
         if (link.second->getPathType() != TravelNodePathType::areaTrigger)
             continue;
 
-        AreaTriggerEntry const* atEntry = sAreaTriggerStore.LookupEntry(link.second->getPathObject());
+        AreaTriggerEntry const* atEntry = sObjectMgr.GetAreaTrigger(link.second->getPathObject());
         if (!atEntry)
             continue;
 
@@ -258,20 +253,18 @@ uint32 TravelNode::getAreaTriggerId()
 
 bool TravelNode::isAreaTriggerTarget(uint32 areaTriggerId)
 {
-    for (uint32 i = 0; i < sAreaTriggerStore.GetNumRows(); i++)
+    for (auto const& areaTriggerData : sObjectMgr.GetAreaTriggersMap())
     {
+        uint32 i = areaTriggerData.first;
         if (areaTriggerId && areaTriggerId != i)
             continue;
 
-        AreaTriggerEntry const* atEntry = sAreaTriggerStore.LookupEntry(i);
-        if (!atEntry)
-            continue;
-
-        AreaTrigger const* at = sObjectMgr.GetAreaTrigger(i);
+        AreaTriggerEntry const* atEntry = &areaTriggerData.second;
+        AreaTriggerTeleport const* at = sObjectMgr.GetAreaTriggerTeleport(i);
         if (!at)
             continue;
 
-        WorldPosition outPos = WorldPosition(at->target_mapId, at->target_X, at->target_Y, at->target_Z, at->target_Orientation);
+        WorldPosition outPos = WorldPosition(at->destination.mapId, at->destination.x, at->destination.y, at->destination.z, at->destination.o);
 
         if (*getPosition() == outPos)
             return true;
@@ -1040,11 +1033,11 @@ bool TravelPath::UpcommingSpecialMovement(WorldPosition startPos, float maxDist,
     {
         if (startP->entry) //For area triggers we need to be close enough to trigger it's activation.
         {
-            AreaTriggerEntry const* atEntry = sAreaTriggerStore.LookupEntry(startP->entry);
+            AreaTriggerEntry const* atEntry = sObjectMgr.GetAreaTrigger(startP->entry);
             if (!atEntry)
                 return false;
 
-            AreaTrigger const* at = sObjectMgr.GetAreaTrigger(startP->entry);
+            AreaTriggerTeleport const* at = sObjectMgr.GetAreaTriggerTeleport(startP->entry);
             if (!at)
                 return false;
 
@@ -2220,19 +2213,17 @@ void TravelNodeMap::generateAreaTriggerNodes()
 {
     //Entrance nodes
 
-    for (uint32 i = 0; i < sAreaTriggerStore.GetNumRows(); i++)
+    for (auto const& areaTriggerData : sObjectMgr.GetAreaTriggersMap())
     {
-        AreaTriggerEntry const* atEntry = sAreaTriggerStore.LookupEntry(i);
-        if (!atEntry)
-            continue;
-
-        AreaTrigger const* at = sObjectMgr.GetAreaTrigger(i);
+        uint32 i = areaTriggerData.first;
+        AreaTriggerEntry const* atEntry = &areaTriggerData.second;
+        AreaTriggerTeleport const* at = sObjectMgr.GetAreaTriggerTeleport(i);
         if (!at)
             continue;
 
         WorldPosition inPos = WorldPosition(atEntry->mapid, atEntry->x, atEntry->y, atEntry->z - 4.0f, 0);
 
-        WorldPosition outPos = WorldPosition(at->target_mapId, at->target_X, at->target_Y, at->target_Z, at->target_Orientation);
+        WorldPosition outPos = WorldPosition(at->destination.mapId, at->destination.x, at->destination.y, at->destination.z, at->destination.o);
 
         std::string nodeName;
 
@@ -2248,19 +2239,17 @@ void TravelNodeMap::generateAreaTriggerNodes()
 
     //Exit nodes
 
-    for (uint32 i = 0; i < sAreaTriggerStore.GetNumRows(); i++)
+    for (auto const& areaTriggerData : sObjectMgr.GetAreaTriggersMap())
     {
-        AreaTriggerEntry const* atEntry = sAreaTriggerStore.LookupEntry(i);
-        if (!atEntry)
-            continue;
-
-        AreaTrigger const* at = sObjectMgr.GetAreaTrigger(i);
+        uint32 i = areaTriggerData.first;
+        AreaTriggerEntry const* atEntry = &areaTriggerData.second;
+        AreaTriggerTeleport const* at = sObjectMgr.GetAreaTriggerTeleport(i);
         if (!at)
             continue;
 
         WorldPosition inPos = WorldPosition(atEntry->mapid, atEntry->x, atEntry->y, atEntry->z - 4.0f, 0);
 
-        WorldPosition outPos = WorldPosition(at->target_mapId, at->target_X, at->target_Y, at->target_Z, at->target_Orientation);
+        WorldPosition outPos = WorldPosition(at->destination.mapId, at->destination.x, at->destination.y, at->destination.z, at->destination.o);
 
         std::string nodeName;
 
@@ -2384,11 +2373,12 @@ void TravelNodeMap::makeDockNode(TravelNode* node, WorldPosition pos, std::strin
 
 void TravelNodeMap::generateTransportNodes()
 {
-    for (uint32 entry = 1; entry <= sGOStorage.GetMaxEntry(); ++entry)
-    {        
-        auto data = sGOStorage.LookupEntry<GameObjectInfo>(entry);
+    for (auto const& gameObjectEntry : sObjectMgr.GetGameObjectInfoMap())
+    {
+        uint32 entry = gameObjectEntry.first;
+        GameObjectInfo const* data = &gameObjectEntry.second;
 
-        if (data && (data->type == GAMEOBJECT_TYPE_TRANSPORT || data->type == GAMEOBJECT_TYPE_MO_TRANSPORT))
+        if (data->type == GAMEOBJECT_TYPE_TRANSPORT || data->type == GAMEOBJECT_TYPE_MO_TRANSPORT)
         {
             if (data->displayId == 808) //Remove plunger
                 continue;

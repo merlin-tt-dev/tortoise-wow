@@ -47,10 +47,6 @@ typedef ObjectGuidSet GuidSet;
 struct AreaEntry;
 typedef AreaEntry AreaTableEntry;
 
-// cmangos uses AreaTrigger; Penqle has AreaTriggerEntry (DBCStructure.h).
-struct AreaTriggerEntry;
-typedef AreaTriggerEntry AreaTrigger;
-
 // === Define mappings ===
 // cmangos's ItemClass enum has ITEM_CLASS_MISC at value 15. Penqle renamed
 // this to ITEM_CLASS_JUNK (also at 15). The bot module's ahbot/Category.h
@@ -131,20 +127,12 @@ struct CmangosSpellTemplateProxy
 };
 inline CmangosSpellTemplateProxy sSpellTemplate;
 
-// Singleton-like wrapper for cmangos's sItemStorage. Forwards to sObjectMgr.GetItemPrototype().
-// Iteration-upper-bound stubs (this proxy + CmangosCreatureStorageProxy,
-// CmangosGOStorageProxy, CmangosFactionStoreProxy, CmangosAreaTriggerStoreProxy
-// below): cmangos's stores expose GetMaxEntry/GetNumRows; Penqle's don't have
-// a tight maximum. The bot module only uses these as upper bounds for
-// `for (i=0; i<max; ++i) LookupEntry(i)` scans where LookupEntry returns
-// nullptr for unknown ids — so a generous overestimate is safe (a few thousand
-// wasted lookups during one-shot init). Bump if a future caller actually
-// depends on a tight bound.
+// Singleton-like wrapper for cmangos's sItemStorage. Direct lookups forward to
+// sObjectMgr.GetItemPrototype(); full-store scans use Penqle's native map.
 struct CmangosItemStorageProxy
 {
     template<typename T = ItemPrototype>
     T const* LookupEntry(uint32 id) const { return sObjectMgr.GetItemPrototype(id); }
-    uint32 GetMaxEntry() const { return 100000; }
 };
 inline CmangosItemStorageProxy sItemStorage;
 
@@ -164,7 +152,6 @@ struct CmangosFactionTemplateStoreProxy
 {
     template<typename T = FactionTemplateEntry>
     T const* LookupEntry(uint32 id) const { return sObjectMgr.GetFactionTemplateEntry(id); }
-    uint32 GetNumRows() const { return 1500; } // upper bound stub
 };
 inline CmangosFactionTemplateStoreProxy sFactionTemplateStore;
 
@@ -279,7 +266,6 @@ struct CmangosFactionStoreProxy
 {
     template<typename T = FactionEntry>
     T const* LookupEntry(uint32 id) const { return sObjectMgr.GetFactionEntry(id); }
-    uint32 GetNumRows() const { return 100; } // stub upper-bound
 };
 inline CmangosFactionStoreProxy sFactionStore;
 
@@ -288,7 +274,6 @@ struct CmangosCreatureStorageProxy
 {
     template<typename T = CreatureInfo>
     T const* LookupEntry(uint32 id) const { return sObjectMgr.GetCreatureTemplate(id); }
-    uint32 GetMaxEntry() const { return 100000; }
 };
 inline CmangosCreatureStorageProxy sCreatureStorage;
 
@@ -328,8 +313,10 @@ inline const char* strstr(std::string const& haystack, const char* needle) {
 #endif
 
 // === IsAutocastable (cmangos free function) ===
-inline bool IsAutocastable(uint32 /*spellId*/) { return false; }
-inline bool IsAutocastable(SpellEntry const* /*spellInfo*/) { return false; }
+// Penqle's native pet-autocast opcode accepts any known, non-passive pet spell.
+// Mirror that host rule instead of disabling autocast through a false stub.
+inline bool IsAutocastable(SpellEntry const* spellInfo) { return spellInfo && !spellInfo->IsPassiveSpell(); }
+inline bool IsAutocastable(uint32 spellId) { return IsAutocastable(sSpellMgr.GetSpellEntry(spellId)); }
 
 // === IsSpellAppliesAura / IsSpellHaveEffect / IsAreaAuraEffect (cmangos free functions) ===
 inline bool IsSpellAppliesAura(SpellEntry const* spellInfo, uint32 effectMask = 0xFFFFFFFF) {
@@ -375,11 +362,6 @@ enum LootItemType {
 #define NAV_GROUND_STEEP 0x02
 #endif
 
-// === CONDITION_FROM_AREATRIGGER_TELEPORT (cmangos) ===
-#ifndef CONDITION_FROM_AREATRIGGER_TELEPORT
-#define CONDITION_FROM_AREATRIGGER_TELEPORT 0
-#endif
-
 // === MINIMUM_LOOTING_TIME ===
 #ifndef MINIMUM_LOOTING_TIME
 #define MINIMUM_LOOTING_TIME 1000
@@ -415,15 +397,6 @@ enum AuctionHouseType {
 #ifndef TAXI_MOTION_TYPE
 #define TAXI_MOTION_TYPE FLIGHT_MOTION_TYPE
 #endif
-
-// === sAreaTriggerStore (cmangos) ===
-struct CmangosAreaTriggerStoreProxy
-{
-    template<typename T = AreaTriggerEntry>
-    T const* LookupEntry(uint32 id) const { return sObjectMgr.GetAreaTrigger(id); }
-    uint32 GetNumRows() const { return 10000; } // upper bound stub
-};
-inline CmangosAreaTriggerStoreProxy sAreaTriggerStore;
 
 // === LfgRoles / LfgRolePriority (cmangos) — bot module's own ClassRoles is similar ===
 typedef ClassRoles LfgRoles;
@@ -610,22 +583,11 @@ inline CmangosSkillLineAbilityStoreProxy sSkillLineAbilityStore;
 // Same shape; keep both names.
 #define sAreaStore sAreaStorage
 
-// === sChatChannelsStore proxy ===
-// Penqle exposes ChatChannels via sObjectMgr.GetChatChannelByDBId or similar. Stub returns nullptr.
-struct CmangosChatChannelsStoreProxy
-{
-    template<typename T = ChatChannelsEntry>
-    T const* LookupEntry(uint32 /*id*/) const { return nullptr; }
-    uint32 GetNumRows() const { return 0; }
-};
-inline CmangosChatChannelsStoreProxy sChatChannelsStore;
-
 // === sGOStorage (cmangos) → sObjectMgr.GetGameObjectInfo ===
 struct CmangosGOStorageProxy
 {
     template<typename T = GameObjectInfo>
     T const* LookupEntry(uint32 id) const { return sObjectMgr.GetGameObjectInfo(id); }
-    uint32 GetMaxEntry() const { return 200000; }
 };
 inline CmangosGOStorageProxy sGOStorage;
 

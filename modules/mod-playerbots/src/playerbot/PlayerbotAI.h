@@ -734,7 +734,7 @@ public:
     PlayerTalentSpec GetTalentSpec();
     void UpdateTalentSpec(PlayerTalentSpec spec = PlayerTalentSpec::TALENT_SPEC_INVALID);
 
-    bool CanEnterArea(const AreaTrigger* area);
+    bool CanEnterArea(AreaTriggerTeleport const* area);
     void Unmount();
 
     void QueuePacket(WorldPacket& pkt);

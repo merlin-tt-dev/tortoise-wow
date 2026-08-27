@@ -175,12 +175,10 @@ DropMap* ItemDropMapValue::Calculate()
 {
 	DropMap* dropMap = new DropMap;
 
-	for (uint32 itemId = 0; itemId < sItemStorage.GetMaxEntry(); itemId++)
-	{
-		ItemPrototype const* proto = sItemStorage.LookupEntry<ItemPrototype>(itemId);
-
-		if (!proto)
-			continue;
+    for (auto const& itemEntry : sObjectMgr.GetItemPrototypeMap())
+    {
+        uint32 itemId = itemEntry.first;
+        ItemPrototype const* proto = &itemEntry.second;
 
 		if (!(proto->Flags & ITEM_FLAG_HAS_LOOT))
 			continue;
@@ -212,9 +210,10 @@ DropMap* DropMapValue::Calculate()
 
 	int32 sEntry;
 
-	for (uint32 entry = 0; entry < sCreatureStorage.GetMaxEntry(); entry++)
-	{
-		sEntry = entry;
+    for (auto const& creatureEntry : sObjectMgr.GetCreatureInfoMap())
+    {
+        uint32 entry = creatureEntry.first;
+        sEntry = entry;
 
 		LootTemplateAccess const* lTemplateA = GetLootTemplate(ObjectGuid(HIGHGUID_UNIT, entry, uint32(1)), LOOT_CORPSE);
 
@@ -234,9 +233,10 @@ DropMap* DropMapValue::Calculate()
 		}
 	}
 
-	for (uint32 entry = 0; entry < sGOStorage.GetMaxEntry(); entry++)
-	{
-		sEntry = entry;
+    for (auto const& gameObjectEntry : sObjectMgr.GetGameObjectInfoMap())
+    {
+        uint32 entry = gameObjectEntry.first;
+        sEntry = entry;
 
 		LootTemplateAccess const* lTemplateA = GetLootTemplate(ObjectGuid(HIGHGUID_GAMEOBJECT, entry, uint32(1)), LOOT_CORPSE);
 

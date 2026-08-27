@@ -1132,11 +1132,10 @@ void AhBot::CheckSendMail(uint32 bidder, uint32 price, AuctionEntry *entry)
 
 void AhBot::Dump()
 {
-    for (uint32 itemId = 0; itemId < sItemStorage.GetMaxEntry(); ++itemId)
+    for (auto const& itemEntry : sObjectMgr.GetItemPrototypeMap())
     {
-        ItemPrototype const* proto = sObjectMgr.GetItemPrototype(itemId);
-        if (!proto)
-            continue;
+        uint32 itemId = itemEntry.first;
+        ItemPrototype const* proto = &itemEntry.second;
 
         bool first = true;
         for (int i=0; i<CategoryList::instance.size(); i++)

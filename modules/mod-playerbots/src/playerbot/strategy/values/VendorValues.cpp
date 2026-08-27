@@ -11,12 +11,10 @@ VendorMap* VendorMapValue::Calculate()
     VendorMap* vendorpMap = new VendorMap;
 
 
-    for (uint32 entry = 0; entry < sCreatureStorage.GetMaxEntry(); entry++)
+    for (auto const& creatureEntry : sObjectMgr.GetCreatureInfoMap())
     {
-        CreatureInfo const* cInfo = sObjectMgr.GetCreatureTemplate(entry);
-
-        if (!cInfo)
-            continue;
+        uint32 entry = creatureEntry.first;
+        CreatureInfo const* cInfo = creatureEntry.second.get();
 
         VendorItemList vendorItems;
         VendorItemData const* vItems = sObjectMgr.GetNpcVendorItemList(entry);

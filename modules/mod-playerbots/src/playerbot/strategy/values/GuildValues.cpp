@@ -45,13 +45,13 @@ uint32 GuildOrderValue::FindItemByName(const std::string& name)
     if (it != s_cache.end())
         return it->second;
 
+    uint32 exactMatch = 0;
     uint32 substringMatch = 0;
 
-    for (uint32 itemId = 0; itemId < sItemStorage.GetMaxEntry(); ++itemId)
+    for (auto const& itemEntry : sObjectMgr.GetItemPrototypeMap())
     {
-        ItemPrototype const* proto = sItemStorage.LookupEntry<ItemPrototype>(itemId);
-        if (!proto)
-            continue;
+        uint32 itemId = itemEntry.first;
+        ItemPrototype const* proto = &itemEntry.second;
 
         if (proto->Class == ITEM_CLASS_RECIPE ||
             proto->Class == ITEM_CLASS_WEAPON ||
@@ -60,16 +60,18 @@ uint32 GuildOrderValue::FindItemByName(const std::string& name)
 
         if (name.size() == proto->Name1.size() && strstri(proto->Name1, name.c_str()))
         {
-            s_cache[lowerName] = itemId;
-            return itemId;
+            if (!exactMatch || itemId < exactMatch)
+                exactMatch = itemId;
+            continue;
         }
 
-        if (!substringMatch && strstri(proto->Name1, name.c_str()))
+        if (strstri(proto->Name1, name.c_str()) && (!substringMatch || itemId < substringMatch))
             substringMatch = itemId;
     }
 
-    s_cache[lowerName] = substringMatch;
-    return substringMatch;
+    uint32 match = exactMatch ? exactMatch : substringMatch;
+    s_cache[lowerName] = match;
+    return match;
 }
 
 std::vector<std::pair<uint32, int8>> ai::FindRepeatableQuestsRewardingItem(uint32 itemId)

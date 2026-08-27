@@ -622,24 +622,32 @@ void PlayerbotHolder::JoinChatChannels(Player* bot)
 
     if (current_zone && cMgr)
     {
-        for (uint32 i = 0; i < sChatChannelsStore.GetNumRows(); ++i)
+        static uint32 const channelIds[] =
         {
-            ChatChannelsEntry const* channel = sChatChannelsStore.LookupEntry(i);
-            if (!channel) continue;
+            ChatChannelId::GENERAL,
+            ChatChannelId::TRADE,
+            ChatChannelId::LOCAL_DEFENSE,
+            ChatChannelId::WORLD_DEFENSE,
+            ChatChannelId::LOOKING_FOR_GROUP,
+            ChatChannelId::GUILD_RECRUITMENT
+        };
 
+        for (uint32 channelId : channelIds)
+        {
+            ChatChannelsEntry const* channel = sObjectMgr.GetChannelEntryFor(channelId);
+            if (!channel || locale >= MAX_DBC_LOCALE || channel->name[locale].empty())
+                continue;
+
+            std::string const& channelPattern = channel->name[locale];
             Channel* new_channel = nullptr;
-            switch (channel->ChannelID)
+            switch (channelId)
             {
                 case ChatChannelId::GENERAL:
                 case ChatChannelId::LOCAL_DEFENSE:
                 {
                     char new_channel_name_buf[100];
-                    snprintf(new_channel_name_buf, 100, channel->pattern[locale], current_zone_name.c_str());
-#ifdef MANGOSBOT_ZERO
-                    new_channel = cMgr->GetJoinChannel(new_channel_name_buf);
-#else
-                    new_channel = cMgr->GetJoinChannel(new_channel_name_buf, channel->ChannelID);
-#endif
+                    snprintf(new_channel_name_buf, 100, channelPattern.c_str(), current_zone_name.c_str());
+                    new_channel = cMgr->GetOrCreateChannel(new_channel_name_buf);
                     break;
                 }
                 case ChatChannelId::TRADE:
@@ -653,32 +661,24 @@ void PlayerbotHolder::JoinChatChannels(Player* bot)
                     snprintf(
                         new_channel_name_buf,
                         100,
-                        channel->pattern[locale],
+                        channelPattern.c_str(),
                         bot->GetPlayerbotAI()->GetLocalizedAreaName(GetAreaEntryByAreaID(ImportantAreaId::CITY)).c_str()
                     );
 
-#ifdef MANGOSBOT_ZERO
-                    new_channel = cMgr->GetJoinChannel(new_channel_name_buf);
-#else
-                    new_channel = cMgr->GetJoinChannel(new_channel_name_buf, channel->ChannelID);
-#endif
+                    new_channel = cMgr->GetOrCreateChannel(new_channel_name_buf);
                     break;
                 }
                 case ChatChannelId::LOOKING_FOR_GROUP:
                 case ChatChannelId::WORLD_DEFENSE:
                 {
-#ifdef MANGOSBOT_ZERO
-                    new_channel = cMgr->GetJoinChannel(channel->pattern[locale]);
-#else
-                    new_channel = cMgr->GetJoinChannel(channel->pattern[locale], channel->ChannelID);
-#endif
+                    new_channel = cMgr->GetOrCreateChannel(channelPattern);
                     break;
                 }
                 default:
                     break;
             }
             if (new_channel)
-                new_channel->Join(bot, "");
+                new_channel->Join(bot->GetObjectGuid(), "");
         }
     }
 }

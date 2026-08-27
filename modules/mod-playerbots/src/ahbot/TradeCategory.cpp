@@ -44,9 +44,9 @@ bool TradeSkill::ContainsInternal(ItemPrototype const* proto)
             return true;
     }
 
-    for (uint32 id = 0; id < sCreatureStorage.GetMaxEntry(); ++id)
+    for (auto const& creatureEntry : sObjectMgr.GetCreatureInfoMap())
     {
-        CreatureInfo const* co = sCreatureStorage.LookupEntry<CreatureInfo>(id);
+        CreatureInfo const* co = creatureEntry.second.get();
         if (!co || co->TrainerType != TRAINER_TYPE_TRADESKILLS)
             continue;
 
@@ -73,11 +73,9 @@ bool TradeSkill::ContainsInternal(ItemPrototype const* proto)
         }
     }
 
-    for (uint32 itemId = 0; itemId < sItemStorage.GetMaxEntry(); ++itemId)
+    for (auto const& itemEntry : sObjectMgr.GetItemPrototypeMap())
     {
-        ItemPrototype const* recipe = sItemStorage.LookupEntry<ItemPrototype>(itemId);
-        if (!recipe)
-            continue;
+        ItemPrototype const* recipe = &itemEntry.second;
 
         if (recipe->Class == ITEM_CLASS_RECIPE && (
             (recipe->SubClass == ITEM_SUBCLASS_LEATHERWORKING_PATTERN && skill == SKILL_LEATHERWORKING) ||

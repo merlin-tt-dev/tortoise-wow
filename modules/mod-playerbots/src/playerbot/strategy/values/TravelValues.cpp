@@ -66,12 +66,10 @@ EntryTravelPurposeMap EntryTravelPurposeMapValue::Calculate()
         { UNIT_NPC_FLAG_AUCTIONEER, TravelDestinationPurpose::AH }
     };
 
-    for (uint32 entry = 0; entry < sCreatureStorage.GetMaxEntry(); ++entry)
+    for (auto const& creatureEntry : sObjectMgr.GetCreatureInfoMap())
     {
-        CreatureInfo const* cInfo = sCreatureStorage.LookupEntry<CreatureInfo>(entry);
-
-        if (!cInfo)
-            continue;
+        uint32 entry = creatureEntry.first;
+        CreatureInfo const* cInfo = creatureEntry.second.get();
 
         if (cInfo->flags_extra & CREATURE_FLAG_EXTRA_INVISIBLE)
             continue;
@@ -157,12 +155,10 @@ EntryTravelPurposeMap EntryTravelPurposeMapValue::Calculate()
             entryPurposeMap[entry] = purpose;
     }
 
-    for (uint32 entry = 0; entry < sGOStorage.GetMaxEntry(); ++entry)
+    for (auto const& gameObjectEntry : sObjectMgr.GetGameObjectInfoMap())
     {
-        GameObjectInfo const* gInfo = sObjectMgr.GetGameObjectInfo(entry);
-
-        if (!gInfo)
-            continue;
+        uint32 entry = gameObjectEntry.first;
+        GameObjectInfo const* gInfo = &gameObjectEntry.second;
 
         // Penqle's GameObjectInfo has no ExtraFlags (cmangos uses it for invisible
         // markers; the bot is checking a creature flag here — likely a bot-side

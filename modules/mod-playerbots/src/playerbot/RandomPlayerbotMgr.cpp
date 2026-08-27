@@ -2805,7 +2805,7 @@ void RandomPlayerbotMgr::PrepareTeleportCache()
         }
     }
 
-    sLog.outString("Preparing RPG teleport caches for %d factions...", sFactionTemplateStore.GetNumRows());
+    sLog.outString("Preparing RPG teleport caches for %d factions...", uint32(sObjectMgr.GetFactionTemplateMap().size()));
 
     results = WorldDatabase.PQuery("SELECT map, position_x, position_y, position_z, "
         "r.race, r.minl, r.maxl "

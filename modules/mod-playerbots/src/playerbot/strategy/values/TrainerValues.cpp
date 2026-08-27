@@ -15,11 +15,10 @@ trainableSpellMap* TrainableSpellMapValue::Calculate()
     std::unordered_map <uint32, std::vector<CreatureInfo const*>> trainerTemplateIds;
 
     //Select all trainer lists and their trainers.
-    for (uint32 id = 0; id < sCreatureStorage.GetMaxEntry(); ++id)
+    for (auto const& creatureEntry : sObjectMgr.GetCreatureInfoMap())
     {
-        CreatureInfo const* creatureInfo = sCreatureStorage.LookupEntry<CreatureInfo>(id);
-        if (!creatureInfo)
-            continue;
+        uint32 id = creatureEntry.first;
+        CreatureInfo const* creatureInfo = creatureEntry.second.get();
 
         if (!creatureInfo->TrainerType && !creatureInfo->TrainerClass)
             continue;
