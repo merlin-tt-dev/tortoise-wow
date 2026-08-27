@@ -43,7 +43,7 @@ namespace ai
             if (bot->InBattleGround() && !ai->HasAura(2584, bot))
             {
                 // cast Waiting for Resurrect
-                bot->CastSpell(bot, 2584, TRIGGERED_OLD_TRIGGERED);
+                bot->CastSpell(bot, 2584, true);
             }
 
             return true;
@@ -67,7 +67,7 @@ namespace ai
             if (bot->InBattleGround() && !ai->HasAura(2584, bot))
             {
                 // cast Waiting for Resurrect
-                bot->CastSpell(bot, 2584, TRIGGERED_OLD_TRIGGERED);
+                bot->CastSpell(bot, 2584, true);
             }
 
             sPlayerbotAIConfig.logEvent(ai, "AutoReleaseSpiritAction");

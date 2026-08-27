@@ -3707,9 +3707,9 @@ TravelNodeMap::PathFindResult TravelNodeMap::testPathToLoop(const WorldPosition&
 
     std::unique_ptr<PathFinder> pathfinder = std::make_unique<PathFinder>(bot);
 
-    pathfinder->setAreaCost(NAV_AREA_WATER, 10.0f);
-    pathfinder->setAreaCost(12, 5.0f);
-    pathfinder->setAreaCost(13, 20.0f);
+    pathfinder->SetNavAreaCost(AREA_WATER, 10.0f);
+    pathfinder->SetNavAreaCost(PLAYERBOT_MMAP_AREA_AVOID, 5.0f);
+    pathfinder->SetNavAreaCost(PLAYERBOT_MMAP_AREA_DANGER, 20.0f);
 
     PointsArray points;
     PathType pathType;

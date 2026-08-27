@@ -1174,9 +1174,9 @@ bool DebugAction::HandleAvoidScan(Event& event, Player* requester, const std::st
             p.setY(p.getY() + y);
             p.setZ(p.getHeight(bot->GetInstanceId()));
             Creature* wpCreature = requester->SummonCreature(2334, p.getX(), p.getY(), p.getZ(), 0.0, TEMPSPAWN_TIMED_DESPAWN, 20000.0f);
-            if(path.getArea(p.getMapId(), p.getX(), p.getY(), p.getZ()) == 12)
+            if(path.GetNavArea(p.getX(), p.getY(), p.getZ()) == PLAYERBOT_MMAP_AREA_AVOID)
                 ai->AddAura(wpCreature, 246);
-            if (path.getArea(p.getMapId(), p.getX(), p.getY(), p.getZ()) == 13)
+            if (path.GetNavArea(p.getX(), p.getY(), p.getZ()) == PLAYERBOT_MMAP_AREA_DANGER)
                 ai->AddAura(wpCreature, 1130);
         }
     return true;
@@ -1196,7 +1196,7 @@ bool DebugAction::HandleAvoidAdd(Event& event, Player* requester, const std::str
     }
     area = stoi(args[0]);
     radius = stoi(args[1]);
-    pathfinder.setArea(point.getMapId(), point.getX(), point.getY(), point.getZ(), area, radius);
+    pathfinder.MarkNavArea(point.getX(), point.getY(), point.getZ(), uint8(area), radius);
     return true;
 }
 
@@ -1741,7 +1741,7 @@ bool DebugAction::HandlePointOnTrans(Event& event, Player* requester, const std:
             ai->AddAura(wpCreature, 246);
 
             bot->SetTransport(transport);
-            std::unique_ptr<PathFinder> pathfinder = std::make_unique<PathFinder>(bot, true);
+            std::unique_ptr<PathFinder> pathfinder = std::make_unique<PathFinder>(bot);
             WorldPosition tStart = bot, tEnd = pos;
             tStart.CalculatePassengerOffset(transport);
             tEnd.CalculatePassengerOffset(transport);
@@ -1887,9 +1887,9 @@ bool DebugAction::HandleOnTrans(Event& event, Player* requester, const std::stri
 
     std::vector<G3D::Vector3> pointPath = transPos.toPointsArray(path);
 #ifndef MANGOSBOT_TWO
-    bot->GetMotionMaster()->MovePath(pointPath, FORCED_MOVEMENT_RUN, false, false);
+    bot->GetMotionMaster()->MovePath(pointPath, MOVE_RUN_MODE);
 #else
-    bot->GetMotionMaster()->MovePath(pointPath, FORCED_MOVEMENT_RUN, false);
+    bot->GetMotionMaster()->MovePath(pointPath, MOVE_RUN_MODE);
 #endif  
 
     return true;
@@ -1930,9 +1930,9 @@ bool DebugAction::HandleOffTrans(Event& event, Player* requester, const std::str
     std::vector<G3D::Vector3> pointPath = exitPos.toPointsArray(path);
 
 #ifndef MANGOSBOT_TWO
-    bot->GetMotionMaster()->MovePath(pointPath, FORCED_MOVEMENT_RUN, false, false);
+    bot->GetMotionMaster()->MovePath(pointPath, MOVE_RUN_MODE);
 #else
-    bot->GetMotionMaster()->MovePath(pointPath, FORCED_MOVEMENT_RUN, false);
+    bot->GetMotionMaster()->MovePath(pointPath, MOVE_RUN_MODE);
 #endif  
 
     return true;
@@ -4662,7 +4662,7 @@ bool DebugAction::HandleCSpellMap(Event& event, Player* requester, const std::st
 
             if (wpCreature && lCreature)
             {
-                wpCreature->CastSpell(lCreature, effect, TRIGGERED_OLD_TRIGGERED);
+                wpCreature->CastSpell(lCreature, effect, true);
             }
 
             lCreature = wpCreature;
@@ -5227,9 +5227,9 @@ bool DebugAction::HandleNodes(Event& event, Player* requester, const std::string
         float dist = pos.distance(*startNode->getPosition());
         
         std::unique_ptr<PathFinder> pathfinder = std::make_unique<PathFinder>(bot);
-        pathfinder->setAreaCost(NAV_AREA_WATER, 10.0f);
-        pathfinder->setAreaCost(12, 5.0f);
-        pathfinder->setAreaCost(13, 20.0f);
+        pathfinder->SetNavAreaCost(AREA_WATER, 10.0f);
+        pathfinder->SetNavAreaCost(PLAYERBOT_MMAP_AREA_AVOID, 5.0f);
+        pathfinder->SetNavAreaCost(PLAYERBOT_MMAP_AREA_DANGER, 20.0f);
         pathfinder->calculate(pos.getVector3(), startNode->getPosition()->getVector3(), false);
         
         PointsArray points = pathfinder->getPath();
@@ -5523,7 +5523,7 @@ bool DebugAction::HandleTransanal(Event& event, Player* requester, const std::st
                             if (found[end])
                                 continue;
 
-                            std::unique_ptr<PathFinder> pathfinder = std::make_unique<PathFinder>(tempPlayer, true);
+                            std::unique_ptr<PathFinder> pathfinder = std::make_unique<PathFinder>(tempPlayer);
 
                             WorldPosition tStart = start, tEnd = end;
                             tStart.CalculatePassengerOffset(transport);

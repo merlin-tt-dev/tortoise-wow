@@ -96,9 +96,9 @@ bool SeeSpellAction::Execute(Event& event)
 
         out << " area = ";
 
-        out << path.getArea(bot->GetMapId(), x, y, z);
+        out << path.GetNavArea(x, y, z);
 
-        unsigned short flags = path.getFlags(bot->GetMapId(), x, y, z);
+        unsigned short flags = path.GetNavFlags(x, y, z);
 
         out << " flags = " << flags;
 
@@ -106,11 +106,11 @@ bool SeeSpellAction::Execute(Event& event)
             out << ", ground";
         if (flags & NAV_EMPTY)
             out << ", empty";
-        if (flags & NAV_GROUND_STEEP)
+        if (flags & NAV_STEEP_SLOPES)
             out << ", slope";
         if (flags & NAV_WATER)
             out << ", water";
-        if (flags & NAV_MAGMA_SLIME)
+        if (flags & (NAV_MAGMA | NAV_SLIME))
             out << ", magma slime";
 
         ai->TellPlayer(requester, out);

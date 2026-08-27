@@ -1098,11 +1098,11 @@ std::vector<WorldPosition> WorldPosition::getPathFromPath(const std::vector<Worl
     if (bot && instanceId == bot->GetInstanceId())
         pathfinder = std::make_unique<PathFinder>(bot);
     else
-        pathfinder = std::make_unique<PathFinder>(getMapId(), instanceId);
+        pathfinder = std::make_unique<PathFinder>(getMapId());
 
-    pathfinder->setAreaCost(NAV_AREA_WATER, 10.0f);
-    pathfinder->setAreaCost(12, 5.0f);
-    pathfinder->setAreaCost(13, 20.0f);
+    pathfinder->SetNavAreaCost(AREA_WATER, 10.0f);
+    pathfinder->SetNavAreaCost(PLAYERBOT_MMAP_AREA_AVOID, 5.0f);
+    pathfinder->SetNavAreaCost(PLAYERBOT_MMAP_AREA_DANGER, 20.0f);
 
     //Limit the pathfinding attempts
     for (uint32 i = 0; i < maxAttempt; i++)
@@ -1151,7 +1151,7 @@ bool WorldPosition::ClosestCorrectPoint(float maxRange, float maxHeight, uint32 
     uint16 excludeFlags = 0;
 
     includeFlags |= (NAV_GROUND );
-    excludeFlags |= (NAV_MAGMA_SLIME | NAV_GROUND_STEEP | NAV_WATER);
+    excludeFlags |= (NAV_MAGMA | NAV_SLIME | NAV_STEEP_SLOPES | NAV_WATER);
 
 
     filter.setIncludeFlags(includeFlags);
@@ -1206,9 +1206,9 @@ std::vector<WorldPosition> WorldPosition::ComputePathToRandomPoint(const Player*
 
     std::unique_ptr<PathFinder> pathfinder = std::make_unique<PathFinder>(bot);
 
-    pathfinder->setAreaCost(NAV_AREA_WATER, 10.0f);
-    pathfinder->setAreaCost(12, 5.0f);
-    pathfinder->setAreaCost(13, 20.0f);
+    pathfinder->SetNavAreaCost(AREA_WATER, 10.0f);
+    pathfinder->SetNavAreaCost(PLAYERBOT_MMAP_AREA_AVOID, 5.0f);
+    pathfinder->SetNavAreaCost(PLAYERBOT_MMAP_AREA_DANGER, 20.0f);
 
     std::vector<WorldPosition> path = getPathStepFrom(start, pathfinder, bot);
     

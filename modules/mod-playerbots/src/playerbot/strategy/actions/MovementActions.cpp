@@ -243,7 +243,9 @@ bool MovementAction::FlyDirect(const WorldPosition &startPosition, const WorldPo
         }
     }
     mm.Clear(false, true);
-    mm.MovePoint(movePosition.getMapId(), Position(movePosition.getX(), movePosition.getY(), movePosition.getZ(), 0.f), bot->IsFlying() ? FORCED_MOVEMENT_FLIGHT : FORCED_MOVEMENT_RUN, bot->IsFlying() ? bot->GetSpeed(MOVE_FLIGHT) : 0.f, bot->IsFlying());
+    mm.MovePoint(movePosition.getMapId(), Position(movePosition.getX(), movePosition.getY(), movePosition.getZ(), 0.f),
+            (bot->IsFlying() ? (MOVE_FLY_MODE | MOVE_RUN_MODE | MOVE_PATHFINDING) : MOVE_RUN_MODE),
+            bot->IsFlying() ? bot->GetSpeed(MOVE_FLIGHT) : 0.f);
 
     AI_VALUE(LastMovement&, "last movement").lastAreaTrigger = movePosition;
 
@@ -377,9 +379,9 @@ bool MovementAction::MoveOnTransport(PlayerbotAI* ai, GenericTransport* transpor
 
     std::vector<G3D::Vector3> pointPath = transPos.toPointsArray(path);
 #ifndef MANGOSBOT_TWO
-    bot->GetMotionMaster()->MovePath(pointPath, FORCED_MOVEMENT_RUN, false, false);
+    bot->GetMotionMaster()->MovePath(pointPath, MOVE_RUN_MODE);
 #else
-    bot->GetMotionMaster()->MovePath(pointPath, FORCED_MOVEMENT_RUN, false);
+    bot->GetMotionMaster()->MovePath(pointPath, MOVE_RUN_MODE);
 #endif
 
     return true;
@@ -420,9 +422,9 @@ bool MovementAction::MoveOffTransport(PlayerbotAI* ai, WorldPosition exitPos, bo
 
     std::vector<G3D::Vector3> pointPath = exitPos.toPointsArray(path);
 #ifndef MANGOSBOT_TWO
-    bot->GetMotionMaster()->MovePath(pointPath, FORCED_MOVEMENT_RUN, false, false);
+    bot->GetMotionMaster()->MovePath(pointPath, MOVE_RUN_MODE);
 #else
-    bot->GetMotionMaster()->MovePath(pointPath, FORCED_MOVEMENT_RUN, false);
+    bot->GetMotionMaster()->MovePath(pointPath, MOVE_RUN_MODE);
 #endif
 
     return true;
@@ -948,10 +950,10 @@ void MovementAction::DispatchMovement(TravelPath movePath, bool generatePath, bo
 
     mm.Clear();
 
-    ForcedMovement moveMode = masterWalking ? FORCED_MOVEMENT_WALK : FORCED_MOVEMENT_RUN;
+    uint32 moveMode = masterWalking ? MOVE_WALK_MODE : MOVE_RUN_MODE;
 #ifndef MANGOSBOT_ZERO
     if (bot->IsFlying())
-        moveMode = FORCED_MOVEMENT_FLIGHT;
+        moveMode = MOVE_FLY_MODE | MOVE_RUN_MODE;
 #endif
 
     std::vector<WorldPosition> path = movePath.getPointPath();
@@ -965,8 +967,7 @@ void MovementAction::DispatchMovement(TravelPath movePath, bool generatePath, bo
             movePosition.getX(),
             movePosition.getY(),
             movePosition.getZ(),
-            moveMode,
-            generatePath);
+            moveMode | (generatePath ? MOVE_PATHFINDING : MOVE_NONE));
 #else
         mm.MovePoint(movePosition.getMapId(),
             Position(movePosition.getX(), movePosition.getY(), movePosition.getZ(), 0.f),
@@ -997,9 +998,9 @@ void MovementAction::DispatchMovement(TravelPath movePath, bool generatePath, bo
         }
 
 #ifndef MANGOSBOT_TWO
-        mm.MovePath(pointPath, moveMode, false, false);
+        mm.MovePath(pointPath, moveMode);
 #else
-        mm.MovePath(pointPath, moveMode, false);
+        mm.MovePath(pointPath, moveMode);
 #endif
     }
     else
@@ -1011,8 +1012,7 @@ void MovementAction::DispatchMovement(TravelPath movePath, bool generatePath, bo
             movePosition.getX(),
             movePosition.getY(),
             movePosition.getZ(),
-            moveMode,
-            generatePath);
+            moveMode | (generatePath ? MOVE_PATHFINDING : MOVE_NONE));
 #else
         mm.MovePoint(movePosition.getMapId(),
             Position(movePosition.getX(), movePosition.getY(), movePosition.getZ(), 0.f),
@@ -2053,7 +2053,8 @@ bool MovementAction::MoveTo(uint32 mapId, float x, float y, float z, bool idle, 
     }
 
 #ifdef MANGOSBOT_ZERO
-        mm.MovePoint(movePosition.getMapId(), movePosition.getX(), movePosition.getY(), movePosition.getZ(), masterWalking ? FORCED_MOVEMENT_WALK : FORCED_MOVEMENT_RUN, generatePath);
+        mm.MovePoint(movePosition.getMapId(), movePosition.getX(), movePosition.getY(), movePosition.getZ(),
+            (masterWalking ? MOVE_WALK_MODE : MOVE_RUN_MODE) | (generatePath ? MOVE_PATHFINDING : MOVE_NONE));
 #else
     if (!bot->IsFreeFlying())
     {
@@ -2061,7 +2062,8 @@ bool MovementAction::MoveTo(uint32 mapId, float x, float y, float z, bool idle, 
         if (bot->HasMovementFlag(MOVEFLAG_SWIMMING) && startPosition.isInWater() && !startPosition.isUnderWater() && !movePosition.isInWater())
             generatePath = true;
 
-        mm.MovePoint(movePosition.getMapId(), movePosition.getX(), movePosition.getY(), movePosition.getZ(), masterWalking ? FORCED_MOVEMENT_WALK : FORCED_MOVEMENT_RUN, generatePath);
+        mm.MovePoint(movePosition.getMapId(), movePosition.getX(), movePosition.getY(), movePosition.getZ(),
+            (masterWalking ? MOVE_WALK_MODE : MOVE_RUN_MODE) | (generatePath ? MOVE_PATHFINDING : MOVE_NONE));
     }
     else
     {
@@ -2152,7 +2154,9 @@ bool MovementAction::MoveTo(uint32 mapId, float x, float y, float z, bool idle, 
                     bot->m_movementInfo.RemoveMovementFlag(MOVEFLAG_LEVITATING);
             }
         }
-        mm.MovePoint(movePosition.getMapId(), Position(movePosition.getX(), movePosition.getY(), movePosition.getZ(), 0.f), bot->IsFlying() ? FORCED_MOVEMENT_FLIGHT : FORCED_MOVEMENT_RUN, bot->IsFlying() ? bot->GetSpeed(MOVE_FLIGHT) : 0.f, bot->IsFlying());
+        mm.MovePoint(movePosition.getMapId(), Position(movePosition.getX(), movePosition.getY(), movePosition.getZ(), 0.f),
+            (bot->IsFlying() ? (MOVE_FLY_MODE | MOVE_RUN_MODE | MOVE_PATHFINDING) : MOVE_RUN_MODE),
+            bot->IsFlying() ? bot->GetSpeed(MOVE_FLIGHT) : 0.f);
     }
 #endif
 
@@ -2617,9 +2621,9 @@ bool MovementAction::ChaseTo(WorldObject* obj, float distance, float angle)
 
             std::vector<G3D::Vector3> pointsArray = WorldPosition().toPointsArray(path);
 #ifndef MANGOSBOT_TWO  
-            mm.MovePath(pointsArray, FORCED_MOVEMENT_RUN, false, false);
+            mm.MovePath(pointsArray, MOVE_RUN_MODE);
 #else
-            mm.MovePath(pointsArray, FORCED_MOVEMENT_RUN, false);
+            mm.MovePath(pointsArray, MOVE_RUN_MODE);
 #endif
             WaitForReach(distance);
             return true;

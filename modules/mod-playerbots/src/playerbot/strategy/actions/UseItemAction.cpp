@@ -651,7 +651,7 @@ bool UseAction::UseItemInternal(Player* requester, uint32 itemId, Unit* unit, Ga
             }
 
             // Use triggered flag only for items with many spell casts and for not first cast
-            BotUseItemSpell* spell = new BotUseItemSpell(bot, spellInfo, (successCasts > 0) ? TRIGGERED_OLD_TRIGGERED : TRIGGERED_NONE);
+            BotUseItemSpell* spell = new BotUseItemSpell(bot, spellInfo, successCasts > 0);
             spell->m_clientCast = true;
             
 #ifdef MANGOSBOT_ONE

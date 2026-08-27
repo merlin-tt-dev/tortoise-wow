@@ -53,7 +53,7 @@ bool EnterVehicleAction::Execute(Event& event)
         bot->Say(out.str(), LANG_UNIVERSAL);
         continue;
 
-        //bot->CastSpell(vehicle, SPELL_RIDE_VEHICLE_HARDCODED, TRIGGERED_OLD_TRIGGERED);
+        //bot->CastSpell(vehicle, SPELL_RIDE_VEHICLE_HARDCODED, true);
 
         TransportInfo* transportCheck = bot->GetTransportInfo();
         if (!transportCheck || !transportCheck->IsOnVehicle())

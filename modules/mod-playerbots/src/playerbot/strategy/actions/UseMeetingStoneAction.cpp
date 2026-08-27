@@ -155,7 +155,7 @@ bool SummonAction::SummonUsingNpcs(Player* requester, Player *summoner, Player *
                     0
 #endif
 #ifdef CMANGOS
-                    TRIGGERED_OLD_TRIGGERED
+                    true
 #endif
                     );
             spell.SendSpellCooldown();

@@ -200,31 +200,6 @@ using Spells::IsPassiveSpell;
 inline bool IsPositiveSpell(SpellEntry const* spellInfo) { return spellInfo && spellInfo->IsPositiveSpell(); }
 inline bool IsPositiveSpell(SpellEntry const* spellInfo, WorldObject const* caster, WorldObject const* victim) { return spellInfo && spellInfo->IsPositiveSpell(caster, victim); }
 
-// === TRIGGERED_* spell-cast flags ===
-// cmangos's CastSpell takes a TriggerCastFlags bitmask (TRIGGERED_OLD_TRIGGERED, etc.).
-// Penqle uses bool triggered. Provide #defines so bot's symbolic constants compile;
-// the actual values are arbitrary because Penqle's CastSpell ignores the bitmask
-// (it'll pass the int as bool, which defaults to falsy for 0).
-// Penqle expects `bool triggered`, not a bitmask. Use `false` for unflagged casts and
-// `true` for any "triggered" cast. This is lossy (we can't represent IGNORE_GCD/IGNORE_AURA_SCALING
-// distinctly) but matches Penqle's API. NOTE: must be `bool` typed so private template-trap
-// overloads (in Object.h) don't catch them.
-#ifndef TRIGGERED_NONE
-#define TRIGGERED_NONE false
-#endif
-#ifndef TRIGGERED_OLD_TRIGGERED
-#define TRIGGERED_OLD_TRIGGERED true
-#endif
-#ifndef TRIGGERED_FULL_MASK
-#define TRIGGERED_FULL_MASK true
-#endif
-#ifndef TRIGGERED_IGNORE_GCD
-#define TRIGGERED_IGNORE_GCD true
-#endif
-#ifndef TRIGGERED_IGNORE_AURA_SCALING
-#define TRIGGERED_IGNORE_AURA_SCALING true
-#endif
-
 // === ClientLootType (cmangos has it in Loot/LootMgr.h; Penqle's LootMgr.h doesn't) ===
 // Bot's LootValues.h references this enum. Stub copy from cmangos.
 enum ClientLootType
@@ -344,23 +319,6 @@ enum LootItemType {
     LOOTITEM_TYPE_FFA = 2,
     LOOTITEM_TYPE_CONDITIONNAL = 3,
 };
-
-// === NAV_AREA_* / NAV_* (cmangos navmesh area types) ===
-#ifndef NAV_AREA_WATER
-#define NAV_AREA_WATER 7
-#endif
-#ifndef NAV_AREA_GROUND
-#define NAV_AREA_GROUND 4
-#endif
-#ifndef NAV_AREA_GROUND_STEEP
-#define NAV_AREA_GROUND_STEEP 3
-#endif
-#ifndef NAV_MAGMA_SLIME
-#define NAV_MAGMA_SLIME 0x18
-#endif
-#ifndef NAV_GROUND_STEEP
-#define NAV_GROUND_STEEP 0x02
-#endif
 
 // === MINIMUM_LOOTING_TIME ===
 #ifndef MINIMUM_LOOTING_TIME
@@ -551,19 +509,6 @@ inline bool HasPersistentAuraEffect(SpellEntry const* /*spellInfo*/) { return fa
 // === SEC_GAMEMASTER alias (cmangos has it; Penqle goes SEC_PLAYER → SEC_ADMINISTRATOR) ===
 #ifndef SEC_GAMEMASTER
 #define SEC_GAMEMASTER SEC_ADMINISTRATOR
-#endif
-
-// === FORCED_MOVEMENT_RUN / ForcedMovement (cmangos) ===
-// Penqle uses different movement-flag set; bot only checks symbolic value.
-typedef int ForcedMovement;
-#ifndef FORCED_MOVEMENT_RUN
-#define FORCED_MOVEMENT_RUN 1
-#endif
-#ifndef FORCED_MOVEMENT_WALK
-#define FORCED_MOVEMENT_WALK 0
-#endif
-#ifndef FORCED_MOVEMENT_FLIGHT
-#define FORCED_MOVEMENT_FLIGHT 2
 #endif
 
 // === SkillLineAbility store proxy ===

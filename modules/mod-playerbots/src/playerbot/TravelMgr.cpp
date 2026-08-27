@@ -1269,7 +1269,7 @@ void TravelMgr::SetMobAvoidArea()
 
 void TravelMgr::SetMobAvoidAreaMap(uint32 mapId) 
 {
-    PathFinder path(mapId, 0);
+    PathFinder path(mapId);
     FactionTemplateEntry const* humanFaction = sFactionTemplateStore.LookupEntry(1);
     FactionTemplateEntry const* orcFaction = sFactionTemplateStore.LookupEntry(2);
 
@@ -1301,8 +1301,8 @@ void TravelMgr::SetMobAvoidAreaMap(uint32 mapId)
         if (!point.loadMapAndVMap(0))
             continue;
 
-        path.setArea(point.getMapId(), point.getX(), point.getY(), point.getZ(), 12, 50.0f);
-        path.setArea(point.getMapId(), point.getX(), point.getY(), point.getZ(), 13, 20.0f);
+        path.MarkNavArea(point.getX(), point.getY(), point.getZ(), PLAYERBOT_MMAP_AREA_AVOID, 50.0f);
+        path.MarkNavArea(point.getX(), point.getY(), point.getZ(), PLAYERBOT_MMAP_AREA_DANGER, 20.0f);
     }
 }
 
@@ -2409,7 +2409,7 @@ void TravelMgr::GetFishLocations(uint32 mapId)
     TravelNode* ironForgeNode = sTravelNodeMap.getNode(ironForge);
     WorldPosition orgrimmar(1, 1845.49, -4395.95, 5.19264);
 
-    PathFinder path(mapId,0);
+    PathFinder path(mapId);
 
     const int8 subCellPerGrid = 64;
     const float sizeOfSubCell = SIZE_OF_GRIDS / subCellPerGrid;
@@ -2455,9 +2455,9 @@ void TravelMgr::GetFishLocations(uint32 mapId)
                         if (fabs(fishSpot.getZ() - waterSpot.getZ()) > 10.0f)
                             continue;
 
-                        uint32 area = path.getArea(mapId, fishSpot.getX(), fishSpot.getY(), fishSpot.getZ());
+                        uint32 area = path.GetNavArea(fishSpot.getX(), fishSpot.getY(), fishSpot.getZ());
 
-                        if (!area || area == NAV_AREA_GROUND_STEEP)
+                        if (!area || area == AREA_STEEP_SLOPE || area == AREA_STEEP_SLOPE_MODEL)
                         {
                         //    sLog.outError("no area %d %f %f %f", mapId, fishSpot.getX(), fishSpot.getY(), fishSpot.getZ());
                             continue;

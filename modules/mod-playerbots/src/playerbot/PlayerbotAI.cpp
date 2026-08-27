@@ -8695,7 +8695,7 @@ bool PlayerbotAI::HandleSpellClick(ObjectGuid guid)
 
             if (itr->second.spellId)
             {
-                caster->CastSpell(target, itr->second.spellId, TRIGGERED_OLD_TRIGGERED);
+                caster->CastSpell(target, itr->second.spellId, true);
                 return true;
             }
             else

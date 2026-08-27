@@ -105,11 +105,11 @@ void CheatAction::AddCheat(BotCheatMask cheatMask)
         uint32 SPELL_MOD_SPELL_HASTE = 15183;
 
         bot->RemoveAurasDueToSpell(SPELL_MOD_MELEE_HASTE);
-        bot->CastCustomSpell(bot, SPELL_MOD_MELEE_HASTE, &amount, &amount, nullptr, TRIGGERED_OLD_TRIGGERED);
+        bot->CastCustomSpell(bot, SPELL_MOD_MELEE_HASTE, &amount, &amount, nullptr, true);
         bot->RemoveAurasDueToSpell(SPELL_MOD_RANGE_HASTE);
-        bot->CastCustomSpell(bot, SPELL_MOD_RANGE_HASTE, &amount, &amount, nullptr, TRIGGERED_OLD_TRIGGERED);
+        bot->CastCustomSpell(bot, SPELL_MOD_RANGE_HASTE, &amount, &amount, nullptr, true);
         bot->RemoveAurasDueToSpell(SPELL_MOD_SPELL_HASTE);
-        bot->CastCustomSpell(bot, SPELL_MOD_SPELL_HASTE, &amount, &amount, nullptr, TRIGGERED_OLD_TRIGGERED);
+        bot->CastCustomSpell(bot, SPELL_MOD_SPELL_HASTE, &amount, &amount, nullptr, true);
 
         break;
     }

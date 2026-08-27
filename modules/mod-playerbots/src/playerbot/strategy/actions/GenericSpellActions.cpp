@@ -689,7 +689,7 @@ bool CastItemTargetAction::Execute(Event& event)
         if (spellInfo->Targets & TARGET_FLAG_DEST_LOCATION)
             targets.m_targetMask = TARGET_FLAG_DEST_LOCATION;
 
-        BotUseItemSpell* spell = new BotUseItemSpell(bot, spellInfo, (count > 0) ? TRIGGERED_OLD_TRIGGERED : TRIGGERED_NONE);
+        BotUseItemSpell* spell = new BotUseItemSpell(bot, spellInfo, count > 0);
 
         Item* tItem = nullptr;
 

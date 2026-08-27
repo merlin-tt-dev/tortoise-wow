@@ -9,7 +9,7 @@ using namespace ai;
 
 bool SetAvoidAreaAction::Execute(Event& event)
 {
-    PathFinder pathfinder(bot->GetMapId(), bot->GetInstanceId());
+    PathFinder pathfinder(bot->GetMapId());
 
     SET_AI_VALUE2(PositionEntry, "pos", "last avoid", PositionEntry(bot));
 
@@ -47,8 +47,8 @@ bool SetAvoidAreaAction::Execute(Event& event)
             continue;
 
         WorldPosition point(targetUnit);
-        pathfinder.setArea(point.getMapId(), point.getX(), point.getY(), point.getZ(), 12, targetUnit->GetAttackDistance(bot) * 2.5);
-        pathfinder.setArea(point.getMapId(), point.getX(), point.getY(), point.getZ(), 13, targetUnit->GetAttackDistance(bot));
+        pathfinder.MarkNavArea(point.getX(), point.getY(), point.getZ(), PLAYERBOT_MMAP_AREA_AVOID, targetUnit->GetAttackDistance(bot) * 2.5f);
+        pathfinder.MarkNavArea(point.getX(), point.getY(), point.getZ(), PLAYERBOT_MMAP_AREA_DANGER, targetUnit->GetAttackDistance(bot));
     }
 
     return true;

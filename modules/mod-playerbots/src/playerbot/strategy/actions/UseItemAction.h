@@ -9,10 +9,10 @@ namespace ai
     class BotUseItemSpell : public Spell
     {
     public:
-        BotUseItemSpell(WorldObject* caster, SpellEntry const* info, uint32 triggeredFlags, ObjectGuid originalCasterGUID = ObjectGuid(), SpellEntry const* triggeredBy = nullptr, bool itemCheats = false)
-            : Spell(caster->ToUnit() ? caster->ToUnit() : (Unit*)nullptr, info, triggeredFlags != 0, originalCasterGUID, triggeredBy), itemCheats(itemCheats) {};
+        BotUseItemSpell(WorldObject* caster, SpellEntry const* info, bool triggered, ObjectGuid originalCasterGUID = ObjectGuid(), SpellEntry const* triggeredBy = nullptr, bool itemCheats = false)
+            : Spell(caster->ToUnit() ? caster->ToUnit() : (Unit*)nullptr, info, triggered, originalCasterGUID, triggeredBy), itemCheats(itemCheats) {};
 
-        static BotUseItemSpell* Create(WorldObject* caster, SpellEntry const* info, uint32 triggeredFlags, ObjectGuid originalCasterGUID = ObjectGuid(), SpellEntry const* triggeredBy = nullptr, bool itemCheats = false)
+        static BotUseItemSpell* Create(WorldObject* caster, SpellEntry const* info, bool triggered, ObjectGuid originalCasterGUID = ObjectGuid(), SpellEntry const* triggeredBy = nullptr, bool itemCheats = false)
         {
             if (!caster || !info)
                 return nullptr;
@@ -20,7 +20,7 @@ namespace ai
             if (info != sSpellTemplate.LookupEntry<SpellEntry>(info->Id))
                 return nullptr;
 
-            return new BotUseItemSpell(caster, info, triggeredFlags, originalCasterGUID, triggeredBy, itemCheats);
+            return new BotUseItemSpell(caster, info, triggered, originalCasterGUID, triggeredBy, itemCheats);
         }
 
         SpellCastResult ForceSpellStart(SpellCastTargets const* targets, Aura* triggeredByAura = nullptr);

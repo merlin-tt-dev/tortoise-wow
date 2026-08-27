@@ -52,7 +52,7 @@ void TrainerAction::Learn(uint32 cost, ObjectGuid trainerGuid, uint32 spellId, T
     bot->GetSession()->SendPacket(data);
 
     if (tSpell->IsCastable())
-        bot->CastSpell(bot, tSpell->spell, TRIGGERED_OLD_TRIGGERED);
+        bot->CastSpell(bot, tSpell->spell, true);
     else
         bot->learnSpell(spellId, false);
 #endif

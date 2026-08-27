@@ -22,7 +22,7 @@ namespace ai
 
         virtual bool Execute(Event& event) override
         {
-            return bot->CastSpell(GetTarget(), 36554, TRIGGERED_OLD_TRIGGERED);
+            return bot->CastSpell(GetTarget(), 36554, true);
         }
     };
 
@@ -417,7 +417,7 @@ namespace ai
                                 const SpellEntry* spellInfo = sSpellTemplate.LookupEntry<SpellEntry>(spellData.SpellId);
                                 if (spellInfo)
                                 {
-                                    BotUseItemSpell* spell = new BotUseItemSpell(bot, spellInfo, (count > 0) ? TRIGGERED_OLD_TRIGGERED : TRIGGERED_NONE);
+                                    BotUseItemSpell* spell = new BotUseItemSpell(bot, spellInfo, count > 0);
                                     spell->m_clientCast = true;
 
                                     if (spell->ForceSpellStart(&targets) == SPELL_CAST_OK)
