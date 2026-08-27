@@ -21,6 +21,7 @@
 
 #include "Path.h"
 #include "MoveMapSharedDefines.h"
+#include "GridMapDefines.h"
 #include "../recastnavigation/Detour/Include/DetourNavMesh.h"
 #include "../recastnavigation/Detour/Include/DetourNavMeshQuery.h"
 #include "MoveSplineInitArgs.h"
@@ -60,6 +61,7 @@ class PathInfo
 {
     public:
         PathInfo(Unit const* owner);
+        explicit PathInfo(uint32 mapId);
         ~PathInfo();
 
         // return value : true if new path was calculated
@@ -90,6 +92,12 @@ class PathInfo
         void SetTransport(Transport* t) { m_transport = t; }
         Transport* GetTransport() const { return m_transport; }
         void FillTargetAllowedFlags(Unit* target);
+
+        // Generic navmesh helpers used by systems that need path queries without a live Unit.
+        void SetNavAreaCost(uint8 area, float cost);
+        bool MarkNavArea(float x, float y, float z, uint8 area, float range = 10.0f);
+        uint8 GetNavArea(float x, float y, float z) const;
+        uint16 GetNavFlags(float x, float y, float z) const;
     private:
 
         dtPolyRef       m_pathPolyRefs[MAX_PATH_LENGTH];   // array of detour polygon references
@@ -106,7 +114,8 @@ class PathInfo
         Vector3        m_endPosition;      // {x, y, z} of the destination
         Vector3        m_actualEndPosition;  // {x, y, z} of the closest possible point to given destination
         Transport*     m_transport;
-        const Unit* const       m_sourceUnit;       // the unit that is moving
+        const Unit* const       m_sourceUnit;       // the unit that is moving, nullptr for map-only queries
+        uint32                  m_mapId;            // map used by live-unit and map-only queries
         const dtNavMesh*        m_navMesh;          // the nav mesh
         const dtNavMeshQuery*   m_navMeshQuery;     // the nav mesh query used to find the path
         uint32          m_targetAllowedFlags;
