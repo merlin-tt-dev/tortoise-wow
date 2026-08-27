@@ -27,6 +27,98 @@
 #include "MoveSplineInit.h"
 #include "MoveSpline.h"
 #include "Anticheat.h"
+#include "Transport.h"
+
+#include <algorithm>
+
+//----- Fixed pre-calculated path movement generator
+void FixedPathMovementGenerator::Initialize(Unit& unit)
+{
+    if (m_path.empty() || m_pathOffset >= m_path.size())
+        return;
+
+    if (!unit.IsStopped())
+        unit.StopMoving();
+
+    unit.AddUnitState(UNIT_STAT_ROAMING | UNIT_STAT_ROAMING_MOVE);
+
+    // MoveSplineInit replaces path[0] with the unit's current position. Prepend a
+    // placeholder so none of the caller-supplied path nodes is discarded.
+    Movement::PointsArray splinePath;
+    splinePath.reserve(m_path.size() - m_pathOffset + 1);
+    splinePath.emplace_back();
+
+    Transport* transport = unit.GetTransport();
+    for (size_t i = m_pathOffset; i < m_path.size(); ++i)
+        splinePath.push_back(m_path[i]);
+
+    Movement::MoveSplineInit init(unit, "FixedPathMovementGenerator::Initialize");
+    init.MovebyPath(splinePath, int32(m_pathOffset));
+
+    if (transport)
+        init.SetTransport(transport->GetGUIDLow());
+
+    if (m_options & MOVE_WALK_MODE)
+        init.SetWalk(true);
+    else if (m_options & MOVE_RUN_MODE)
+        init.SetWalk(false);
+
+    if (m_options & MOVE_FLY_MODE)
+        init.SetFly();
+    if (m_options & MOVE_FALLING)
+        init.SetFall();
+    if (m_options & MOVE_CYCLIC)
+        init.SetCyclic();
+    if (m_speed > 0.0f)
+        init.SetVelocity(m_speed);
+
+    m_recalculateSpeed = false;
+    init.Launch();
+}
+
+void FixedPathMovementGenerator::Finalize(Unit& unit)
+{
+    unit.ClearUnitState(UNIT_STAT_ROAMING | UNIT_STAT_ROAMING_MOVE);
+}
+
+void FixedPathMovementGenerator::Interrupt(Unit& unit)
+{
+    unit.ClearUnitState(UNIT_STAT_ROAMING | UNIT_STAT_ROAMING_MOVE);
+}
+
+void FixedPathMovementGenerator::Reset(Unit& unit)
+{
+    Initialize(unit);
+}
+
+bool FixedPathMovementGenerator::Update(Unit& unit, uint32 const& /*diff*/)
+{
+    if (unit.HasUnitState(UNIT_STAT_CAN_NOT_MOVE))
+    {
+        unit.ClearUnitState(UNIT_STAT_ROAMING_MOVE);
+        return true;
+    }
+
+    unit.AddUnitState(UNIT_STAT_ROAMING_MOVE);
+
+    if (!unit.movespline->Finalized() && m_recalculateSpeed)
+    {
+        // Preserve progress when relaunching the spline with the unit's new speed.
+        // Cyclic paths intentionally restart from their first supplied node.
+        if (!(m_options & MOVE_CYCLIC))
+        {
+            int32 currentPathIndex = unit.movespline->currentPathIdx();
+            if (currentPathIndex > 0)
+                m_pathOffset = std::min<size_t>(size_t(currentPathIndex), m_path.size() - 1);
+        }
+        else
+            m_pathOffset = 0;
+
+        Initialize(unit);
+    }
+
+    return !unit.movespline->Finalized();
+}
 
 //----- Point Movement Generator
 template<class T>

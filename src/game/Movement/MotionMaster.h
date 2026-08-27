@@ -57,6 +57,7 @@ enum MovementGeneratorType
     PATROL_MOTION_TYPE              = 16,
     CHARGE_MOTION_TYPE              = 17,
     DISTANCING_MOTION_TYPE          = 18,
+    FIXED_PATH_MOTION_TYPE          = 19,
 };
 
 enum MMCleanFlag
@@ -135,6 +136,7 @@ class MotionMaster : std::stack<MovementGenerator *>
         void MoveFeared(Unit* enemy, uint32 time = 0);
         void MovePoint(uint32 id, const Movement::Location& location, uint32 options = MOVE_NONE, float speed = 0.0f, float finalOrientation = -10);
         void MovePoint(uint32 id, float x, float y, float z, uint32 options = MOVE_NONE, float speed = 0.0f, float finalOrientation = -10);
+        void MovePath(const Movement::PointsArray& path, uint32 options = MOVE_NONE, float speed = 0.0f);
         void MoveSeekAssistance(float x,float y,float z);
         void MoveSeekAssistanceDistract(uint32 timer);
         void MoveWaypoint(uint32 startPoint = 0, uint32 source = 0, uint32 initialDelay = 0, uint32 overwriteGuid = 0, uint32 overwriteEntry = 0, bool repeat = true);

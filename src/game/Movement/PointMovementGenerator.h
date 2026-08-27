@@ -53,6 +53,28 @@ class PointMovementGenerator
         bool m_recalculateSpeed;
 };
 
+class FixedPathMovementGenerator : public MovementGenerator
+{
+    public:
+        FixedPathMovementGenerator(const Movement::PointsArray& path, uint32 options, float speed = 0.0f) :
+            m_path(path), m_options(options), m_speed(speed), m_pathOffset(0), m_recalculateSpeed(false) {}
+
+        void Initialize(Unit& unit) override;
+        void Finalize(Unit& unit) override;
+        void Interrupt(Unit& unit) override;
+        void Reset(Unit& unit) override;
+        bool Update(Unit& unit, uint32 const& diff) override;
+        void UnitSpeedChanged() override { m_recalculateSpeed = true; }
+        MovementGeneratorType GetMovementGeneratorType() const override { return FIXED_PATH_MOTION_TYPE; }
+
+    private:
+        Movement::PointsArray m_path;
+        uint32 m_options;
+        float m_speed;
+        size_t m_pathOffset;
+        bool m_recalculateSpeed;
+};
+
 template<class T>
 class DistancingMovementGenerator
 : public PointMovementGenerator<T>

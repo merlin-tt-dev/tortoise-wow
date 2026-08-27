@@ -451,6 +451,15 @@ void MotionMaster::MovePoint(uint32 id, float x, float y, float z, uint32 option
         Mutate(new PointMovementGenerator<Creature>(id, x, y, z, options, speed, finalOrientation));
 }
 
+void MotionMaster::MovePath(const Movement::PointsArray& path, uint32 options, float speed)
+{
+    if (path.empty())
+        return;
+
+    DEBUG_FILTER_LOG(LOG_FILTER_AI_AND_MOVEGENSS, "%s follows a pre-calculated path with %u points", m_owner->GetGuidStr().c_str(), uint32(path.size()));
+    Mutate(new FixedPathMovementGenerator(path, options, speed));
+}
+
 void MotionMaster::MoveSeekAssistance(float x, float y, float z)
 {
     if (m_owner->IsPlayer())
@@ -741,6 +750,8 @@ char const* MotionMaster::GetMovementGeneratorTypeName(MovementGeneratorType gen
         return "CHARGE_MOTION_TYPE";
     case DISTANCING_MOTION_TYPE:
         return "DISTANCING_MOTION_TYPE";
+    case FIXED_PATH_MOTION_TYPE:
+        return "FIXED_PATH_MOTION_TYPE";
     }
 
     return "UNKNOWN";
@@ -768,6 +779,7 @@ bool MotionMaster::IsUsingOutOfCombatMovementType() const
         case RANDOM_MOTION_TYPE:
         case WAYPOINT_MOTION_TYPE:
         case PATROL_MOTION_TYPE:
+        case FIXED_PATH_MOTION_TYPE:
             return true;
     }
     return false;
