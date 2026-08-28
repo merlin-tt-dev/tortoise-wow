@@ -1,0 +1,1815 @@
+diff --git a/modules/mod-playerbots/src/playerbot/GuidPosition.cpp b/modules/mod-playerbots/src/playerbot/GuidPosition.cpp
+index cd398f89d20e9bf1951d3f83b8c4a57e88a44a9e..05922096f062089f13b621b25c21c883352e69cd 100644
+--- a/modules/mod-playerbots/src/playerbot/GuidPosition.cpp
++++ b/modules/mod-playerbots/src/playerbot/GuidPosition.cpp
+@@ -110,9 +110,9 @@ const FactionTemplateEntry* GuidPosition::GetFactionTemplateEntry() const
+     if (IsPlayer() && GetPlayer())
+         return GetPlayer()->GetFactionTemplateEntry();
+     if (IsCreature()  && GetCreatureTemplate())
+-        return sFactionTemplateStore.LookupEntry(GetCreatureTemplate()->Faction);
++        return sObjectMgr.GetFactionTemplateEntry(GetCreatureTemplate()->faction);
+     if (IsGameObject() && GetGameObjectInfo())
+-        return sFactionTemplateStore.LookupEntry(GetGameObjectInfo()->faction);
++        return sObjectMgr.GetFactionTemplateEntry(GetGameObjectInfo()->faction);
+ 
+     return nullptr;
+ }
+@@ -131,15 +131,15 @@ const ReputationRank GuidPosition::GetReactionTo(const GuidPosition& other, uint
+                     return (*rank);
+ 
+ #ifdef MANGOSBOT_ZERO
+-                const FactionEntry* unitFactionEntry = sFactionStore.LookupEntry(GetFactionTemplateEntry()->faction);
++                const FactionEntry* unitFactionEntry = sObjectMgr.GetFactionEntry(GetFactionTemplateEntry()->faction);
+                 return unitPlayer->GetReputationMgr().IsAtWar(unitFactionEntry) ? REP_HOSTILE : REP_FRIENDLY;
+ #else
+                 if (!other.GetUnit(instanceId)->HasFlag(UNIT_FIELD_FLAGS_2, UNIT_FLAG2_IGNORE_REPUTATION))
+                 {
+ #ifdef MANGOSBOT_TWO
+-                    const FactionEntry* thisFactionEntry = sFactionStore.LookupEntry(GetFactionTemplateEntry()->faction);
++                    const FactionEntry* thisFactionEntry = sObjectMgr.GetFactionEntry(GetFactionTemplateEntry()->faction);
+ #else
+-                    const FactionEntry* thisFactionEntry = sFactionStore.LookupEntry<FactionEntry>(GetFactionTemplateEntry()->faction);
++                    const FactionEntry* thisFactionEntry = sObjectMgr.GetFactionEntry(GetFactionTemplateEntry()->faction);
+ #endif
+                     if (thisFactionEntry && thisFactionEntry->HasReputation())
+                     {
+diff --git a/modules/mod-playerbots/src/playerbot/LootObjectStack.cpp b/modules/mod-playerbots/src/playerbot/LootObjectStack.cpp
+index 4b09bdf5dab214e800d9b3191dbe49693c4cfad3..6aad6637dec715e737255c4e88554bfb551315ff 100644
+--- a/modules/mod-playerbots/src/playerbot/LootObjectStack.cpp
++++ b/modules/mod-playerbots/src/playerbot/LootObjectStack.cpp
+@@ -72,7 +72,7 @@ void LootObject::Refresh(Player* bot, ObjectGuid guid, bool debug)
+ 
+         if (creature->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SKINNABLE))
+         {
+-            skillId = creature->GetCreatureInfo()->GetRequiredLootSkill();
++            skillId = SKILL_SKINNING;
+             uint32 targetLevel = creature->GetLevel();
+             reqSkillValue = targetLevel < 10 ? 1 : targetLevel < 20 ? (targetLevel - 10) * 10 : targetLevel * 5;
+             if (ai->HasSkill((SkillType)skillId) && bot->GetSkillValue(skillId) >= reqSkillValue)
+@@ -94,7 +94,7 @@ void LootObject::Refresh(Player* bot, ObjectGuid guid, bool debug)
+     }
+ 
+     GameObject* go = ai->GetGameObject(guid);
+-    if (go && sServerFacade.isSpawned(go) && !go->IsInUse())
++    if (go && sServerFacade.isSpawned(go) && !go->HasFlag(GAMEOBJECT_FLAGS, GO_FLAG_IN_USE))
+     {
+         bool isQuestItemOnly = false;
+ 
+@@ -234,9 +234,8 @@ bool LootObject::IsLootPossible(Player* bot)
+         Creature* creature = ai->GetCreature(guid);
+         if (creature && sServerFacade.GetDeathState(creature) == CORPSE)
+         {
+-            if (creature->m_loot && skillId != SKILL_SKINNING)
+-                if (!creature->m_loot->CanLoot(bot))
+-                    return false;
++            if (skillId != SKILL_SKINNING && !creature->loot.IsAllowedLooter(bot->GetObjectGuid()))
++                return false;
+         }
+     }
+ 
+@@ -278,13 +277,13 @@ bool LootObject::IsLootPossible(Player* bot)
+                                 hasQuestItems = true;
+                             }
+                         }
+-                        return hasQuestItems || go->GetLootState() != GO_READY;
++                        return hasQuestItems || go->getLootState() != GO_READY;
+                     }
+                 }
+             }
+ 
+             //Ignore objects that are currently in use.
+-            if (go->IsInUse() || go->GetGoState() == GO_STATE_ACTIVE)
++            if (go->HasFlag(GAMEOBJECT_FLAGS, GO_FLAG_IN_USE) || go->GetGoState() == GO_STATE_ACTIVE)
+                 return false;
+         }
+     }
+diff --git a/modules/mod-playerbots/src/playerbot/MemoryMonitor.cpp b/modules/mod-playerbots/src/playerbot/MemoryMonitor.cpp
+index 152a240b39ff9c2017667852d379772f295c60bf..2ab9a31067fecb2725847e265b3ad2906afbaf7c 100644
+--- a/modules/mod-playerbots/src/playerbot/MemoryMonitor.cpp
++++ b/modules/mod-playerbots/src/playerbot/MemoryMonitor.cpp
+@@ -123,7 +123,7 @@ void MemoryMonitor::LogCount(std::string filename)
+     }
+         
+     //line = timestamp.c_str();
+-    line = std::to_string(static_cast<uint32>(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch() - GetApplicationStartTime().time_since_epoch()).count()));
++    line = std::to_string(WorldTimer::getMSTime());
+ 
+     line += "," + std::to_string(sRandomPlayerbotMgr.GetPlayerbotsAmount());
+ 
+diff --git a/modules/mod-playerbots/src/playerbot/PlayerbotAIConfig.cpp b/modules/mod-playerbots/src/playerbot/PlayerbotAIConfig.cpp
+index 9d8b1370535fd04ff405929b8705424d12379ca8..6b4477f1b308726e3ea963ad96919695904cf4ae 100644
+--- a/modules/mod-playerbots/src/playerbot/PlayerbotAIConfig.cpp
++++ b/modules/mod-playerbots/src/playerbot/PlayerbotAIConfig.cpp
+@@ -5,7 +5,7 @@
+ #include "AccountMgr.h"
+ #include "playerbot/PlayerbotFactory.h"
+ #include "RandomItemMgr.h"
+-#include "World/WorldState.h"
++#include "WorldState.h"
+ #include "playerbot/PlayerbotHelpMgr.h"
+ #include "playerbot/strategy/actions/CheatAction.h"
+ 
+@@ -312,7 +312,7 @@ bool PlayerbotAIConfig::Initialize()
+ 
+     LoadListString<std::vector<std::string>>(sConfig.GetStringDefault("AiPlayerbot.DefaultLoginCriteria", "maxbots,spareroom,offline"), defaultLoginCriteria);
+ 
+-    std::vector<std::string> criteriaValues = GetConfigKeysContaining(config, "AiPlayerbot.LoginCriteria");
++    std::vector<std::string> criteriaValues = GetConfigKeysContaining(sConfig, "AiPlayerbot.LoginCriteria");
+     std::sort(criteriaValues.begin(), criteriaValues.end());
+     loginCriteria.clear();
+     for (auto& value : criteriaValues)
+@@ -441,7 +441,7 @@ bool PlayerbotAIConfig::Initialize()
+     worldBuffs.clear();
+ 
+     //Get all config values starting with AiPlayerbot.WorldBuff
+-    std::vector<std::string> values = GetConfigKeysContaining(config, "AiPlayerbot.WorldBuff");
++    std::vector<std::string> values = GetConfigKeysContaining(sConfig, "AiPlayerbot.WorldBuff");
+ 
+     if (values.size())
+     {
+@@ -1142,7 +1142,7 @@ void PlayerbotAIConfig::logEvent(PlayerbotAI* ai, std::string eventName, std::st
+         out << std::fixed << std::setprecision(2);
+         WorldPosition(bot).printWKT(out);
+ 
+-        out << std::to_string(bot->getRace()) << ",";
++        out << std::to_string(bot->GetRace()) << ",";
+         out << std::to_string(bot->GetClass()) << ",";
+         float subLevel = ai->GetLevelFloat();
+ 
+diff --git a/modules/mod-playerbots/src/playerbot/PlayerbotFactory.cpp b/modules/mod-playerbots/src/playerbot/PlayerbotFactory.cpp
+index 567305c120a66f31d108a9e1f453d07579883da8..acaa557e3f23363e839090af4240718ad72f6ca5 100644
+--- a/modules/mod-playerbots/src/playerbot/PlayerbotFactory.cpp
++++ b/modules/mod-playerbots/src/playerbot/PlayerbotFactory.cpp
+@@ -2480,7 +2480,7 @@ void PlayerbotFactory::InitReputations()
+     for (auto faction : factions)
+     {
+ #ifdef MANGOSBOT_ONE
+-        FactionEntry const* factionEntry = sFactionStore.LookupEntry<FactionEntry>(faction);
++        FactionEntry const* factionEntry = sObjectMgr.GetFactionEntry(faction);
+ #else
+         FactionEntry const* factionEntry = sObjectMgr.GetFactionEntry(faction);
+ #endif
+diff --git a/modules/mod-playerbots/src/playerbot/PlayerbotLoginMgr.cpp b/modules/mod-playerbots/src/playerbot/PlayerbotLoginMgr.cpp
+index c5162de447213dca812f2bf27123629a5c62e789..353b45309c5aea7eb8acf38ce2e8f1a20d5a0447 100644
+--- a/modules/mod-playerbots/src/playerbot/PlayerbotLoginMgr.cpp
++++ b/modules/mod-playerbots/src/playerbot/PlayerbotLoginMgr.cpp
+@@ -28,7 +28,7 @@ public:
+ 
+ PlayerLoginInfo::PlayerLoginInfo(const uint32 account, const uint32 guid, const uint8 race, const uint8 cls, const uint32 level, const bool isNew, const WorldPosition& position, const uint32 guildId) : account(account), guid(guid), race(race), cls(cls), level(level), isNew(isNew), position(position), guildId(guildId) {}
+ 
+-PlayerLoginInfo::PlayerLoginInfo(Player* player) : PlayerLoginInfo(player->GetSession()->GetAccountId(), player->GetDbGuid(), player->getRace(), player->GetClass(), player->GetLevel(), player->GetTotalPlayedTime() == 0, player, player->GetGuildId()) {};
++PlayerLoginInfo::PlayerLoginInfo(Player* player) : PlayerLoginInfo(player->GetSession()->GetAccountId(), player->GetDbGuid(), player->GetRace(), player->GetClass(), player->GetLevel(), player->GetTotalPlayedTime() == 0, player, player->GetGuildId()) {};
+ 
+ uint32 PlayerLoginInfo::GetLevel() const
+ {
+diff --git a/modules/mod-playerbots/src/playerbot/RandomItemMgr.cpp b/modules/mod-playerbots/src/playerbot/RandomItemMgr.cpp
+index 37d3817325bbed08cfb27979f6427df919a5d3b9..bd70e260f7c7c8f9818f1f272a96eb359a9d8ff5 100644
+--- a/modules/mod-playerbots/src/playerbot/RandomItemMgr.cpp
++++ b/modules/mod-playerbots/src/playerbot/RandomItemMgr.cpp
+@@ -998,23 +998,23 @@ void RandomItemMgr::BuildItemInfoCache()
+             continue;
+ 
+         // skip test items
+-        if (strstr(proto->Name1, "(Test)") ||
+-            strstr(proto->Name1, "(TEST)") ||
+-            strstr(proto->Name1, "(test)") ||
+-            strstr(proto->Name1, "(JEFFTEST)") ||
+-            strstr(proto->Name1, "Test ") ||
+-            strstr(proto->Name1, "Test") ||
+-            strstr(proto->Name1, "TEST") ||
+-            strstr(proto->Name1, "TEST ") ||
+-            strstr(proto->Name1, " TEST") ||
+-            strstr(proto->Name1, "2200 ") ||
+-            strstr(proto->Name1, "Deprecated ") ||
+-            strstr(proto->Name1, "Unused ") ||
+-            strstr(proto->Name1, "Monster ") ||
+-            strstr(proto->Name1, "[PH]") ||
+-            strstr(proto->Name1, "(OLD)") ||
+-            strstr(proto->Name1, "zzz") ||
+-            strstr(proto->Name1, "ZZZ")
++        if (proto->Name1.find("(Test)") != std::string::npos ||
++            proto->Name1.find("(TEST)") != std::string::npos ||
++            proto->Name1.find("(test)") != std::string::npos ||
++            proto->Name1.find("(JEFFTEST)") != std::string::npos ||
++            proto->Name1.find("Test ") != std::string::npos ||
++            proto->Name1.find("Test") != std::string::npos ||
++            proto->Name1.find("TEST") != std::string::npos ||
++            proto->Name1.find("TEST ") != std::string::npos ||
++            proto->Name1.find(" TEST") != std::string::npos ||
++            proto->Name1.find("2200 ") != std::string::npos ||
++            proto->Name1.find("Deprecated ") != std::string::npos ||
++            proto->Name1.find("Unused ") != std::string::npos ||
++            proto->Name1.find("Monster ") != std::string::npos ||
++            proto->Name1.find("[PH]") != std::string::npos ||
++            proto->Name1.find("(OLD)") != std::string::npos ||
++            proto->Name1.find("zzz") != std::string::npos ||
++            proto->Name1.find("ZZZ") != std::string::npos
+             )
+             continue;
+ 
+@@ -1062,11 +1062,11 @@ void RandomItemMgr::BuildItemInfoCache()
+ 
+         if (!cacheInfo->team && proto->AllowableRace > 1 && proto->AllowableRace < 8388607)
+         {
+-            if (FactionEntry const* faction = sFactionStore.LookupEntry(HORDE))
++            if (FactionEntry const* faction = sObjectMgr.GetFactionEntry(HORDE))
+                 if ((proto->AllowableRace & faction->BaseRepRaceMask[0]) != 0)
+                     cacheInfo->team = HORDE;
+ 
+-            if (FactionEntry const* faction = sFactionStore.LookupEntry(ALLIANCE))
++            if (FactionEntry const* faction = sObjectMgr.GetFactionEntry(ALLIANCE))
+                 if ((proto->AllowableRace & faction->BaseRepRaceMask[0]) != 0)
+                     cacheInfo->team = ALLIANCE;
+         }
+@@ -1075,11 +1075,11 @@ void RandomItemMgr::BuildItemInfoCache()
+         // check faction
+         if (!cacheInfo->team && proto->AllowableRace > 1 && proto->AllowableRace < 8388607)
+         {
+-            if (FactionEntry const* faction = sFactionStore.LookupEntry<FactionEntry>(HORDE))
++            if (FactionEntry const* faction = sObjectMgr.GetFactionEntry(HORDE))
+                 if ((proto->AllowableRace & faction->BaseRepRaceMask[0]) != 0)
+                     cacheInfo->team = HORDE;
+ 
+-            if (FactionEntry const* faction = sFactionStore.LookupEntry<FactionEntry>(ALLIANCE))
++            if (FactionEntry const* faction = sObjectMgr.GetFactionEntry(ALLIANCE))
+                 if ((proto->AllowableRace & faction->BaseRepRaceMask[0]) != 0)
+                     cacheInfo->team = ALLIANCE;
+         }
+@@ -1088,11 +1088,11 @@ void RandomItemMgr::BuildItemInfoCache()
+         // check faction
+         if (!cacheInfo->team && proto->AllowableRace > 1 && proto->AllowableRace < 8388607)
+         {
+-            if (FactionEntry const* faction = sFactionStore.LookupEntry(HORDE))
++            if (FactionEntry const* faction = sObjectMgr.GetFactionEntry(HORDE))
+                 if ((proto->AllowableRace & faction->BaseRepRaceMask[0]) != 0)
+                     cacheInfo->team = HORDE;
+ 
+-            if (FactionEntry const* faction = sFactionStore.LookupEntry(ALLIANCE))
++            if (FactionEntry const* faction = sObjectMgr.GetFactionEntry(ALLIANCE))
+                 if ((proto->AllowableRace & faction->BaseRepRaceMask[0]) != 0)
+                     cacheInfo->team = ALLIANCE;
+         }
+@@ -1157,9 +1157,9 @@ void RandomItemMgr::BuildItemInfoCache()
+                                     cacheInfo->repRank = uint32(r);
+                             }
+ #ifdef MANGOSBOT_ONE
+-                            if (FactionEntry const* faction = sFactionStore.LookupEntry<FactionEntry>(quest->GetRequiredMinRepFaction()))
++                            if (FactionEntry const* faction = sObjectMgr.GetFactionEntry(quest->GetRequiredMinRepFaction()))
+ #else
+-                            if (FactionEntry const* faction = sFactionStore.LookupEntry(quest->GetRequiredMinRepFaction()))
++                            if (FactionEntry const* faction = sObjectMgr.GetFactionEntry(quest->GetRequiredMinRepFaction()))
+ #endif
+                             {
+                                 if (faction->team == ALLIANCE)
+@@ -1203,7 +1203,7 @@ void RandomItemMgr::BuildItemInfoCache()
+                 cacheInfo->source = ITEM_SOURCE_VENDOR;
+                 cacheInfo->sourceIds.push_back(vendor);
+ 
+-                FactionTemplateEntry const* factionEntry = sFactionTemplateStore.LookupEntry(cInfo->Faction);
++                FactionTemplateEntry const* factionEntry = sObjectMgr.GetFactionTemplateEntry(cInfo->faction);
+                 if (PlayerbotAI::friendToAlliance(factionEntry))
+                     isAlly = true;
+                 if (PlayerbotAI::friendToHorde(factionEntry))
+@@ -1211,7 +1211,7 @@ void RandomItemMgr::BuildItemInfoCache()
+ 
+                 // check faction conditions
+                 VendorItemData const* vItems = sObjectMgr.GetNpcVendorItemList(vendor);
+-                VendorItemData const* tItems = sObjectMgr.GetNpcVendorTemplateItemList(cInfo->VendorTemplateId);
++                VendorItemData const* tItems = sObjectMgr.GetNpcVendorTemplateItemList(cInfo->vendor_id);
+ 
+                 if (vItems || tItems)
+                 {
+@@ -1236,9 +1236,9 @@ void RandomItemMgr::BuildItemInfoCache()
+                                 uint32 m_value2 = fields[2].GetUInt32();
+ 
+ #ifdef MANGOSBOT_ONE
+-                                if (FactionEntry const* faction = sFactionStore.LookupEntry<FactionEntry>(m_value1))
++                                if (FactionEntry const* faction = sObjectMgr.GetFactionEntry(m_value1))
+ #else
+-                                if (FactionEntry const* faction = sFactionStore.LookupEntry(m_value1))
++                                if (FactionEntry const* faction = sObjectMgr.GetFactionEntry(m_value1))
+ #endif
+                                 {
+                                     cacheInfo->repFaction = m_value1;
+@@ -1671,7 +1671,7 @@ uint32 RandomItemMgr::CalculateStatWeight(uint8 playerclass, uint8 spec, ItemPro
+             continue;
+ 
+         // check if it is valid spell
+-        SpellEntry const* spellproto = sSpellTemplate.LookupEntry<SpellEntry>(spellData.SpellId);
++        SpellEntry const* spellproto = sSpellMgr.GetSpellEntry(spellData.SpellId);
+         if (!spellproto)
+             continue;
+ 
+@@ -1942,7 +1942,7 @@ uint32 RandomItemMgr::CalculateStatWeight(uint8 playerclass, uint8 spec, ItemPro
+         {
+             if (spellData.SpellCooldown != 0)
+             {
+-                int32 spellDuration = GetSpellDuration(spellproto);
++                int32 spellDuration = spellproto->GetDuration();
+                 coverage = static_cast<float>(spellDuration) / spellData.SpellCooldown;
+             }
+             else
+@@ -1961,7 +1961,7 @@ uint32 RandomItemMgr::CalculateStatWeight(uint8 playerclass, uint8 spec, ItemPro
+ #ifdef MANGOSBOT_TWO
+             float averageItemDelay = 2.39f;
+ #endif
+-            coverage = (static_cast<float>(spellproto->procChance) / 100) * (static_cast<float>(GetSpellDuration(spellproto)) / averageItemDelay);
++            coverage = (static_cast<float>(spellproto->procChance) / 100) * (static_cast<float>(spellproto->GetDuration()) / averageItemDelay);
+ 
+             if (coverage > 0.9f)
+                 coverage = 0.9f;
+@@ -2241,7 +2241,7 @@ uint32 RandomItemMgr::CalculateEnchantWeight(uint8 playerclass, uint8 spec, uint
+             if (!pEnchant->spellid[s])
+                 continue;
+ 
+-            SpellEntry const* spellInfo = sSpellTemplate.LookupEntry<SpellEntry>(pEnchant->spellid[s]);
++            SpellEntry const* spellInfo = sSpellMgr.GetSpellEntry(pEnchant->spellid[s]);
+ 
+             if (!spellInfo)
+                 continue;
+@@ -2439,7 +2439,7 @@ uint32 RandomItemMgr::CalculateSocketWeight(uint8 playerclass, ItemQualifier& qu
+         if (!gemid)
+             return 0;
+ 
+-        ItemPrototype const* gemProto = sItemStorage.LookupEntry<ItemPrototype>(gemid);
++        ItemPrototype const* gemProto = sObjectMgr.GetItemPrototype(gemid);
+         if (!gemProto)
+             return 0;
+ 
+@@ -2923,7 +2923,7 @@ std::vector<uint32> RandomItemMgr::GetUpgradeList(Player* player, uint32 specId,
+             if (!player->GetHonorPoints() && !player->GetArenaPoints())
+                 continue;
+ #else
+-            if (!player->GetHonorRankInfo().rank)
++            if (!player->GetHonorMgr().GetRank().rank)
+                 continue;
+ #endif
+         }
+@@ -2979,7 +2979,7 @@ bool RandomItemMgr::CanBuyFromVendor(Player *player, uint32 itemId, uint32 creat
+ 
+     VendorItemList vendorItems;
+     VendorItemData const* vItems = sObjectMgr.GetNpcVendorItemList(creatureId);
+-    VendorItemData const* tItems = sObjectMgr.GetNpcVendorTemplateItemList(cInfo->VendorTemplateId);
++    VendorItemData const* tItems = sObjectMgr.GetNpcVendorTemplateItemList(cInfo->vendor_id);
+ 
+     if (!vItems && !tItems)
+     {
+@@ -3000,7 +3000,7 @@ bool RandomItemMgr::CanBuyFromVendor(Player *player, uint32 itemId, uint32 creat
+             {
+                 // when no faction required but rank > 0 will be used faction id from the vendor faction template to compare the rank
+                 if (!pProto->RequiredReputationFaction && pProto->RequiredReputationRank > 0 &&
+-                    ReputationRank(pProto->RequiredReputationRank) > player->GetReputationRank(sFactionTemplateStore.LookupEntry(cInfo->Faction)->faction))
++                    ReputationRank(pProto->RequiredReputationRank) > player->GetReputationRank(sObjectMgr.GetFactionTemplateEntry(cInfo->faction)->faction))
+                     return false;
+ 
+                 if (crItem->conditionId && !sObjectMgr.IsConditionSatisfied(crItem->conditionId, player, player->GetMap(), nullptr, CONDITION_FROM_VENDOR))
+@@ -3211,7 +3211,7 @@ uint32 RandomItemMgr::GetLiveStatWeight(Player* player, uint32 itemId, uint32 sp
+         if (!player->GetHonorPoints() && !player->GetArenaPoints())
+             return 0;
+ #else
+-        if (!player->GetHonorRankInfo().rank)
++        if (!player->GetHonorMgr().GetRank().rank)
+             return 0;
+ #endif
+     }*/
+@@ -3222,13 +3222,13 @@ uint32 RandomItemMgr::GetLiveStatWeight(Player* player, uint32 itemId, uint32 sp
+ 
+ #ifdef MANGOSBOT_ZERO
+     // skip missing pvp ranks
+-    if (info->pvpRank && player->GetHonorHighestRankInfo().rank < info->pvpRank)
++    if (info->pvpRank && player->GetHonorMgr().GetHighestRank().rank < info->pvpRank)
+         return 0;
+-    if (info->pvpRank && info->pvpRank < 16 && player->GetHonorHighestRankInfo().rank == 18)
++    if (info->pvpRank && info->pvpRank < 16 && player->GetHonorMgr().GetHighestRank().rank == 18)
+         return 0;
+ 
+     // skip non pvp items for some specs
+-    if (info->pvpRank < 16 && player->GetHonorHighestRankInfo().rank == 18)
++    if (info->pvpRank < 16 && player->GetHonorMgr().GetHighestRank().rank == 18)
+     {
+         ItemPrototype const* proto = sObjectMgr.GetItemPrototype(itemId);
+         if (proto && !(
+diff --git a/modules/mod-playerbots/src/playerbot/TravelMgr.cpp b/modules/mod-playerbots/src/playerbot/TravelMgr.cpp
+index d2a09579f6c3ad4b3f21459e1ca7a3bca6ce8cb0..f96ef47f29f86a20d5d740fefe719a0ab33e9118 100644
+--- a/modules/mod-playerbots/src/playerbot/TravelMgr.cpp
++++ b/modules/mod-playerbots/src/playerbot/TravelMgr.cpp
+@@ -1183,8 +1183,8 @@ void TravelMgr::BuildAreaCreatureLevels()
+ 
+     areaCreatureLevelsLoaded = true;
+ 
+-    FactionTemplateEntry const* humanFaction = sFactionTemplateStore.LookupEntry(1);
+-    FactionTemplateEntry const* orcFaction = sFactionTemplateStore.LookupEntry(2);
++    FactionTemplateEntry const* humanFaction = sObjectMgr.GetFactionTemplateEntry(1);
++    FactionTemplateEntry const* orcFaction = sObjectMgr.GetFactionTemplateEntry(2);
+     if (!humanFaction || !orcFaction)
+         return;
+ 
+@@ -1199,7 +1199,7 @@ void TravelMgr::BuildAreaCreatureLevels()
+         if (!cInfo)
+             continue;
+ 
+-        FactionTemplateEntry const* factionEntry = sFactionTemplateStore.LookupEntry(cInfo->faction);
++        FactionTemplateEntry const* factionEntry = sObjectMgr.GetFactionTemplateEntry(cInfo->faction);
+         if (!factionEntry)
+             continue;
+ 
+@@ -1307,8 +1307,8 @@ void TravelMgr::SetMobAvoidArea()
+ void TravelMgr::SetMobAvoidAreaMap(uint32 mapId) 
+ {
+     PathFinder path(mapId);
+-    FactionTemplateEntry const* humanFaction = sFactionTemplateStore.LookupEntry(1);
+-    FactionTemplateEntry const* orcFaction = sFactionTemplateStore.LookupEntry(2);
++    FactionTemplateEntry const* humanFaction = sObjectMgr.GetFactionTemplateEntry(1);
++    FactionTemplateEntry const* orcFaction = sObjectMgr.GetFactionTemplateEntry(2);
+ 
+     std::vector<CreatureDataPair const*> creatures = WorldPosition(mapId, 1,1).getCreaturesNear();
+ 
+@@ -1325,7 +1325,7 @@ void TravelMgr::SetMobAvoidAreaMap(uint32 mapId)
+         if (cInfo->npc_flags > 0)
+             continue;
+ 
+-        FactionTemplateEntry const* factionEntry = sFactionTemplateStore.LookupEntry(cInfo->faction);
++        FactionTemplateEntry const* factionEntry = sObjectMgr.GetFactionTemplateEntry(cInfo->faction);
+         ReputationRank reactionHum = PlayerbotAI::GetFactionReaction(humanFaction, factionEntry);
+         ReputationRank reactionOrc = PlayerbotAI::GetFactionReaction(orcFaction, factionEntry);
+ 
+@@ -2153,7 +2153,7 @@ void TravelMgr::LoadQuestTravelTable()
+         for (auto& gameObjectPair : WorldPosition().getGameObjectsNear())
+         {
+             GameObjectData const gData = gameObjectPair->second;
+-            auto data = sGOStorage.LookupEntry<GameObjectInfo>(gData.id);
++            auto data = sObjectMgr.GetGameObjectInfo(gData.id);
+ 
+             if (!data)
+                 continue;
+diff --git a/modules/mod-playerbots/src/playerbot/TravelNode.cpp b/modules/mod-playerbots/src/playerbot/TravelNode.cpp
+index 7a7faa27c8b6db130575e2858138a53d7256405f..315c89ec4c127d94df4195b7cc1cf0eb970135ab 100644
+--- a/modules/mod-playerbots/src/playerbot/TravelNode.cpp
++++ b/modules/mod-playerbots/src/playerbot/TravelNode.cpp
+@@ -66,7 +66,7 @@ void TravelNodePath::calculateCost(bool distanceOnly)
+ 
+                     if (cInfo)
+                     {
+-                        FactionTemplateEntry const* factionEntry = sFactionTemplateStore.LookupEntry(cInfo->Faction);
++                        FactionTemplateEntry const* factionEntry = sObjectMgr.GetFactionTemplateEntry(cInfo->faction);
+ 
+                         if (aReact.find(factionEntry) == aReact.end())
+                             aReact.insert(std::make_pair(factionEntry, PlayerbotAI::friendToAlliance(factionEntry)));
+@@ -76,12 +76,12 @@ void TravelNodePath::calculateCost(bool distanceOnly)
+                             hReact.insert(std::make_pair(factionEntry, PlayerbotAI::friendToHorde(factionEntry)));
+                         hFriend = hReact.find(factionEntry)->second;
+ 
+-                        if (maxLevelCreature[0] < cInfo->MaxLevel && !aFriend && !hFriend)
+-                            maxLevelCreature[0] = cInfo->MaxLevel;
+-                        if (maxLevelCreature[1] < cInfo->MaxLevel && aFriend && !hFriend)
+-                            maxLevelCreature[1] = cInfo->MaxLevel;
+-                        if (maxLevelCreature[2] < cInfo->MaxLevel && !aFriend && hFriend)
+-                            maxLevelCreature[2] = cInfo->MaxLevel;
++                        if (maxLevelCreature[0] < cInfo->level_max && !aFriend && !hFriend)
++                            maxLevelCreature[0] = cInfo->level_max;
++                        if (maxLevelCreature[1] < cInfo->level_max && aFriend && !hFriend)
++                            maxLevelCreature[1] = cInfo->level_max;
++                        if (maxLevelCreature[2] < cInfo->level_max && !aFriend && hFriend)
++                            maxLevelCreature[2] = cInfo->level_max;
+                     }
+                 }
+ 
+@@ -136,12 +136,12 @@ float TravelNodePath::getCost(Unit* unit, uint32 cGold)
+         {
+             uint32 goEntry = getPathObject();
+ 
+-            auto data = sGOStorage.LookupEntry<GameObjectInfo>(goEntry);
++            auto data = sObjectMgr.GetGameObjectInfo(goEntry);
+ 
+             if (!data)
+                 return -1;
+ 
+-            FactionTemplateEntry const* factionEntry = sFactionTemplateStore.LookupEntry(data->faction);
++            FactionTemplateEntry const* factionEntry = sObjectMgr.GetFactionTemplateEntry(data->faction);
+ 
+             if(factionEntry)
+                 if (PlayerbotAI::GetFactionReaction(factionEntry, bot->GetFactionTemplateEntry()) < REP_NEUTRAL)
+@@ -158,14 +158,14 @@ float TravelNodePath::getCost(Unit* unit, uint32 cGold)
+             if (taxiPath)
+             {
+ 
+-                if (!bot->isTaxiCheater() && taxiPath->price > cGold)
++                if (!bot->IsTaxiCheater() && taxiPath->price > cGold)
+                     return -1;
+ 
+-                if (!bot->isTaxiCheater() && !bot->m_taxi.IsTaximaskNodeKnown(taxiPath->to))
++                if (!bot->IsTaxiCheater() && !bot->GetTaxi().IsTaximaskNodeKnown(taxiPath->to))
+                     return -1;
+ 
+-                TaxiNodesEntry const* startTaxiNode = sTaxiNodesStore.LookupEntry(taxiPath->from);
+-                TaxiNodesEntry const* endTaxiNode = sTaxiNodesStore.LookupEntry(taxiPath->to);
++                TaxiNodesEntry const* startTaxiNode = sObjectMgr.GetTaxiNodeEntry(taxiPath->from);
++                TaxiNodesEntry const* endTaxiNode = sObjectMgr.GetTaxiNodeEntry(taxiPath->to);
+ 
+                 if (!startTaxiNode || !endTaxiNode || !startTaxiNode->MountCreatureID[bot->GetTeam() == ALLIANCE ? 1 : 0] || !endTaxiNode->MountCreatureID[bot->GetTeam() == ALLIANCE ? 1 : 0])
+                     return -1;
+@@ -1145,7 +1145,7 @@ void TravelPath::ClipPath(PlayerbotAI* ai, Unit* mover, bool ignoreEnemyTargets)
+             if (unit->GetLevel() > mover->GetLevel() + 5)
+                 continue;
+ 
+-            float range = unit->GetAttackDistance(mover);
++            float range = sServerFacade.GetAggroDistance(unit, mover);
+             if (WorldPosition(unit).sqDistance(p->point) > range * range)
+                 continue;
+ 
+@@ -1692,7 +1692,7 @@ TravelNodeRoute TravelNodeMap::getRoute(TravelNode* start, TravelNode* goal, Uni
+             childNode->m_h = h;
+             childNode->parent = currentNode;
+ 
+-            if (bot && !bot->isTaxiCheater())
++            if (bot && !bot->IsTaxiCheater())
+                 childNode->currentGold = currentNode->currentGold - link.second->getPrice();
+ 
+             if (childNode->close)
+@@ -2125,33 +2125,33 @@ void TravelNodeMap::generateNpcNodes()
+ 
+         uint32 flagMask = UNIT_NPC_FLAG_INNKEEPER | UNIT_NPC_FLAG_FLIGHTMASTER | UNIT_NPC_FLAG_SPIRITHEALER | UNIT_NPC_FLAG_SPIRITGUIDE;
+ 
+-        if (cInfo->NpcFlags & flagMask)
++        if (cInfo->npc_flags & flagMask)
+         {
+             std::string nodeName = guidP.getAreaName(false);
+ 
+-            if (cInfo->NpcFlags & UNIT_NPC_FLAG_INNKEEPER)
++            if (cInfo->npc_flags & UNIT_NPC_FLAG_INNKEEPER)
+                 nodeName += " innkeeper";
+-            else if (cInfo->NpcFlags & UNIT_NPC_FLAG_FLIGHTMASTER)
++            else if (cInfo->npc_flags & UNIT_NPC_FLAG_FLIGHTMASTER)
+                 nodeName += " flightMaster";
+-            else if (cInfo->NpcFlags & UNIT_NPC_FLAG_SPIRITHEALER)
++            else if (cInfo->npc_flags & UNIT_NPC_FLAG_SPIRITHEALER)
+                 nodeName += " spirithealer";
+-            else if (cInfo->NpcFlags & UNIT_NPC_FLAG_SPIRITGUIDE)
++            else if (cInfo->npc_flags & UNIT_NPC_FLAG_SPIRITGUIDE)
+                 nodeName += " spiritguide";
+ 
+             TravelNode* node = sTravelNodeMap.addNode(guidP, nodeName, true, true);
+         }
+-        else if (cInfo->Rank == 3)
++        else if (cInfo->rank == 3)
+         {
+             std::string nodeName = cInfo->name;
+ 
+             sTravelNodeMap.addNode(guidP, nodeName, true, true);
+         }
+-        else if (cInfo->Rank == 1 && !guidP.isOverworld())
++        else if (cInfo->rank == 1 && !guidP.isOverworld())
+         {
+-            if (bossMap.find(cInfo->Entry) == bossMap.end())
+-                bossMap[cInfo->Entry] = guidP;
+-            else if (bossMap[cInfo->Entry])
+-                bossMap[cInfo->Entry] = GuidPosition();
++            if (bossMap.find(cInfo->entry) == bossMap.end())
++                bossMap[cInfo->entry] = guidP;
++            else if (bossMap[cInfo->entry])
++                bossMap[cInfo->entry] = GuidPosition();
+         }
+     }
+ 
+@@ -2282,7 +2282,7 @@ void TravelNodeMap::generatePortalNodes()
+     {
+         GuidPosition go(goData);
+ 
+-        auto data = sGOStorage.LookupEntry<GameObjectInfo>(go.GetEntry());
++        auto data = sObjectMgr.GetGameObjectInfo(go.GetEntry());
+ 
+         if (!data)
+             continue;
+@@ -2315,9 +2315,9 @@ void TravelNodeMap::generatePortalNodes()
+     }
+ 
+     //Portal spell destinations.
+-    for (uint32 i = 0; i < GetSpellStore()->GetMaxEntry(); ++i)
++    for (uint32 i = 0; i < sSpellMgr.GetMaxSpellId(); ++i)
+     {
+-        const SpellEntry* pSpellInfo = GetSpellStore()->LookupEntry<SpellEntry>(i);
++        const SpellEntry* pSpellInfo = sSpellMgr.GetSpellEntry(i);
+ 
+         if (!pSpellInfo)
+             continue;
+@@ -2971,12 +2971,12 @@ void TravelNodeMap::generateTaxiPaths()
+         if (!taxiPath)
+             continue;
+ 
+-        TaxiNodesEntry const* startTaxiNode = sTaxiNodesStore.LookupEntry(taxiPath->from);
++        TaxiNodesEntry const* startTaxiNode = sObjectMgr.GetTaxiNodeEntry(taxiPath->from);
+ 
+         if (!startTaxiNode)
+             continue;
+ 
+-        TaxiNodesEntry const* endTaxiNode = sTaxiNodesStore.LookupEntry(taxiPath->to);
++        TaxiNodesEntry const* endTaxiNode = sObjectMgr.GetTaxiNodeEntry(taxiPath->to);
+ 
+         if (!endTaxiNode)
+             continue;
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/AutoCompleteQuestAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/AutoCompleteQuestAction.cpp
+index d4f775d7d97c7a91d970464e6b691d99f552108a..cadc1fd1ec731c45e684245db77a0c9dbd93f2b2 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/AutoCompleteQuestAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/AutoCompleteQuestAction.cpp
+@@ -120,9 +120,9 @@ bool AutoCompleteQuestAction::Execute(Event& event)
+             uint32 curRep = bot->GetReputationMgr().GetReputation(repFaction);
+             if (curRep < repValue)
+ #ifndef MANGOSBOT_ONE
+-                if (FactionEntry const* factionEntry = sFactionStore.LookupEntry(repFaction))
++                if (FactionEntry const* factionEntry = sObjectMgr.GetFactionEntry(repFaction))
+ #else
+-                if (FactionEntry const* factionEntry = sFactionStore.LookupEntry<FactionEntry>(repFaction))
++                if (FactionEntry const* factionEntry = sObjectMgr.GetFactionEntry(repFaction))
+ #endif
+                     bot->GetReputationMgr().SetReputation(factionEntry, repValue);
+         }
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/BattleGroundTactics.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/BattleGroundTactics.cpp
+index db13035821e86aeb88ab97e2fbb916a2146ccfc6..31151386ef101f36d93d70807f31232069360e6f 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/BattleGroundTactics.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/BattleGroundTactics.cpp
+@@ -3632,7 +3632,7 @@ bool BGTactics::selectObjective(bool reset)
+                     // Keep Gates open if any wall is destroyed, check it
+                     if (GameObject* pGO = bg->GetSingleGameObjectFromStorage(BG_IC_GO_PORTCULLIS_KEEP_A1))
+                     {
+-                        if (sServerFacade.isSpawned(pGO) && pGO->GetLootState() == GO_ACTIVATED)
++                        if (sServerFacade.isSpawned(pGO) && pGO->getLootState() == GO_ACTIVATED)
+                         {
+                             gateOpen = true;
+                         }
+@@ -3681,12 +3681,12 @@ bool BGTactics::selectObjective(bool reset)
+                     bool isCapping = false;
+                     if (GameObject* pGO = bg->GetSingleGameObjectFromStorage(isleBanners[BG_IC_OBJECTIVE_KEEP_ALLY].entryHorde))
+                     {
+-                        if (sServerFacade.isSpawned(pGO) && pGO->GetLootState() == GO_READY)
++                        if (sServerFacade.isSpawned(pGO) && pGO->getLootState() == GO_READY)
+                             isCapping = true;
+                     }
+                     if (GameObject* pGO = bg->GetSingleGameObjectFromStorage(isleBanners[BG_IC_OBJECTIVE_KEEP_ALLY].entryHorde_Grey))
+                     {
+-                        if (sServerFacade.isSpawned(pGO) && pGO->GetLootState() == GO_READY)
++                        if (sServerFacade.isSpawned(pGO) && pGO->getLootState() == GO_READY)
+                             isCapping = true;
+                     }
+                     if (!isCapping)
+@@ -3810,7 +3810,7 @@ bool BGTactics::selectObjective(bool reset)
+                 {
+                     if (GameObject* pGO =  bg->interactwith(BG_IC_VEHICLE_KEEP_CANNON))
+                     {
+-                        if (sServerFacade.isSpawned(pGO) && pGO->GetLootState() == GO_READY)
++                        if (sServerFacade.isSpawned(pGO) && pGO->getLootState() == GO_READY)
+                             isCapping = true;
+                     }
+                 }*/
+@@ -3903,7 +3903,7 @@ bool BGTactics::selectObjective(bool reset)
+                     // Keep Gates open if any wall is destroyed, check it
+                     if (GameObject* pGO = bg->GetSingleGameObjectFromStorage(BG_IC_GO_PORTCULLIS_KEEP_H))
+                     {
+-                        if (sServerFacade.isSpawned(pGO) && pGO->GetLootState() == GO_ACTIVATED)
++                        if (sServerFacade.isSpawned(pGO) && pGO->getLootState() == GO_ACTIVATED)
+                         {
+                             gateOpen = true;
+                         }
+@@ -4448,7 +4448,7 @@ bool BGTactics::atFlag(std::vector<BattleBotPath*> const& vPaths, std::vector<ui
+         if (!isObjective)
+             continue;
+ 
+-        if (!sServerFacade.isSpawned(go) || go->IsInUse() || go->GetGoState() != GO_STATE_READY)
++        if (!sServerFacade.isSpawned(go) || go->HasFlag(GAMEOBJECT_FLAGS, GO_FLAG_IN_USE) || go->GetGoState() != GO_STATE_READY)
+             continue;
+ 
+         if (!bot->CanInteract(go) && bgType != BATTLEGROUND_WS)
+@@ -4753,7 +4753,7 @@ bool BGTactics::IsLockedInsideKeep()
+         {
+             if (sServerFacade.isSpawned(go))
+             {
+-                gateLock = go->GetLootState() != GO_ACTIVATED;
++                gateLock = go->getLootState() != GO_ACTIVATED;
+             }
+             else
+             {
+@@ -4768,7 +4768,7 @@ bool BGTactics::IsLockedInsideKeep()
+         {
+             if (sServerFacade.isSpawned(go))
+             {
+-                gateLock = go->GetLootState() != GO_ACTIVATED;
++                gateLock = go->getLootState() != GO_ACTIVATED;
+             }
+             else
+             {
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/BattleGroundTacticsAV.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/BattleGroundTacticsAV.cpp
+index b86f8d548c548a95d0d5ce56ba0518d7f5df5ef1..aca32de934834c87bcee292aa166fae9fbb60031 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/BattleGroundTacticsAV.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/BattleGroundTacticsAV.cpp
+@@ -456,7 +456,7 @@ bool BGTactics::CheckFlagAv()
+         if (event.event1 >= BG_AV_NODES_MAX)
+             continue;
+ 
+-        if (!sServerFacade.isSpawned(go) || go->IsInUse() || go->GetGoState() != GO_STATE_READY)
++        if (!sServerFacade.isSpawned(go) || go->HasFlag(GAMEOBJECT_FLAGS, GO_FLAG_IN_USE) || go->GetGoState() != GO_STATE_READY)
+             continue;
+ 
+         if (!bot->CanInteract(go))
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/BlackwingLairDungeonActions.h b/modules/mod-playerbots/src/playerbot/strategy/actions/BlackwingLairDungeonActions.h
+index a39fb41a6eed73b0d8f6a7e7a87b34af3418e1e1..df83be77f04b0ff6a593d959a5e7e499889576c0 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/BlackwingLairDungeonActions.h
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/BlackwingLairDungeonActions.h
+@@ -127,7 +127,7 @@ namespace ai
+                 if (!go)
+                     continue;
+ 
+-                if (go->GetLootState() != GO_READY)
++                if (go->getLootState() != GO_READY)
+                     continue;
+ 
+                 if (!bot->GetGameObjectIfCanInteractWith(go->GetObjectGuid(), GAMEOBJECT_TYPE_TRAP))
+@@ -182,7 +182,7 @@ namespace ai
+                 if (!go)
+                     continue;
+ 
+-                if (go->GetLootState() != GO_READY)
++                if (go->getLootState() != GO_READY)
+                     continue;
+ 
+                 float dist = botPos.distance(WorldPosition(go));
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/ChooseRpgTargetAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/ChooseRpgTargetAction.cpp
+index 2454cb6e8dfe2f07fbe0283f000f0ab0dab46aaf..e291836eb56ba68f87e80e139b60cd4e70e7196f 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/ChooseRpgTargetAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/ChooseRpgTargetAction.cpp
+@@ -164,7 +164,7 @@ std::unordered_map<ObjectGuid, float> ChooseRpgTargetAction::GetTargets(Player*
+             //Ignore game objects that are not spawned or being used by others.
+             GameObject* go = guidP.GetGameObject(bot->GetInstanceId());
+             if (!go || !sServerFacade.isSpawned(go)
+-                || go->IsInUse()
++                || go->HasFlag(GAMEOBJECT_FLAGS, GO_FLAG_IN_USE)
+                 || go->GetGoState() != GO_STATE_READY)
+                 SkipRpgTarget("Go is not spawned, ready or is in use.");
+ 
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/ChooseTargetActions.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/ChooseTargetActions.cpp
+index 6cb9614e5dfad4efd44bce351b220ec19e9dcb3c..da6ef6b1ca6b1e9e7059b59f411deb99573aee9d 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/ChooseTargetActions.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/ChooseTargetActions.cpp
+@@ -31,7 +31,7 @@ bool AttackAnythingAction::isUseful()
+     if (ai->ContainsStrategy(STRATEGY_TYPE_HEAL) && !ai->HasStrategy("offdps", BotState::BOT_STATE_COMBAT))
+         return false;
+ 
+-    if(!target->IsPlayer() && bot->isInFront(target,target->GetAttackDistance(bot)*1.5f, M_PI_F*0.5f) && target->CanAttackOnSight(bot) && target->GetLevel() < bot->GetLevel() + 3.0) //Attack before being attacked.
++    if(!target->IsPlayer() && sServerFacade.IsInFront(bot, target,sServerFacade.GetAggroDistance(target, bot)*1.5f, M_PI_F*0.5f) && target->CanAttackOnSight(bot) && target->GetLevel() < bot->GetLevel() + 3.0) //Attack before being attacked.
+         return true;
+ 
+     if (AI_VALUE(bool, "travel target traveling") && CanFreeMoveValue::CanFreeMoveTo(ai, *AI_VALUE(TravelTarget*,"travel target")->GetPosition())) //Bot is traveling
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/ChooseTravelTargetAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/ChooseTravelTargetAction.cpp
+index f56ea88a36be64f46c98c3ea310ab0c2a4960b26..2449e39dfac877f4120e313b6d6e8b03a4b61a0c 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/ChooseTravelTargetAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/ChooseTravelTargetAction.cpp
+@@ -276,7 +276,7 @@ void ChooseTravelTargetAction::ReportTravelTarget(Player* bot, Player* requester
+         out << bot->GetName() << ",";
+         out << std::fixed << std::setprecision(2);
+ 
+-        out << std::to_string(bot->getRace()) << ",";
++        out << std::to_string(bot->GetRace()) << ",";
+         out << std::to_string(bot->GetClass()) << ",";
+         float subLevel = ai->GetLevelFloat();
+ 
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/DebugAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/DebugAction.cpp
+index 87c71eb6e33979f507d8eb0fd3db4c919c16e6ea..cf97541196d9eaf807b76658fa250c5098e22529 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/DebugAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/DebugAction.cpp
+@@ -1127,7 +1127,7 @@ void DebugAction::FakeSpell(uint32 spellId, Unit* truecaster, Unit* caster, Obje
+ 
+ void DebugAction::addAura(uint32 spellId, Unit* target)
+ {
+-    SpellEntry const* spellInfo = sSpellTemplate.LookupEntry<SpellEntry>(spellId);
++    SpellEntry const* spellInfo = sSpellMgr.GetSpellEntry(spellId);
+     if (!spellInfo)
+         return;
+ 
+@@ -1611,7 +1611,7 @@ bool DebugAction::HandleTransport(Event& event, Player* requester, const std::st
+ 
+     for (auto trans : transports)
+     {
+-        GameObjectInfo const* data = sGOStorage.LookupEntry<GameObjectInfo>(trans->GetEntry());
++        GameObjectInfo const* data = sObjectMgr.GetGameObjectInfo(trans->GetEntry());
+         std::ostringstream out;
+ 
+         std::string transportName = trans->GetName();
+@@ -1660,7 +1660,7 @@ bool DebugAction::HandlePointOnTrans(Event& event, Player* requester, const std:
+ 
+     Transport* transport = transports.back();
+ 
+-    GameObjectInfo const* data = sGOStorage.LookupEntry<GameObjectInfo>(transport->GetEntry());
++    GameObjectInfo const* data = sObjectMgr.GetGameObjectInfo(transport->GetEntry());
+     std::string transportName = transport->GetName();
+     if (transportName.empty())
+         transportName = data->name;
+@@ -2310,9 +2310,9 @@ bool DebugAction::HandleQuest(Event& event, Player* requester, const std::string
+                 if (curRep < repValue)
+                 {
+ #ifndef MANGOSBOT_ONE
+-                    if (FactionEntry const* factionEntry = sFactionStore.LookupEntry(repFaction))
++                    if (FactionEntry const* factionEntry = sObjectMgr.GetFactionEntry(repFaction))
+ #else
+-                    if (FactionEntry const* factionEntry = sFactionStore.LookupEntry<FactionEntry>(repFaction))
++                    if (FactionEntry const* factionEntry = sObjectMgr.GetFactionEntry(repFaction))
+ #endif
+                         bot->GetReputationMgr().SetReputation(factionEntry, repValue);
+                 }
+@@ -3350,12 +3350,12 @@ bool DebugAction::HandleNPC(Event& event, Player* requester, const std::string&
+ 
+ 
+     std::ostringstream out2;
+-    FactionTemplateEntry const* requestFaction = sFactionTemplateStore.LookupEntry(requester->GetFaction());
++    FactionTemplateEntry const* requestFaction = sObjectMgr.GetFactionTemplateEntry(requester->GetFaction());
+     FactionTemplateEntry const* objectFaction = nullptr;
+-    if(guidP.GetCreatureTemplate() && guidP.GetCreatureTemplate()->Faction)
+-        objectFaction = sFactionTemplateStore.LookupEntry(guidP.GetCreatureTemplate()->Faction);
+-    FactionTemplateEntry const* humanFaction = sFactionTemplateStore.LookupEntry(1);
+-    FactionTemplateEntry const* orcFaction = sFactionTemplateStore.LookupEntry(2);
++    if(guidP.GetCreatureTemplate() && guidP.GetCreatureTemplate()->faction)
++        objectFaction = sObjectMgr.GetFactionTemplateEntry(guidP.GetCreatureTemplate()->faction);
++    FactionTemplateEntry const* humanFaction = sObjectMgr.GetFactionTemplateEntry(1);
++    FactionTemplateEntry const* orcFaction = sObjectMgr.GetFactionTemplateEntry(2);
+ 
+     std::map<ReputationRank, std::string> rep;
+ 
+@@ -3374,7 +3374,7 @@ bool DebugAction::HandleNPC(Event& event, Player* requester, const std::string&
+         ReputationRank reactionHum = PlayerbotAI::GetFactionReaction(humanFaction, objectFaction);
+         ReputationRank reactionOrc = PlayerbotAI::GetFactionReaction(orcFaction, objectFaction);
+ 
+-        out2 << " faction:" << guidP.GetCreatureTemplate()->Faction << " reaction me: " << rep[reactionRequest] << ",alliance: " << rep[reactionHum] << " ,horde: " << rep[reactionOrc];
++        out2 << " faction:" << guidP.GetCreatureTemplate()->faction << " reaction me: " << rep[reactionRequest] << ",alliance: " << rep[reactionHum] << " ,horde: " << rep[reactionOrc];
+     }
+ 
+     ai->TellPlayerNoFacing(requester, out2);
+@@ -3429,10 +3429,10 @@ bool DebugAction::HandleGO(Event& event, Player* requester, const std::string& t
+ 
+     std::ostringstream out2;
+     
+-    FactionTemplateEntry const* requestFaction = sFactionTemplateStore.LookupEntry(requester->GetFaction());
+-    FactionTemplateEntry const* objectFaction = sFactionTemplateStore.LookupEntry(guidP.GetGameObjectInfo()->faction);
+-    FactionTemplateEntry const* humanFaction = sFactionTemplateStore.LookupEntry(1);
+-    FactionTemplateEntry const* orcFaction = sFactionTemplateStore.LookupEntry(2);
++    FactionTemplateEntry const* requestFaction = sObjectMgr.GetFactionTemplateEntry(requester->GetFaction());
++    FactionTemplateEntry const* objectFaction = sObjectMgr.GetFactionTemplateEntry(guidP.GetGameObjectInfo()->faction);
++    FactionTemplateEntry const* humanFaction = sObjectMgr.GetFactionTemplateEntry(1);
++    FactionTemplateEntry const* orcFaction = sObjectMgr.GetFactionTemplateEntry(2);
+ 
+     std::map<ReputationRank, std::string> rep;
+ 
+@@ -3519,9 +3519,9 @@ bool DebugAction::HandleGO(Event& event, Player* requester, const std::string& t
+         if (state == GO_STATE_ACTIVE_ALTERNATIVE)
+             out << "GO_STATE_ACTIVE_ALTERNATIVE";
+ 
+-        out << (object->IsInUse() ? ", in use" : ", not in use");
++        out << (object->HasFlag(GAMEOBJECT_FLAGS, GO_FLAG_IN_USE) ? ", in use" : ", not in use");
+ 
+-        LootState lootState = object->GetLootState();
++        LootState lootState = object->getLootState();
+ 
+         out << " lootState:";
+ 
+@@ -4068,12 +4068,12 @@ bool DebugAction::HandleDrops(Event& event, Player* requester, const std::string
+ 
+ bool DebugAction::HandleTaxi(Event& event, Player* requester, const std::string& text)
+ {
+-    for (uint32 i = 1; i < sTaxiNodesStore.GetNumRows(); ++i)
++    for (uint32 i = 1; i < sObjectMgr.GetMaxTaxiNodeId(); ++i)
+     {
+-        if (!bot->m_taxi.IsTaximaskNodeKnown(i))
++        if (!bot->GetTaxi().IsTaximaskNodeKnown(i))
+             continue;
+ 
+-        TaxiNodesEntry const* taxiNode = sTaxiNodesStore.LookupEntry(i);
++        TaxiNodesEntry const* taxiNode = sObjectMgr.GetTaxiNodeEntry(i);
+ 
+         std::ostringstream out;
+ 
+@@ -5404,7 +5404,7 @@ bool DebugAction::HandleTransanal(Event& event, Player* requester, const std::st
+         for (auto& transport : WorldPosition(map->GetId(), 1, 1).getTransports())
+         {
+             std::string transportName = transport->GetName();
+-            GameObjectInfo const* data = sGOStorage.LookupEntry<GameObjectInfo>(transport->GetEntry());
++            GameObjectInfo const* data = sObjectMgr.GetGameObjectInfo(transport->GetEntry());
+             if (transportName.empty())
+                 transportName = data->name;
+ 
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/EmoteAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/EmoteAction.cpp
+index 1410e7522bf4112b395eb7186c8665c3044cfab4..4816f22dbbc75e3cf2d4fb95c4c7a67bb858f983 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/EmoteAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/EmoteAction.cpp
+@@ -116,7 +116,7 @@ bool EmoteActionBase::Emote(Unit* target, uint32 type, bool textEmote)
+     {
+         WorldPacket data(SMSG_TEXT_EMOTE);
+         data << type;
+-        data << urand(0, GetNumberOfEmoteVariants((TextEmotes)type, bot->getRace(), bot->getGender()) - 1);
++        data << urand(0, GetNumberOfEmoteVariants((TextEmotes)type, bot->GetRace(), bot->GetGender()) - 1);
+         data << ((bot->GetSelectionGuid() && urand(0, 1)) ? bot->GetSelectionGuid() : ObjectGuid());
+         bot->GetSession()->HandleTextEmoteOpcode(data);
+     }
+@@ -637,7 +637,7 @@ bool EmoteActionBase::ReceiveEmote(Player* requester, Player* source, uint32 emo
+     {
+         WorldPacket data(SMSG_TEXT_EMOTE);
+         data << textEmote;
+-        data << urand(0, GetNumberOfEmoteVariants((TextEmotes)textEmote, bot->getRace(), bot->getGender()) - 1);
++        data << urand(0, GetNumberOfEmoteVariants((TextEmotes)textEmote, bot->GetRace(), bot->GetGender()) - 1);
+         data << ((source && urand(0, 1)) ? source->GetObjectGuid() : ObjectGuid());
+         bot->GetSession()->HandleTextEmoteOpcode(data);
+     }
+@@ -797,7 +797,7 @@ bool EmoteAction::Execute(Event& event)
+     {
+         WorldPacket data(SMSG_TEXT_EMOTE);
+         data << textEmotes[param];
+-        data << urand(0, GetNumberOfEmoteVariants((TextEmotes)textEmotes[param], bot->getRace(), bot->getGender()) - 1);
++        data << urand(0, GetNumberOfEmoteVariants((TextEmotes)textEmotes[param], bot->GetRace(), bot->GetGender()) - 1);
+         data << ((bot->GetSelectionGuid() && urand(0, 1)) ? bot->GetSelectionGuid() : ObjectGuid());
+         bot->GetSession()->HandleTextEmoteOpcode(data);
+ 
+@@ -860,7 +860,7 @@ bool TalkAction::Execute(Event& event)
+         uint32 emote = GetRandomEmote(target, true);
+         WorldPacket data(SMSG_TEXT_EMOTE);
+         data << emote;
+-        data << urand(0, GetNumberOfEmoteVariants((TextEmotes)emote, bot->getRace(), bot->getGender()) - 1);
++        data << urand(0, GetNumberOfEmoteVariants((TextEmotes)emote, bot->GetRace(), bot->GetGender()) - 1);
+         data << ((target && urand(0, 1)) ? target->GetObjectGuid() : ObjectGuid());
+         bot->GetSession()->HandleTextEmoteOpcode(data);
+         return true;
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/FishAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/FishAction.cpp
+index 7e2de9a279688bc841c860c4d50884f63696a5a9..d888d49715ec9cdaac51e3e8baebea90840d6e6f 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/FishAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/FishAction.cpp
+@@ -147,7 +147,7 @@ bool UseFishingBobberAction::Execute(Event& event)
+         if (obj->GetOwnerGuid() != bot->GetObjectGuid())
+             continue;
+ 
+-        if (obj->GetLootState() != GO_READY)
++        if (obj->getLootState() != GO_READY)
+         {
+             time_t bobberActiveTime = obj->GetRespawnTime() - FISHING_BOBBER_READY_TIME;
+             if (bobberActiveTime > time(0))
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/GenericSpellActions.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/GenericSpellActions.cpp
+index 62b5d763d82ad356fcdca63df354186af66e8b32..cfd5d7be54926f7a3c76c603d49cdf0d168d211d 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/GenericSpellActions.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/GenericSpellActions.cpp
+@@ -619,7 +619,7 @@ bool CastItemTargetAction::isPossible()
+ #endif
+             continue;
+ 
+-        SpellEntry const* spellInfo = sSpellTemplate.LookupEntry<SpellEntry>(spellData.SpellId);
++        SpellEntry const* spellInfo = sSpellMgr.GetSpellEntry(spellData.SpellId);
+         if (!spellInfo)
+         {
+             continue;
+@@ -680,7 +680,7 @@ bool CastItemTargetAction::Execute(Event& event)
+ #endif
+             continue;
+ 
+-        SpellEntry const* spellInfo = sSpellTemplate.LookupEntry<SpellEntry>(spellData.SpellId);
++        SpellEntry const* spellInfo = sSpellMgr.GetSpellEntry(spellData.SpellId);
+         if (!spellInfo)
+         {
+             continue;
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/GoAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/GoAction.cpp
+index 8e587f22cdb822688605f51ff75de357ae935323..8f0ac20326fa970664b5a2efe41bd90799d2b9f9 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/GoAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/GoAction.cpp
+@@ -189,7 +189,7 @@ inline void TellPosition(PlayerbotAI* ai, Player* requester)
+     {
+         Transport* transport = bot->GetTransport();
+ 
+-        GameObjectInfo const* data = sGOStorage.LookupEntry<GameObjectInfo>(transport->GetEntry());
++        GameObjectInfo const* data = sObjectMgr.GetGameObjectInfo(transport->GetEntry());
+ 
+         std::string transportName = transport->GetName();
+         if (transportName.empty())
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/ListSpellsAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/ListSpellsAction.cpp
+index 341f44d9439ab981e2e41ea63dc5f475fd2f04aa..6b067577d7fbefe420517f5b1ad06b8f3ddbb3be 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/ListSpellsAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/ListSpellsAction.cpp
+@@ -23,9 +23,9 @@ bool CompareSpells(std::pair<uint32, std::string>& s1, std::pair<uint32, std::st
+ 
+     uint32 skill1 = 0, skill2 = 0;
+     uint32 skillValue1 = 0, skillValue2 = 0;
+-    for (uint32 j = 0; j < sSkillLineAbilityStore.GetNumRows(); ++j)
++    for (uint32 j = 0; j < sObjectMgr.GetMaxSkillLineAbilityId(); ++j)
+     {
+-        SkillLineAbilityEntry const* skillLine = sSkillLineAbilityStore.LookupEntry(j);
++        SkillLineAbilityEntry const* skillLine = sObjectMgr.GetSkillLineAbility(j);
+         if (skillLine && skillLine->spellId == s1.first)
+         {
+             skill1 = skillLine->skillId;
+@@ -57,9 +57,9 @@ std::list<std::pair<uint32, std::string> > ListSpellsAction::GetSpellList(std::s
+ {    
+     if (skillSpells.empty())
+     {
+-        for (uint32 j = 0; j < sSkillLineAbilityStore.GetNumRows(); ++j)
++        for (uint32 j = 0; j < sObjectMgr.GetMaxSkillLineAbilityId(); ++j)
+         {
+-            SkillLineAbilityEntry const* skillLine = sSkillLineAbilityStore.LookupEntry(j);
++            SkillLineAbilityEntry const* skillLine = sObjectMgr.GetSkillLineAbility(j);
+             if (skillLine)
+                 skillSpells[skillLine->spellId] = skillLine;
+         }
+@@ -127,7 +127,7 @@ std::list<std::pair<uint32, std::string> > ListSpellsAction::GetSpellList(std::s
+     for (PlayerSpellMap::iterator itr = bot->GetSpellMap().begin(); itr != bot->GetSpellMap().end(); ++itr) {
+         const uint32 spellId = itr->first;
+ 
+-        if (itr->second.state == PLAYERSPELL_REMOVED || itr->second.disabled || IsPassiveSpell(spellId))
++        if (itr->second.state == PLAYERSPELL_REMOVED || itr->second.disabled || Spells::IsPassiveSpell(spellId))
+             continue;
+ 
+         const SpellEntry* const pSpellInfo = sServerFacade.LookupSpellInfo(spellId);
+@@ -142,7 +142,7 @@ std::list<std::pair<uint32, std::string> > ListSpellsAction::GetSpellList(std::s
+         if (!(ignoreList.find(comp) == std::string::npos && alreadySeenList.find(comp) == std::string::npos))
+             continue;
+ 
+-        if (!filter.empty() && !strstri(pSpellInfo->SpellName[0], filter.c_str()))
++        if (!filter.empty() && !strstri(pSpellInfo->SpellName[0].c_str(), filter.c_str()))
+             continue;
+ 
+         bool first = true;
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/LootAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/LootAction.cpp
+index 6c6ffdbbd39351f9f233df7dcd0ac8a355b1bc2c..72c961d0ad3e7c4ee4621f1056c7f9bb3441876f 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/LootAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/LootAction.cpp
+@@ -86,7 +86,7 @@ bool OpenLootAction::DoLoot(LootObject& lootObject)
+             WorldPacket data(SMSG_EMOTE, 4 + 8);
+             data << uint32(EMOTE_ONESHOT_LOOT);
+             data << bot->GetObjectGuid();
+-            bot->GetSession()->SendPacket(data);
++            bot->GetSession()->SendPacket(&data);
+         }
+ 
+         return true;
+@@ -94,7 +94,7 @@ bool OpenLootAction::DoLoot(LootObject& lootObject)
+ 
+     if (creature)
+     {
+-        SkillType skill = (SkillType)creature->GetCreatureInfo()->GetRequiredLootSkill();
++        SkillType skill = (SkillType)SKILL_SKINNING;
+         if (!CanOpenLock(skill, lootObject.reqSkillValue))
+             return false;
+ 
+@@ -115,7 +115,7 @@ bool OpenLootAction::DoLoot(LootObject& lootObject)
+     if (go && sServerFacade.GetDistance2d(bot, go) > INTERACTION_DISTANCE)
+         return false;
+ 
+-    if (go && (go->IsInUse() || go->GetGoState() == GO_STATE_ACTIVE))
++    if (go && (go->HasFlag(GAMEOBJECT_FLAGS, GO_FLAG_IN_USE) || go->GetGoState() == GO_STATE_ACTIVE))
+         return false;
+ 
+     if (lootObject.skillId == SKILL_MINING)
+@@ -130,7 +130,7 @@ bool OpenLootAction::DoLoot(LootObject& lootObject)
+             if (go->ActivateToQuest(bot))
+             {
+                 std::list<uint32> lootItems = GAI_VALUE2(std::list<uint32>, "entry loot list", -1*int32(go->GetEntry()));
+-                isForQuest = !lootItems.empty() || go->GetLootState() != GO_READY;
++                isForQuest = !lootItems.empty() || go->getLootState() != GO_READY;
+             }
+         }
+ 
+@@ -171,15 +171,15 @@ uint32 OpenLootAction::GetOpeningSpell(LootObject& lootObject, GameObject* go)
+     {
+         uint32 spellId = itr->first;
+ 
+-		if (itr->second.state == PLAYERSPELL_REMOVED || itr->second.disabled || IsPassiveSpell(spellId))
+-			continue;
++        if (itr->second.state == PLAYERSPELL_REMOVED || itr->second.disabled || Spells::IsPassiveSpell(spellId))
++            continue;
+ 
+ 		if (spellId == MINING || spellId == HERB_GATHERING)
+-			continue;
++            continue;
+ 
+ 		const SpellEntry* pSpellInfo = sServerFacade.LookupSpellInfo(spellId);
+ 		if (!pSpellInfo)
+-			continue;
++            continue;
+ 
+         if (CanOpenLock(lootObject, pSpellInfo, go))
+             return spellId;
+@@ -302,12 +302,12 @@ bool StoreLootAction::Execute(Event& event)
+ 
+         ItemQualifier itemQualifier(itemid, ((int32)randomPropertyId));
+ 
+-		if (lootslot_type != LOOT_SLOT_NORMAL
++        if (lootslot_type != LOOT_SLOT_TYPE_ALLOW_LOOT
+ #ifndef MANGOSBOT_ZERO
+-		        && lootslot_type != LOOT_SLOT_OWNER
++                && lootslot_type != LOOT_SLOT_TYPE_OWNER
+ #endif
+             )
+-			continue;
++            continue;
+ 
+         if (loot_type != LOOT_SKINNING && !IsLootAllowed(itemQualifier, ai))
+             continue;
+@@ -315,7 +315,7 @@ bool StoreLootAction::Execute(Event& event)
+         if (AI_VALUE2(uint32, "stack space for item", itemid) < itemcount)
+             continue;
+ 
+-        ItemPrototype const *proto = sItemStorage.LookupEntry<ItemPrototype>(itemid);
++        ItemPrototype const *proto = sObjectMgr.GetItemPrototype(itemid);
+         if (!proto)
+             continue;
+ 
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/LootRollAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/LootRollAction.cpp
+index 713c93682aa72db76caa47ffbcf6606b1b447797..14b2845b5f1e08fb6e8917f7f2aaeeaae8ad3a37 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/LootRollAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/LootRollAction.cpp
+@@ -254,7 +254,7 @@ bool RollAction::RollOnItemInSlot(RollVote vote, ObjectGuid lootGuid, uint32 slo
+     if (!item)
+         return false;
+ 
+-    ItemPrototype const* proto = sItemStorage.LookupEntry<ItemPrototype>(item->itemid);
++    ItemPrototype const* proto = sObjectMgr.GetItemPrototype(item->itemid);
+     if (!proto)
+         return false;
+ 
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/LootStrategyAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/LootStrategyAction.cpp
+index bd42857ebbab2874005eabdd1552c2df34960932..22bf5b56d2080e96a3de653a7c91651edddb3dba 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/LootStrategyAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/LootStrategyAction.cpp
+@@ -141,7 +141,7 @@ void LootStrategyAction::TellLootList(Player* requester, const std::string& name
+ 
+     for (std::set<uint32>::iterator i = alwaysLootItems.begin(); i != alwaysLootItems.end(); i++)
+     {
+-        ItemPrototype const *proto = sItemStorage.LookupEntry<ItemPrototype>(*i);
++        ItemPrototype const *proto = sObjectMgr.GetItemPrototype(*i);
+         if (!proto)
+         {
+             continue;
+@@ -162,7 +162,7 @@ void LootStrategyAction::TellGoList(Player* requester, const std::string& name)
+     for (std::set<uint32>::iterator i = skipGoItems.begin(); i != skipGoItems.end(); i++)
+     {
+         uint32 id = *i;
+-        GameObjectInfo const *proto = sGOStorage.LookupEntry<GameObjectInfo>(id);
++        GameObjectInfo const *proto = sObjectMgr.GetGameObjectInfo(id);
+         if (!proto)
+             continue;
+ 
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/MovementActions.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/MovementActions.cpp
+index 31c7e1fbff87a19fae0996e8f64805798fd4f4ba..1153d9a2d64d3de9382fc240bb56cf2261707426 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/MovementActions.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/MovementActions.cpp
+@@ -311,7 +311,7 @@ bool MovementAction::UseTaxi(PlayerbotAI* ai, uint32 entry, bool needNpc)
+             return false;
+         }
+ 
+-        if (unit && !bot->m_taxi.IsTaximaskNodeKnown(tEntry->from))
++        if (unit && !bot->GetTaxi().IsTaximaskNodeKnown(tEntry->from))
+         {
+             bot->GetSession()->SendLearnNewTaxiNode(unit);
+ 
+@@ -464,7 +464,7 @@ bool MovementAction::UseTransport(PlayerbotAI* ai, uint32 entry, WorldPosition d
+ 
+     if (transport)
+     {
+-        GameObjectInfo const* data = sGOStorage.LookupEntry<GameObjectInfo>(transport->GetEntry());
++        GameObjectInfo const* data = sObjectMgr.GetGameObjectInfo(transport->GetEntry());
+         std::string transportName = transport->GetName();
+         if (transportName.empty())
+             transportName = data->name;
+@@ -498,7 +498,7 @@ bool MovementAction::UseTransport(PlayerbotAI* ai, uint32 entry, WorldPosition d
+         transport = trans;
+         minDist = distance;
+ 
+-        GameObjectInfo const* data = sGOStorage.LookupEntry<GameObjectInfo>(transport->GetEntry());
++        GameObjectInfo const* data = sObjectMgr.GetGameObjectInfo(transport->GetEntry());
+         transportName = transport->GetName();
+         if (transportName.empty())
+             transportName = data->name;
+@@ -746,7 +746,7 @@ bool MovementAction::HandleSpecialMovement(TravelPath& path)
+     //Game object portals
+     if (currentPoint.type == PathNodeType::NODE_STATIC_PORTAL && currentPoint.entry)
+     {
+-        GameObjectInfo const* goInfo = sGOStorage.LookupEntry<GameObjectInfo>(currentPoint.entry);
++        GameObjectInfo const* goInfo = sObjectMgr.GetGameObjectInfo(currentPoint.entry);
+         if (!goInfo || goInfo->type != GAMEOBJECT_TYPE_SPELLCASTER)
+             return false;
+ 
+@@ -1579,7 +1579,7 @@ bool MovementAction::MoveTo(uint32 mapId, float x, float y, float z, bool idle,
+                     else
+                         startPosition.printWKT({startPosition, movePosition}, out, 1);
+ 
+-                    out << std::to_string(bot->getRace()) << ",";
++                    out << std::to_string(bot->GetRace()) << ",";
+                     out << std::to_string(bot->GetClass()) << ",";
+                     float subLevel = ai->GetLevelFloat();
+                     out << subLevel << ",";
+@@ -1588,7 +1588,7 @@ bool MovementAction::MoveTo(uint32 mapId, float x, float y, float z, bool idle,
+                     sPlayerbotAIConfig.log("bot_movement.csv", out.str().c_str());
+                 }
+ 
+-                GameObjectInfo const* goInfo = sGOStorage.LookupEntry<GameObjectInfo>(entry);
++                GameObjectInfo const* goInfo = sObjectMgr.GetGameObjectInfo(entry);
+                 if (!goInfo || goInfo->type != GAMEOBJECT_TYPE_SPELLCASTER)
+                     return false;
+ 
+@@ -1654,7 +1654,7 @@ bool MovementAction::MoveTo(uint32 mapId, float x, float y, float z, bool idle,
+                     else
+                         startPosition.printWKT({startPosition, movePosition}, out, 1);
+ 
+-                    out << std::to_string(bot->getRace()) << ",";
++                    out << std::to_string(bot->GetRace()) << ",";
+                     out << std::to_string(bot->GetClass()) << ",";
+                     float subLevel = ai->GetLevelFloat();
+                     out << subLevel << ",";
+@@ -1931,7 +1931,7 @@ bool MovementAction::MoveTo(uint32 mapId, float x, float y, float z, bool idle,
+                     if (unit->GetLevel() > bot->GetLevel() + 5)
+                         continue;
+ 
+-                    float range = unit->GetAttackDistance(bot);
++                    float range = sServerFacade.GetAggroDistance(unit, bot);
+ 
+                     if (WorldPosition(unit).sqDistance(point) > range * range)
+                         continue;
+@@ -1995,7 +1995,7 @@ bool MovementAction::MoveTo(uint32 mapId, float x, float y, float z, bool idle,
+         out << sPlayerbotAIConfig.GetTimestampStr() << "+00,";
+         out << bot->GetName() << ",";
+         startPosition.printWKT({startPosition, movePosition}, out, 1);
+-        out << std::to_string(bot->getRace()) << ",";
++        out << std::to_string(bot->GetRace()) << ",";
+         out << std::to_string(bot->GetClass()) << ",";
+         float subLevel = ai->GetLevelFloat();
+         out << subLevel << ",";
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/OutfitAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/OutfitAction.cpp
+index 735dbe2d11d856bf9603734fdec6c1d150c9dd9f..1c08a434d31f5b16dc815cec4444fd47cfe59311 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/OutfitAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/OutfitAction.cpp
+@@ -90,7 +90,7 @@ bool OutfitAction::Execute(Event& event)
+         for (ItemIds::iterator i = items.begin(); i != items.end(); i++)
+         {
+             uint32 itemid = *i;
+-            ItemPrototype const *proto = sItemStorage.LookupEntry<ItemPrototype>(*i);
++            ItemPrototype const *proto = sObjectMgr.GetItemPrototype(*i);
+             std::ostringstream out;
+             out << chat->formatItem(proto);
+             if (remove)
+@@ -154,7 +154,7 @@ void OutfitAction::List(Player* requester)
+         out << name << ": ";
+         for (ItemIds::iterator j = items.begin(); j != items.end(); ++j)
+         {
+-            ItemPrototype const *proto = sItemStorage.LookupEntry<ItemPrototype>(*j);
++            ItemPrototype const *proto = sObjectMgr.GetItemPrototype(*j);
+             if (proto)
+             {
+                 out << chat->formatItem(proto) << " ";
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/QuestAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/QuestAction.cpp
+index 2ec8b577a4538f15c969c55f6b304c387c5e7c22..19162eedf41985af886123d6be51d5ae77f679d2 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/QuestAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/QuestAction.cpp
+@@ -117,9 +117,9 @@ bool QuestAction::CompleteQuest(Player* player, uint32 entry)
+         if (curRep < repValue)
+         {
+ #ifdef MANGOSBOT_ONE
+-            if (FactionEntry const* factionEntry = sFactionStore.LookupEntry<FactionEntry>(repFaction))
++            if (FactionEntry const* factionEntry = sObjectMgr.GetFactionEntry(repFaction))
+ #else
+-            if (FactionEntry const* factionEntry = sFactionStore.LookupEntry(repFaction))
++            if (FactionEntry const* factionEntry = sObjectMgr.GetFactionEntry(repFaction))
+ #endif
+             {
+                 player->GetReputationMgr().SetReputation(factionEntry, repValue);
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/ReleaseSpiritAction.h b/modules/mod-playerbots/src/playerbot/strategy/actions/ReleaseSpiritAction.h
+index 5d6410c027a21a5979aa4b552a21ccff0f68943b..b3b37c2aa28c0d9e958cb27ae5cdfbcca0130294 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/ReleaseSpiritAction.h
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/ReleaseSpiritAction.h
+@@ -164,7 +164,7 @@ namespace ai
+             travelTarget->SetStatus(TravelStatus::TRAVEL_STATUS_EXPIRED);
+             travelTarget->SetExpireIn(1000);
+ 
+-            PlayerInfo const* defaultPlayerInfo = sObjectMgr.GetPlayerInfo(bot->getRace(), bot->GetClass());
++            PlayerInfo const* defaultPlayerInfo = sObjectMgr.GetPlayerInfo(bot->GetRace(), bot->GetClass());
+             if (defaultPlayerInfo)
+             {
+                 sLog.outDetail("Repop: Teleporting bot #%d %s:%d <%s> to spawn", bot->GetGUIDLow(), bot->GetTeam() == ALLIANCE ? "A" : "H", bot->GetLevel(), bot->GetName());
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/RpgSubActions.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/RpgSubActions.cpp
+index 2f3bb8493e616d92ca42dadf0eb89ffb4acb0d5f..646343a9ced5fa6485d5b1d88ab5e3761ac1857f 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/RpgSubActions.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/RpgSubActions.cpp
+@@ -168,7 +168,7 @@ bool RpgTaxiAction::Execute(Event& event)
+     for (uint32 i = 0; i < sTaxiPathStore.GetNumRows(); ++i)
+     {
+         TaxiPathEntry const* entry = sTaxiPathStore.LookupEntry(i);
+-        if (entry && entry->from == node && (bot->m_taxi.IsTaximaskNodeKnown(entry->to) || bot->isTaxiCheater()))
++        if (entry && entry->from == node && (bot->GetTaxi().IsTaximaskNodeKnown(entry->to) || bot->IsTaxiCheater()))
+         {
+             nodes.push_back(i);
+         }
+@@ -188,8 +188,8 @@ bool RpgTaxiAction::Execute(Event& event)
+     if (!entry)
+         return false;
+ 
+-    TaxiNodesEntry const* nodeFrom = sTaxiNodesStore.LookupEntry(entry->from);
+-    TaxiNodesEntry const* nodeTo = sTaxiNodesStore.LookupEntry(entry->to);
++    TaxiNodesEntry const* nodeFrom = sObjectMgr.GetTaxiNodeEntry(entry->from);
++    TaxiNodesEntry const* nodeTo = sObjectMgr.GetTaxiNodeEntry(entry->to);
+ 
+     Creature* flightMaster = bot->GetNPCIfCanInteractWith(guidP, UNIT_NPC_FLAG_FLIGHTMASTER);
+     if (!flightMaster)
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/SayAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/SayAction.cpp
+index 0d0f43a1f3ec28d6bec1fb9229fe7d6a68db4b29..ec76fc22efd0854f26a5b90446b6960ced8f1527 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/SayAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/SayAction.cpp
+@@ -30,7 +30,7 @@ bool SayAction::Execute(Event& event)
+ 
+     // set replace std::strings
+     if (target) placeholders["<target>"] = target->GetName();
+-    placeholders["<randomfaction>"] = IsAlliance(bot->getRace()) ? "Alliance" : "Horde";
++    placeholders["<randomfaction>"] = IsAlliance(bot->GetRace()) ? "Alliance" : "Horde";
+     if (qualifier == "low ammo" || qualifier == "no ammo")
+     {
+         Item* const pItem = bot->GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_RANGED);
+@@ -145,10 +145,10 @@ void ChatReplyAction::GetAIChatPlaceholders(std::map<std::string, std::string>&
+ void ChatReplyAction::GetAIChatPlaceholders(std::map<std::string, std::string>& placeholders, Unit* unit, const std::string preFix, Player* observer)
+ {
+     placeholders["<" + preFix + " name>"] = unit->GetName();
+-    placeholders["<" + preFix + " gender>"] = unit->getGender() == GENDER_MALE ? "male" : "female";
++    placeholders["<" + preFix + " gender>"] = unit->GetGender() == GENDER_MALE ? "male" : "female";
+     placeholders["<" + preFix + " level>"] = std::to_string(unit->GetLevel());
+     placeholders["<" + preFix + " class>"] = ChatHelper::formatClass(unit->GetClass());
+-    placeholders["<" + preFix + " race>"] = ChatHelper::formatRace(unit->getRace());
++    placeholders["<" + preFix + " race>"] = ChatHelper::formatRace(unit->GetRace());
+ 
+     FactionTemplateEntry const* factionTemplate = unit->GetFactionTemplateEntry();
+     uint32 factionId = factionTemplate ? factionTemplate->faction : 0;
+@@ -243,10 +243,10 @@ void ChatReplyAction::GetAIChatPlaceholders(std::map<std::string, std::string>&
+         replace[">"] = "*";
+         replace["$N"] = observer->GetName();
+         replace["$B"] = "";
+-        replace["$c"] = ChatHelper::formatRace(observer->getRace());
++        replace["$c"] = ChatHelper::formatRace(observer->GetRace());
+         replace["$r"] = ChatHelper::formatClass(unit->GetClass());
+-        replace["$g boy : girl;"] = unit->getGender() == GENDER_MALE ? "boy" : "girl"; //Todo replace with regexp
+-        replace["$g lad : lass;"] = unit->getGender() == GENDER_MALE ? "lass" : "lad";
++        replace["$g boy : girl;"] = unit->GetGender() == GENDER_MALE ? "boy" : "girl"; //Todo replace with regexp
++        replace["$g lad : lass;"] = unit->GetGender() == GENDER_MALE ? "lass" : "lad";
+ 
+         replace["GOSSIP_OPTION_GOSSIP"] = unit->GetName() + std::string(" can chat some.");
+         replace["GOSSIP_OPTION_QUESTGIVER"] = unit->GetName() + std::string(" can offer quests.");
+@@ -748,7 +748,7 @@ bool ChatReplyAction::HandleToxicLinksReply(Player* bot, ChatChannelSource chatC
+     placeholders["%area_name"] = current_area ? GetPlayerbotAI(bot)->GetLocalizedAreaName(current_area) : BOT_TEXT("string_unknown_area");
+     placeholders["%zone_name"] = current_zone ? GetPlayerbotAI(bot)->GetLocalizedAreaName(current_zone) : BOT_TEXT("string_unknown_area");
+     placeholders["%my_class"] = GetPlayerbotAI(bot)->GetChatHelper()->formatClass(bot->GetClass());
+-    placeholders["%my_race"] = GetPlayerbotAI(bot)->GetChatHelper()->formatRace(bot->getRace());
++    placeholders["%my_race"] = GetPlayerbotAI(bot)->GetChatHelper()->formatRace(bot->GetRace());
+     placeholders["%my_level"] = std::to_string(bot->GetLevel());
+ 
+     switch (chatChannelSource)
+@@ -821,7 +821,7 @@ bool ChatReplyAction::HandleWTBItemsReply(Player* bot, ChatChannelSource chatCha
+         placeholders["%area_name"] = current_area ? GetPlayerbotAI(bot)->GetLocalizedAreaName(current_area) : BOT_TEXT("string_unknown_area");
+         placeholders["%zone_name"] = current_zone ? GetPlayerbotAI(bot)->GetLocalizedAreaName(current_zone) : BOT_TEXT("string_unknown_area");
+         placeholders["%my_class"] = GetPlayerbotAI(bot)->GetChatHelper()->formatClass(bot->GetClass());
+-        placeholders["%my_race"] = GetPlayerbotAI(bot)->GetChatHelper()->formatRace(bot->getRace());
++        placeholders["%my_race"] = GetPlayerbotAI(bot)->GetChatHelper()->formatRace(bot->GetRace());
+         placeholders["%my_level"] = std::to_string(bot->GetLevel());
+         placeholders["%my_role"] = GetPlayerbotAI(bot)->GetChatHelper()->formatClass(bot, AiFactory::GetPlayerSpecTab(bot));
+         placeholders["%formatted_item_links"] = "";
+@@ -919,7 +919,7 @@ bool ChatReplyAction::HandleLFGQuestsReply(Player* bot, ChatChannelSource chatCh
+         placeholders["%area_name"] = current_area ? GetPlayerbotAI(bot)->GetLocalizedAreaName(current_area) : BOT_TEXT("string_unknown_area");
+         placeholders["%zone_name"] = current_zone ? GetPlayerbotAI(bot)->GetLocalizedAreaName(current_zone) : BOT_TEXT("string_unknown_area");
+         placeholders["%my_class"] = GetPlayerbotAI(bot)->GetChatHelper()->formatClass(bot->GetClass());
+-        placeholders["%my_race"] = GetPlayerbotAI(bot)->GetChatHelper()->formatRace(bot->getRace());
++        placeholders["%my_race"] = GetPlayerbotAI(bot)->GetChatHelper()->formatRace(bot->GetRace());
+         placeholders["%my_level"] = std::to_string(bot->GetLevel());
+         placeholders["%my_role"] = GetPlayerbotAI(bot)->GetChatHelper()->formatClass(bot, AiFactory::GetPlayerSpecTab(bot));
+         placeholders["%quest_links"] = "";
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/SetAvoidAreaAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/SetAvoidAreaAction.cpp
+index 64ad86323a0748fbe524289e2e11ab0af7d467bb..b8480f3561597bd28ef23802bf878d3ece5b9c97 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/SetAvoidAreaAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/SetAvoidAreaAction.cpp
+@@ -1,6 +1,7 @@
+ 
+ #include "playerbot/playerbot.h"
+ #include "SetAvoidAreaAction.h"
++#include "playerbot/ServerFacade.h"
+ 
+ #include "playerbot/strategy/values/PositionValue.h"
+ #include "Maps/PathFinder.h"
+@@ -18,8 +19,8 @@ bool SetAvoidAreaAction::Execute(Event& event)
+     if (targets.empty())
+         return false;
+ 
+-    FactionTemplateEntry const* humanFaction = sFactionTemplateStore.LookupEntry(1);
+-    FactionTemplateEntry const* orcFaction = sFactionTemplateStore.LookupEntry(2);
++    FactionTemplateEntry const* humanFaction = sObjectMgr.GetFactionTemplateEntry(1);
++    FactionTemplateEntry const* orcFaction = sObjectMgr.GetFactionTemplateEntry(2);
+ 
+     for (auto& target : targets)
+     {
+@@ -28,13 +29,13 @@ bool SetAvoidAreaAction::Execute(Event& event)
+         if (!cInfo)
+             continue;
+ 
+-        if (cInfo->NpcFlags > 0) //Ignore npcs.
++        if (cInfo->npc_flags > 0) //Ignore npcs.
+             continue;
+ 
+-        if (cInfo->MaxLevel < bot->GetLevel() - 3) //Ignore lower level mobs.
++        if (cInfo->level_max < bot->GetLevel() - 3) //Ignore lower level mobs.
+             continue;
+ 
+-        FactionTemplateEntry const* factionEntry = sFactionTemplateStore.LookupEntry(cInfo->Faction);
++        FactionTemplateEntry const* factionEntry = sObjectMgr.GetFactionTemplateEntry(cInfo->faction);
+         ReputationRank reactionHum = PlayerbotAI::GetFactionReaction(humanFaction, factionEntry);
+         ReputationRank reactionOrc = PlayerbotAI::GetFactionReaction(orcFaction, factionEntry);
+ 
+@@ -47,8 +48,8 @@ bool SetAvoidAreaAction::Execute(Event& event)
+             continue;
+ 
+         WorldPosition point(targetUnit);
+-        pathfinder.MarkNavArea(point.getX(), point.getY(), point.getZ(), PLAYERBOT_MMAP_AREA_AVOID, targetUnit->GetAttackDistance(bot) * 2.5f);
+-        pathfinder.MarkNavArea(point.getX(), point.getY(), point.getZ(), PLAYERBOT_MMAP_AREA_DANGER, targetUnit->GetAttackDistance(bot));
++        pathfinder.MarkNavArea(point.getX(), point.getY(), point.getZ(), PLAYERBOT_MMAP_AREA_AVOID, sServerFacade.GetAggroDistance(targetUnit, bot) * 2.5f);
++        pathfinder.MarkNavArea(point.getX(), point.getY(), point.getZ(), PLAYERBOT_MMAP_AREA_DANGER, sServerFacade.GetAggroDistance(targetUnit, bot));
+     }
+ 
+     return true;
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/SetCraftAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/SetCraftAction.cpp
+index 82185a9142aeeeae21f1d1841d23b1f8e656930e..44a60dfe5783d4cdd21f121450c3fbd6841785e3 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/SetCraftAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/SetCraftAction.cpp
+@@ -45,9 +45,9 @@ bool SetCraftAction::Execute(Event& event)
+ 
+     if (skillSpells.empty())
+     {
+-        for (uint32 j = 0; j < sSkillLineAbilityStore.GetNumRows(); ++j)
++        for (uint32 j = 0; j < sObjectMgr.GetMaxSkillLineAbilityId(); ++j)
+         {
+-            SkillLineAbilityEntry const* skillLine = sSkillLineAbilityStore.LookupEntry(j);
++            SkillLineAbilityEntry const* skillLine = sObjectMgr.GetSkillLineAbility(j);
+             if (skillLine)
+                 skillSpells[skillLine->spellId] = skillLine;
+         }
+@@ -59,7 +59,7 @@ bool SetCraftAction::Execute(Event& event)
+     for (PlayerSpellMap::iterator itr = bot->GetSpellMap().begin(); itr != bot->GetSpellMap().end(); ++itr) {
+         const uint32 spellId = itr->first;
+ 
+-        if (itr->second.state == PLAYERSPELL_REMOVED || itr->second.disabled || IsPassiveSpell(spellId))
++        if (itr->second.state == PLAYERSPELL_REMOVED || itr->second.disabled || Spells::IsPassiveSpell(spellId))
+             continue;
+ 
+         const SpellEntry* const pSpellInfo = sServerFacade.LookupSpellInfo(spellId);
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/TaxiAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/TaxiAction.cpp
+index ed821bf86b4089f53ceb8df80804175aec532d34..c75722dbd36a59d76b3948addc5d9a49abd0fd94 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/TaxiAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/TaxiAction.cpp
+@@ -52,7 +52,7 @@ bool TaxiAction::Execute(Event& event)
+                 TaxiPathEntry const* entry = sTaxiPathStore.LookupEntry(*i);
+                 if (!entry) continue;
+ 
+-                TaxiNodesEntry const* dest = sTaxiNodesStore.LookupEntry(entry->to);
++                TaxiNodesEntry const* dest = sObjectMgr.GetTaxiNodeEntry(entry->to);
+                 if (!dest) continue;
+ 
+                 std::ostringstream out;
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/TellItemCountAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/TellItemCountAction.cpp
+index 19a0d867ae78180f0313316ce1622fb87c652a92..660888957d771f2b9355fece397e9afe997d1269 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/TellItemCountAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/TellItemCountAction.cpp
+@@ -67,7 +67,7 @@ bool TellItemCountAction::Execute(Event& event)
+             if (equiped[i->first] && i->second == 1)
+                 continue;
+ 
+-            ItemPrototype const* proto = sItemStorage.LookupEntry<ItemPrototype>(i->first);
++            ItemPrototype const* proto = sObjectMgr.GetItemPrototype(i->first);
+             ai->InventoryTellItem(requester, proto, i->second - equiped[i->first], soulbound[i->first]);
+         }
+ 
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/TellReputationAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/TellReputationAction.cpp
+index d73639105815c0cc00d9cc1af8f5f5e9374dfe6d..09d6c2d75ee79d4b8c3314c43e5c46452467aa35 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/TellReputationAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/TellReputationAction.cpp
+@@ -21,11 +21,7 @@ bool TellReputationAction::Execute(Event& event)
+ 
+     const FactionTemplateEntry *factionTemplate = sServerFacade.GetFactionTemplateEntry(unit);
+     uint32 faction = factionTemplate->faction;
+-    const FactionEntry* entry = sFactionStore.LookupEntry
+-    #ifdef MANGOSBOT_ONE
+-            <FactionEntry>
+-    #endif
+-            (faction);
++    const FactionEntry* entry = sObjectMgr.GetFactionEntry(faction);
+     int32 reputation = bot->GetReputationMgr().GetReputation(faction);
+ 
+     std::ostringstream out;
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/TravelAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/TravelAction.cpp
+index 06def5cbf39bbe72d967e0d8ce576927a3abaa5f..f8e10ab29e525bc1dc899ecb9c8ce2beb5c572e6 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/TravelAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/TravelAction.cpp
+@@ -6,7 +6,7 @@
+ #include "Maps/GridNotifiers.h"
+ #include "Maps/GridNotifiersImpl.h"
+ #include "Maps/CellImpl.h"
+-#include "World/WorldState.h"
++#include "WorldState.h"
+ #include "playerbot/TravelMgr.h"
+ 
+ 
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/WaitForAttackAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/WaitForAttackAction.cpp
+index 4e1246fe21d22ab4dc93725b31b73307a85c380b..5ca086a262bf0f46a29f5080506129f80b955d97 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/WaitForAttackAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/WaitForAttackAction.cpp
+@@ -15,7 +15,7 @@ bool WaitForAttackKeepSafeDistanceAction::Execute(Event& event)
+ 
+     if (target && target->IsAlive())
+     {
+-        const float safeDistance = std::max(float(target->GetAttackDistance(bot) + ATTACK_DISTANCE), WaitForAttackStrategy::GetSafeDistance());
++        const float safeDistance = std::max(float(sServerFacade.GetAggroDistance(target, bot) + ATTACK_DISTANCE), WaitForAttackStrategy::GetSafeDistance());
+         const float safeDistanceThreshold = WaitForAttackStrategy::GetSafeDistanceThreshold();
+ 
+         // Find the best point around the target.
+@@ -105,7 +105,7 @@ bool WaitForAttackKeepSafeDistanceAction::IsEnemyClose(const WorldPosition& poin
+                 // If the enemy is not neutral
+                 if (enemy->CanAttackOnSight(bot))
+                 {
+-                    const float enemyAttackRange = enemy->GetAttackDistance(bot) + ATTACK_DISTANCE;
++                    const float enemyAttackRange = sServerFacade.GetAggroDistance(enemy, bot) + ATTACK_DISTANCE;
+                     const float distanceToPoint = WorldPosition(enemy).sqDistance(point);
+                     if (distanceToPoint <= (enemyAttackRange * enemyAttackRange))
+                     {
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/WorldBuffAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/WorldBuffAction.cpp
+index 932049b909f5475bdf2ecfb34395156d32e846f5..4673209d9857492949f0c2056498e2aa543c3040 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/WorldBuffAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/WorldBuffAction.cpp
+@@ -27,7 +27,7 @@ std::vector<uint32> WorldBuffAction::NeedWorldBuffs(Unit* unit)
+ 
+     Player* plr = static_cast<Player*>(unit);
+    
+-    FactionTemplateEntry const* humanFaction = sFactionTemplateStore.LookupEntry(1);
++    FactionTemplateEntry const* humanFaction = sObjectMgr.GetFactionTemplateEntry(1);
+     uint32 factionId = PlayerbotAI::GetFactionReaction(unit->GetFactionTemplateEntry(), humanFaction) >= REP_NEUTRAL ? 1 : 2;
+ 
+     for (auto& wb : sPlayerbotAIConfig.worldBuffs)
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/rogue/RogueActions.h b/modules/mod-playerbots/src/playerbot/strategy/rogue/RogueActions.h
+index 605b76997d220f0bfd2420b7be03583152b81d43..9847b6f09a073523c5befcfd316aa8f70bf58918 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/rogue/RogueActions.h
++++ b/modules/mod-playerbots/src/playerbot/strategy/rogue/RogueActions.h
+@@ -414,7 +414,7 @@ namespace ai
+                             const _Spell& spellData = poisonProto->Spells[i];
+                             if (spellData.SpellId)
+                             {
+-                                const SpellEntry* spellInfo = sSpellTemplate.LookupEntry<SpellEntry>(spellData.SpellId);
++                                const SpellEntry* spellInfo = sSpellMgr.GetSpellEntry(spellData.SpellId);
+                                 if (spellInfo)
+                                 {
+                                     BotUseItemSpell* spell = new BotUseItemSpell(bot, spellInfo, count > 0);
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/triggers/RpgTriggers.cpp b/modules/mod-playerbots/src/playerbot/strategy/triggers/RpgTriggers.cpp
+index c2f8ad3d6b4f2858f1e07694f9c77b1a521c7af8..f424376682a31b2282579c07c1944ee862f99c58 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/triggers/RpgTriggers.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/triggers/RpgTriggers.cpp
+@@ -38,14 +38,14 @@ bool RpgTaxiTrigger::IsActive()
+     if (!node)
+         return false;
+ 
+-    if (!bot->m_taxi.IsTaximaskNodeKnown(node))
++    if (!bot->GetTaxi().IsTaximaskNodeKnown(node))
+         return false;
+ 
+     std::vector<uint32> nodes;
+     for (uint32 i = 0; i < sTaxiPathStore.GetNumRows(); ++i)
+     {
+         TaxiPathEntry const* entry = sTaxiPathStore.LookupEntry(i);
+-        if (entry && entry->from == node && (bot->m_taxi.IsTaximaskNodeKnown(entry->to) || bot->isTaxiCheater()))
++        if (entry && entry->from == node && (bot->GetTaxi().IsTaximaskNodeKnown(entry->to) || bot->IsTaxiCheater()))
+         {
+             return true;
+         }
+@@ -61,12 +61,12 @@ bool RpgDiscoverTrigger::IsActive()
+     if (!guidP.HasNpcFlag(UNIT_NPC_FLAG_FLIGHTMASTER))
+         return false;
+ 
+-    if (bot->isTaxiCheater())
++    if (bot->IsTaxiCheater())
+         return false;
+ 
+     uint32 node = sObjectMgr.GetNearestTaxiNode(guidP.getX(), guidP.getY(), guidP.getZ(), guidP.getMapId(), bot->GetTeam());
+ 
+-    if (bot->m_taxi.IsTaximaskNodeKnown(node))
++    if (bot->GetTaxi().IsTaximaskNodeKnown(node))
+         return false;
+ 
+     return true;
+@@ -274,10 +274,10 @@ bool RpgTrainTrigger::IsTrainerOf(CreatureInfo const* cInfo, Player* pPlayer)
+         }
+         break;
+     case TRAINER_TYPE_MOUNTS:
+-        if (cInfo->TrainerRace && pPlayer->getRace() != cInfo->TrainerRace)
++        if (cInfo->TrainerRace && pPlayer->GetRace() != cInfo->TrainerRace)
+         {
+             // Allowed to train if exalted
+-            if (FactionTemplateEntry const* faction_template = sFactionTemplateStore.LookupEntry(cInfo->Faction))
++            if (FactionTemplateEntry const* faction_template = sObjectMgr.GetFactionTemplateEntry(cInfo->faction))
+             {
+                 if (pPlayer->GetReputationRank(faction_template->faction) == REP_EXALTED)
+                     return true;
+@@ -323,7 +323,7 @@ bool RpgTrainTrigger::IsActive()
+         return false;
+     }
+ 
+-    FactionTemplateEntry const* factionTemplate = sFactionTemplateStore.LookupEntry(cInfo->Faction);
++    FactionTemplateEntry const* factionTemplate = sObjectMgr.GetFactionTemplateEntry(cInfo->faction);
+     float fDiscountMod = bot->GetReputationPriceDiscount(factionTemplate);
+ 
+     TrainerSpellMap trainer_spells;
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/AoeValues.cpp b/modules/mod-playerbots/src/playerbot/strategy/values/AoeValues.cpp
+index b8fe7cdb735037ec440016df61b4bc646ffaa732..5dadecd48d113fbfc31b5be008c63921e96c7243 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/AoeValues.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/AoeValues.cpp
+@@ -108,7 +108,7 @@ bool HasAreaDebuffValue::Calculate()
+         if (!go)
+             continue;
+ 
+-        SpellEntry const* spellProto = sSpellTemplate.LookupEntry<SpellEntry>(go->GetSpellId());
++        SpellEntry const* spellProto = sSpellMgr.GetSpellEntry(go->GetSpellId());
+         if (!spellProto)
+             continue;
+ 
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/BudgetValues.cpp b/modules/mod-playerbots/src/playerbot/strategy/values/BudgetValues.cpp
+index eaf4e762cfcbeac193d1dd2396c7a65e9f20bb8d..0fc69b2ba3a2866974c017d80a93864121fdb28c 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/BudgetValues.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/BudgetValues.cpp
+@@ -137,7 +137,7 @@ uint32 MoneyNeededForValue::Calculate()
+         moneyWanted = AI_VALUE2(uint32, "train cost", TRAINER_TYPE_CLASS);
+         break;
+     case NeedMoneyFor::travel:
+-        moneyWanted = bot->isTaxiCheater() ? 0 : 1500; //15s for traveling half a continent. Todo: Add better calculation (Should be ???)
++        moneyWanted = bot->IsTaxiCheater() ? 0 : 1500; //15s for traveling half a continent. Todo: Add better calculation (Should be ???)
+         break;
+     case NeedMoneyFor::gear:
+         moneyWanted = level * level * level; //Or level^3 (10s @ lvl10, 3g @ lvl30, 20g @ lvl60, 50g @ lvl80): Todo replace (Should be ~total cost of all >green gear equiped)
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/GlyphValues.cpp b/modules/mod-playerbots/src/playerbot/strategy/values/GlyphValues.cpp
+index 2ec9b8e3a9960b411d902af471596c710a080a4e..f50beb34431900b7ca1559501190b8c4adfb0bb1 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/GlyphValues.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/GlyphValues.cpp
+@@ -28,7 +28,7 @@ uint32 AvailableGlyphsValue::GetGlyphIdFromProto(const ItemPrototype* glyphProto
+     if (glyphProto->Class != 16)
+         return 0;
+ 
+-    SpellEntry const* spellInfo = sSpellTemplate.LookupEntry<SpellEntry>(glyphProto->Spells[0].SpellId);
++    SpellEntry const* spellInfo = sSpellMgr.GetSpellEntry(glyphProto->Spells[0].SpellId);
+ 
+     if (!spellInfo)
+         return 0;
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/ItemUsageValue.cpp b/modules/mod-playerbots/src/playerbot/strategy/values/ItemUsageValue.cpp
+index e229ca7c4e4098c9eed43c2bc2678c33f1ffc07c..af78a53f3a5db02349708cead33da94136344899 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/ItemUsageValue.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/ItemUsageValue.cpp
+@@ -1328,9 +1328,9 @@ void ItemUsageValue::PopulateProfessionReagentIds()
+ 
+         if (skillInfo->categoryId == SKILL_CATEGORY_PROFESSION || skillInfo->categoryId == SKILL_CATEGORY_SECONDARY)
+         {
+-            for (uint32 j = 0; j < sSkillLineAbilityStore.GetNumRows(); ++j)
++            for (uint32 j = 0; j < sObjectMgr.GetMaxSkillLineAbilityId(); ++j)
+             {
+-                SkillLineAbilityEntry const* skillLine = sSkillLineAbilityStore.LookupEntry(j);
++                SkillLineAbilityEntry const* skillLine = sObjectMgr.GetSkillLineAbility(j);
+                 if (!skillLine)
+                     continue;
+ 
+@@ -1338,7 +1338,7 @@ void ItemUsageValue::PopulateProfessionReagentIds()
+                 if (skillLine->skillId != skillInfo->id)
+                     continue;
+ 
+-                SpellEntry const* spellInfo = sSpellTemplate.LookupEntry<SpellEntry>(skillLine->spellId);
++                SpellEntry const* spellInfo = sSpellMgr.GetSpellEntry(skillLine->spellId);
+                 if (spellInfo)
+                 {
+                     bool isReagentFor = false;
+@@ -1361,13 +1361,13 @@ void ItemUsageValue::PopulateProfessionReagentIds()
+ void ItemUsageValue::PopulateReagentItemIdsForCraftableItemIds()
+ {
+     m_craftingReagentItemIdsForCraftableItem.clear();
+-    for (uint32 j = 0; j < sSkillLineAbilityStore.GetNumRows(); ++j)
++    for (uint32 j = 0; j < sObjectMgr.GetMaxSkillLineAbilityId(); ++j)
+     {
+-        SkillLineAbilityEntry const* skillLine = sSkillLineAbilityStore.LookupEntry(j);
++        SkillLineAbilityEntry const* skillLine = sObjectMgr.GetSkillLineAbility(j);
+         if (!skillLine)
+             continue;
+ 
+-        SpellEntry const* spellInfo = sSpellTemplate.LookupEntry<SpellEntry>(skillLine->spellId);
++        SpellEntry const* spellInfo = sSpellMgr.GetSpellEntry(skillLine->spellId);
+         if (spellInfo)
+         {
+             for (int i = 0; i < 3; ++i)
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/LootValues.cpp b/modules/mod-playerbots/src/playerbot/strategy/values/LootValues.cpp
+index 355ca7d54be77b32a35b8601b4a44c4a870d1f68..4c7c5e25e1f8ad4efee92fe55b03dcf80cc73e65 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/LootValues.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/LootValues.cpp
+@@ -320,7 +320,7 @@ uint32 StackSpaceForItem::Calculate()
+ 
+ 	uint32 itemId = stoi(getQualifier());
+ 
+-	ItemPrototype const* proto = sItemStorage.LookupEntry<ItemPrototype>(itemId);
++    ItemPrototype const* proto = sObjectMgr.GetItemPrototype(itemId);
+ 
+ 	if (!proto) 
+ 		return maxValue;
+@@ -380,7 +380,7 @@ bool ShouldLootObject::Calculate()
+ 		if (!spellId)
+             return true;
+ 
+-		SpellEntry const* lootSpell = GetSpellStore()->LookupEntry<SpellEntry>(spellId);
++        SpellEntry const* lootSpell = sSpellMgr.GetSpellEntry(spellId);
+ 
+ 		if (!lootSpell || lootSpell->Effect[0] != SPELL_EFFECT_CREATE_ITEM)
+             return true;
+@@ -496,7 +496,7 @@ std::string ActiveRolls::Format()
+ 
+             if (item)
+             {
+-                const ItemPrototype* proto = sItemStorage.LookupEntry<ItemPrototype>(item->itemid);
++                const ItemPrototype* proto = sObjectMgr.GetItemPrototype(item->itemid);
+ 
+ 				if (proto)
+ 				{
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/MountValues.cpp b/modules/mod-playerbots/src/playerbot/strategy/values/MountValues.cpp
+index 81a76d29ab231d0a4cbc75047941ac25a5a1a298..2e191feb6b6e969012599c09ea2d5d1e9f36f33b 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/MountValues.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/MountValues.cpp
+@@ -13,7 +13,7 @@ uint32 MountValue::GetSpeed(uint32 spellId, bool canFly)
+         return 0;
+ #endif
+ 
+-    const SpellEntry* const spellInfo = sSpellTemplate.LookupEntry<SpellEntry>(spellId);
++    const SpellEntry* const spellInfo = sSpellMgr.GetSpellEntry(spellId);
+ 
+     if (!spellInfo)
+         return 0;
+@@ -128,7 +128,7 @@ bool MountValue::IsValidLocation(Player* bot)
+ #endif
+     }
+ 
+-    const SpellEntry* const spellInfo = sSpellTemplate.LookupEntry<SpellEntry>(spellId);
++    const SpellEntry* const spellInfo = sSpellMgr.GetSpellEntry(spellId);
+ 
+     bool isAQ40Mounted = false;
+ 
+@@ -222,9 +222,9 @@ std::vector<MountValue> FullMountListValue::Calculate()
+         GAI_VALUE2(std::list<int32>, "item vendor list", pProto->ItemId);
+     }
+ 
+-    for (uint32 id = 0; id < sSpellTemplate.GetMaxEntry(); ++id)
++    for (uint32 id = 0; id < sSpellMgr.GetMaxSpellId(); ++id)
+     {
+-        SpellEntry const* spellInfo = sSpellTemplate.LookupEntry<SpellEntry>(id);
++        SpellEntry const* spellInfo = sSpellMgr.GetSpellEntry(id);
+         if (!spellInfo)
+             continue;
+ 
+@@ -281,7 +281,7 @@ std::string MountListValue::Format()
+ uint32 MountSkillTypeValue::Calculate()
+ {
+ #ifdef MANGOSBOT_ZERO
+-    switch (bot->getRace())
++    switch (bot->GetRace())
+     {
+     case RACE_HUMAN:
+         return SKILL_RIDING_HORSE;
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/PvpValues.cpp b/modules/mod-playerbots/src/playerbot/strategy/values/PvpValues.cpp
+index bc0c7c117b350049e0a5aedaee824a09ee134cd3..10ef91463a5f84d3bb7e083ed71369e33ea920bf 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/PvpValues.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/PvpValues.cpp
+@@ -77,7 +77,7 @@ CreatureDataPair const* BgMasterValue::NearestBm(bool allowDead)
+         if (!bmTemplate)
+             continue;
+ 
+-        FactionTemplateEntry const* bmFactionEntry = sFactionTemplateStore.LookupEntry(bmTemplate->Faction);
++        FactionTemplateEntry const* bmFactionEntry = sObjectMgr.GetFactionTemplateEntry(bmTemplate->faction);
+ 
+         //Is the unit hostile?
+         if (ai->getReaction(bmFactionEntry) < REP_NEUTRAL)
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/TrainerValues.cpp b/modules/mod-playerbots/src/playerbot/strategy/values/TrainerValues.cpp
+index e2a9155fea3db2fb45b874f2acdc8e01ff91dd6f..dd2022a6326cb2cccef46d029ff8bbb447ef18b0 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/TrainerValues.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/TrainerValues.cpp
+@@ -90,9 +90,9 @@ trainableSpellMap* TrainableSpellMapValue::Calculate()
+                 {
+                     // exist, already checked at loading
+ #ifdef MANGOSBOT_ZERO
+-                    SpellEntry const* spell = sSpellTemplate.LookupEntry<SpellEntry>(trainerSpell.learnedSpell);
++                    SpellEntry const* spell = sSpellMgr.GetSpellEntry(trainerSpell.learnedSpell);
+ #else
+-                    SpellEntry const* spell = sSpellTemplate.LookupEntry<SpellEntry>(trainerSpell.learnedSpell[0]);
++                    SpellEntry const* spell = sSpellMgr.GetSpellEntry(trainerSpell.learnedSpell[0]);
+ #endif
+ 
+                     spellRequirement = spell->EffectMiscValue[1];
+@@ -124,7 +124,7 @@ std::vector<TrainerSpell const*> TrainableSpellsValue::Calculate()
+         {
+             if (trainerType == TRAINER_TYPE_CLASS && requirement != bot->GetClass())
+                 continue;
+-            if (trainerType == TRAINER_TYPE_MOUNTS && requirement != bot->getRace())
++            if (trainerType == TRAINER_TYPE_MOUNTS && requirement != bot->GetRace())
+                 continue;
+ 
+             for (auto& [trainerSpell, trainers] : trainerSpellList)
+@@ -183,7 +183,7 @@ std::vector<int32> AvailableTrainersValue::Calculate()
+         {
+             if (trainerType == TRAINER_TYPE_CLASS && requirement != bot->GetClass())
+                 continue;
+-            if (trainerType == TRAINER_TYPE_MOUNTS && requirement != bot->getRace())
++            if (trainerType == TRAINER_TYPE_MOUNTS && requirement != bot->GetRace())
+                 continue;
+ 
+             for (auto& [trainerSpell, trainers] : trainerSpellList)
