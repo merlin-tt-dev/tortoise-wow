@@ -1,0 +1,1721 @@
+diff --git a/LIVINGBOTS_ENDTEST_TODO.md b/LIVINGBOTS_ENDTEST_TODO.md
+index 9be0c37..0081274 100644
+--- a/LIVINGBOTS_ENDTEST_TODO.md
++++ b/LIVINGBOTS_ENDTEST_TODO.md
+@@ -27,7 +27,8 @@
+ | 0024 Native UnitAI / Distance Semantics | eingebaut | ausstehend |
+ | 0025 Native Taxi Flight Path | eingebaut | ausstehend |
+ | 0026 Native Metadata / Diagnostics Shim Cleanup | eingebaut | ausstehend |
+-| 0027 Native Security / Script Dispatch Semantics | mit diesem Patch | ausstehend |
++| 0027 Native Security / Script Dispatch Semantics | eingebaut | ausstehend |
++| 0028 Native Area / Zone + Strategy Semantics | mit diesem Patch | ausstehend |
+ 
+ **Wichtig:** „eingebaut“ bedeutet nur statisch/source-seitig portiert. Kein Punkt gilt dadurch als getestet.
+ 
+@@ -99,6 +100,14 @@
+ - [ ] 0027: Console/RA-Dispatch verwendet ausschließlich virtuelle `ChatHandler::GetAccessLevel()` / `GetAccountId()`; kein unchecked `CliHandler*`-Downcast.
+ - [ ] 0027: `.bot debug` verlangt `SEC_DEVELOPER`, `.bot c` verlangt `SEC_MODERATOR`, und ein generisches `.bot do ... cdebug` wird nicht allein durch den `.bot`-Event-Source zum Moderatorpfad.
+ - [ ] 0027: kein fake `sScriptDevAIMgr` / `ScriptDevAIMgr`-Stub verbleibt; aktives Gossip/RPG-Scripting läuft über Penqles natives `sScriptMgr`.
++- [ ] 0028: kein `AreaTableEntry`, `sAreaStore`, `GetAreaEntryByAreaID`, `GetAreaEntryByAreaFlagAndMap` oder `GetAreaFlagByMapId` verbleibt im aktiven Playerbot-Modul; Consumer verwenden Penqles natives `AreaEntry` / `sAreaStorage`.
++- [ ] 0028: Positionsauflösung behandelt `ExploreFlag` und `AreaEntry::Id` als verschiedene Schlüssel; `WorldPosition::GetArea()` liefert dieselbe Area-ID wie Penqles `TerrainManager::GetAreaId()` für dieselben Koordinaten.
++- [ ] 0028: selbstreferenzierende oder zyklische Turtle-`ZoneId`-Hierarchien verursachen weder Rekursion noch Endlosschleifen; nur positive Child-/Creature-Level fließen in abgeleitete Area-Level ein; Creature-Fallback-Level werden ohne N×Full-Spawn-Rescan aufgebaut.
++- [ ] 0028: der generierte Area-Level-Cache `ai_playerbot_zone_level_v2` wird neu erzeugt und übernimmt keine semantisch falschen Werte aus der alten Tabelle.
++- [ ] 0028: Area-/Zone-Chatnamen verwenden Penqles `AreaEntry::Name` plus `locales_area`; der historische WMO-Subzone-Name bleibt leer, solange Penqle dessen Name-Felder nicht lädt.
++- [ ] 0028: `Engine::removeStrategy()` entfernt den Map-Eintrag vor `OnStrategyRemoved()`; rekursives Entfernen durch `RpgStrategy` erzeugt keinen Iterator-/RB-tree-Crash.
++- [ ] 0028: alternative Graveyard-Auswahl überspringt fehlende Corpse-/WorldSafeLoc-Daten statt sie zu dereferenzieren.
++- [ ] 0028: Gnome-Bots werden im Low-Level-Random-Teleportfilter in Dun Morogh/Loch Modan wie Dwarves zugelassen; High Elf/Goblin bleiben first-class Turtle-Rassen ohne Human-/Orc-Fallback.
+ - [ ] Rest-Shim-Audit (MMap/BG/Loot/LFG/InstanceTemplate/etc.) vollständig abgeschlossen.
+ 
+ ## A1. Clean Build
+diff --git a/docs/playerbots-clean-port/BACKPORT_MATRIX.md b/docs/playerbots-clean-port/BACKPORT_MATRIX.md
+index 8e17b2f..889d509 100644
+--- a/docs/playerbots-clean-port/BACKPORT_MATRIX.md
++++ b/docs/playerbots-clean-port/BACKPORT_MATRIX.md
+@@ -56,6 +56,7 @@ These are not accepted merely because PR #79 compiled:
+ | debug/diagnostic fake semantics | empty spell-result formatter, persistent-aura helper always false plus invented cast-flag name, and fake formation objects | diagnostics lied or pretended unsupported core behavior existed | **resolved:** report numeric native `SpellCastResult`; leave Penqle's native spell-go flags untouched; formation debug command explicitly reports unsupported rather than invoking a fake API |
+ | historical `SEC_GAMEMASTER` hierarchy / staff command trust | shim mapped CMaNGOS GM directly to Penqle `SEC_ADMINISTRATOR`; CLI dispatch used unchecked `ChatHandler* -> CliHandler*` casts; `.bot` source implicitly granted moderator debug rights | developer-rank staff lost intended Playerbot privileges, observer could inherit old `> SEC_PLAYER` gameplay bypasses, `NullChatHandler` could hit undefined behavior, and generic `.bot do ... cdebug` inherited moderator-only debug paths | **resolved native:** map historical GM-only semantics to Tortoise `SEC_DEVELOPER`, preserve admin-only selection as `> SEC_DEVELOPER`, start gameplay staff bypasses at `SEC_MODERATOR`, use virtual `ChatHandler::GetAccessLevel()/GetAccountId()`, and emit a privileged debug event source only after explicit `debug`/`c` command authorization |
+ | remaining `ScriptDevAIMgr` shim | fake manager exposed only an always-false `OnNpcSpellClick`; three source files included a compatibility-only ScriptDev2 header | shim pretended a script dispatcher existed; the only remaining click hook is in the inactive `MANGOSBOT_TWO` path while Tortoise is built as `MANGOSBOT_ZERO` | **resolved:** remove fake manager/header/includes and dead click hook; active gossip/RPG dispatch uses Penqle native `sScriptMgr.OnGossipHello()` directly |
++| historical `AreaTableEntry` / `sAreaStore` / Area free-function compatibility | shim made CMaNGOS field/API names compile over Penqle `AreaEntry`; `WorldPosition::GetArea()` then passed an ExploreFlag to an Area-ID lookup | valid positions could resolve to a completely unrelated valid area, while Turtle self-parenting `area_template` rows could recurse indefinitely in area-level derivation and stale generated cache rows preserved the bad result | **resolved native:** use Penqle `AreaEntry`/`sAreaStorage` directly, resolve positions through `TerrainManager::GetAreaId`, guard parent cycles, ignore non-positive derived levels, build creature-level fallbacks in one pass, version the generated area-level cache, and leave unavailable WMO subzone-name semantics explicitly empty instead of fabricating a replacement |
+ | Auction compatibility methods | fields/defaults and no-op methods added for missing CMaNGOS API | AH bot can reason over fabricated state | audit before enabling AH bot; do not treat stubs as real state |
+ | BG flag carrier base accessor | default empty GUID | BG tactics can silently lose objective state | map to real per-BG Tortoise state |
+ | `GetTransports()` | later Shyalya state was effectively empty in the broken port | transport travel impossible | restore real transport enumeration from Tortoise containers |
+@@ -87,6 +88,7 @@ Status vocabulary: `TAKE` = small correctness fix to reproduce; `REIMPLEMENT` =
+ | Weighted spec off-by-one | Playerbot math | `7a8604cd7ce09903b566de5aa8e32db5cec21ff0` | spec selection | inclusive/exclusive weighted range error | Turtle race/class/spec matrix | low | TAKE math only |
+ | Unsigned underflow repairs | mixed fix commit | `aa8f15c148659b058861fbf3e7125dcc` | mixed | unsigned subtraction wraps | inspect each arithmetic hunk | low individually | TAKE only proven arithmetic hunks |
+ | Immediate Engine `Init()/Reset()` suppression | Shyalya strategy perf work | `d886c5c240497f696897f60981ce68bb7a0933a7` | Engine / strategy mutations | excessive rebuilds, but synchronous rebuild can invalidate current action/queue | AI tick lifecycle | high | REIMPLEMENT as deferred dirty-flag rebuild |
++| Strategy removal callback iterator invalidation | CMaNGOS strategy lifecycle + Shyalya runtime diagnosis | `0cec7f93d8fa169ffb2bc24c997ed2dfe0db6f0a` | `playerbot/strategy/Engine.cpp` | `OnStrategyRemoved()` can recursively call `ChangeStrategy()` and mutate the same map while `removeStrategy()` still holds its iterator | current raw-pointer strategy ownership; `RpgStrategy::OnStrategyRemoved()` reproduces the nested mutation | low | TAKE detach-before-callback ordering only; reject unrelated Shyalya strategy-gate/hash changes |
+ | Idle/progress random teleport | Shyalya fallback policy | various | RandomPlayerbotMgr / Travel | masks navigation/progression failures | none desired | high semantic damage | REJECT |
+ | Dungeon seed/fill teleport | Shyalya fallback policy | various | dungeon population | substitutes teleport for travel/group formation | none desired | high semantic damage | REJECT |
+ | Hardcoded vanilla “dumb quest” blacklist | Shyalya policy | various | quest selection | content-specific suppression instead of fixing semantics | world DB/content drift | high | REJECT |
+diff --git a/modules/mod-playerbots/src/botpch.h b/modules/mod-playerbots/src/botpch.h
+index a4c58f0..5c83716 100644
+--- a/modules/mod-playerbots/src/botpch.h
++++ b/modules/mod-playerbots/src/botpch.h
+@@ -38,7 +38,7 @@
+ // cmangos -> Penqle compatibility shim. Must come AFTER Penqle's core headers
+ // (so the shim's proxy methods can inline-call sSpellMgr.GetSpellEntry(...) etc.)
+ // and BEFORE the bot module's own headers (which reference the shim's typedefs
+-// like GuidSet, AreaTableEntry, GenericTransport).
++// like GuidSet and GenericTransport).
+ #include "cmangos-compat-shim.h"
+ 
+ // Boost headers (used across multiple files)
+diff --git a/modules/mod-playerbots/src/cmangos-compat-shim.h b/modules/mod-playerbots/src/cmangos-compat-shim.h
+index e5bf9e5..537787e 100644
+--- a/modules/mod-playerbots/src/cmangos-compat-shim.h
++++ b/modules/mod-playerbots/src/cmangos-compat-shim.h
+@@ -38,11 +38,6 @@ typedef Transport GenericTransport;
+ #include "ObjectGuid.h"
+ typedef ObjectGuidSet GuidSet;
+ 
+-// cmangos uses AreaTableEntry; Penqle has AreaEntry (defined in Maps/Map.h).
+-// They model the same data. Forward-declare and typedef.
+-struct AreaEntry;
+-typedef AreaEntry AreaTableEntry;
+-
+ // === Define mappings ===
+ // cmangos's ItemClass enum has ITEM_CLASS_MISC at value 15. Penqle renamed
+ // this to ITEM_CLASS_JUNK (also at 15). The bot module's ahbot/Category.h
+@@ -301,10 +296,6 @@ struct CmangosSkillLineAbilityStoreProxy
+ };
+ inline CmangosSkillLineAbilityStoreProxy sSkillLineAbilityStore;
+ 
+-// === sAreaStore proxy (cmangos uses sAreaStore; Penqle has sAreaStorage) ===
+-// Same shape; keep both names.
+-#define sAreaStore sAreaStorage
+-
+ // === sGOStorage (cmangos) → sObjectMgr.GetGameObjectInfo ===
+ struct CmangosGOStorageProxy
+ {
+@@ -393,13 +384,6 @@ inline bool IsPositiveEffect(SpellEntry const* spellInfo, SpellEffectIndex eff)
+     return spellInfo && spellInfo->IsPositiveEffect(eff);
+ }
+ 
+-// === GetAreaEntryByAreaID free function (cmangos) → AreaEntry::GetById (Penqle) ===
+-inline AreaEntry const* GetAreaEntryByAreaID(uint32 id) { return AreaEntry::GetById(id); }
+-inline AreaEntry const* GetAreaEntryByMapId(uint32 mapId) {
+-    auto* mapEntry = sMapStorage.LookupEntry<MapEntry>(mapId);
+-    return mapEntry ? AreaEntry::GetById(mapEntry->linkedZone) : nullptr;
+-}
+-
+ // === MeetingStoneInfo / MeetingStoneSet (cmangos LFG) ===
+ // Definition lives in LFGMgr.h so both host (game.vcxproj) and bot module see the same type.
+ typedef std::vector<MeetingStoneInfo> MeetingStoneSet;
+diff --git a/modules/mod-playerbots/src/playerbot/BroadcastHelper.cpp b/modules/mod-playerbots/src/playerbot/BroadcastHelper.cpp
+index 5255b5f..c5810c5 100644
+--- a/modules/mod-playerbots/src/playerbot/BroadcastHelper.cpp
++++ b/modules/mod-playerbots/src/playerbot/BroadcastHelper.cpp
+@@ -226,8 +226,8 @@ bool BroadcastHelper::BroadcastLootingItem(
+ {
+     std::map<std::string, std::string> placeholders;
+     placeholders["%item_link"] = ai->GetChatHelper()->formatItem(itemQualifier);
+-    AreaTableEntry const* current_area = ai->GetCurrentArea();
+-    AreaTableEntry const* current_zone = ai->GetCurrentZone();
++    AreaEntry const* current_area = ai->GetCurrentArea();
++    AreaEntry const* current_zone = ai->GetCurrentZone();
+     placeholders["%area_name"] = current_area ? ai->GetLocalizedAreaName(current_area) : BOT_TEXT("string_unknown_area");
+     placeholders["%zone_name"] = current_zone ? ai->GetLocalizedAreaName(current_zone) : BOT_TEXT("string_unknown_area");
+     placeholders["%my_class"] = ai->GetChatHelper()->formatClass(bot->getClass());
+@@ -323,8 +323,8 @@ bool BroadcastHelper::BroadcastQuestAccepted(
+     {
+         std::map<std::string, std::string> placeholders;
+         placeholders["%quest_link"] = ai->GetChatHelper()->formatQuest(quest);
+-        AreaTableEntry const* current_area = ai->GetCurrentArea();
+-        AreaTableEntry const* current_zone = ai->GetCurrentZone();
++        AreaEntry const* current_area = ai->GetCurrentArea();
++        AreaEntry const* current_zone = ai->GetCurrentZone();
+         placeholders["%area_name"] = current_area ? ai->GetLocalizedAreaName(current_area) : BOT_TEXT("string_unknown_area");
+         placeholders["%zone_name"] = current_zone ? ai->GetLocalizedAreaName(current_zone) : BOT_TEXT("string_unknown_area");
+         placeholders["%my_class"] = ai->GetChatHelper()->formatClass(bot->getClass());
+@@ -351,8 +351,8 @@ bool BroadcastHelper::BroadcastQuestUpdateAddKill(
+ )
+ {
+     std::map<std::string, std::string> placeholders;
+-    AreaTableEntry const* current_area = ai->GetCurrentArea();
+-    AreaTableEntry const* current_zone = ai->GetCurrentZone();
++    AreaEntry const* current_area = ai->GetCurrentArea();
++    AreaEntry const* current_zone = ai->GetCurrentZone();
+     placeholders["%area_name"] = current_area ? ai->GetLocalizedAreaName(current_area) : BOT_TEXT("string_unknown_area");
+     placeholders["%zone_name"] = current_zone ? ai->GetLocalizedAreaName(current_zone) : BOT_TEXT("string_unknown_area");
+     placeholders["%quest_link"] = ai->GetChatHelper()->formatQuest(quest);
+@@ -397,8 +397,8 @@ bool BroadcastHelper::BroadcastQuestUpdateAddItem(
+ )
+ {
+     std::map<std::string, std::string> placeholders;
+-    AreaTableEntry const* current_area = ai->GetCurrentArea();
+-    AreaTableEntry const* current_zone = ai->GetCurrentZone();
++    AreaEntry const* current_area = ai->GetCurrentArea();
++    AreaEntry const* current_zone = ai->GetCurrentZone();
+     placeholders["%area_name"] = current_area ? ai->GetLocalizedAreaName(current_area) : BOT_TEXT("string_unknown_area");
+     placeholders["%zone_name"] = current_zone ? ai->GetLocalizedAreaName(current_zone) : BOT_TEXT("string_unknown_area");
+     placeholders["%quest_link"] = ai->GetChatHelper()->formatQuest(quest);
+@@ -444,8 +444,8 @@ bool BroadcastHelper::BroadcastQuestUpdateFailedTimer(
+     {
+         std::map<std::string, std::string> placeholders;
+         placeholders["%quest_link"] = ai->GetChatHelper()->formatQuest(quest);
+-        AreaTableEntry const* current_area = ai->GetCurrentArea();
+-        AreaTableEntry const* current_zone = ai->GetCurrentZone();
++        AreaEntry const* current_area = ai->GetCurrentArea();
++        AreaEntry const* current_zone = ai->GetCurrentZone();
+         placeholders["%area_name"] = current_area ? ai->GetLocalizedAreaName(current_area) : BOT_TEXT("string_unknown_area");
+         placeholders["%zone_name"] = current_zone ? ai->GetLocalizedAreaName(current_zone) : BOT_TEXT("string_unknown_area");
+         placeholders["%my_class"] = ai->GetChatHelper()->formatClass(bot->getClass());
+@@ -472,8 +472,8 @@ bool BroadcastHelper::BroadcastQuestUpdateComplete(
+     {
+         std::map<std::string, std::string> placeholders;
+         placeholders["%quest_link"] = ai->GetChatHelper()->formatQuest(quest);
+-        AreaTableEntry const* current_area = ai->GetCurrentArea();
+-        AreaTableEntry const* current_zone = ai->GetCurrentZone();
++        AreaEntry const* current_area = ai->GetCurrentArea();
++        AreaEntry const* current_zone = ai->GetCurrentZone();
+         placeholders["%area_name"] = current_area ? ai->GetLocalizedAreaName(current_area) : BOT_TEXT("string_unknown_area");
+         placeholders["%zone_name"] = current_zone ? ai->GetLocalizedAreaName(current_zone) : BOT_TEXT("string_unknown_area");
+         placeholders["%my_class"] = ai->GetChatHelper()->formatClass(bot->getClass());
+@@ -501,8 +501,8 @@ bool BroadcastHelper::BroadcastQuestTurnedIn(
+     {
+         std::map<std::string, std::string> placeholders;
+         placeholders["%quest_link"] = ai->GetChatHelper()->formatQuest(quest);
+-        AreaTableEntry const* current_area = ai->GetCurrentArea();
+-        AreaTableEntry const* current_zone = ai->GetCurrentZone();
++        AreaEntry const* current_area = ai->GetCurrentArea();
++        AreaEntry const* current_zone = ai->GetCurrentZone();
+         placeholders["%area_name"] = current_area ? ai->GetLocalizedAreaName(current_area) : BOT_TEXT("string_unknown_area");
+         placeholders["%zone_name"] = current_zone ? ai->GetLocalizedAreaName(current_zone) : BOT_TEXT("string_unknown_area");
+         placeholders["%my_class"] = ai->GetChatHelper()->formatClass(bot->getClass());
+@@ -527,8 +527,8 @@ bool BroadcastHelper::BroadcastCreatureKill(
+ {
+     std::map<std::string, std::string> placeholders;
+     placeholders["%victim_name"] = creature->GetName();
+-    AreaTableEntry const* current_area = ai->GetCurrentArea();
+-    AreaTableEntry const* current_zone = ai->GetCurrentZone();
++    AreaEntry const* current_area = ai->GetCurrentArea();
++    AreaEntry const* current_zone = ai->GetCurrentZone();
+     placeholders["%area_name"] = current_area ? ai->GetLocalizedAreaName(current_area) : BOT_TEXT("string_unknown_area");
+     placeholders["%zone_name"] = current_zone ? ai->GetLocalizedAreaName(current_zone) : BOT_TEXT("string_unknown_area");
+     placeholders["%victim_level"] = creature->GetLevel();
+@@ -632,8 +632,8 @@ bool BroadcastHelper::BroadcastPlayerKill(
+ {
+     std::map<std::string, std::string> placeholders;
+     placeholders["%victim_name"] = victim->GetName();
+-    AreaTableEntry const* current_area = ai->GetCurrentArea();
+-    AreaTableEntry const* current_zone = ai->GetCurrentZone();
++    AreaEntry const* current_area = ai->GetCurrentArea();
++    AreaEntry const* current_zone = ai->GetCurrentZone();
+     placeholders["%area_name"] = current_area ? ai->GetLocalizedAreaName(current_area) : BOT_TEXT("string_unknown_area");
+     placeholders["%zone_name"] = current_zone ? ai->GetLocalizedAreaName(current_zone) : BOT_TEXT("string_unknown_area");
+     placeholders["%victim_level"] = victim->GetLevel();
+@@ -666,8 +666,8 @@ bool BroadcastHelper::BroadcastLevelup(
+     uint32 level = bot->GetLevel();
+ 
+     std::map<std::string, std::string> placeholders;
+-    AreaTableEntry const* current_area = ai->GetCurrentArea();
+-    AreaTableEntry const* current_zone = ai->GetCurrentZone();
++    AreaEntry const* current_area = ai->GetCurrentArea();
++    AreaEntry const* current_zone = ai->GetCurrentZone();
+     placeholders["%area_name"] = current_area ? ai->GetLocalizedAreaName(current_area) : BOT_TEXT("string_unknown_area");
+     placeholders["%zone_name"] = current_zone ? ai->GetLocalizedAreaName(current_zone) : BOT_TEXT("string_unknown_area");
+     placeholders["%my_class"] = ai->GetChatHelper()->formatClass(bot->getClass());
+@@ -755,8 +755,8 @@ bool BroadcastHelper::BroadcastGuildGroupOrRaidInvite(
+ {
+     std::map<std::string, std::string> placeholders;
+     placeholders["%name"] = player->GetName();
+-    AreaTableEntry const* current_area = ai->GetCurrentArea();
+-    AreaTableEntry const* current_zone = ai->GetCurrentZone();
++    AreaEntry const* current_area = ai->GetCurrentArea();
++    AreaEntry const* current_zone = ai->GetCurrentZone();
+     placeholders["%area_name"] = current_area ? ai->GetLocalizedAreaName(current_area) : BOT_TEXT("string_unknown_area");
+     placeholders["%zone_name"] = current_zone ? ai->GetLocalizedAreaName(current_zone) : BOT_TEXT("string_unknown_area");
+ 
+@@ -952,8 +952,8 @@ bool BroadcastHelper::BroadcastSuggestSomething(
+         std::map<std::string, std::string> placeholders;
+         placeholders["%my_role"] = ai->GetChatHelper()->formatClass(bot, AiFactory::GetPlayerSpecTab(bot));
+ 
+-        AreaTableEntry const* current_area = ai->GetCurrentArea();
+-        AreaTableEntry const* current_zone = ai->GetCurrentZone();
++        AreaEntry const* current_area = ai->GetCurrentArea();
++        AreaEntry const* current_zone = ai->GetCurrentZone();
+         placeholders["%area_name"] = current_area ? ai->GetLocalizedAreaName(current_area) : BOT_TEXT("string_unknown_area");
+         placeholders["%zone_name"] = current_zone ? ai->GetLocalizedAreaName(current_zone) : BOT_TEXT("string_unknown_area");
+         placeholders["%my_class"] = ai->GetChatHelper()->formatClass(bot->getClass());
+@@ -985,8 +985,8 @@ bool BroadcastHelper::BroadcastSuggestSomethingToxic(
+         placeholders["%random_inventory_item_link"] = botItems.size() > 0 ? ai->GetChatHelper()->formatItem(botItems[rand() % botItems.size()]) : BOT_TEXT("string_empty_link");
+ 
+         placeholders["%my_role"] = ai->GetChatHelper()->formatClass(bot, AiFactory::GetPlayerSpecTab(bot));
+-        AreaTableEntry const* current_area = ai->GetCurrentArea();
+-        AreaTableEntry const* current_zone = ai->GetCurrentZone();
++        AreaEntry const* current_area = ai->GetCurrentArea();
++        AreaEntry const* current_zone = ai->GetCurrentZone();
+         placeholders["%area_name"] = current_area ? ai->GetLocalizedAreaName(current_area) : BOT_TEXT("string_unknown_area");
+         placeholders["%zone_name"] = current_zone ? ai->GetLocalizedAreaName(current_zone) : BOT_TEXT("string_unknown_area");
+         placeholders["%my_class"] = ai->GetChatHelper()->formatClass(bot->getClass());
+@@ -1045,8 +1045,8 @@ bool BroadcastHelper::BroadcastSuggestToxicLinks(
+         }
+ 
+         placeholders["%my_role"] = ai->GetChatHelper()->formatClass(bot, AiFactory::GetPlayerSpecTab(bot));
+-        AreaTableEntry const* current_area = ai->GetCurrentArea();
+-        AreaTableEntry const* current_zone = ai->GetCurrentZone();
++        AreaEntry const* current_area = ai->GetCurrentArea();
++        AreaEntry const* current_zone = ai->GetCurrentZone();
+         placeholders["%area_name"] = current_area ? ai->GetLocalizedAreaName(current_area) : BOT_TEXT("string_unknown_area");
+         placeholders["%zone_name"] = current_zone ? ai->GetLocalizedAreaName(current_zone) : BOT_TEXT("string_unknown_area");
+         placeholders["%my_class"] = ai->GetChatHelper()->formatClass(bot->getClass());
+diff --git a/modules/mod-playerbots/src/playerbot/PlayerbotAI.cpp b/modules/mod-playerbots/src/playerbot/PlayerbotAI.cpp
+index a0f131e..5a22d7a 100644
+--- a/modules/mod-playerbots/src/playerbot/PlayerbotAI.cpp
++++ b/modules/mod-playerbots/src/playerbot/PlayerbotAI.cpp
+@@ -2951,33 +2951,32 @@ std::vector<std::pair<const Quest*, uint32>> PlayerbotAI::GetCurrentQuestsRequir
+     return result;
+ }
+ 
+-const AreaTableEntry* PlayerbotAI::GetCurrentArea()
++const AreaEntry* PlayerbotAI::GetCurrentArea()
+ {
+-    return GetAreaEntryByAreaID(sServerFacade.GetAreaId(bot));
++    return AreaEntry::GetById(sServerFacade.GetAreaId(bot));
+ }
+ 
+-const AreaTableEntry* PlayerbotAI::GetCurrentZone()
++const AreaEntry* PlayerbotAI::GetCurrentZone()
+ {
+-    return GetAreaEntryByAreaID(sTerrainMgr.GetZoneId(bot->GetMapId(), bot->GetPositionX(), bot->GetPositionY(), bot->GetPositionZ()));
++    return AreaEntry::GetById(sTerrainMgr.GetZoneId(bot->GetMapId(), bot->GetPositionX(), bot->GetPositionY(), bot->GetPositionZ()));
+ }
+ 
+ /*
+ * @return localized area_name
+ */
+-std::string PlayerbotAI::GetLocalizedAreaName(const AreaTableEntry* entry)
++std::string PlayerbotAI::GetLocalizedAreaName(const AreaEntry* entry)
+ {
+-    // Penqle's area_name is single char* (no locale array).
+-    return entry && entry->area_name ? std::string(entry->area_name) : std::string();
++    if (!entry)
++        return {};
++
++    std::string name = entry->Name ? entry->Name : "";
++    sObjectMgr.GetAreaLocaleString(entry->Id, sObjectMgr.GetIndexForLocale(LocaleConstant(BroadcastHelper::GetLocale())), &name);
++    return name;
+ }
+ 
+ bool PlayerbotAI::IsInCapitalCity()
+ {
+-    AreaTableEntry const* current_area = GetAreaEntryByAreaID(sServerFacade.GetAreaId(bot));
+-    if (!current_area)
+-    {
+-        return false;
+-    }
+-    return current_area->flags & AREA_FLAG_CAPITAL;
++    return WorldPosition(bot).HasAreaFlag(AREA_FLAG_CAPITAL);
+ }
+ 
+ ChatChannelSource PlayerbotAI::GetChatChannelSource(Player* bot, uint32 type, std::string channelName)
+@@ -3164,7 +3163,7 @@ bool PlayerbotAI::SayToGeneral(std::string msg)
+         return false;
+     }
+ 
+-    AreaTableEntry const* current_zone = GetCurrentZone();
++    AreaEntry const* current_zone = GetCurrentZone();
+     if (!current_zone)
+     {
+         return false;
+@@ -3214,7 +3213,7 @@ bool PlayerbotAI::SayToTrade(std::string msg)
+     for (auto const& [key, channel] : cMgr->GetChannels())
+     {
+         if (channel && channel->GetChannelId() == ChatChannelId::TRADE
+-            && boost::algorithm::contains(channel->GetName(), GetLocalizedAreaName(GetAreaEntryByAreaID(ImportantAreaId::CITY))))
++            && boost::algorithm::contains(channel->GetName(), GetLocalizedAreaName(AreaEntry::GetById(ImportantAreaId::CITY))))
+         {
+             channel->Say(bot, msg.c_str(), LANG_UNIVERSAL);
+             return true;
+@@ -3270,7 +3269,7 @@ bool PlayerbotAI::SayToLocalDefense(std::string msg)
+         return false;
+     }
+ 
+-    AreaTableEntry const* current_zone = GetCurrentZone();
++    AreaEntry const* current_zone = GetCurrentZone();
+     if (!current_zone)
+     {
+         return false;
+@@ -3354,7 +3353,7 @@ bool PlayerbotAI::SayToGuildRecruitment(std::string msg)
+     {
+         //check for current zone (can only be used in major cities)
+         if (channel && channel->GetChannelId() == ChatChannelId::GUILD_RECRUITMENT
+-            && boost::algorithm::contains(channel->GetName(), GetLocalizedAreaName(GetAreaEntryByAreaID(ImportantAreaId::CITY))))
++            && boost::algorithm::contains(channel->GetName(), GetLocalizedAreaName(AreaEntry::GetById(ImportantAreaId::CITY))))
+         {
+             channel->Say(bot, msg.c_str(), LANG_UNIVERSAL);
+             return true;
+@@ -6508,10 +6507,14 @@ std::string PlayerbotAI::HandleRemoteCommand(std::string command)
+     {
+         std::ostringstream out; out << bot->GetPositionX() << " " << bot->GetPositionY() << " " << bot->GetPositionZ() << " " << bot->GetMapId() << " " << bot->GetOrientation();
+         uint32 area = sServerFacade.GetAreaId(bot);
+-        if (const AreaTableEntry* areaEntry = GetAreaEntryByAreaID(area))
++        if (const AreaEntry* areaEntry = AreaEntry::GetById(area))
+         {
+-            if (AreaTableEntry const* zoneEntry = areaEntry->zone ? GetAreaEntryByAreaID(areaEntry->zone) : areaEntry)
+-                out << " |" << zoneEntry->area_name[0] << "|";
++            AreaEntry const* zoneEntry = areaEntry;
++            if (areaEntry->ZoneId && areaEntry->ZoneId != areaEntry->Id)
++                if (AreaEntry const* parent = AreaEntry::GetById(areaEntry->ZoneId))
++                    zoneEntry = parent;
++
++            out << " |" << (zoneEntry->Name ? zoneEntry->Name : "unknown") << "|";
+         }
+         return out.str();
+     }
+diff --git a/modules/mod-playerbots/src/playerbot/PlayerbotAI.h b/modules/mod-playerbots/src/playerbot/PlayerbotAI.h
+index 6cffa65..597d54e 100644
+--- a/modules/mod-playerbots/src/playerbot/PlayerbotAI.h
++++ b/modules/mod-playerbots/src/playerbot/PlayerbotAI.h
+@@ -414,9 +414,9 @@ public:
+     const Quest* GetCurrentIncompleteQuestWithId(uint32 questId);
+     bool HasCurrentIncompleteQuestWithId(uint32 questId);
+     std::vector<std::pair<const Quest*, uint32>> GetCurrentQuestsRequiringItemId(uint32 itemId);
+-    const AreaTableEntry* GetCurrentArea();
+-    const AreaTableEntry* GetCurrentZone();
+-    std::string GetLocalizedAreaName(const AreaTableEntry* entry);
++    const AreaEntry* GetCurrentArea();
++    const AreaEntry* GetCurrentZone();
++    std::string GetLocalizedAreaName(const AreaEntry* entry);
+     bool IsInCapitalCity();
+     ChatChannelSource GetChatChannelSource(Player* bot, uint32 type, std::string channelName);
+     bool SayToGuild(std::string msg, bool likePlayer = false);
+diff --git a/modules/mod-playerbots/src/playerbot/PlayerbotMgr.cpp b/modules/mod-playerbots/src/playerbot/PlayerbotMgr.cpp
+index 60d2eee..7002415 100644
+--- a/modules/mod-playerbots/src/playerbot/PlayerbotMgr.cpp
++++ b/modules/mod-playerbots/src/playerbot/PlayerbotMgr.cpp
+@@ -616,7 +616,7 @@ void PlayerbotHolder::JoinChatChannels(Player* bot)
+     // join standard channels
+     uint8 locale = BroadcastHelper::GetLocale();
+ 
+-    AreaTableEntry const* current_zone = bot->GetPlayerbotAI()->GetCurrentZone();
++    AreaEntry const* current_zone = bot->GetPlayerbotAI()->GetCurrentZone();
+     ChannelMgr* cMgr = channelMgr(bot->GetTeam());
+     std::string current_zone_name = current_zone ? bot->GetPlayerbotAI()->GetLocalizedAreaName(current_zone) : "";
+ 
+@@ -662,7 +662,7 @@ void PlayerbotHolder::JoinChatChannels(Player* bot)
+                         new_channel_name_buf,
+                         100,
+                         channelPattern.c_str(),
+-                        bot->GetPlayerbotAI()->GetLocalizedAreaName(GetAreaEntryByAreaID(ImportantAreaId::CITY)).c_str()
++                        bot->GetPlayerbotAI()->GetLocalizedAreaName(AreaEntry::GetById(ImportantAreaId::CITY)).c_str()
+                     );
+ 
+                     new_channel = cMgr->GetOrCreateChannel(new_channel_name_buf);
+diff --git a/modules/mod-playerbots/src/playerbot/PlayerbotSecurity.cpp b/modules/mod-playerbots/src/playerbot/PlayerbotSecurity.cpp
+index 1314ad4..ed6ad5c 100644
+--- a/modules/mod-playerbots/src/playerbot/PlayerbotSecurity.cpp
++++ b/modules/mod-playerbots/src/playerbot/PlayerbotSecurity.cpp
+@@ -209,10 +209,10 @@ bool PlayerbotSecurity::CheckLevelFor(PlayerbotSecurityLevel level, bool silent,
+                 uint32 area = sServerFacade.GetAreaId(bot);
+                 if (area)
+                 {
+-					const AreaTableEntry* entry = GetAreaEntryByAreaID(area);
++                    const AreaEntry* entry = AreaEntry::GetById(area);
+                     if (entry)
+                     {
+-                        out << " |cffffffff(|cffff0000" << entry->area_name[0] << "|cffffffff)";
++                        out << " |cffffffff(|cffff0000" << (entry->Name ? entry->Name : "unknown") << "|cffffffff)";
+                     }
+                 }
+             }
+diff --git a/modules/mod-playerbots/src/playerbot/RandomPlayerbotMgr.cpp b/modules/mod-playerbots/src/playerbot/RandomPlayerbotMgr.cpp
+index 815268a..8fe3374 100644
+--- a/modules/mod-playerbots/src/playerbot/RandomPlayerbotMgr.cpp
++++ b/modules/mod-playerbots/src/playerbot/RandomPlayerbotMgr.cpp
+@@ -2542,15 +2542,15 @@ void RandomPlayerbotMgr::RandomTeleport(Player* bot, std::vector<WorldLocation>
+         uint32 mapId = l.getMapId();
+         uint32 zoneId, areaId;
+         sTerrainMgr.GetZoneAndAreaId(zoneId, areaId, mapId, l.coord_x, l.coord_y, l.coord_z);
+-        AreaTableEntry const* area = GetAreaEntryByAreaID(areaId);
++        AreaEntry const* area = AreaEntry::GetById(areaId);
+         if (zoneId && zoneId != areaId)
+         {
+-            AreaTableEntry const* zone = GetAreaEntryByAreaID(zoneId);
++            AreaEntry const* zone = AreaEntry::GetById(zoneId);
+             if (!zone)
+                 return true;
+ 
+             bool isEnemyZone = false;
+-            switch (zone->team)
++            switch (zone->Team)
+             {
+             case AREATEAM_ALLY:
+                 isEnemyZone = bot->GetTeam() != ALLIANCE;
+@@ -2562,7 +2562,7 @@ void RandomPlayerbotMgr::RandomTeleport(Player* bot, std::vector<WorldLocation>
+                 isEnemyZone = false;
+                 break;
+             }
+-            if (isEnemyZone && (bot->GetLevel() < 21 || (zone->flags & AREA_FLAG_CAPITAL)))
++            if (isEnemyZone && (bot->GetLevel() < 21 || (zone->Flags & AREA_FLAG_CAPITAL)))
+                 return true;
+ 
+             // filter other races zones
+@@ -2570,7 +2570,7 @@ void RandomPlayerbotMgr::RandomTeleport(Player* bot, std::vector<WorldLocation>
+             {
+                 if ((zoneId == 12 || zoneId == 40) && bot->getRace() != RACE_HUMAN)
+                     return true;
+-                if ((zoneId == 1 || zoneId == 38) && bot->getRace() != RACE_DWARF)
++                if ((zoneId == 1 || zoneId == 38) && bot->getRace() != RACE_DWARF && bot->getRace() != RACE_GNOME)
+                     return true;
+                 if ((zoneId == 85 || zoneId == 130) && bot->getRace() != RACE_UNDEAD)
+                     return true;
+@@ -2596,7 +2596,7 @@ void RandomPlayerbotMgr::RandomTeleport(Player* bot, std::vector<WorldLocation>
+             return true;
+ 
+         bool isEnemyZone = false;
+-        switch (area->team)
++        switch (area->Team)
+         {
+         case AREATEAM_ALLY:
+             isEnemyZone = bot->GetTeam() != ALLIANCE;
+@@ -2657,13 +2657,13 @@ void RandomPlayerbotMgr::RandomTeleport(Player* bot, std::vector<WorldLocation>
+                 continue;
+ 
+             uint32 areaId = sTerrainMgr.GetAreaId(loc.mapid, x, y, z);
+-            AreaTableEntry const* area = GetAreaEntryByAreaID(areaId);
++            AreaEntry const* area = AreaEntry::GetById(areaId);
+             if (!area)
+                 continue;
+ 
+ #ifndef MANGOSBOT_ZERO
+             // Do not teleport to outland before portal opening (allow new races zones)
+-            if (sWorldState.GetExpansion() == EXPANSION_NONE && (loc.mapid == 571 || (loc.mapid == 530 && area->team != 2 && area->team != 4)))
++            if (sWorldState.GetExpansion() == EXPANSION_NONE && (loc.mapid == 571 || (loc.mapid == 530 && area->Team != AREATEAM_ALLY && area->Team != AREATEAM_HORDE)))
+                 continue;
+ #endif
+ 
+@@ -2677,13 +2677,13 @@ void RandomPlayerbotMgr::RandomTeleport(Player* bot, std::vector<WorldLocation>
+ 
+             z = 0.05f + ground;
+             sLog.outDetail("Random teleporting bot %s to %s %f,%f,%f (%u/%zu locations)",
+-                bot->GetName(), area->area_name[0], x, y, z, attemtps, tlocs.size());
++                bot->GetName(), area->Name ? area->Name : "unknown", x, y, z, attemtps, tlocs.size());
+ 
+             if (bot->IsTaxiFlying())
+                 bot->GetMotionMaster()->MovementExpired();
+ 
+             if (hearth)
+-                bot->SetHomebindToLocation(loc, area->ID);
++                bot->SetHomebindToLocation(loc, area->Id);
+ 
+             bot->GetMotionMaster()->Clear();
+             bot->TeleportTo(loc.mapid, x, y, z, 0);
+@@ -2701,7 +2701,7 @@ void RandomPlayerbotMgr::RandomTeleport(Player* bot, std::vector<WorldLocation>
+                         if (member->IsTaxiFlying())
+                             member->GetMotionMaster()->MovementExpired();
+                         if (hearth)
+-                            member->SetHomebindToLocation(loc, area->ID);
++                            member->SetHomebindToLocation(loc, area->Id);
+ 
+                         member->GetMotionMaster()->Clear();
+                         member->TeleportTo(loc.mapid, x, y, z, 0);
+@@ -4256,13 +4256,14 @@ uint32 RandomPlayerbotMgr::GetBattleMasterEntry(Player* bot, BattleGroundTypeId
+             break;
+         }
+ 
+-        AreaTableEntry const* area = GetAreaEntryByAreaID(sServerFacade.GetAreaId(Bm));
++        uint32 battleMasterZoneId = sTerrainMgr.GetZoneId(Bm->GetMapId(), Bm->GetPositionX(), Bm->GetPositionY(), Bm->GetPositionZ());
++        AreaEntry const* area = AreaEntry::GetById(battleMasterZoneId);
+         if (!area)
+             continue;
+ 
+-        if (area->team == 4 && bot->GetTeam() == ALLIANCE)
++        if (area->Team == AREATEAM_HORDE && bot->GetTeam() == ALLIANCE)
+             continue;
+-        if (area->team == 2 && bot->GetTeam() == HORDE)
++        if (area->Team == AREATEAM_ALLY && bot->GetTeam() == HORDE)
+             continue;
+ 
+         if (Bm->GetDeathState() == DEAD)
+diff --git a/modules/mod-playerbots/src/playerbot/TravelMgr.cpp b/modules/mod-playerbots/src/playerbot/TravelMgr.cpp
+index 29a6561..e74e16c 100644
+--- a/modules/mod-playerbots/src/playerbot/TravelMgr.cpp
++++ b/modules/mod-playerbots/src/playerbot/TravelMgr.cpp
+@@ -534,23 +534,14 @@ std::string RpgTravelDestination::GetTitle() const
+     return out.str();
+ }
+ 
+-AreaTableEntry const* ZoneTravelDestination::GetArea() const
++AreaEntry const* ZoneTravelDestination::GetArea() const
+ {
+-    for (uint32 areaid = 0; areaid <= sAreaStore.GetNumRows(); ++areaid)
+-    {
+-        AreaTableEntry const* areaEntry = sAreaStore.LookupEntry<AreaEntry>(areaid);
+-        if (areaEntry && areaEntry->Id == GetEntry())
+-        {
+-            return areaEntry;
+-        }
+-    }
+-
+-    return nullptr;
++    return AreaEntry::GetById(GetEntry());
+ }
+ 
+ bool ExploreTravelDestination::IsPossible(const PlayerTravelInfo& info) const
+ {
+-    AreaTableEntry const* area = GetArea();
++    AreaEntry const* area = GetArea();
+ 
+     if (GetLevel() && (uint32)GetLevel() > info.GetLevel() && info.GetLevel() < DEFAULT_MAX_LEVEL)
+         return false;
+@@ -563,7 +554,7 @@ bool ExploreTravelDestination::IsActive(Player* bot, const PlayerTravelInfo& inf
+     if (!IsPossible(info))
+         return false;
+ 
+-    AreaTableEntry const* area = GetArea();
++    AreaEntry const* area = GetArea();
+ 
+     if (area->ExploreFlag == 0xffff)
+         return false;
+@@ -1093,98 +1084,147 @@ void TravelMgr::Clear()
+ 
+ int32 TravelMgr::GetAreaLevel(uint32 area_id)
+ {
+-    auto lev = areaLevels.find(area_id);
++    std::set<uint32> resolving;
++    return GetAreaLevel(area_id, resolving);
++}
+ 
++int32 TravelMgr::GetAreaLevel(uint32 area_id, std::set<uint32>& resolving)
++{
++    auto lev = areaLevels.find(area_id);
+     if (lev != areaLevels.end())
+         return lev->second;
+ 
+-    AreaTableEntry const* area = GetAreaEntryByAreaID(area_id);
++    // Turtle's custom area_template is not guaranteed to be an acyclic tree
++    // (5091 currently points to itself). A recursion-cycle result is contextual,
++    // so do not persist it in areaLevels.
++    if (!resolving.insert(area_id).second)
++        return 0;
+ 
++    AreaEntry const* area = AreaEntry::GetById(area_id);
+     if (!area)
+     {
++        resolving.erase(area_id);
+         areaLevels[area_id] = -2;
+         return -2;
+     }
+ 
+-    //Get exploration level
+-    if (area->AreaLevel)
++    // Native area_template level is authoritative when present.
++    if (area->AreaLevel > 0)
+     {
++        resolving.erase(area_id);
+         areaLevels[area_id] = area->AreaLevel;
+         return area->AreaLevel;
+     }
+ 
+-
+     int32 level = 0;
+     uint32 cnt = 0;
+ 
+-    //Get sub-area's
+-    for (uint32 i = 0; i <= sAreaStore.GetNumRows(); i++)
++    // Derive a zone level from valid child areas. Never recurse into a
++    // self-parent row and never average unknown/invalid sentinel values.
++    for (auto itr = sAreaStorage.begin<AreaEntry>(); itr != sAreaStorage.end<AreaEntry>(); ++itr)
+     {
+-        AreaTableEntry const* subArea = GetAreaEntryByAreaID(i);
+-
+-        if (!subArea || subArea->ZoneId != area->Id)
++        if (itr->Id == area->Id || itr->ZoneId != area->Id)
+             continue;
+ 
+-        int32 subLevel = GetAreaLevel(subArea->Id);
+-
+-        if (!subLevel)
++        int32 subLevel = GetAreaLevel(itr->Id, resolving);
++        if (subLevel <= 0)
+             continue;
+ 
+         level += subLevel;
+-
+-        cnt++;
++        ++cnt;
+     }
+ 
+     if (cnt)
+     {
+-        areaLevels[area_id] = std::max(uint32(1), level / cnt);
++        resolving.erase(area_id);
++        areaLevels[area_id] = std::max<int32>(1, level / static_cast<int32>(cnt));
+         return areaLevels[area_id];
+     }
+ 
+-    //Get units avarage
++    // Fall back to the average hostile/neutral creature level in this exact
++    // area. Build that index once: a fresh v2 cache can contain hundreds of
++    // unresolved Turtle areas, and rescanning every spawn for every area would
++    // turn first startup into O(areas * creature spawns).
++    BuildAreaCreatureLevels();
++    auto creatureLevel = areaCreatureLevels.find(area->Id);
++    if (creatureLevel != areaCreatureLevels.end())
++    {
++        resolving.erase(area_id);
++        areaLevels[area_id] = creatureLevel->second;
++        return creatureLevel->second;
++    }
++
++    // Sub-areas inherit their real parent zone. If that parent is already being
++    // resolved, return a transient "no contribution" value rather than caching
++    // a result that only exists because of the recursion context.
++    if (area->ZoneId && area->ZoneId != area->Id)
++    {
++        if (resolving.find(area->ZoneId) != resolving.end())
++        {
++            resolving.erase(area_id);
++            return 0;
++        }
++
++        int32 parentLevel = GetAreaLevel(area->ZoneId, resolving);
++        resolving.erase(area_id);
++        areaLevels[area_id] = parentLevel;
++        return parentLevel;
++    }
++
++    resolving.erase(area_id);
++    areaLevels[area_id] = -1;
++    return -1;
++}
++
++void TravelMgr::BuildAreaCreatureLevels()
++{
++    if (areaCreatureLevelsLoaded)
++        return;
++
++    areaCreatureLevelsLoaded = true;
++
+     FactionTemplateEntry const* humanFaction = sFactionTemplateStore.LookupEntry(1);
+     FactionTemplateEntry const* orcFaction = sFactionTemplateStore.LookupEntry(2);
++    if (!humanFaction || !orcFaction)
++        return;
+ 
+-    for (auto& creaturePair : WorldPosition().getCreaturesNear())
++    std::unordered_map<uint32, std::pair<uint64, uint32>> totals;
++    for (CreatureDataPair const* creaturePair : WorldPosition().getCreaturesNear())
+     {
+-        if (WorldPosition(creaturePair).GetArea() != area)
++        if (!creaturePair)
+             continue;
+ 
+-        CreatureData const cData = creaturePair->second;
++        CreatureData const& cData = creaturePair->second;
+         CreatureInfo const* cInfo = sObjectMgr.GetCreatureTemplate(cData.creature_id[0]);
+-
+         if (!cInfo)
+             continue;
+ 
+         FactionTemplateEntry const* factionEntry = sFactionTemplateStore.LookupEntry(cInfo->faction);
++        if (!factionEntry)
++            continue;
++
+         ReputationRank reactionHum = PlayerbotAI::GetFactionReaction(humanFaction, factionEntry);
+         ReputationRank reactionOrc = PlayerbotAI::GetFactionReaction(orcFaction, factionEntry);
+-
+         if (reactionHum > REP_NEUTRAL || reactionOrc > REP_NEUTRAL)
+             continue;
+ 
+-        level += cInfo->level_max;
+-        cnt++;
+-    }
++        WorldPosition creaturePos(cData.position.mapid, cData.position.coord_x, cData.position.coord_y, cData.position.coord_z);
++        AreaEntry const* creatureArea = creaturePos.GetArea();
++        if (!creatureArea)
++            continue;
+ 
+-    if (cnt)
+-    {
+-        areaLevels[area_id] = std::max(uint32(1),level / cnt);
+-        return areaLevels[area_id];
++        auto& total = totals[creatureArea->Id];
++        total.first += cInfo->level_max;
++        ++total.second;
+     }
+ 
+-    //Use parent zone value.
+-    if (area->ZoneId)
++    for (auto const& [areaId, total] : totals)
+     {
+-        areaLevels[area_id] = 0; //Set a temporary value so it wont be counted.
+-        level = GetAreaLevel(area->ZoneId);
+-        areaLevels[area_id] = level;        
+-        return areaLevels[area_id];
+-    }
+-
+-    areaLevels[area_id] = -1;
++        if (!total.second)
++            continue;
+ 
+-    return areaLevels[area_id];
++        areaCreatureLevels[areaId] = std::max<int32>(1, static_cast<int32>(total.first / total.second));
++    }
+ }
+ 
+ void TravelMgr::LoadAreaLevels()
+@@ -1192,51 +1232,48 @@ void TravelMgr::LoadAreaLevels()
+     if (!areaLevels.empty())
+         return;
+ 
+-    WorldDatabase.PExecute("CREATE TABLE IF NOT EXISTS `ai_playerbot_zone_level` (`id` bigint(20) NOT NULL ,`level` bigint(20) NOT NULL,PRIMARY KEY(`id`))");
++    // v2 deliberately invalidates rows generated by the historical recursive
++    // algorithm, which could recurse through self-parenting Turtle areas and
++    // average negative "unknown" values as if they were real levels.
++    static char const* const areaLevelTable = "ai_playerbot_zone_level_v2";
++    WorldDatabase.PExecute("CREATE TABLE IF NOT EXISTS `%s` (`id` bigint(20) NOT NULL, `level` bigint(20) NOT NULL, PRIMARY KEY(`id`))", areaLevelTable);
+ 
+-    std::string query = "SELECT id, level FROM ai_playerbot_zone_level";
++    std::string query = std::string("SELECT id, level FROM `") + areaLevelTable + "`";
++    auto result = WorldDatabase.PQuery("%s", query.c_str());
++    std::set<uint32> loadedAreas;
+ 
++    if (result)
+     {
+-        auto result = WorldDatabase.PQuery("%s", query.c_str());
+-
+-        std::vector<uint32> loadedAreas;
+-
+-        if (result)
++        BarGoLink bar(result->GetRowCount());
++        do
+         {
+-            BarGoLink bar(result->GetRowCount());            
+-
+-            do
+-            {
+-                Field* fields = result->Fetch();
+-                bar.step();
+-
+-                areaLevels[fields[0].GetUInt32()] = fields[1].GetInt32();
+-
+-                loadedAreas.push_back(fields[0].GetUInt32());
+-            } while (result->NextRow());
++            Field* fields = result->Fetch();
++            bar.step();
+ 
+-            sLog.outString(">> Loaded " SIZEFMTD " area levels.", areaLevels.size());
++            uint32 areaId = fields[0].GetUInt32();
++            areaLevels[areaId] = fields[1].GetInt32();
++            loadedAreas.insert(areaId);
+         }
++        while (result->NextRow());
+ 
+-        BarGoLink bar(sAreaStore.GetNumRows());
+-        WorldDatabase.BeginTransaction();
+-        for (uint32 i = 0; i < sAreaStore.GetNumRows(); ++i)    // areaflag numbered from 0
+-        {
+-            bar.step();
+-            if (AreaTableEntry const* area = sAreaStore.LookupEntry<AreaEntry>(i))
+-            {
+-                if (std::find(loadedAreas.begin(), loadedAreas.end(), area->Id) == loadedAreas.end())
+-                {
+-                    int32 level = sTravelMgr.GetAreaLevel(area->Id);
++        sLog.outString(">> Loaded " SIZEFMTD " area levels.", areaLevels.size());
++    }
+ 
+-                    WorldDatabase.PExecute("INSERT INTO `ai_playerbot_zone_level` (`id`, `level`) VALUES ('%d', '%d')", area->Id, level);
+-                }
+-            }
+-        }
+-        WorldDatabase.CommitTransaction();
+-        if(areaLevels.size() > loadedAreas.size())
+-            sLog.outString(">> Generated " SIZEFMTD " areas.", areaLevels.size()- loadedAreas.size());
++    BarGoLink bar(sAreaStorage.GetRecordCount());
++    WorldDatabase.BeginTransaction();
++    for (auto itr = sAreaStorage.begin<AreaEntry>(); itr != sAreaStorage.end<AreaEntry>(); ++itr)
++    {
++        bar.step();
++        if (loadedAreas.find(itr->Id) != loadedAreas.end())
++            continue;
++
++        int32 level = GetAreaLevel(itr->Id);
++        WorldDatabase.PExecute("INSERT INTO `%s` (`id`, `level`) VALUES ('%u', '%d')", areaLevelTable, itr->Id, level);
+     }
++    WorldDatabase.CommitTransaction();
++
++    if (areaLevels.size() > loadedAreas.size())
++        sLog.outString(">> Generated " SIZEFMTD " areas.", areaLevels.size() - loadedAreas.size());
+ }
+ 
+ void TravelMgr::SetMobAvoidArea()
+@@ -1442,7 +1479,7 @@ void TravelMgr::LoadQuestTravelTable()
+         if (!point.isValid())
+             continue;
+ 
+-        AreaTableEntry const* area = point.GetArea();
++        AreaEntry const* area = point.GetArea();
+        
+         if (!area)
+             continue;
+@@ -2280,7 +2317,7 @@ void TravelMgr::GetPopulatedGrids(uint32 mapId)
+     {
+         for (auto& guidP : guidPs)
+         {
+-            if (guidP.getMapId() == mapId)
++            if (guidP.getMapId() == mapId && guidP.getMapId() < sizeof(populatedGrids) / sizeof(populatedGrids[0]))
+             {
+                 populatedGrids[guidP.getMapId()][guidP.getGridPair().x_coord][guidP.getGridPair().y_coord] = true;
+             }
+@@ -2362,43 +2399,33 @@ void TravelMgr::GetFishLocations()
+ {
+     sLog.outString("Generating Fish locations.");
+ 
+-    BarGoLink bar(1000);
+-
+-    std::vector<std::future<void>> calculations;
+-
+-    for (int32 mapId = 1000; mapId >= 0; mapId--)
+-    {       
+-        bool hashFishing = false;
+-        for (uint32 i = 0; i < sAreaStore.GetNumRows(); ++i)    // areaflag numbered from 0
+-        {
+-            AreaTableEntry const* area = sAreaStore.LookupEntry<AreaEntry>(i);
++    std::set<uint32> fishingMaps;
++    uint32 mapCapacity = sizeof(populatedGrids) / sizeof(populatedGrids[0]);
+ 
+-            if (!area)
+-                continue;
+-
+-            if (area->MapId != mapId)
+-                continue;
+-
+-            if (!sObjectMgr.GetFishingBaseSkillLevel(area->Id))
+-                continue;
++    for (auto itr = sAreaStorage.begin<AreaEntry>(); itr != sAreaStorage.end<AreaEntry>(); ++itr)
++    {
++        if (itr->MapId >= mapCapacity)
++            continue;
++        if (!sObjectMgr.GetFishingBaseSkillLevel(itr->Id))
++            continue;
+ 
+-            hashFishing = true;
+-            break;
+-        }
++        fishingMaps.insert(itr->MapId);
++    }
+ 
+-        if (!hashFishing)
+-            continue;
++    BarGoLink bar(fishingMaps.size());
++    std::vector<std::future<void>> calculations;
++    calculations.reserve(fishingMaps.size());
+ 
++    for (uint32 mapId : fishingMaps)
++    {
+         calculations.push_back(std::async([this, mapId] { GetFishLocations(mapId); }));
+-
+         bar.step();
+     }
+ 
+-    BarGoLink bar1(calculations.size());   
+-
+-    for (uint32 i = 0; i < calculations.size(); i++)
++    BarGoLink bar1(calculations.size());
++    for (auto& calculation : calculations)
+     {
+-        calculations[i].wait();
++        calculation.wait();
+         bar1.step();
+     }
+ }
+diff --git a/modules/mod-playerbots/src/playerbot/TravelMgr.h b/modules/mod-playerbots/src/playerbot/TravelMgr.h
+index 18f30fc..ff3ad75 100644
+--- a/modules/mod-playerbots/src/playerbot/TravelMgr.h
++++ b/modules/mod-playerbots/src/playerbot/TravelMgr.h
+@@ -249,11 +249,11 @@ namespace ai
+ 	{
+ 	public:
+ 		ZoneTravelDestination(TravelDestinationPurpose purpose, uint32 /*id*/, int32 entry) : EntryTravelDestination(purpose, entry) {
+-			SetExpireFast(); SetCooldownShort(); if (auto area = GetArea()) { title = area->area_name[0]; level = area->area_level; }
++            SetExpireFast(); SetCooldownShort(); if (auto area = GetArea()) { title = area->Name ? area->Name : ""; level = area->AreaLevel; }
+ 		}
+ 	protected:
+ 		virtual std::string GetZoneName() const { return title; }
+-		AreaTableEntry const* GetArea() const;
++        AreaEntry const* GetArea() const;
+ 		int32 GetLevel() const { return level; }
+ 	private:
+ 		std::string title = "";
+@@ -453,6 +453,8 @@ namespace ai
+ 		int32 GetAreaLevel(uint32 area_id);
+ 		void LoadAreaLevels();
+ 	private:
++        int32 GetAreaLevel(uint32 area_id, std::set<uint32>& resolving);
++        void BuildAreaCreatureLevels();
+ 		void Clear();
+ 		void SetMobAvoidAreaMap(uint32 mapId);
+ 
+@@ -493,6 +495,8 @@ namespace ai
+ 		GatherTravelDestination fishMap;
+ 		std::list<AsyncGuidPosition> fishPoints;
+ 		std::unordered_map<uint32, int32> areaLevels;
++        std::unordered_map<uint32, int32> areaCreatureLevels;
++        bool areaCreatureLevelsLoaded = false;
+ 
+ 		std::mutex getDestinationMutex;
+ 		std::condition_variable getDestinationVar;
+diff --git a/modules/mod-playerbots/src/playerbot/WorldPosition.cpp b/modules/mod-playerbots/src/playerbot/WorldPosition.cpp
+index 755f66a..307739d 100644
+--- a/modules/mod-playerbots/src/playerbot/WorldPosition.cpp
++++ b/modules/mod-playerbots/src/playerbot/WorldPosition.cpp
+@@ -370,8 +370,8 @@ bool WorldPosition::canFly() const
+ 
+     // don't allow flying in Dalaran restricted areas
+     // (no other zones currently has areas with AREA_FLAG_CANNOT_FLY)
+-    if (AreaTableEntry const* atEntry = GetAreaEntryByAreaID(areaid))
+-        return (!(atEntry->flags & AREA_FLAG_CANNOT_FLY));
++    if (AreaEntry const* atEntry = AreaEntry::GetById(areaid))
++        return (!(atEntry->Flags & AREA_FLAG_CANNOT_FLY));
+ #endif
+ 
+     return true;
+@@ -447,10 +447,15 @@ WorldPosition WorldPosition::getDisplayLocation() const
+     return offset(mapOffset);
+ };
+ 
+-AreaTableEntry const* WorldPosition::GetArea() const
++AreaEntry const* WorldPosition::GetArea() const
+ {
+-    // Penqle uses areaId not areaFlag.
+-    return AreaEntry::GetById(getAreaFlag());
++    if (!isValid())
++        return nullptr;
++
++    // TerrainManager::GetAreaId resolves the terrain/WMO ExploreFlag together
++    // with the map id. An ExploreFlag is not an AreaEntry::Id: treating it as
++    // one can silently resolve a completely unrelated, but valid, area.
++    return AreaEntry::GetById(sTerrainMgr.GetAreaId(getMapId(), getX(), getY(), getZ()));
+ }
+ 
+ std::string WorldPosition::getAreaName(const bool fullName, const bool zoneName) const
+@@ -462,33 +467,31 @@ std::string WorldPosition::getAreaName(const bool fullName, const bool zoneName)
+             return std::string(map->name ? map->name : "");
+     }
+ 
+-    AreaTableEntry const* area = GetArea();
+-
++    AreaEntry const* area = GetArea();
+     if (!area)
+         return "";
+ 
+-    std::string areaName = area->area_name ? area->area_name : "";
++    std::string areaName = area->Name ? area->Name : "";
++    if (!fullName)
++        return areaName;
+ 
+-    if (fullName)
++    // Turtle has custom area rows whose ZoneId can point back to themselves.
++    // Guard the whole parent walk rather than assuming an acyclic DBC tree.
++    std::set<uint32> visited = { area->Id };
++    uint32 zoneId = area->ZoneId;
++    while (zoneId && visited.insert(zoneId).second)
+     {
+-        uint16 zoneId = area->zone;
+-
+-        while (zoneId > 0)
+-        {
+-            AreaTableEntry const* parentArea = GetAreaEntryByAreaID(zoneId);
+-
+-            if (!parentArea)
+-                break;
++        AreaEntry const* parentArea = AreaEntry::GetById(zoneId);
++        if (!parentArea)
++            break;
+ 
+-            std::string subAreaName = parentArea->area_name ? parentArea->area_name : "";
++        std::string parentName = parentArea->Name ? parentArea->Name : "";
++        if (zoneName)
++            areaName = parentName;
++        else if (!parentName.empty())
++            areaName = parentName + " " + areaName;
+ 
+-            if (zoneName)
+-                areaName = subAreaName;
+-            else
+-                areaName = subAreaName + " " + areaName;
+-
+-            zoneId = parentArea->zone;
+-        }
++        zoneId = parentArea->ZoneId;
+     }
+ 
+     return areaName;
+@@ -499,40 +502,47 @@ int32 WorldPosition::getAreaLevel() const
+     if (mapid == 609)
+         return 1;
+ 
+-    if(GetArea())
+-        return sTravelMgr.GetAreaLevel(GetArea()->ID);
+-
+-    return 0;
++    AreaEntry const* area = GetArea();
++    return area ? sTravelMgr.GetAreaLevel(area->Id) : 0;
+ }
+ 
+ bool WorldPosition::HasAreaFlag(const AreaFlags flag) const
+ {
+-    AreaTableEntry const* areaEntry = GetArea();
+-    if (areaEntry)
+-    {
+-        if (areaEntry->zone)
+-            areaEntry = GetAreaEntryByAreaID(areaEntry->zone);
++    AreaEntry const* areaEntry = GetArea();
++    if (!areaEntry)
++        return false;
+ 
+-        if (areaEntry && areaEntry->flags & flag)
+-            return true;
++    // Core PvP/capital handling applies zone-level flags to sub-areas. Mirror
++    // that rule and tolerate malformed/self-parenting custom area rows.
++    if (areaEntry->ZoneId && areaEntry->ZoneId != areaEntry->Id)
++    {
++        if (AreaEntry const* zoneEntry = AreaEntry::GetById(areaEntry->ZoneId))
++            areaEntry = zoneEntry;
+     }
+ 
+-    return false;
++    return (areaEntry->Flags & flag) != 0;
+ }
+ 
+ bool WorldPosition::HasFaction(const Team team) const
+ {
+-    AreaTableEntry const* areaEntry = GetArea();
+-    if (areaEntry)
++    AreaEntry const* areaEntry = GetArea();
++    if (!areaEntry)
++        return false;
++
++    if (areaEntry->ZoneId && areaEntry->ZoneId != areaEntry->Id)
+     {
+-        if (areaEntry->team == 2 && team == ALLIANCE)
+-            return true;
+-        if (areaEntry->team == 4 && team == HORDE)
+-            return true;
+-        if (areaEntry->team == 6)
+-            return true;
++        if (AreaEntry const* zoneEntry = AreaEntry::GetById(areaEntry->ZoneId))
++            areaEntry = zoneEntry;
+     }
+-    return false;
++
++    if (areaEntry->Team == AREATEAM_ALLY && team == ALLIANCE)
++        return true;
++    if (areaEntry->Team == AREATEAM_HORDE && team == HORDE)
++        return true;
++
++    // Core recognizes 6 as the legacy "both controlled" value even though the
++    // enum only gives names to the individual faction bits.
++    return areaEntry->Team == (AREATEAM_ALLY | AREATEAM_HORDE);
+ }
+ 
+ std::set<GenericTransport*> WorldPosition::getTransports(uint32 entry)
+diff --git a/modules/mod-playerbots/src/playerbot/WorldPosition.h b/modules/mod-playerbots/src/playerbot/WorldPosition.h
+index d6d57e2..14f8951 100644
+--- a/modules/mod-playerbots/src/playerbot/WorldPosition.h
++++ b/modules/mod-playerbots/src/playerbot/WorldPosition.h
+@@ -225,8 +225,7 @@ namespace ai
+         Map* getMap(uint32 instanceId) const { if (!*this) return nullptr; loadMapAndVMap(instanceId); return sMapMgr.FindMap(mapid, instanceId ? instanceId : (getMapEntry()->Instanceable() ? getFirstInstanceId() : 0)); }
+         const TerrainInfo* getTerrain() const { return getMap(getFirstInstanceId()) ? getMap(getFirstInstanceId())->GetTerrain() : sTerrainMgr.LoadTerrain(getMapId()); }
+         bool isDungeon() { return getMapEntry()->IsDungeon(); }
+-        // Penqle's AreaEntry uses Flags (capital F); cmangos uses flags.
+-        bool isCity() { return GetArea() && GetArea()->Flags & (AREA_FLAG_CITY | AREA_FLAG_SLAVE_CAPITAL); }
++        bool isCity() const { return HasAreaFlag(static_cast<AreaFlags>(AREA_FLAG_CITY | AREA_FLAG_SLAVE_CAPITAL)); }
+         float getVisibilityDistance() { return getMap(0) ? getMap(0)->GetVisibilityDistance() : (isOverworld() ? World::GetMaxVisibleDistanceOnContinents() : World::GetMaxVisibleDistanceInInstances()); }
+ 
+         bool IsInStaticLineOfSight(WorldPosition pos, float heightMod = 0.5f) const;
+@@ -305,13 +304,9 @@ namespace ai
+ 
+         bool isValid() const { return MaNGOS::IsValidMapCoord(coord_x, coord_y, coord_z, orientation); };
+         virtual uint16 getAreaFlag() const {
+-            loadVMap();
+-            return isValid() && isVmapLoaded() ? sTerrainMgr.GetAreaFlag(getMapId(), coord_x, coord_y, coord_z) : 0; };
+-        AreaTableEntry const* GetArea() const;
++            return isValid() ? sTerrainMgr.GetAreaFlag(getMapId(), coord_x, coord_y, coord_z) : 0; };
++        AreaEntry const* GetArea() const;
+         std::string getAreaName(const bool fullName = true, const bool zoneName = false) const;
+-        // Penqle's TerrainInfo has no AreaNameInfo or GetAreaName method.
+-        // Stub to empty string (loses WMO area-override lookup; would need a Penqle-side equivalent).
+-        std::string getAreaOverride() const { return ""; }
+         int32 getAreaLevel() const;
+ 
+         bool HasAreaFlag(const AreaFlags flag = AREA_FLAG_CAPITAL) const;
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/Engine.cpp b/modules/mod-playerbots/src/playerbot/strategy/Engine.cpp
+index 4147231..75022d5 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/Engine.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/Engine.cpp
+@@ -554,8 +554,15 @@ bool Engine::removeStrategy(const std::string& name, bool init)
+         return false;
+ 
+     LogAction("S:-%s", name.c_str());
+-    i->second->OnStrategyRemoved(state);
++
++    // OnStrategyRemoved() may recursively change the strategy map (for example
++    // RpgStrategy removes "rpg bg"). Detach first so the callback cannot
++    // invalidate the iterator held by this removal. The map does not own the
++    // Strategy object, so the raw pointer remains valid across erase().
++    Strategy* removed = i->second;
+     strategies.erase(i);
++    if (removed)
++        removed->OnStrategyRemoved(state);
+ 
+     if (init)
+     {
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/DebugAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/DebugAction.cpp
+index 0803848..ac1256d 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/DebugAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/DebugAction.cpp
+@@ -1221,10 +1221,15 @@ bool DebugAction::HandleUnmount(Event& event, Player* requester, const std::stri
+ bool DebugAction::HandleArea(Event& event, Player* requester, const std::string& text)
+ {
+     WorldPosition point(requester);
+-    AreaTableEntry const* area = point.GetArea();
++    AreaEntry const* area = point.GetArea();
+     std::ostringstream out;
+-    out << point.getAreaName(true, false); 
+-    out << "," << area->team << " (" << (area->team != FACTION_MASK_ALLIANCE ? (area->team != FACTION_MASK_HORDE ? "neutral" : "horde") : "alliance") << ")";
++    out << point.getAreaName(true, false);
++    if (area)
++    {
++        char const* teamName = area->Team == AREATEAM_ALLY ? "alliance" :
++                               area->Team == AREATEAM_HORDE ? "horde" : "neutral";
++        out << "," << area->Team << " (" << teamName << ")";
++    }
+     ai->TellPlayerNoFacing(requester, out, PlayerbotSecurityLevel::PLAYERBOT_SECURITY_ALLOW_ALL, true, false);
+     return true;
+ }
+@@ -2598,17 +2603,17 @@ bool DebugAction::HandlePosition(Event& event, Player* requester, const std::str
+         }
+ 
+         uint32 areaId = sTerrainMgr.GetAreaId(mapId, x, y, bot->GetPositionZ());
+-        const AreaTableEntry* area = GetAreaEntryByAreaID(areaId);
++        const AreaEntry* area = AreaEntry::GetById(areaId);
+         std::ostringstream out;
+         out << "Zone: " << areaId;
+         if (area)
+         {
+-            out << " (" << area->area_name[0] << ")";
+-            if (area->zone)
++            out << " (" << (area->Name ? area->Name : "unknown") << ")";
++            if (area->ZoneId && area->ZoneId != area->Id)
+             {
+-                const AreaTableEntry* zone = GetAreaEntryByAreaID(area->zone);
++                const AreaEntry* zone = AreaEntry::GetById(area->ZoneId);
+                 if (zone)
+-                    out << " Zone: " << zone->area_name[0];
++                    out << " Zone: " << (zone->Name ? zone->Name : "unknown");
+             }
+         }
+         ai->TellPlayer(requester, out.str());
+@@ -2995,12 +3000,10 @@ bool DebugAction::HandlePosition(Event& event, Player* requester, const std::str
+                 totalDist += dist;
+                 
+                 uint32 areaId = sTerrainMgr.GetAreaId(nodePos.getMapId(), nodePos.getX(), nodePos.getY(), nodePos.getZ());
+-                const AreaTableEntry* area = GetAreaEntryByAreaID(areaId);
++                const AreaEntry* area = AreaEntry::GetById(areaId);
+                 std::string areaName = "Unknown";
+-                if (area)
+-                {
+-                    areaName = area->area_name[0];
+-                }
++                if (area && area->Name)
++                    areaName = area->Name;
+                 
+                 std::ostringstream nodeOut;
+                 nodeOut << "  " << (i + 1) << ". " << node->getName() << " [" << areaName << ", m" << nodePos.getMapId() << "] (" << dist << " yd)";
+@@ -3164,10 +3167,14 @@ bool DebugAction::HandlePosition(Event& event, Player* requester, const std::str
+         std::ostringstream out;
+         out << bot->GetPositionX() << " " << bot->GetPositionY() << " " << bot->GetPositionZ() << " " << bot->GetMapId() << " " << bot->GetOrientation();
+         uint32 area = sServerFacade.GetAreaId(bot);
+-        if (const AreaTableEntry* areaEntry = GetAreaEntryByAreaID(area))
++        if (const AreaEntry* areaEntry = AreaEntry::GetById(area))
+         {
+-            if (AreaTableEntry const* zoneEntry = areaEntry->zone ? GetAreaEntryByAreaID(areaEntry->zone) : areaEntry)
+-                out << " |" << zoneEntry->area_name[0] << "|";
++            AreaEntry const* zoneEntry = areaEntry;
++            if (areaEntry->ZoneId && areaEntry->ZoneId != areaEntry->Id)
++                if (AreaEntry const* parent = AreaEntry::GetById(areaEntry->ZoneId))
++                    zoneEntry = parent;
++
++            out << " |" << (zoneEntry->Name ? zoneEntry->Name : "unknown") << "|";
+         }
+         ai->TellPlayer(requester, out.str());
+         return true;
+@@ -3271,15 +3278,25 @@ bool DebugAction::HandleNPC(Event& event, Player* requester, const std::string&
+ 
+     guidP.printWKT(out);
+ 
+-    out << "[a:" << guidP.GetArea()->area_name[0]; 
++    AreaEntry const* area = guidP.GetArea();
++    out << "[a:" << (area && area->Name ? area->Name : "unknown");
+ 
+-    if (guidP.GetArea() && guidP.getAreaLevel())
+-        out << " level: " << guidP.getAreaLevel();
+-    if (guidP.GetArea()->zone && GetAreaEntryByAreaID(guidP.GetArea()->zone))
++    if (area)
+     {
+-        out << " z:" << GetAreaEntryByAreaID(guidP.GetArea()->zone)->area_name[0];
+-        if (sTravelMgr.GetAreaLevel(guidP.GetArea()->zone))
+-            out << " level: " << sTravelMgr.GetAreaLevel(guidP.GetArea()->zone);
++        int32 areaLevel = guidP.getAreaLevel();
++        if (areaLevel > 0)
++            out << " level: " << areaLevel;
++
++        if (area->ZoneId && area->ZoneId != area->Id)
++        {
++            if (AreaEntry const* zone = AreaEntry::GetById(area->ZoneId))
++            {
++                out << " z:" << (zone->Name ? zone->Name : "unknown");
++                int32 zoneLevel = sTravelMgr.GetAreaLevel(zone->Id);
++                if (zoneLevel > 0)
++                    out << " level: " << zoneLevel;
++            }
++        }
+     }
+ 
+     out << "] ";
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/GuildCreateActions.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/GuildCreateActions.cpp
+index af19597..94850cf 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/GuildCreateActions.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/GuildCreateActions.cpp
+@@ -306,16 +306,7 @@ bool PetitionTurnInAction::isUseful()
+     if (!ChooseTravelTargetAction::isUseful())
+         return false;
+ 
+-    bool inCity = false;
+-    AreaTableEntry const* areaEntry = GetAreaEntryByAreaID(sServerFacade.GetAreaId(bot));
+-    if (areaEntry)
+-    {
+-        if (areaEntry->zone)
+-            areaEntry = GetAreaEntryByAreaID(areaEntry->zone);
+-
+-        if (areaEntry && areaEntry->flags & AREA_FLAG_CAPITAL)
+-            inCity = true;
+-    }
++    bool inCity = WorldPosition(bot).HasAreaFlag(AREA_FLAG_CAPITAL);
+ 
+     return inCity && !bot->GetGuildId() && AI_VALUE2(uint32, "item count", chat->formatQItem(5863)) && AI_VALUE(uint8, "petition signs") >= sWorld.getConfig(CONFIG_UINT32_MIN_PETITION_SIGNS) && !AI_VALUE(bool, "travel target traveling");
+ };
+@@ -365,16 +356,7 @@ bool BuyTabardAction::isUseful()
+             return false;
+     }
+ 
+-    bool inCity = false;
+-    AreaTableEntry const* areaEntry = GetAreaEntryByAreaID(sServerFacade.GetAreaId(bot));
+-    if (areaEntry)
+-    {
+-        if (areaEntry->zone)
+-            areaEntry = GetAreaEntryByAreaID(areaEntry->zone);
+-
+-        if (areaEntry && areaEntry->flags & AREA_FLAG_CAPITAL)
+-            inCity = true;
+-    }
++    bool inCity = WorldPosition(bot).HasAreaFlag(AREA_FLAG_CAPITAL);
+ 
+     return inCity && bot->GetGuildId() && !AI_VALUE2(uint32, "item count", chat->formatQItem(5976)) && AI_VALUE2(uint32, "free money for", uint32(NeedMoneyFor::guild)) >= 10000 && !AI_VALUE(bool, "travel target traveling");
+ };
+\ No newline at end of file
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/GuildManagementActions.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/GuildManagementActions.cpp
+index d3b2f62..86e27d1 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/GuildManagementActions.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/GuildManagementActions.cpp
+@@ -151,10 +151,10 @@ bool GuildManageNearbyAction::Execute(Event& event)
+             placeholders["%name"] = player->GetName();
+             placeholders["%members"] = std::to_string(guild->GetMemberSize());
+             placeholders["%guildname"] = guild->GetName();
+-            AreaTableEntry const* current_area = GetAreaEntryByAreaID(sServerFacade.GetAreaId(bot));
+-            AreaTableEntry const* current_zone = GetAreaEntryByAreaID(sTerrainMgr.GetZoneId(bot->GetMapId(), bot->GetPositionX(), bot->GetPositionY(), bot->GetPositionZ()));
+-            placeholders["%area_name"] = current_area && current_area->area_name ? std::string(current_area->area_name) : BOT_TEXT("string_unknown_area");
+-            placeholders["%zone_name"] = current_zone && current_zone->area_name ? std::string(current_zone->area_name) : BOT_TEXT("string_unknown_area");
++            AreaEntry const* current_area = AreaEntry::GetById(sServerFacade.GetAreaId(bot));
++            AreaEntry const* current_zone = AreaEntry::GetById(sTerrainMgr.GetZoneId(bot->GetMapId(), bot->GetPositionX(), bot->GetPositionY(), bot->GetPositionZ()));
++            placeholders["%area_name"] = current_area ? ai->GetLocalizedAreaName(current_area) : BOT_TEXT("string_unknown_area");
++            placeholders["%zone_name"] = current_zone ? ai->GetLocalizedAreaName(current_zone) : BOT_TEXT("string_unknown_area");
+ 
+             std::vector<std::string> lines;
+ 
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/LfgActions.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/LfgActions.cpp
+index adc1698..ce5a498 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/LfgActions.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/LfgActions.cpp
+@@ -115,16 +115,7 @@ bool LfgJoinAction::JoinLFG()
+             WorldSafeLocsEntry const* ClosestGrave = nullptr;
+             ClosestGrave = sWorldSafeLocsStore.LookupEntry(zoneId);
+ 
+-            bool inCity = false;
+-            AreaTableEntry const* areaEntry = GetAreaEntryByAreaID(bot->GetAreaId());
+-            if (areaEntry)
+-            {
+-                if (areaEntry->zone)
+-                    areaEntry = GetAreaEntryByAreaID(areaEntry->zone);
+-
+-                if (areaEntry && areaEntry->flags & AREA_FLAG_CAPITAL)
+-                    inCity = true;
+-            }
++            bool inCity = WorldPosition(bot).HasAreaFlag(AREA_FLAG_CAPITAL);
+ 
+             if (ClosestGrave)
+             {
+@@ -256,33 +247,33 @@ bool LfgJoinAction::JoinLFG()
+         }
+     }
+ 
+-    /*AreaTableEntry const* areaEntry = GetAreaEntryByAreaID(bot->GetZoneId());
++    /*AreaEntry const* areaEntry = AreaEntry::GetById(bot->GetZoneId());
+     // check if area has no parent zone
+-    if (areaEntry && !areaEntry->zone)
++    if (areaEntry && !areaEntry->ZoneId)
+     {
+-        zoneLFG = areaEntry->ID;
+-        zoneName = areaEntry->area_name[0];
++        zoneLFG = areaEntry->Id;
++        zoneName = areaEntry->Name ? areaEntry->Name : "";
+     }*/
+ 
+     // only use lfg zone if current quest leads there
+     if (questZoneLFG)
+     {
+-        AreaTableEntry const* areaEntry = GetAreaEntryByAreaID(questZoneLFG);
++        AreaEntry const* areaEntry = AreaEntry::GetById(questZoneLFG);
+         // check if area has no parent zone
+-        if (areaEntry && !areaEntry->zone)
++        if (areaEntry && !areaEntry->ZoneId)
+         {
+-            zoneLFG = areaEntry->ID;
+-            zoneName = areaEntry->area_name[0];
++            zoneLFG = areaEntry->Id;
++            zoneName = areaEntry->Name ? areaEntry->Name : "";
+         }
+     }
+     else if (!bot->IsTaxiFlying())
+     {
+-        AreaTableEntry const* areaEntry = GetAreaEntryByAreaID(bot->GetZoneId());
++        AreaEntry const* areaEntry = AreaEntry::GetById(bot->GetZoneId());
+         // check if area has no parent zone
+-        if (areaEntry && !areaEntry->zone)
++        if (areaEntry && !areaEntry->ZoneId)
+         {
+-            zoneLFG = areaEntry->ID;
+-            zoneName = areaEntry->area_name[0];
++            zoneLFG = areaEntry->Id;
++            zoneName = areaEntry->Name ? areaEntry->Name : "";
+         }
+     }
+ 
+@@ -321,7 +312,7 @@ bool LfgJoinAction::JoinLFG()
+                         continue;
+ 
+                     // check by zone name...
+-                    if (dungeon->name[0] == zoneName)
++                    if (dungeon->name[0] && std::string(dungeon->name[0]) == zoneName)
+                     {
+                         lfgType = LFG_TYPE_ZONE;
+                         lfgName = zoneName;
+@@ -385,16 +376,16 @@ bool LfgJoinAction::JoinLFG()
+             if (target->GetDestination() && typeid(*target->GetDestination()) == typeid(BossTravelDestination))
+             {
+                 WorldPosition* location = target->GetPosition();
+-                uint32 targetAreaFlag = GetAreaFlagByMapId(location->mapid);
++                uint32 targetAreaFlag = AreaEntry::GetFlagByMapId(location->mapid);
+                 if (targetAreaFlag)
+                 {
+-                    AreaTableEntry const* areaEntry = GetAreaEntryByAreaFlagAndMap(targetAreaFlag, location->mapid);
++                    AreaEntry const* areaEntry = AreaEntry::GetByAreaFlagAndMap(targetAreaFlag, location->mapid);
+                     if (areaEntry)
+                     {
+-                        if (areaEntry->zone)
+-                            areaEntry = GetAreaEntryByAreaID(areaEntry->zone);
++                        if (areaEntry->ZoneId && areaEntry->ZoneId != areaEntry->Id)
++                            areaEntry = AreaEntry::GetById(areaEntry->ZoneId);
+ 
+-                        if (areaEntry && !areaEntry->zone)
++                        if (areaEntry && !areaEntry->ZoneId)
+                         {
+                             for (uint32 i = 0; i < sLFGDungeonStore.GetNumRows(); ++i)
+                             {
+@@ -416,7 +407,7 @@ bool LfgJoinAction::JoinLFG()
+                                         continue;
+ 
+                                     // check by zone name, doesn't work for some dungeons
+-                                    if (dungeon->name[0] == areaEntry->area_name[0])
++                                    if (dungeon->name[0] && areaEntry->Name && std::string(dungeon->name[0]) == areaEntry->Name)
+                                     {
+                                         lfgType = LFG_TYPE_DUNGEON;
+                                         lfgName = dungeon->name[0];
+@@ -447,16 +438,7 @@ bool LfgJoinAction::JoinLFG()
+                                                     WorldSafeLocsEntry const* ClosestGrave = nullptr;
+                                                     ClosestGrave = sWorldSafeLocsStore.LookupEntry(zoneId);
+ 
+-                                                    bool inCity = false;
+-                                                    AreaTableEntry const* areaEntry = GetAreaEntryByAreaID(bot->GetAreaId());
+-                                                    if (areaEntry)
+-                                                    {
+-                                                        if (areaEntry->zone)
+-                                                            areaEntry = GetAreaEntryByAreaID(areaEntry->zone);
+-
+-                                                        if (areaEntry && areaEntry->flags & AREA_FLAG_CAPITAL)
+-                                                            inCity = true;
+-                                                    }
++                                                    bool inCity = WorldPosition(bot).HasAreaFlag(AREA_FLAG_CAPITAL);
+ 
+                                                     if (ClosestGrave)
+                                                     {
+@@ -508,16 +490,7 @@ bool LfgJoinAction::JoinLFG()
+                     WorldSafeLocsEntry const* ClosestGrave = nullptr;
+                     ClosestGrave = sWorldSafeLocsStore.LookupEntry(zoneId);
+ 
+-                    bool inCity = false;
+-                    AreaTableEntry const* areaEntry = GetAreaEntryByAreaID(bot->GetAreaId());
+-                    if (areaEntry)
+-                    {
+-                        if (areaEntry->zone)
+-                            areaEntry = GetAreaEntryByAreaID(areaEntry->zone);
+-
+-                        if (areaEntry && areaEntry->flags & AREA_FLAG_CAPITAL)
+-                            inCity = true;
+-                    }
++                    bool inCity = WorldPosition(bot).HasAreaFlag(AREA_FLAG_CAPITAL);
+ 
+                     if (ClosestGrave)
+                     {
+@@ -593,7 +566,7 @@ bool LfgJoinAction::JoinLFG()
+                         continue;
+ 
+                     // check by zone name...
+-                    if (dungeon->name[0] == zoneName)
++                    if (dungeon->name[0] && std::string(dungeon->name[0]) == zoneName)
+                     {
+                         lfgType = LFG_TYPE_ZONE;
+                         lfgName = zoneName;
+@@ -630,16 +603,7 @@ bool LfgJoinAction::JoinLFG()
+                     WorldSafeLocsEntry const* ClosestGrave = nullptr;
+                     ClosestGrave = sWorldSafeLocsStore.LookupEntry(zoneId);
+ 
+-                    bool inCity = false;
+-                    AreaTableEntry const* areaEntry = GetAreaEntryByAreaID(bot->GetAreaId());
+-                    if (areaEntry)
+-                    {
+-                        if (areaEntry->zone)
+-                            areaEntry = GetAreaEntryByAreaID(areaEntry->zone);
+-
+-                        if (areaEntry && areaEntry->flags & AREA_FLAG_CAPITAL)
+-                            inCity = true;
+-                    }
++                    bool inCity = WorldPosition(bot).HasAreaFlag(AREA_FLAG_CAPITAL);
+ 
+                     if (ClosestGrave)
+                     {
+@@ -1062,10 +1026,10 @@ bool LfgLeaveAction::Execute(Event& event)
+ #ifdef MANGOSBOT_ZERO
+     LFGPlayerQueueInfo qInfo;
+     sWorld.GetLFGQueue().GetPlayerQueueInfo(&qInfo, bot->GetObjectGuid());
+-    AreaTableEntry const* area = GetAreaEntryByAreaID(qInfo.areaId);
++    AreaEntry const* area = AreaEntry::GetById(qInfo.areaId);
+     if (area)
+     {
+-        sLog.outDetail("Bot #%d %s:%d <%s>: leaves LFG queue to %s after %u minutes", bot->GetGUIDLow(), bot->GetTeam() == ALLIANCE ? "A" : "H", bot->GetLevel(), bot->GetName(), area->area_name[0], (qInfo.timeInLFG / 60000));
++        sLog.outDetail("Bot #%d %s:%d <%s>: leaves LFG queue to %s after %u minutes", bot->GetGUIDLow(), bot->GetTeam() == ALLIANCE ? "A" : "H", bot->GetLevel(), bot->GetName(), area->Name ? area->Name : "unknown", (qInfo.timeInLFG / 60000));
+         sWorld.GetLFGQueue().RemovePlayerFromQueue(bot->GetObjectGuid(), PLAYER_CLIENT_LEAVE);
+     }
+ #endif
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/RpgSubActions.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/RpgSubActions.cpp
+index 8ad5351..a7ebbf1 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/RpgSubActions.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/RpgSubActions.cpp
+@@ -847,8 +847,8 @@ bool RpgDuelAction::isUseful()
+         return false;
+ 
+     // Players can only fight a duel with each other outside (=not inside dungeons and not in capital cities)
+-    AreaTableEntry const* casterAreaEntry = GetAreaEntryByAreaID(sServerFacade.GetAreaId(bot));
+-    if (casterAreaEntry && !(casterAreaEntry->flags & AREA_FLAG_DUEL))
++    AreaEntry const* casterAreaEntry = AreaEntry::GetById(sServerFacade.GetAreaId(bot));
++    if (casterAreaEntry && !(casterAreaEntry->Flags & AREA_FLAG_DUEL))
+     {
+         // Dueling isn't allowed here
+         return false;
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/SayAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/SayAction.cpp
+index 551284a..d7c469c 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/SayAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/SayAction.cpp
+@@ -51,8 +51,8 @@ bool SayAction::Execute(Event& event)
+ 
+     if (bot->IsInWorld())
+     {
+-        if (AreaTableEntry const* area = GetAreaEntryByAreaID(sServerFacade.GetAreaId(bot)))
+-            placeholders["<subzone>"] = area->area_name[0];
++        if (AreaEntry const* area = AreaEntry::GetById(sServerFacade.GetAreaId(bot)))
++            placeholders["<subzone>"] = area->Name ? area->Name : "";
+     }
+ 
+     // set delay before next say
+@@ -156,7 +156,10 @@ void ChatReplyAction::GetAIChatPlaceholders(std::map<std::string, std::string>&
+     placeholders["<" + preFix + " faction>"] = ChatHelper::formatFactionName(factionId);
+     WorldPosition pos(unit);
+     placeholders["<" + preFix + " zone>"] = pos.getAreaName();
+-    placeholders["<" + preFix + " subzone>"] = pos.getAreaOverride();
++    // Penqle intentionally does not load WMOAreaTable localized names. Keep
++    // the historical WMO subzone placeholder explicit instead of substituting
++    // an unrelated AreaEntry name.
++    placeholders["<" + preFix + " subzone>"] = "";
+ 
+     if (unit->IsPlayer())
+     {
+@@ -740,8 +743,8 @@ bool ChatReplyAction::HandleToxicLinksReply(Player* bot, ChatChannelSource chatC
+     }
+ 
+     placeholders["%my_role"] = bot->GetPlayerbotAI()->GetChatHelper()->formatClass(bot, AiFactory::GetPlayerSpecTab(bot));
+-    AreaTableEntry const* current_area = bot->GetPlayerbotAI()->GetCurrentArea();
+-    AreaTableEntry const* current_zone = bot->GetPlayerbotAI()->GetCurrentZone();
++    AreaEntry const* current_area = bot->GetPlayerbotAI()->GetCurrentArea();
++    AreaEntry const* current_zone = bot->GetPlayerbotAI()->GetCurrentZone();
+     placeholders["%area_name"] = current_area ? bot->GetPlayerbotAI()->GetLocalizedAreaName(current_area) : BOT_TEXT("string_unknown_area");
+     placeholders["%zone_name"] = current_zone ? bot->GetPlayerbotAI()->GetLocalizedAreaName(current_zone) : BOT_TEXT("string_unknown_area");
+     placeholders["%my_class"] = bot->GetPlayerbotAI()->GetChatHelper()->formatClass(bot->getClass());
+@@ -813,8 +816,8 @@ bool ChatReplyAction::HandleWTBItemsReply(Player* bot, ChatChannelSource chatCha
+     {
+         std::map<std::string, std::string> placeholders;
+         placeholders["%other_name"] = name;
+-        AreaTableEntry const* current_area = bot->GetPlayerbotAI()->GetCurrentArea();
+-        AreaTableEntry const* current_zone = bot->GetPlayerbotAI()->GetCurrentZone();
++        AreaEntry const* current_area = bot->GetPlayerbotAI()->GetCurrentArea();
++        AreaEntry const* current_zone = bot->GetPlayerbotAI()->GetCurrentZone();
+         placeholders["%area_name"] = current_area ? bot->GetPlayerbotAI()->GetLocalizedAreaName(current_area) : BOT_TEXT("string_unknown_area");
+         placeholders["%zone_name"] = current_zone ? bot->GetPlayerbotAI()->GetLocalizedAreaName(current_zone) : BOT_TEXT("string_unknown_area");
+         placeholders["%my_class"] = bot->GetPlayerbotAI()->GetChatHelper()->formatClass(bot->getClass());
+@@ -911,8 +914,8 @@ bool ChatReplyAction::HandleLFGQuestsReply(Player* bot, ChatChannelSource chatCh
+     {
+         std::map<std::string, std::string> placeholders;
+         placeholders["%other_name"] = name;
+-        AreaTableEntry const* current_area = bot->GetPlayerbotAI()->GetCurrentArea();
+-        AreaTableEntry const* current_zone = bot->GetPlayerbotAI()->GetCurrentZone();
++        AreaEntry const* current_area = bot->GetPlayerbotAI()->GetCurrentArea();
++        AreaEntry const* current_zone = bot->GetPlayerbotAI()->GetCurrentZone();
+         placeholders["%area_name"] = current_area ? bot->GetPlayerbotAI()->GetLocalizedAreaName(current_area) : BOT_TEXT("string_unknown_area");
+         placeholders["%zone_name"] = current_zone ? bot->GetPlayerbotAI()->GetLocalizedAreaName(current_zone) : BOT_TEXT("string_unknown_area");
+         placeholders["%my_class"] = bot->GetPlayerbotAI()->GetChatHelper()->formatClass(bot->getClass());
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/WhoAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/WhoAction.cpp
+index 73971bd..1d2ee65 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/WhoAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/WhoAction.cpp
+@@ -46,9 +46,9 @@ bool WhoAction::Execute(Event& event)
+ 
+     if (!out.str().empty())
+     {
+-        if (AreaTableEntry const* areaEntry = GetAreaEntryByAreaID(sServerFacade.GetAreaId(bot)))
++        if (AreaEntry const* areaEntry = AreaEntry::GetById(sServerFacade.GetAreaId(bot)))
+         {
+-            out << ", (|cffb04040" << areaEntry->area_name[0] << "|r)";
++            out << ", (|cffb04040" << (areaEntry->Name ? areaEntry->Name : "unknown") << "|r)";
+         }
+     }
+ 
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/triggers/RpgTriggers.cpp b/modules/mod-playerbots/src/playerbot/strategy/triggers/RpgTriggers.cpp
+index d0c4d0d..248724d 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/triggers/RpgTriggers.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/triggers/RpgTriggers.cpp
+@@ -822,8 +822,8 @@ bool RpgDuelTrigger::IsActive()
+     if (bot->m_duel || player->m_duel || !player->GetSocial() || player->GetSocial()->HasIgnore(bot->GetObjectGuid()))
+         return false;
+ 
+-    AreaTableEntry const* targetAreaEntry = GetAreaEntryByAreaID(sServerFacade.GetAreaId(player));
+-    if (targetAreaEntry && !(targetAreaEntry->flags & AREA_FLAG_DUEL))
++    AreaEntry const* targetAreaEntry = AreaEntry::GetById(sServerFacade.GetAreaId(player));
++    if (targetAreaEntry && !(targetAreaEntry->Flags & AREA_FLAG_DUEL))
+     {
+         // Dueling isn't allowed here
+         return false;
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/DeadValues.cpp b/modules/mod-playerbots/src/playerbot/strategy/values/DeadValues.cpp
+index bfb3b99..32a5bc2 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/DeadValues.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/DeadValues.cpp
+@@ -66,7 +66,10 @@ WorldSafeLocsEntry const* GraveyardValue::GetAnotherAppropriateClosestGraveyard(
+     // far
+     WorldSafeLocsEntry const* entryFar = nullptr;
+ 
+-    Corpse* corpse = bot->GetCorpse(); //
++    Corpse* corpse = bot->GetCorpse();
++    if (!corpse)
++        return nullptr;
++
+     uint32 botMapId = corpse->GetMapId();
+     uint32 botZoneId = corpse->GetZoneId();
+ 
+@@ -80,13 +83,15 @@ WorldSafeLocsEntry const* GraveyardValue::GetAnotherAppropriateClosestGraveyard(
+             continue;
+ 
+         WorldSafeLocsEntry const* graveyardCoreEntry = sWorldSafeLocsStore.LookupEntry(graveyardData.safeLocId);
++        if (!graveyardCoreEntry)
++            continue;
+ 
+         //skip different maps (no need for other continents)
+         if (graveyardCoreEntry->map_id != botMapId)
+             continue;
+ 
+         uint32 graveyardZoneId = sTerrainMgr.GetZoneId(graveyardCoreEntry->map_id, graveyardCoreEntry->x, graveyardCoreEntry->y, graveyardCoreEntry->z);
+-        auto graveyardAreaEntry = GetAreaEntryByAreaID(graveyardZoneId);
++        auto graveyardAreaEntry = AreaEntry::GetById(graveyardZoneId);
+ 
+         //skip same zone
+         if (graveyardZoneId == botZoneId)
+@@ -96,7 +101,7 @@ WorldSafeLocsEntry const* GraveyardValue::GetAnotherAppropriateClosestGraveyard(
+             continue;
+ 
+         //skip higher level zones
+-        if (bot->GetLevel() + 5 < (uint32)graveyardAreaEntry->area_level)
++        if (bot->GetLevel() + 5 < (uint32)graveyardAreaEntry->AreaLevel)
+             continue;
+ 
+         float dist = WorldPosition(corpse).sqDistance(graveyardCoreEntry);
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/GuildValues.cpp b/modules/mod-playerbots/src/playerbot/strategy/values/GuildValues.cpp
+index 913d0df..799b18a 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/GuildValues.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/GuildValues.cpp
+@@ -1288,16 +1288,7 @@ bool CanBuyTabard::Calculate()
+ 	if (AI_VALUE(TravelTarget*,"travel target")->GetStatus() == TravelStatus::TRAVEL_STATUS_TRAVEL)
+ 		return false;
+ 
+-	bool inCity = false;
+-	AreaTableEntry const* areaEntry = GetAreaEntryByAreaID(sServerFacade.GetAreaId(bot));
+-	if (areaEntry)
+-	{
+-		if (areaEntry->zone)
+-			areaEntry = GetAreaEntryByAreaID(areaEntry->zone);
+-
+-		if (areaEntry && areaEntry->flags & AREA_FLAG_CAPITAL)
+-			inCity = true;
+-	}
++    bool inCity = WorldPosition(bot).HasAreaFlag(AREA_FLAG_CAPITAL);
+ 
+ 	if (!inCity)
+ 		return false;
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/PvpValues.cpp b/modules/mod-playerbots/src/playerbot/strategy/values/PvpValues.cpp
+index d9cbe1e..d12fd8b 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/PvpValues.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/PvpValues.cpp
+@@ -83,15 +83,20 @@ CreatureDataPair const* BgMasterValue::NearestBm(bool allowDead)
+         if (ai->getReaction(bmFactionEntry) < REP_NEUTRAL)
+             continue;
+ 
+-        AreaTableEntry const* area = bmPos.GetArea();
+-
++        AreaEntry const* area = bmPos.GetArea();
+         if (!area)
+             continue;
+ 
+-        //Is the area hostile?
+-        if (area->team == 4 && bot->GetTeam() == ALLIANCE)
++        if (area->ZoneId && area->ZoneId != area->Id)
++        {
++            if (AreaEntry const* zone = AreaEntry::GetById(area->ZoneId))
++                area = zone;
++        }
++
++        // Is the battlemaster's zone hostile to the bot?
++        if (area->Team == AREATEAM_HORDE && bot->GetTeam() == ALLIANCE)
+             continue;
+-        if (area->team == 2 && bot->GetTeam() == HORDE)
++        if (area->Team == AREATEAM_ALLY && bot->GetTeam() == HORDE)
+             continue;
+ 
+         if (!allowDead)
