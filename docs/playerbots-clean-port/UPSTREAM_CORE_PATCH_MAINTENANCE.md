@@ -228,6 +228,49 @@ Regression checks:
 - `HasMember()` returns true only for current channel members;
 - no permission, moderation, password, ownership or broadcast behavior changes.
 
+## core-0007: selective GameObject aura removal
+
+Patch:
+
+- `patches/core-0007-gameobject-selective-aura-removal.patch`
+
+Files to watch:
+
+- `src/game/Objects/Unit.h`
+- `src/game/Objects/Unit.cpp`
+
+Purpose:
+
+- restore the optional historical `removeAura` semantic when detaching a
+  spell-created `GameObject` from its owner;
+- preserve Penqle behavior for every existing two-argument caller by defaulting
+  the new argument to `true`.
+
+Why this remains a core patch:
+
+Playerbot's stale spell-GameObject recovery needs to detach an old object without
+removing the aura belonging to a newly active cast of the same spell. Penqle's
+public `RemoveGameObject(GameObject*, bool)` unconditionally removes that aura.
+The distinction cannot be reproduced module-side after the core has already
+performed the removal.
+
+Upstream retirement condition:
+
+- Penqle exposes a supported public way to detach a spell-created GameObject
+  without forcibly removing the spell aura.
+
+Rebase-sensitive areas:
+
+- `Unit::RemoveGameObject()` overloads;
+- spell-created GameObject ownership and cooldown handling;
+- aura removal ordering during GameObject teardown.
+
+Regression checks:
+
+- all pre-existing two-argument callers retain aura-removal behavior;
+- `removeAura=false` detaches the object without cancelling the same-spell aura;
+- spell cooldown/reactivation and GameObject deletion semantics remain unchanged.
+
 ## Update workflow
 
 Before modifying the working branch, record the Penqle base commit. After applying

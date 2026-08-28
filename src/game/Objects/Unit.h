@@ -882,7 +882,7 @@ class Unit : public WorldObject
         // SPELL_EFFECT_TRANS_DOOR
         GameObject* GetGameObject(uint32 spellId) const;
         void AddGameObject(GameObject* pGo);
-        void RemoveGameObject(GameObject* pGo, bool del);
+        void RemoveGameObject(GameObject* pGo, bool del, bool removeAura = true);
         void RemoveGameObject(uint32 spellid, bool del);
         void RemoveAllGameObjects();
         ObjectGuid m_ObjectSlotGuid[4];

@@ -4688,7 +4688,7 @@ void Unit::AddGameObject(GameObject* pGo)
     }
 }
 
-void Unit::RemoveGameObject(GameObject* pGo, bool del)
+void Unit::RemoveGameObject(GameObject* pGo, bool del, bool removeAura)
 {
     MANGOS_ASSERT(pGo && pGo->GetOwnerGuid() == GetObjectGuid());
 
@@ -4697,7 +4697,8 @@ void Unit::RemoveGameObject(GameObject* pGo, bool del)
     // GO created by some spell
     if (uint32 spellid = pGo->GetSpellId())
     {
-        RemoveAurasDueToSpell(spellid);
+        if (removeAura)
+            RemoveAurasDueToSpell(spellid);
 
         if (SpellEntry const* pCreateBySpell = sSpellMgr.GetSpellEntry(spellid))
         {
