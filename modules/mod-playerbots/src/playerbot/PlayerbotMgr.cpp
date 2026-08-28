@@ -1110,7 +1110,7 @@ void PlayerbotMgr::UpdateAIInternal(uint32 elapsed, bool minimal)
     UpdateSessions(elapsed);
 }
 
-void PlayerbotMgr::HandleCommand(uint32 type, const std::string& text, uint32 lang)
+void PlayerbotMgr::HandleCommand(uint32 type, const std::string& text, uint32 lang, const std::string& to)
 {
     Player *master = GetMaster();
     if (!master)
@@ -1125,33 +1125,65 @@ void PlayerbotMgr::HandleCommand(uint32 type, const std::string& text, uint32 la
         split(commands, text, sPlayerbotAIConfig.commandSeparator.c_str());
         for (std::vector<std::string>::iterator i = commands.begin(); i != commands.end(); ++i)
         {
-            HandleCommand(type, *i,lang);
+            HandleCommand(type, *i, lang, to);
         }
         return;
     }
 
-    ForEachPlayerbot([&](Player *bot)
+    auto canReceiveMasterChat = [&](Player* bot) -> bool
     {
+        if (!bot)
+            return false;
+
+        if (type == CHAT_MSG_WHISPER)
+            return to.empty() || bot->GetName() == to;
+
         if (type == CHAT_MSG_SAY)
-            if (bot->GetMapId() != master->GetMapId() || sServerFacade.GetDistance2d(bot, master) > 25)
-                return;
+            return bot->GetMapId() == master->GetMapId() && sServerFacade.GetDistance2d(bot, master) <= 25;
 
         if (type == CHAT_MSG_YELL)
-            if (bot->GetMapId() != master->GetMapId() || sServerFacade.GetDistance2d(bot, master) > 300)
-               return;
+            return bot->GetMapId() == master->GetMapId() && sServerFacade.GetDistance2d(bot, master) <= 300;
+
+        if (type == CHAT_MSG_GUILD)
+            return master->GetGuildId() && bot->GetGuildId() == master->GetGuildId();
+
+        if (type == CHAT_MSG_PARTY || type == CHAT_MSG_RAID ||
+            type == CHAT_MSG_RAID_LEADER || type == CHAT_MSG_RAID_WARNING)
+        {
+            Group* group = master->GetOriginalGroup();
+            if (!group)
+                group = master->GetGroup();
+            if (!group)
+                return false;
+
+            bool const inGroup = bot->GetGroup() == group || bot->GetOriginalGroup() == group;
+            if (!inGroup)
+                return false;
+
+            // /party is subgroup-local in raids; raid variants fan out to the
+            // whole raid. This restores the filtering that historical CMaNGOS
+            // performed at its per-chat-type call sites before central dispatch.
+            if (type == CHAT_MSG_PARTY)
+                return group->SameSubGroup(bot, master);
+
+            return true;
+        }
+
+        return true;
+    };
+
+    ForEachPlayerbot([&](Player *bot)
+    {
+        if (!canReceiveMasterChat(bot))
+            return;
 
         GetPlayerbotAI(bot)->HandleCommand(type, text, *master, lang);
     });
 
     sRandomPlayerbotMgr.ForEachPlayerbot([&](Player* bot)
     {
-        if (type == CHAT_MSG_SAY)
-            if (bot->GetMapId() != master->GetMapId() || sServerFacade.GetDistance2d(bot, master) > 25)
-               return;
-
-        if (type == CHAT_MSG_YELL)
-            if (bot->GetMapId() != master->GetMapId() || sServerFacade.GetDistance2d(bot, master) > 300)
-               return;
+        if (!canReceiveMasterChat(bot))
+            return;
 
         if (GetPlayerbotAI(bot)->GetMaster() == master)
             GetPlayerbotAI(bot)->HandleCommand(type, text, *master, lang);

@@ -15,6 +15,8 @@
 #include "PlayerBots/PlayerBotMgr.h"
 #include "playerbot/RandomPlayerbotMgr.h"
 #include "playerbot/PlayerbotAIConfig.h"
+#include "playerbot/PerformanceMonitor.h"
+#include "ahbot/AhBot.h"
 #include "BotDiagnostics.h"
 #include "Protocol/Opcodes.h"
 #include "Group/Group.h"
@@ -36,6 +38,73 @@ std::unordered_set<PlayerbotHolder*> s_liveHolders;
 
 std::mutex s_observedLfgMutex;
 std::map<ObjectGuid, uint32> s_observedRealPlayerLfgAreas;
+
+// PlayerScript::OnBeforeSendChatMessage intentionally exposes only the message
+// metadata, not the whisper recipient. SERVERHOOK_CAN_PACKET_RECEIVE runs
+// synchronously immediately before the opcode handler, so remember the target
+// from the current CMSG_MESSAGECHAT packet and consume it from the validated
+// PlayerScript hook below. The next chat packet overwrites any stale value if
+// validation rejects the current line before the PlayerScript hook fires.
+std::mutex s_observedChatTargetMutex;
+std::unordered_map<WorldSession*, std::string> s_observedChatTargets;
+
+void ObserveCurrentChatTarget(WorldSession* session, WorldPacket const& packet)
+{
+    if (!session || packet.GetOpcode() != CMSG_MESSAGECHAT)
+        return;
+
+    std::string target;
+    WorldPacket copy(packet);
+    copy.rpos(0);
+
+    if (copy.size() >= sizeof(uint32) * 2)
+    {
+        uint32 type = 0;
+        uint32 language = 0;
+        copy >> type >> language;
+        (void)language;
+
+        if (type == CHAT_MSG_WHISPER)
+        {
+            copy >> target;
+            // Match the canonical Player name stored on the bot. If the raw
+            // client spelling is invalid, leave it untouched and let the core
+            // reject the whisper as usual.
+            std::string normalized = target;
+            if (normalizePlayerName(normalized))
+                target = normalized;
+        }
+    }
+
+    std::lock_guard<std::mutex> lock(s_observedChatTargetMutex);
+    s_observedChatTargets[session] = std::move(target);
+}
+
+std::string ConsumeCurrentChatTarget(Player* player)
+{
+    WorldSession* session = player ? player->GetSession() : nullptr;
+    if (!session)
+        return {};
+
+    std::lock_guard<std::mutex> lock(s_observedChatTargetMutex);
+    auto it = s_observedChatTargets.find(session);
+    if (it == s_observedChatTargets.end())
+        return {};
+
+    std::string target = std::move(it->second);
+    s_observedChatTargets.erase(it);
+    return target;
+}
+
+void ClearObservedChatTarget(Player* player)
+{
+    WorldSession* session = player ? player->GetSession() : nullptr;
+    if (!session)
+        return;
+
+    std::lock_guard<std::mutex> lock(s_observedChatTargetMutex);
+    s_observedChatTargets.erase(session);
+}
 
 std::mutex s_targetIconMutex;
 using TargetIconCacheKey = std::pair<uint32, uint64>;
@@ -577,6 +646,7 @@ public:
             return;
 
         ClearObservedRealPlayerLfgArea(player);
+        ClearObservedChatTarget(player);
 
         if (sPlayerbotAIConfig.enabled)
             sRandomPlayerbotMgr.OnPlayerLogout(player);
@@ -594,10 +664,94 @@ public:
             if (!ai->IsRealPlayer())
                 return;
 
-        if (PlayerbotMgr* mgr = GetPlayerbotMgr(player))
-            mgr->HandleCommand(type, message, language);
+        std::string const target = ConsumeCurrentChatTarget(player);
 
+        // Historical CMaNGOS routes a whisper directly to the addressed bot AI.
+        // Do not fan whispers through RandomPlayerbotMgr: that manager has no
+        // recipient parameter and would otherwise interpret `/w Botname ...`
+        // as a command for every matching random bot.
+        if (type == CHAT_MSG_WHISPER)
+        {
+            if (!target.empty())
+            {
+                if (Player* targetPlayer = sObjectMgr.GetPlayer(target.c_str()))
+                {
+                    if (PlayerbotAI* ai = GetPlayerbotAI(targetPlayer))
+                        ai->HandleCommand(type, message, *player, language);
+                }
+            }
+            return;
+        }
+
+        if (PlayerbotMgr* mgr = GetPlayerbotMgr(player))
+            mgr->HandleCommand(type, message, language, target);
+
+        // Preserve the historical free/random population listener for public
+        // and group chat. Its own implementation applies distance, group, guild
+        // and team filters. `channelName` remains empty here; the whisper target
+        // is not a channel name.
         sRandomPlayerbotMgr.HandleCommand(type, message, *player, "", player->GetTeam(), language);
+    }
+};
+
+class PlayerbotCommandScript final : public AllCommandScript
+{
+public:
+    PlayerbotCommandScript() : AllCommandScript("mod_playerbots_commands") {}
+
+    bool CanExecuteCommand(ChatHandler* handler, char const* command, char const* args) override
+    {
+        if (!handler || !command)
+            return true;
+
+        std::string const name(command);
+        char const* commandArgs = args ? args : "";
+
+        if (name == "bot")
+        {
+            // Historical command table: SEC_PLAYER, console disabled.
+            if (!handler->GetSession())
+            {
+                handler->SendSysMessage("The .bot command requires an active player session.");
+                return false;
+            }
+
+            PlayerbotMgr::HandlePlayerbotMgrCommand(handler, commandArgs);
+            return false;
+        }
+
+        if (name == "rndbot" || name == "ahbot" || name == "perfmon" || name == "pmon")
+        {
+            AccountTypes access = SEC_PLAYER;
+            if (WorldSession* session = handler->GetSession())
+                access = session->GetSecurity();
+            else if (CliHandler* cli = dynamic_cast<CliHandler*>(handler))
+                access = cli->GetAccessLevel();
+
+            // Preserve Shyalya's current public command contract:
+            //   .rndbot  SEC_PLAYER, console allowed
+            //   .ahbot   SEC_MODERATOR, console allowed
+            //   .perfmon SEC_MODERATOR, console allowed
+            // Keep .pmon as the historical alias so existing operator habits
+            // do not regress while .perfmon remains the canonical spelling.
+            AccountTypes const required = name == "rndbot" ? SEC_PLAYER : SEC_MODERATOR;
+            if (access < required)
+            {
+                handler->SendSysMessage("You do not have permission to use that playerbot command.");
+                return false;
+            }
+
+            if (name == "rndbot")
+                RandomPlayerbotMgr::HandlePlayerbotConsoleCommand(handler, commandArgs);
+            else if (name == "ahbot")
+                ahbot::AhBot::HandleAhBotCommand(handler, commandArgs);
+            else
+                HandlePlayerbotPerfMonCommand(handler, commandArgs);
+
+            return false;
+        }
+
+        return true;
     }
 };
 
@@ -614,6 +768,8 @@ public:
         Player* player = session ? session->GetPlayer() : nullptr;
         if (!player || !IsRealPlayer(player))
             return true;
+
+        ObserveCurrentChatTarget(session, packet);
 
         switch (packet.GetOpcode())
         {
@@ -660,5 +816,6 @@ void AddPlayerbotHostScripts()
 {
     new PlayerbotWorldScript();
     new PlayerbotPlayerScript();
+    new PlayerbotCommandScript();
     new PlayerbotServerScript();
 }

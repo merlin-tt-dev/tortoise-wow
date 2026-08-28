@@ -337,7 +337,7 @@ void PerformanceMonitorOperation::finish()
         stack->erase(std::remove(stack->begin(), stack->end(), name), stack->end());
 }
 
-bool ChatHandler::HandlePerfMonCommand(char* args)
+bool HandlePlayerbotPerfMonCommand(ChatHandler* /*handler*/, char const* args)
 {
     if (!strcmp(args, "reset"))
     {

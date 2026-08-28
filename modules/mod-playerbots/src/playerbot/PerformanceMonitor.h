@@ -92,5 +92,7 @@ class PerformanceMonitor
 
 #define sPerformanceMonitor bot_perf::PerformanceMonitor::instance()
 
+bool HandlePlayerbotPerfMonCommand(ChatHandler* handler, char const* args);
+
 #endif
 
