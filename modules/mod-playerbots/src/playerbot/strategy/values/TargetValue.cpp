@@ -47,14 +47,14 @@ bool FindNonCcTargetStrategy::IsCcTarget(Unit* attacker)
                 int index = RtiTargetValue::GetRtiIndex(rti);
                 if (index != -1)
                 {
-                    uint64 guid = group->GetTargetIcon(index);
+                    uint64 guid = GetPlayerbotTargetIcon(group, index);
                     if (guid && attacker->GetObjectGuid() == ObjectGuid(guid))
                         return true;
                 }
             }
         }
 
-        uint64 guid = group->GetTargetIcon(4);
+        uint64 guid = GetPlayerbotTargetIcon(group, 4);
         if (guid && attacker->GetObjectGuid() == ObjectGuid(guid))
             return true;
     }
@@ -75,7 +75,7 @@ void FindTargetStrategy::GetPlayerCount(Unit* creature, int* tankCount, int* dps
     *tankCount = 0;
     *dpsCount = 0;
 
-    Unit::AttackerSet attackers(creature->getAttackers());
+    Unit::AttackerSet attackers(creature->GetAttackers());
     for (std::set<Unit*>::const_iterator i = attackers.begin(); i != attackers.end(); i++)
     {
         Unit* attacker = *i;
@@ -131,10 +131,7 @@ WorldPosition LastLongMoveValue::Calculate()
 
 WorldPosition HomeBindValue::Calculate()
 {
-    float x, y, z;
-    uint32 mapId;
-    bot->GetHomebindLocation(x, y, z, mapId);
-    return WorldPosition(mapId, x, y, z, 0.0);
+    return WorldPosition(bot->GetHomebindLocation());
 }
 
 std::string HomeBindValue::Format()
@@ -208,7 +205,8 @@ std::list<ObjectGuid> FriendlyManualTargetsValue::Get()
         Unit* player = ai->GetUnit(playerGuid);
         if (ai->IsSafe(player))
         {
-            if (bot->IsInGroup(player))
+            if (Player* targetPlayer = player->GetCharmerOrOwnerPlayerOrPlayerItself();
+                targetPlayer && bot->IsInSameRaidWith(targetPlayer))
             {
                 return false;
             }

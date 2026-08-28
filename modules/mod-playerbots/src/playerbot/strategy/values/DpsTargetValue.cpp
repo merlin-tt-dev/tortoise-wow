@@ -29,7 +29,7 @@ public:
         Group* group = ai->GetBot()->GetGroup();
         if (group)
         {
-            uint64 guid = group->GetTargetIcon(4);
+            uint64 guid = GetPlayerbotTargetIcon(group, 4);
             if (guid && attacker->GetObjectGuid() == ObjectGuid(guid))
                 return;
         }

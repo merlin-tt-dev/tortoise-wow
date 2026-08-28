@@ -17,7 +17,9 @@
 #include "playerbot/PlayerbotAIConfig.h"
 #include "BotDiagnostics.h"
 #include "Protocol/Opcodes.h"
+#include "Group/Group.h"
 
+#include <array>
 #include <deque>
 #include <memory>
 #include <mutex>
@@ -34,6 +36,61 @@ std::unordered_set<PlayerbotHolder*> s_liveHolders;
 
 std::mutex s_observedLfgMutex;
 std::map<ObjectGuid, uint32> s_observedRealPlayerLfgAreas;
+
+std::mutex s_targetIconMutex;
+using TargetIconCacheKey = std::pair<uint32, uint64>;
+std::map<TargetIconCacheKey, std::array<ObjectGuid, TARGET_ICON_COUNT>> s_targetIcons;
+
+TargetIconCacheKey GetTargetIconCacheKey(Group const* group)
+{
+    return group ? TargetIconCacheKey(group->GetId(), group->GetLeaderGuid().GetRawValue()) : TargetIconCacheKey();
+}
+
+void ObserveTargetIconPacket(Player* player, WorldPacket const& packet)
+{
+    if (!player || packet.GetOpcode() != MSG_RAID_TARGET_UPDATE)
+        return;
+
+    Group* group = player->GetGroup();
+    if (!group)
+        group = player->GetOriginalGroup();
+    if (!group)
+        return;
+
+    WorldPacket copy(packet);
+    copy.rpos(0);
+    if (copy.size() < 1)
+        return;
+
+    uint8 fullList = 0;
+    copy >> fullList;
+
+    std::lock_guard<std::mutex> lock(s_targetIconMutex);
+    auto& icons = s_targetIcons[GetTargetIconCacheKey(group)];
+
+    if (fullList == 1)
+    {
+        icons.fill(ObjectGuid());
+        while (copy.size() - copy.rpos() >= 9)
+        {
+            uint8 index = 0;
+            ObjectGuid guid;
+            copy >> index >> guid;
+            if (index < TARGET_ICON_COUNT)
+                icons[index] = guid;
+        }
+        return;
+    }
+
+    if (fullList == 0 && copy.size() - copy.rpos() >= 9)
+    {
+        uint8 index = 0;
+        ObjectGuid guid;
+        copy >> index >> guid;
+        if (index < TARGET_ICON_COUNT)
+            icons[index] = guid;
+    }
+}
 
 void ObserveRealPlayerLfgArea(Player* player, uint32 areaId)
 {
@@ -274,6 +331,16 @@ void ClearObservedRealPlayerLfgArea(Player const* player)
 
     std::lock_guard<std::mutex> lock(s_observedLfgMutex);
     s_observedRealPlayerLfgAreas.erase(player->GetObjectGuid());
+}
+
+ObjectGuid GetPlayerbotTargetIcon(Group const* group, uint8 index)
+{
+    if (!group || index >= TARGET_ICON_COUNT)
+        return ObjectGuid();
+
+    std::lock_guard<std::mutex> lock(s_targetIconMutex);
+    auto const it = s_targetIcons.find(GetTargetIconCacheKey(group));
+    return it == s_targetIcons.end() ? ObjectGuid() : it->second[index];
 }
 
 void QueueDelayedPlayerbotPacket(uint32 guidLow, std::uintptr_t sessionToken, std::unique_ptr<WorldPacket> packet)
@@ -577,6 +644,8 @@ public:
     bool CanPacketSend(WorldSession* session, WorldPacket const& packet) override
     {
         Player* player = session ? session->GetPlayer() : nullptr;
+        ObserveTargetIconPacket(player, packet);
+
         PlayerbotAI* ai = GetPlayerbotAI(player);
         if (!ai || ai->IsRealPlayer())
             return true;

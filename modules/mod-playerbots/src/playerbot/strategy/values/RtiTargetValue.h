@@ -40,7 +40,7 @@ namespace ai
             if (index == -1)
                 return NULL;
 
-            ObjectGuid guid = group->GetTargetIcon(index);
+            ObjectGuid guid = GetPlayerbotTargetIcon(group, index);
             if (!guid)
                 return NULL;
 

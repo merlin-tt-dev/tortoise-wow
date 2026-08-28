@@ -106,7 +106,7 @@ void PossibleAttackTargetsValue::RemoveNonThreating(std::list<ObjectGuid>& targe
 bool PossibleAttackTargetsValue::HasIgnoreCCRti(Unit* target, Player* player)
 {
     Group* group = player->GetGroup();
-    return group && (group->GetTargetIcon(7) == target->GetObjectGuid());
+    return group && (GetPlayerbotTargetIcon(group, 7) == target->GetObjectGuid());
 }
 
 bool PossibleAttackTargetsValue::HasBreakableCC(Unit* target, Player* player)
@@ -145,7 +145,7 @@ bool PossibleAttackTargetsValue::HasBreakableCC(Unit* target, Player* player)
 
 bool PossibleAttackTargetsValue::HasUnBreakableCC(Unit* target, Player* player)
 {
-    if (target->IsStunned())
+    if (target->HasUnitState(UNIT_STAT_STUNNED | UNIT_STAT_PENDING_STUNNED))
     {
         return true;
     }
@@ -166,7 +166,7 @@ bool PossibleAttackTargetsValue::HasUnBreakableCC(Unit* target, Player* player)
 bool PossibleAttackTargetsValue::IsImmuneToDamage(Unit* target, Player* player)
 {
     // Charmed
-    if (sServerFacade.IsCharmed(target) && target->IsInTeam(player, true))
+    if (sServerFacade.IsCharmed(target) && target->IsFriendlyTo(player))
     {
         return true;
     }
@@ -240,7 +240,8 @@ bool PossibleAttackTargetsValue::IsTapped(Unit* target, Player* player)
             if (master && victim == master) //Target is attacking master.
                 return true;
 
-            if (player->IsInGroup(victim)) //Target is attacking groupmember.
+            if (Player* victimPlayer = victim->GetCharmerOrOwnerPlayerOrPlayerItself();
+                victimPlayer && player->IsInSameRaidWith(victimPlayer)) //Target is attacking groupmember or group pet.
                 return true;
 
             if (!creature->HasLootRecipient()) //Target is untapped.
@@ -249,7 +250,7 @@ bool PossibleAttackTargetsValue::IsTapped(Unit* target, Player* player)
             if (creature->IsTappedBy(player)) //Target is tapped by player.
                 return true;
 
-            if (master && target->getThreatManager().getThreat(master)) //Master as threat
+            if (master && target->GetThreatManager().getThreat(master)) //Master as threat
                 return true;
 
             if (ai && ai->HasStrategy("attack tagged", BotState::BOT_STATE_NON_COMBAT)) //Can attack tagged.

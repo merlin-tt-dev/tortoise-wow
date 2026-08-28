@@ -454,7 +454,7 @@ public:
             if (!isRti)
                 continue;
 
-            ObjectGuid rtiTarget = group->GetTargetIcon(RtiTargetValue::GetRtiIndex(rti.substr(1)));
+            ObjectGuid rtiTarget = GetPlayerbotTargetIcon(group, RtiTargetValue::GetRtiIndex(rti.substr(1)));
             if (bot->GetObjectGuid() == rtiTarget)
                 return ChatFilter::Filter(message);
 
@@ -571,7 +571,7 @@ public:
     {
         Player* bot = ai->GetBot();
 
-        std::string filter = "@" + ChatHelper::formatRace(bot->getRace());
+        std::string filter = "@" + ChatHelper::formatRace(bot->GetRace());
 
         filter[1] = tolower(filter[1]);
 
@@ -650,14 +650,14 @@ public:
         }
         if (message.find("@raid") == 0)
         {
-            if (!bot->GetGroup() || !bot->GetGroup()->IsRaidGroup())
+            if (!bot->GetGroup() || !bot->GetGroup()->isRaidGroup())
                 return message;
 
             return ChatFilter::Filter(message);
         }
         if (message.find("@noraid") == 0)
         {
-            if (bot->GetGroup() && bot->GetGroup()->IsRaidGroup())
+            if (bot->GetGroup() && bot->GetGroup()->isRaidGroup())
                 return message;
 
             return ChatFilter::Filter(message);
@@ -667,7 +667,7 @@ public:
             if (!bot->GetGroup())
                 return message;
 
-            if (!bot->GetGroup()->IsRaidGroup())
+            if (!bot->GetGroup()->isRaidGroup())
                 return message;
 
             if (bot->GetGroup()->IsLeader(bot->GetObjectGuid()))

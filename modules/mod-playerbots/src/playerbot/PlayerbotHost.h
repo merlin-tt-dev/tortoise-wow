@@ -10,6 +10,8 @@ class PlayerbotAI;
 class PlayerbotMgr;
 class PlayerbotHolder;
 class WorldPacket;
+class Group;
+class ObjectGuid;
 
 // Module-owned host state for the historical playerbot implementation.
 // Penqle's Player stays untouched; bot AI/manager ownership lives in mod-playerbots.
@@ -28,6 +30,10 @@ bool IsRealPlayer(Player const* player);
 // meeting-stone client packets instead of adding a core getter solely for bots.
 uint32 GetObservedRealPlayerLfgArea(Player const* player);
 void ClearObservedRealPlayerLfgArea(Player const* player);
+
+// Penqle keeps raid target icons private to Group. Mirror the authoritative
+// MSG_RAID_TARGET_UPDATE packets in the module instead of adding a core getter.
+ObjectGuid GetPlayerbotTargetIcon(Group const* group, uint8 index);
 
 // Historical playerbots enqueue simulated client packets. Penqle intentionally
 // does not process the receive queue of socketless module bots, so keep that
