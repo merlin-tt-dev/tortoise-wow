@@ -1,0 +1,425 @@
+diff --git a/LIVINGBOTS_ENDTEST_TODO.md b/LIVINGBOTS_ENDTEST_TODO.md
+index 5e8edd6..9be0c37 100644
+--- a/LIVINGBOTS_ENDTEST_TODO.md
++++ b/LIVINGBOTS_ENDTEST_TODO.md
+@@ -22,7 +22,12 @@
+ | core-0004 Native Fixed-Path Motion | eingebaut | ausstehend |
+ | 0020 Native Movement / MMap / Triggered Semantics | eingebaut | ausstehend |
+ | 0021 Native Loot / Group Roll Semantics | eingebaut | ausstehend |
+-| 0022 Native BG / Visible Players / Opt-in Load Optimization | mit diesem Patch | ausstehend |
++| 0022 Native BG / Visible Players / Opt-in Load Optimization | eingebaut | ausstehend |
++| 0023 Native Item / Random-Name Semantics | eingebaut | ausstehend |
++| 0024 Native UnitAI / Distance Semantics | eingebaut | ausstehend |
++| 0025 Native Taxi Flight Path | eingebaut | ausstehend |
++| 0026 Native Metadata / Diagnostics Shim Cleanup | eingebaut | ausstehend |
++| 0027 Native Security / Script Dispatch Semantics | mit diesem Patch | ausstehend |
+ 
+ **Wichtig:** „eingebaut“ bedeutet nur statisch/source-seitig portiert. Kein Punkt gilt dadurch als getestet.
+ 
+@@ -89,6 +94,11 @@
+ - [ ] 0022: Schutzschalter und alle Activity-Brackets reagieren entsprechend der Config und widersprechen sich nicht zwischen ALL/REACT/DETAILED_MOVE.
+ - [ ] 0022: Async-LoginSpace/Population berücksichtigt nur sichtbare echte Spieler; ein invisible GM löst keine Player-nearby/Login-Priorisierung aus.
+ - [ ] 0022: Console-`diff` aktualisiert die laufenden `LoadOptimization.TargetDiff*`-Werte und resetet den PID; Console-`pid` aktualisiert die laufenden Kp/Ki/Kd-Werte.
++- [ ] 0027: kein `SEC_GAMEMASTER`-Alias verbleibt; historische GM-only Playerbot-Rechte verwenden Penqles `SEC_DEVELOPER`, während admin-only `!` weiterhin nur `> SEC_DEVELOPER` erlaubt.
++- [ ] 0027: Penqle `SEC_OBSERVER` erhält keine Gameplay-Cheat-Rechte durch alte `> SEC_PLAYER`-Checks; freie Summon-/vergleichbare Staff-Bypässe beginnen bei `SEC_MODERATOR`.
++- [ ] 0027: Console/RA-Dispatch verwendet ausschließlich virtuelle `ChatHandler::GetAccessLevel()` / `GetAccountId()`; kein unchecked `CliHandler*`-Downcast.
++- [ ] 0027: `.bot debug` verlangt `SEC_DEVELOPER`, `.bot c` verlangt `SEC_MODERATOR`, und ein generisches `.bot do ... cdebug` wird nicht allein durch den `.bot`-Event-Source zum Moderatorpfad.
++- [ ] 0027: kein fake `sScriptDevAIMgr` / `ScriptDevAIMgr`-Stub verbleibt; aktives Gossip/RPG-Scripting läuft über Penqles natives `sScriptMgr`.
+ - [ ] Rest-Shim-Audit (MMap/BG/Loot/LFG/InstanceTemplate/etc.) vollständig abgeschlossen.
+ 
+ ## A1. Clean Build
+diff --git a/docs/playerbots-clean-port/BACKPORT_MATRIX.md b/docs/playerbots-clean-port/BACKPORT_MATRIX.md
+index fe0e8a2..8e17b2f 100644
+--- a/docs/playerbots-clean-port/BACKPORT_MATRIX.md
++++ b/docs/playerbots-clean-port/BACKPORT_MATRIX.md
+@@ -54,6 +54,8 @@ These are not accepted merely because PR #79 compiled:
+ | fake `AuctionHouseType` | pseudo enum `0/1/2` was passed to an API that expects `AuctionHouseEntry const*` | AH mirror used the wrong API contract and could duplicate the same native AH object | **resolved native:** iterate `sAuctionHouseStore`, resolve with `sAuctionMgr.GetAuctionsMap(entry)`, and deduplicate native `AuctionHouseObject*` mappings |
+ | EmotesTextSound no-op | shim always returned `nullptr` | playerbot text-emote sounds were silently disabled | **resolved module-only:** load genuine `EmotesTextSound.dbc` through Tortoise `DBCStorage` and preserve the historical exact `(emote,race,gender)` lookup |
+ | debug/diagnostic fake semantics | empty spell-result formatter, persistent-aura helper always false plus invented cast-flag name, and fake formation objects | diagnostics lied or pretended unsupported core behavior existed | **resolved:** report numeric native `SpellCastResult`; leave Penqle's native spell-go flags untouched; formation debug command explicitly reports unsupported rather than invoking a fake API |
++| historical `SEC_GAMEMASTER` hierarchy / staff command trust | shim mapped CMaNGOS GM directly to Penqle `SEC_ADMINISTRATOR`; CLI dispatch used unchecked `ChatHandler* -> CliHandler*` casts; `.bot` source implicitly granted moderator debug rights | developer-rank staff lost intended Playerbot privileges, observer could inherit old `> SEC_PLAYER` gameplay bypasses, `NullChatHandler` could hit undefined behavior, and generic `.bot do ... cdebug` inherited moderator-only debug paths | **resolved native:** map historical GM-only semantics to Tortoise `SEC_DEVELOPER`, preserve admin-only selection as `> SEC_DEVELOPER`, start gameplay staff bypasses at `SEC_MODERATOR`, use virtual `ChatHandler::GetAccessLevel()/GetAccountId()`, and emit a privileged debug event source only after explicit `debug`/`c` command authorization |
++| remaining `ScriptDevAIMgr` shim | fake manager exposed only an always-false `OnNpcSpellClick`; three source files included a compatibility-only ScriptDev2 header | shim pretended a script dispatcher existed; the only remaining click hook is in the inactive `MANGOSBOT_TWO` path while Tortoise is built as `MANGOSBOT_ZERO` | **resolved:** remove fake manager/header/includes and dead click hook; active gossip/RPG dispatch uses Penqle native `sScriptMgr.OnGossipHello()` directly |
+ | Auction compatibility methods | fields/defaults and no-op methods added for missing CMaNGOS API | AH bot can reason over fabricated state | audit before enabling AH bot; do not treat stubs as real state |
+ | BG flag carrier base accessor | default empty GUID | BG tactics can silently lose objective state | map to real per-BG Tortoise state |
+ | `GetTransports()` | later Shyalya state was effectively empty in the broken port | transport travel impossible | restore real transport enumeration from Tortoise containers |
+diff --git a/modules/mod-playerbots/src/cmangos-compat-shim.h b/modules/mod-playerbots/src/cmangos-compat-shim.h
+index cd78d56..e5bf9e5 100644
+--- a/modules/mod-playerbots/src/cmangos-compat-shim.h
++++ b/modules/mod-playerbots/src/cmangos-compat-shim.h
+@@ -279,16 +279,6 @@ typedef RolesPriority LfgRolePriority;
+ #ifndef ROLL_DISENCHANT
+ #define ROLL_DISENCHANT 4
+ #endif
+-// === Remaining ScriptDevAI compatibility ===
+-// Penqle has native sScriptMgr.OnGossipHello(), used directly by the bot now.
+-// OnNpcSpellClick has no verified Penqle equivalent yet, so keep only this
+-// legacy hook as an explicit no-op until the remaining shim audit resolves it.
+-struct CmangosScriptDevAIMgrStub {
+-    template<typename... Args>
+-    bool OnNpcSpellClick(Args... /*args*/) { return false; }
+-};
+-inline CmangosScriptDevAIMgrStub sScriptDevAIMgr;
+-
+ #ifndef SPELL_STATE_TARGETING
+ #define SPELL_STATE_TARGETING 0
+ #endif
+@@ -298,11 +288,6 @@ inline CmangosScriptDevAIMgrStub sScriptDevAIMgr;
+ #define MAX_GOSSIP_TEXT_OPTIONS 8
+ #endif
+ 
+-// === SEC_GAMEMASTER alias (cmangos has it; Penqle goes SEC_PLAYER → SEC_ADMINISTRATOR) ===
+-#ifndef SEC_GAMEMASTER
+-#define SEC_GAMEMASTER SEC_ADMINISTRATOR
+-#endif
+-
+ // === SkillLineAbility store proxy ===
+ // cmangos exposes sSkillLineAbilityStore (DBCStorage<SkillLineAbilityEntry>);
+ // Penqle exposes sObjectMgr.GetSkillLineAbility(id).
+diff --git a/modules/mod-playerbots/src/cmangos-compat-stubs/AI/ScriptDevAI/ScriptDevAIMgr.h b/modules/mod-playerbots/src/cmangos-compat-stubs/AI/ScriptDevAI/ScriptDevAIMgr.h
+deleted file mode 100644
+index 0678b89..0000000
+--- a/modules/mod-playerbots/src/cmangos-compat-stubs/AI/ScriptDevAI/ScriptDevAIMgr.h
++++ /dev/null
+@@ -1,6 +0,0 @@
+-#pragma once
+-
+-// Intentionally empty. cmangos uses ScriptDevAIMgr as a dispatcher for the
+-// ScriptDev2 script suite; Penqle's equivalent is ScriptMgr in src/game/.
+-// Bot module sites #including this header resolve their call sites against
+-// Penqle's ScriptMgr via the compat shim.
+diff --git a/modules/mod-playerbots/src/playerbot/PlayerbotAI.cpp b/modules/mod-playerbots/src/playerbot/PlayerbotAI.cpp
+index c88b700..a0f131e 100644
+--- a/modules/mod-playerbots/src/playerbot/PlayerbotAI.cpp
++++ b/modules/mod-playerbots/src/playerbot/PlayerbotAI.cpp
+@@ -54,7 +54,6 @@
+ #ifdef BUILD_ELUNA
+ #include "LuaEngine/LuaEngine.h"
+ #endif
+-#include "AI/ScriptDevAI/ScriptDevAIMgr.h"
+ #include "strategy/values/GuildValues.h"
+ 
+ using namespace ai;
+@@ -3678,7 +3677,7 @@ bool PlayerbotAI::IsTellAllowed(Player* player, PlayerbotSecurityLevel securityL
+         return false;
+ 
+     if (sPlayerbotAIConfig.whisperDistance && !bot->GetGroup() && sRandomPlayerbotMgr.IsFreeBot(bot) &&
+-            player->GetSession()->GetSecurity() < SEC_GAMEMASTER &&
++            player->GetSession()->GetSecurity() < SEC_DEVELOPER &&
+             (bot->GetMapId() != player->GetMapId() || sServerFacade.GetDistance2d(bot, player) > sPlayerbotAIConfig.whisperDistance))
+         return false;
+ 
+@@ -8658,9 +8657,6 @@ bool PlayerbotAI::HandleSpellClick(ObjectGuid guid)
+     {
+         if (itr->second.IsFitToRequirements(bot, creature))
+         {
+-            if (sScriptDevAIMgr.OnNpcSpellClick(bot, creature, itr->second.spellId))
+-                return true;
+-
+             Unit* caster = (itr->second.castFlags & 0x1) ? (Unit*)bot : (Unit*)creature;
+             Unit* target = (itr->second.castFlags & 0x2) ? (Unit*)bot : (Unit*)creature;
+ 
+diff --git a/modules/mod-playerbots/src/playerbot/PlayerbotMgr.cpp b/modules/mod-playerbots/src/playerbot/PlayerbotMgr.cpp
+index da63a92..60d2eee 100644
+--- a/modules/mod-playerbots/src/playerbot/PlayerbotMgr.cpp
++++ b/modules/mod-playerbots/src/playerbot/PlayerbotMgr.cpp
+@@ -917,6 +917,18 @@ std::list<std::string> PlayerbotHolder::HandlePlayerbotCommand(const std::string
+         return messages;
+     }
+ 
++    std::string securityCommand = command.substr(0, command.find('='));
++    if (securityCommand == "debug" && useSecurity < SEC_DEVELOPER)
++    {
++        messages.push_back("You do not have permission to use this command.");
++        return messages;
++    }
++    if (securityCommand == "c" && useSecurity < SEC_MODERATOR)
++    {
++        messages.push_back("You do not have permission to use this command.");
++        return messages;
++    }
++
+     std::set<std::string> bots;
+ 
+     if (charname.empty())
+@@ -985,7 +997,7 @@ std::list<std::string> PlayerbotHolder::HandlePlayerbotCommand(const std::string
+         } while (result->NextRow());
+     }
+ 
+-    if (charname == "!" && useSecurity > SEC_GAMEMASTER)
++    if (charname == "!" && useSecurity > SEC_DEVELOPER)
+     {
+         for (auto& itr : playerBots)
+         {
+@@ -1042,11 +1054,11 @@ std::list<std::string> PlayerbotHolder::HandlePlayerbotCommand(const std::string
+         }
+         else if (master)
+         {
+-            out << ProcessBotCommand(command, member, master->GetObjectGuid(), useSecurity >= SEC_GAMEMASTER, master->GetSession()->GetAccountId(), master->GetGuildId(), param);
++            out << ProcessBotCommand(command, member, master->GetObjectGuid(), useSecurity >= SEC_DEVELOPER, master->GetSession()->GetAccountId(), master->GetGuildId(), param);
+         }
+         else
+         {
+-            out << ProcessBotCommand(command, member, ObjectGuid(), useSecurity >= SEC_GAMEMASTER, -1, -1, param);
++            out << ProcessBotCommand(command, member, ObjectGuid(), useSecurity >= SEC_DEVELOPER, -1, -1, param);
+         }
+ 
+         messages.push_back(out.str());
+@@ -1474,7 +1486,7 @@ std::list<std::string> PlayerbotHolder::HandleHelp(Player* master, const std::st
+ std::list<std::string> PlayerbotHolder::HandleReload(Player* master, const std::string param, AccountTypes security)
+ {
+     std::list<std::string> messages;
+-    if (security < SEC_GAMEMASTER)
++    if (security < SEC_DEVELOPER)
+     {
+         messages.push_back("You do not have permission to use this command.");
+         return messages;
+@@ -1487,7 +1499,7 @@ std::list<std::string> PlayerbotHolder::HandleReload(Player* master, const std::
+ std::list<std::string> PlayerbotHolder::HandleTweak(Player* master, const std::string param, AccountTypes security)
+ {
+     std::list<std::string> messages;
+-    if (security < SEC_GAMEMASTER)
++    if (security < SEC_DEVELOPER)
+     {
+         messages.push_back("You do not have permission to use this command.");
+         return messages;
+@@ -1588,7 +1600,7 @@ std::list<std::string> PlayerbotHolder::HandleSelf(Player* master, const std::st
+     }
+     else if (sPlayerbotAIConfig.selfBotLevel == BotSelfBotLevel::DISABLED)
+         messages.push_back("Self-bot is disabled");
+-    else if (sPlayerbotAIConfig.selfBotLevel == BotSelfBotLevel::GM_ONLY && security < SEC_GAMEMASTER)
++    else if (sPlayerbotAIConfig.selfBotLevel == BotSelfBotLevel::GM_ONLY && security < SEC_DEVELOPER)
+         messages.push_back("You do not have permission to enable player ai");
+     else
+     {
+@@ -1618,7 +1630,7 @@ std::string PlayerbotHolder::HandleBotDebug(Player* bot, Player* master, const s
+ 
+     std::string command = param;
+ 
+-    if(!ai->DoSpecificAction("cdebug", Event(".bot", command, master ? master : bot), true))
++    if(!ai->DoSpecificAction("cdebug", Event(".bot privileged", command, master ? master : bot), true))
+     {
+         return "debug failed";
+     }
+@@ -1644,7 +1656,7 @@ std::string PlayerbotHolder::HandleBotC(Player* bot, Player* master, const std::
+     if (!ai)
+         return "Bot has no AI";
+ 
+-    ai->DoSpecificAction("cdebug", Event(".bot", "monstertalk " + param, master ? master : bot), true);
++    ai->DoSpecificAction("cdebug", Event(".bot privileged", "monstertalk " + param, master ? master : bot), true);
+     return "ok";
+ }
+ 
+@@ -3038,8 +3050,8 @@ std::unordered_map<std::string, std::string> PlayerbotHolder::GetCommandTexts()
+         // Holder commands (used with .(rnd)bot)
+         {"list", "List all active player bots.\nUsage: .(rnd)bot list"},
+         {"help", "Show help for commands.\nUsage: .(rnd)bot help <command>"},
+-        {"reload", "Reload the playerbot config (GM only).\nUsage: .(rnd)bot reload"},
+-        {"tweak", "Adjust the tweak value for testing (GM only).\nUsage: .(rnd)bot tweak"},
++        {"reload", "Reload the playerbot config (developer rank and above).\nUsage: .(rnd)bot reload"},
++        {"tweak", "Adjust the tweak value for testing (developer rank and above).\nUsage: .(rnd)bot tweak"},
+         {"self", "Enable self-bot mode for a player.\nUsage: .(rnd)bot self <playername>"},
+         {"group", "Create 4 bots with complementary classes at master's level.\nUsage: .(rnd)bot group"},
+         {"create", "Create a new bot character.\nUsage: .(rnd)bot create level=<n> class=<class> race=<race>"},
+@@ -3092,9 +3104,9 @@ std::unordered_map<std::string, std::string> PlayerbotHolder::GetCommandTexts()
+         
+         {"always", "Enable offline AI for a player.\nUsage: .(rnd)bot always <playername>"},
+         
+-        {"debug", "Run debug commands on the bot (GM only).\nUsage: .(rnd)bot debug <bot> <command>"},
++        {"debug", "Run debug commands on the bot (developer rank and above).\nUsage: .(rnd)bot debug <bot> <command>"},
+         
+-        {"c", "Execute a chat command on the bot.\nUsage: .(rnd)bot c <bot> <command>"},
++        {"c", "Execute a privileged chat command on the bot (moderator rank and above).\nUsage: .(rnd)bot c <bot> <command>"},
+         
+         {"w", "Send a whisper.\nUsage: .(rnd)bot w <bot> <message> (while spoofing as sender)\nUsage: .(rnd)bot <sender> <reciever> "},
+         
+diff --git a/modules/mod-playerbots/src/playerbot/PlayerbotSecurity.cpp b/modules/mod-playerbots/src/playerbot/PlayerbotSecurity.cpp
+index 6290ad0..1314ad4 100644
+--- a/modules/mod-playerbots/src/playerbot/PlayerbotSecurity.cpp
++++ b/modules/mod-playerbots/src/playerbot/PlayerbotSecurity.cpp
+@@ -18,7 +18,7 @@ PlayerbotSecurityLevel PlayerbotSecurity::LevelFor(Player* from, DenyReason* rea
+ {
+ 
+     // Allow everything if request is from gm account
+-    if (from->GetSession()->GetSecurity() >= SEC_GAMEMASTER)
++    if (from->GetSession()->GetSecurity() >= SEC_DEVELOPER)
+     {
+         return PlayerbotSecurityLevel::PLAYERBOT_SECURITY_ALLOW_ALL;
+     }
+@@ -160,7 +160,7 @@ bool PlayerbotSecurity::CheckLevelFor(PlayerbotSecurityLevel level, bool silent,
+         return false;
+ 
+     Player* master = bot->GetPlayerbotAI()->GetMaster();
+-    if (master && bot->GetPlayerbotAI() && bot->GetPlayerbotAI()->IsOpposing(master) && master->GetSession()->GetSecurity() < SEC_GAMEMASTER)
++    if (master && bot->GetPlayerbotAI() && bot->GetPlayerbotAI()->IsOpposing(master) && master->GetSession()->GetSecurity() < SEC_DEVELOPER)
+         return false;
+ 
+     std::ostringstream out;
+diff --git a/modules/mod-playerbots/src/playerbot/RandomPlayerbotMgr.cpp b/modules/mod-playerbots/src/playerbot/RandomPlayerbotMgr.cpp
+index 4abbe9a..815268a 100644
+--- a/modules/mod-playerbots/src/playerbot/RandomPlayerbotMgr.cpp
++++ b/modules/mod-playerbots/src/playerbot/RandomPlayerbotMgr.cpp
+@@ -3457,12 +3457,7 @@ bool RandomPlayerbotMgr::HandlePlayerbotConsoleCommand(ChatHandler* handler, cha
+         return false;
+     }
+ 
+-    bool isRA = false;
+-    
+-    if (handler->GetSession()) //Client command
+-        isRA = true;
+-    else if (static_cast<CliHandler*>(handler) && static_cast<CliHandler*>(handler)->GetAccountId()) //RA call with account.
+-        isRA = true;
++    bool isRA = handler->GetSession() || handler->GetAccountId();
+ 
+     if (!args || !*args)
+     {
+@@ -3580,7 +3575,10 @@ bool RandomPlayerbotMgr::HandlePlayerbotConsoleCommand(ChatHandler* handler, cha
+             return true;
+     }
+ 
+-    std::list<std::string> messages = sRandomPlayerbotMgr.HandlePlayerbotCommand(args, handler->GetSession() ? handler->GetSession()->GetPlayer():nullptr, static_cast<CliHandler*>(handler) ? static_cast<CliHandler*>(handler)->GetAccessLevel() : SEC_PLAYER);
++    std::list<std::string> messages = sRandomPlayerbotMgr.HandlePlayerbotCommand(
++        args,
++        handler->GetSession() ? handler->GetSession()->GetPlayer() : nullptr,
++        handler->GetAccessLevel());
+     for (std::list<std::string>::iterator i = messages.begin(); i != messages.end(); ++i)
+     {
+         sLog.outString("%s", i->c_str());
+diff --git a/modules/mod-playerbots/src/playerbot/aiplayerbot.conf.dist.in b/modules/mod-playerbots/src/playerbot/aiplayerbot.conf.dist.in
+index 9716d30..384e065 100644
+--- a/modules/mod-playerbots/src/playerbot/aiplayerbot.conf.dist.in
++++ b/modules/mod-playerbots/src/playerbot/aiplayerbot.conf.dist.in
+@@ -1070,7 +1070,7 @@ AiPlayerbot.PerfMonEnabled = 0
+ 
+ # Self bot turns your current character into a bot with the command ".bot self"
+ # !!DISCLAMER!! Selfbots will work and act like randombots based on their enabled strategies. Your epic mount will be sold to a vendor!
+-# Self bot level. Values: 0 (disabled), 1 (Game masters only), 2 (Any player), 3 (Allow .bot always command for all players), 4 (Enabled on login), 4 (Enabled even when offline)
++# Self bot level. Values: 0 (disabled), 1 (Tortoise developer rank and above), 2 (Any player), 3 (Allow .bot always command for all players), 4 (Enabled on login), 4 (Enabled even when offline)
+ # AiPlayerbot.SelfBotLevel = 1
+ 
+ # Account/character names that are either, always online as bot (SelfBotLevel < 4) or prevented from being always online as bot (SelfBotLevel = 4) 
+diff --git a/modules/mod-playerbots/src/playerbot/aiplayerbot.conf.dist.in.tbc b/modules/mod-playerbots/src/playerbot/aiplayerbot.conf.dist.in.tbc
+index 29039c9..5de31b2 100644
+--- a/modules/mod-playerbots/src/playerbot/aiplayerbot.conf.dist.in.tbc
++++ b/modules/mod-playerbots/src/playerbot/aiplayerbot.conf.dist.in.tbc
+@@ -1081,7 +1081,7 @@ AiPlayerbot.PerfMonEnabled = 0
+ 
+ # Self bot turns your current character into a bot with the command ".bot self"
+ # !!DISCLAMER!! Selfbots will work and act like randombots based on their enabled strategies. Your epic mount will be sold to a vendor!
+-# Self bot level. Values: 0 (disabled), 1 (Game masters only), 2 (Any player), 3 (Allow .bot always command for all players), 4 (Enabled on login), 4 (Enabled even when offline)
++# Self bot level. Values: 0 (disabled), 1 (Tortoise developer rank and above), 2 (Any player), 3 (Allow .bot always command for all players), 4 (Enabled on login), 4 (Enabled even when offline)
+ # AiPlayerbot.SelfBotLevel = 1
+ 
+ # Account/character names that are either, always online as bot (SelfBotLevel < 4) or prevented from being always online as bot (SelfBotLevel = 4) 
+diff --git a/modules/mod-playerbots/src/playerbot/aiplayerbot.conf.dist.in.wotlk b/modules/mod-playerbots/src/playerbot/aiplayerbot.conf.dist.in.wotlk
+index e34ba37..64a5ffc 100644
+--- a/modules/mod-playerbots/src/playerbot/aiplayerbot.conf.dist.in.wotlk
++++ b/modules/mod-playerbots/src/playerbot/aiplayerbot.conf.dist.in.wotlk
+@@ -1076,7 +1076,7 @@ AiPlayerbot.PerfMonEnabled = 0
+ 
+ # Self bot turns your current character into a bot with the command ".bot self"
+ # !!DISCLAMER!! Selfbots will work and act like randombots based on their enabled strategies. Your epic mount will be sold to a vendor!
+-# Self bot level. Values: 0 (disabled), 1 (Game masters only), 2 (Any player), 3 (Allow .bot always command for all players), 4 (Enabled on login), 4 (Enabled even when offline)
++# Self bot level. Values: 0 (disabled), 1 (Tortoise developer rank and above), 2 (Any player), 3 (Allow .bot always command for all players), 4 (Enabled on login), 4 (Enabled even when offline)
+ # AiPlayerbot.SelfBotLevel = 1
+ 
+ # Account/character names that are either, always online as bot (SelfBotLevel < 4) or prevented from being always online as bot (SelfBotLevel = 4) 
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/CheatAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/CheatAction.cpp
+index 1772f83..11af2d2 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/CheatAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/CheatAction.cpp
+@@ -7,7 +7,7 @@ using namespace ai;
+ bool CheatAction::Execute(Event& event)
+ {
+     Player* requester = event.getOwner() ? event.getOwner() : GetMaster();
+-    if (requester && requester->GetSession()->GetSecurity() >= SEC_GAMEMASTER)
++    if (requester && requester->GetSession()->GetSecurity() >= SEC_DEVELOPER)
+     {
+         std::string param = event.getParam();
+         uint32 cheatMask = (uint32)ai->GetCheat();
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/CheatAction.h b/modules/mod-playerbots/src/playerbot/strategy/actions/CheatAction.h
+index d69c2a7..69e8083 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/CheatAction.h
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/CheatAction.h
+@@ -12,7 +12,7 @@ namespace ai
+         virtual std::string GetHelpName() { return "cheat"; }
+         virtual std::string GetHelpDescription()
+         {
+-            return "This command enables/disables various cheats for testing (GM only).\n"
++            return "This command enables/disables various cheats for testing (developer rank and above).\n"
+                    "Usage: cheat [+/-][cheatname]\n"
+                    "+ to enable, - to disable\n"
+                    "Example: cheat +attackspeed (enables attack speed cheat)\n"
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/DebugAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/DebugAction.cpp
+index 14f0eac..0803848 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/DebugAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/DebugAction.cpp
+@@ -37,7 +37,8 @@ using namespace MaNGOS;
+ bool DebugAction::Execute(Event& event)
+ {
+     Player* requester = event.getOwner() ? event.getOwner() : GetMaster();
+-    bool isMod = event.getSource() == ".bot" || (event.getOwner() && event.getOwner()->GetSession() && event.getOwner()->GetSession()->GetSecurity() >= SEC_MODERATOR);
++    bool isMod = event.getSource() == ".bot privileged" ||
++        (requester && requester->GetSession() && requester->GetSession()->GetSecurity() >= SEC_MODERATOR);
+ 
+     if (!requester)
+     {
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/GossipHelloAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/GossipHelloAction.cpp
+index c3f993a..d81b7fa 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/GossipHelloAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/GossipHelloAction.cpp
+@@ -3,7 +3,7 @@
+ #include "GossipHelloAction.h"
+ 
+ #include "playerbot/ServerFacade.h"
+-#include "AI/ScriptDevAI/ScriptDevAIMgr.h"
++#include "ScriptMgr.h"
+ 
+ 
+ using namespace ai;
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/SecurityCheckAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/SecurityCheckAction.cpp
+index 7201fa5..87b586d 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/SecurityCheckAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/SecurityCheckAction.cpp
+@@ -7,7 +7,7 @@ using namespace ai;
+ 
+ bool SecurityCheckAction::isUseful()
+ {
+-    return sRandomPlayerbotMgr.IsRandomBot(bot) && ai->GetMaster() && ai->GetMaster()->GetSession()->GetSecurity() < SEC_GAMEMASTER && !ai->GetMaster()->GetPlayerbotAI();
++    return sRandomPlayerbotMgr.IsRandomBot(bot) && ai->GetMaster() && ai->GetMaster()->GetSession()->GetSecurity() < SEC_DEVELOPER && !ai->GetMaster()->GetPlayerbotAI();
+ }
+ 
+ bool SecurityCheckAction::Execute(Event& event)
+@@ -20,7 +20,7 @@ bool SecurityCheckAction::Execute(Event& event)
+         ItemQualities threshold = group->GetLootThreshold();
+         if (method == MASTER_LOOT || method == FREE_FOR_ALL || threshold > ITEM_QUALITY_UNCOMMON)
+         {
+-            if ((ai->GetGroupMaster()->GetSession()->GetSecurity() == SEC_PLAYER) && (!bot->GetGuildId() || bot->GetGuildId() != ai->GetGroupMaster()->GetGuildId()))
++            if ((ai->GetGroupMaster()->GetSession()->GetSecurity() < SEC_MODERATOR) && (!bot->GetGuildId() || bot->GetGuildId() != ai->GetGroupMaster()->GetGuildId()))
+             {
+                 ai->TellError(requester, "I will play with this loot type only if I'm in your guild :/");
+                 ai->ChangeStrategy("+passive,+stay", BotState::BOT_STATE_NON_COMBAT);
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/UseMeetingStoneAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/UseMeetingStoneAction.cpp
+index 10e4a29..a2c8c75 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/UseMeetingStoneAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/UseMeetingStoneAction.cpp
+@@ -78,7 +78,7 @@ bool SummonAction::Execute(Event& event)
+     if (!requester || requester->IsBeingTeleported())
+         return false;
+ 
+-    if (requester->GetSession()->GetSecurity() > SEC_PLAYER || sPlayerbotAIConfig.nonGmFreeSummon)
++    if (requester->GetSession()->GetSecurity() >= SEC_MODERATOR || sPlayerbotAIConfig.nonGmFreeSummon)
+         return Teleport(requester, requester, bot);
+ 
+     if(bot->GetMapId() == requester->GetMapId() && !WorldPosition(bot).canPathTo(requester, bot) && bot->GetDistance(requester) < sPlayerbotAIConfig.sightDistance) //We can't walk to requester so fine to short-range teleport.
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/triggers/RpgTriggers.cpp b/modules/mod-playerbots/src/playerbot/strategy/triggers/RpgTriggers.cpp
+index 3863f6a..d0c4d0d 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/triggers/RpgTriggers.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/triggers/RpgTriggers.cpp
+@@ -7,7 +7,7 @@
+ #include "playerbot/ServerFacade.h"
+ #include "playerbot/strategy/values/ItemUsageValue.h"
+ #include "playerbot/TravelMgr.h"
+-#include "AI/ScriptDevAI/ScriptDevAIMgr.h"
++#include "ScriptMgr.h"
+ 
+ using namespace ai;
+ 
