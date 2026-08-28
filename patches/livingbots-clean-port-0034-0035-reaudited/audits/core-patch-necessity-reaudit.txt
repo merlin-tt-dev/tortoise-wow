@@ -1,0 +1,100 @@
+LivingBots clean-port core patch necessity re-audit
+===================================================
+Basis: livingbots/playerbots-clean-base @ b733c67fce45b16c79a02f111cf6ef0eb4321bc0
+Patch-generation base: local byte-equivalent 0033 + core-0005 checkpoint e2fe3c51542cae8f2266d672e3e8579cb40d3731
+
+Decision rule
+-------------
+Keep a core patch only if Penqle has no equivalent public API and a module-only
+replacement would duplicate private core state, broaden semantics, or bypass a
+native lifecycle.
+
+core-0001 / core-0002 — KEEP (generic core correctness fixes)
+- These are not Playerbot ownership hooks.
+- core-0001 fixes LoadChatChannels storing every loaded ChatChannelsEntry.id as 1.
+- core-0002 fixes substring-style channel-name matching so unrelated/similarly named
+  channels do not alias.
+- Penqle core itself uses GetChannelEntryFor(name), so these are generic channel
+  correctness fixes, not merely compatibility shims.
+
+core-0003 — KEEP (extension API)
+- Playerbot travel graph needs full Penqle PathFinder/PathInfo semantics without a
+  live Unit.
+- Reimplementing Detour/path-filter/path-type behavior in the module would duplicate
+  core pathfinding.
+
+core-0004 — KEEP (extension API)
+- MoveSplineInit::MovebyPath exists, but MotionMaster's generator mutation/lifecycle
+  entrypoint is private.
+- Direct spline driving would bypass generator ownership and speed-change lifecycle.
+
+core-0005 — KEEP (read-only accessor)
+- Penqle exposes homebind map/area but not X/Y/Z.
+- DB re-query/cache is possible but duplicates already-loaded Player state and is a
+  worse architectural boundary than a read-only getter.
+
+core-0006 — KEEP (read-only accessor)
+- ChannelMgr::GetChannel only resolves a channel object; it does NOT verify that the
+  supplied Player is a member.
+- Channel::IsOn(ObjectGuid) is the exact membership source and is private.
+- Tracking join/leave independently in the module would duplicate Channel state.
+
+core-0007 — KEEP after practical module-only experiment
+- Penqle has RemoveGameObject(uint32 spellId, bool del), which does not remove aura.
+- A module-only reconstruction using that overload compiled successfully.
+- REJECTED because that overload operates on every owned GameObject with the same
+  spellId, while the historical pointer overload removes exactly the colliding object.
+- For spells with multiple spell-created objects/slots this broadens semantics.
+- The three-argument pointer API therefore remains the smaller and safer exact delta.
+
+core-0008 — KEEP, BUT ORIGINAL VERSION REJECTED AND REPLACED
+- Original draft added m_corpseDecayLimit, reset logic and AllLootRemovedFromCorpse
+  integration. Re-audit found this unnecessary.
+- Playerbot calls AccelerateRespawn once after XP gain and again after loot release.
+  The second call occurs after Penqle has performed its native post-loot corpse timer
+  recalculation, so no persistent per-life limit is required.
+- Revised core-0008 touches only Creature.h:
+    GetCorpseDelay() const
+    ReduceCorpseDecayTimer(uint32 limit)
+- No Creature.cpp change, no additional Creature state, no change to native loot or
+  death lifecycle.
+- Penqle already exposes SetCorpseDelay/SetRespawnTime/RemoveCorpse, but none can
+  shorten the currently-running private m_corpseDecayTimer exactly after death.
+
+Net conclusion
+--------------
+No core patch can be removed without either losing semantics or replacing a tiny
+public API with duplicated/private-state approximations. However core-0008 was
+materially over-engineered and has been reduced from a stateful lifecycle patch to
+two inline accessors in Creature.h.
+
+The raw patch count is misleading:
+- 0001/0002 = generic channel correctness fixes
+- 0003/0004 = missing generic extension points
+- 0005/0006/0008 = tiny read/min-write accessors
+- 0007 = restoration of an exact generic historical API semantic
+
+Build/audit
+-----------
+ACE 8.0.2 targeted objects green after revised 0008:
+- src/game/.../Chat/Channel.cpp.o
+- src/game/.../Objects/Unit.cpp.o
+- src/game/.../Objects/Creature.cpp.o
+- HostHooks.cpp.o
+- PerformanceMonitor.cpp.o
+- PlayerbotAI.cpp.o
+- PlayerbotMgr.cpp.o
+- ChatHelper.cpp.o
+- FleeManager.cpp.o
+- ServerFacade.cpp.o
+
+Series audit:
+- forward apply: PASS
+- git diff --check on resulting tree: PASS
+- reverse in reverse order: PASS, clean base recovered
+- reapply: PASS
+- forward/reapply diff SHA-256 identical
+- desired-file byte comparison: PASS
+
+Note: whitespace warnings during reverse apply come from old lines restored by the
+reverse operation; the forward resulting tree passes git diff --check.

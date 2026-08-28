@@ -1,0 +1,21 @@
+Base HEAD: e2fe3c51542cae8f2266d672e3e8579cb40d3731
+CHECK + APPLY core-0006-channel-membership-query.patch
+CHECK + APPLY core-0007-gameobject-selective-aura-removal.patch
+CHECK + APPLY core-0008-current-corpse-decay-clamp.patch
+CHECK + APPLY 0034-build-compatibility-pass-5-playerbot-ai-chat-command-semantics.patch
+CHECK + APPLY 0035-build-compatibility-pass-6-chathelper-flee-native-adapters.patch
+Forward diff sha256: 57bf255c0b9bc70790f158a437b1ae064be0ec86c8b6ab5c997b53f0b6e492c7
+REVERSE 0035-build-compatibility-pass-6-chathelper-flee-native-adapters.patch
+REVERSE 0034-build-compatibility-pass-5-playerbot-ai-chat-command-semantics.patch
+REVERSE core-0008-current-corpse-decay-clamp.patch
+REVERSE core-0007-gameobject-selective-aura-removal.patch
+REVERSE core-0006-channel-membership-query.patch
+Reverse clean: PASS
+REAPPLY core-0006-channel-membership-query.patch
+REAPPLY core-0007-gameobject-selective-aura-removal.patch
+REAPPLY core-0008-current-corpse-decay-clamp.patch
+REAPPLY 0034-build-compatibility-pass-5-playerbot-ai-chat-command-semantics.patch
+REAPPLY 0035-build-compatibility-pass-6-chathelper-flee-native-adapters.patch
+Reapply diff sha256: 57bf255c0b9bc70790f158a437b1ae064be0ec86c8b6ab5c997b53f0b6e492c7
+Byte reproduction: PASS
+Desired file byte-compare: PASS

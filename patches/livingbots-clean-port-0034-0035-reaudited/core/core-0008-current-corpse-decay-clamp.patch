@@ -1,0 +1,73 @@
+diff --git a/docs/playerbots-clean-port/UPSTREAM_CORE_PATCH_MAINTENANCE.md b/docs/playerbots-clean-port/UPSTREAM_CORE_PATCH_MAINTENANCE.md
+index 62343ee..0974378 100644
+--- a/docs/playerbots-clean-port/UPSTREAM_CORE_PATCH_MAINTENANCE.md
++++ b/docs/playerbots-clean-port/UPSTREAM_CORE_PATCH_MAINTENANCE.md
+@@ -271,6 +271,55 @@ Regression checks:
+ - `removeAura=false` detaches the object without cancelling the same-spell aura;
+ - spell cooldown/reactivation and GameObject deletion semantics remain unchanged.
+ 
++## core-0008: current corpse-decay clamp
++
++Patch:
++
++- `patches/core-0008-current-corpse-decay-clamp.patch`
++
++Files to watch:
++
++- `src/game/Objects/Creature.h`
++
++Purpose:
++
++- expose the configured corpse delay read-only;
++- expose one generic operation that can only shorten the currently running
++  corpse-decay timer.
++
++Why this remains a core patch:
++
++Penqle exposes `SetCorpseDelay()`, `SetRespawnTime()` and `RemoveCorpse()`, but the
++currently running `m_corpseDecayTimer` is private. Changing the configured delay
++after death does not update the already-running corpse timer. Reconstructing that
++private state in the module is not possible without either approximate timing or a
++broader forced-despawn path.
++
++The Playerbot already calls `AccelerateRespawn()` once when XP is awarded and again
++after `CMSG_LOOT_RELEASE`. Therefore no persistent per-corpse limit is needed: after
++Penqle performs its native post-loot timer recalculation, the second call can clamp
++the resulting current timer again. This keeps `AllLootRemovedFromCorpse()` entirely
++core-native.
++
++Upstream retirement condition:
++
++- Penqle exposes an equivalent public getter/current-corpse timer reduction API.
++
++Rebase-sensitive areas:
++
++- `m_corpseDelay` and `m_corpseDecayTimer` units;
++- death-state initialization of the current corpse timer.
++
++Regression checks:
++
++- neither helper can lengthen the current corpse lifetime;
++- normal Creature death/loot behavior is byte-for-byte core-native outside callers
++  that explicitly request the clamp;
++- Playerbot acceleration retains the historical 20-second lower bound while loot
++  remains;
++- the post-loot Playerbot call clamps Penqle's freshly recalculated timer without
++  storing state across corpse lifecycles.
++
+ ## Update workflow
+ 
+ Before modifying the working branch, record the Penqle base commit. After applying
+diff --git a/src/game/Objects/Creature.h b/src/game/Objects/Creature.h
+index 0631241..9dd94e5 100644
+--- a/src/game/Objects/Creature.h
++++ b/src/game/Objects/Creature.h
+@@ -600,6 +600,8 @@ class Creature : public Unit
+         bool IsCorpse() const { return GetDeathState() ==  CORPSE; }
+         bool IsDespawned() const { return GetDeathState() ==  DEAD; }
+         void SetCorpseDelay(uint32 delay) { m_corpseDelay = delay; }
++        uint32 GetCorpseDelay() const { return m_corpseDelay; }
++        void ReduceCorpseDecayTimer(uint32 limit) { if (m_corpseDecayTimer > limit) m_corpseDecayTimer = limit; }
+         bool IsRacialLeader() const { return GetCreatureInfo()->racial_leader; }
+         bool IsCivilian() const { return GetCreatureInfo()->civilian; }
+         bool IsTrigger() const { return HasExtraFlag(CREATURE_FLAG_EXTRA_INVISIBLE); }

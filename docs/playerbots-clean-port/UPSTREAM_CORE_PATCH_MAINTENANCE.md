@@ -186,6 +186,48 @@ Regression checks:
 - binding at a different inn is reflected immediately in the getter;
 - `TeleportToHomebind()` and all existing bind behavior remain unchanged.
 
+## core-0006: read-only channel membership
+
+Patch:
+
+- `patches/core-0006-channel-membership-query.patch`
+
+Files to watch:
+
+- `src/game/Chat/Channel.h`
+
+Purpose:
+
+- expose an exact read-only membership query for a channel already resolved by
+  Penqle's `ChannelMgr`;
+- let Playerbot distinguish a visible real player who is actually joined to the
+  channel from a merely nearby/online player.
+
+Why this remains a core patch:
+
+`Channel::IsOn(ObjectGuid)` owns the exact membership test but is private. The
+module can resolve a channel through public APIs, but reconstructing membership
+from broadcasts or player-side state would only approximate the core's channel
+registry. `HasMember()` is a one-line const accessor and does not expose or mutate
+membership storage.
+
+Upstream retirement condition:
+
+- Penqle exposes a public const channel membership query or member iterator with
+  equivalent semantics.
+
+Rebase-sensitive areas:
+
+- `Channel::IsOn()` and `m_players` representation;
+- channel join/leave lifecycle;
+- `ChannelMgr::GetChannel()` visibility and lookup semantics.
+
+Regression checks:
+
+- normal channel join/leave behavior is unchanged;
+- `HasMember()` returns true only for current channel members;
+- no permission, moderation, password, ownership or broadcast behavior changes.
+
 ## Update workflow
 
 Before modifying the working branch, record the Penqle base commit. After applying

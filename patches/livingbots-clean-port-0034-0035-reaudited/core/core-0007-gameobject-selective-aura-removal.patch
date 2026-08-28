@@ -1,0 +1,90 @@
+diff --git a/docs/playerbots-clean-port/UPSTREAM_CORE_PATCH_MAINTENANCE.md b/docs/playerbots-clean-port/UPSTREAM_CORE_PATCH_MAINTENANCE.md
+index a9b7725..62343ee 100644
+--- a/docs/playerbots-clean-port/UPSTREAM_CORE_PATCH_MAINTENANCE.md
++++ b/docs/playerbots-clean-port/UPSTREAM_CORE_PATCH_MAINTENANCE.md
+@@ -228,6 +228,49 @@ Regression checks:
+ - `HasMember()` returns true only for current channel members;
+ - no permission, moderation, password, ownership or broadcast behavior changes.
+ 
++## core-0007: selective GameObject aura removal
++
++Patch:
++
++- `patches/core-0007-gameobject-selective-aura-removal.patch`
++
++Files to watch:
++
++- `src/game/Objects/Unit.h`
++- `src/game/Objects/Unit.cpp`
++
++Purpose:
++
++- restore the optional historical `removeAura` semantic when detaching a
++  spell-created `GameObject` from its owner;
++- preserve Penqle behavior for every existing two-argument caller by defaulting
++  the new argument to `true`.
++
++Why this remains a core patch:
++
++Playerbot's stale spell-GameObject recovery needs to detach an old object without
++removing the aura belonging to a newly active cast of the same spell. Penqle's
++public `RemoveGameObject(GameObject*, bool)` unconditionally removes that aura.
++The distinction cannot be reproduced module-side after the core has already
++performed the removal.
++
++Upstream retirement condition:
++
++- Penqle exposes a supported public way to detach a spell-created GameObject
++  without forcibly removing the spell aura.
++
++Rebase-sensitive areas:
++
++- `Unit::RemoveGameObject()` overloads;
++- spell-created GameObject ownership and cooldown handling;
++- aura removal ordering during GameObject teardown.
++
++Regression checks:
++
++- all pre-existing two-argument callers retain aura-removal behavior;
++- `removeAura=false` detaches the object without cancelling the same-spell aura;
++- spell cooldown/reactivation and GameObject deletion semantics remain unchanged.
++
+ ## Update workflow
+ 
+ Before modifying the working branch, record the Penqle base commit. After applying
+diff --git a/src/game/Objects/Unit.cpp b/src/game/Objects/Unit.cpp
+index 57f24ca..f7e7816 100644
+--- a/src/game/Objects/Unit.cpp
++++ b/src/game/Objects/Unit.cpp
+@@ -4688,7 +4688,7 @@ void Unit::AddGameObject(GameObject* pGo)
+     }
+ }
+ 
+-void Unit::RemoveGameObject(GameObject* pGo, bool del)
++void Unit::RemoveGameObject(GameObject* pGo, bool del, bool removeAura)
+ {
+     MANGOS_ASSERT(pGo && pGo->GetOwnerGuid() == GetObjectGuid());
+ 
+@@ -4697,7 +4697,8 @@ void Unit::RemoveGameObject(GameObject* pGo, bool del)
+     // GO created by some spell
+     if (uint32 spellid = pGo->GetSpellId())
+     {
+-        RemoveAurasDueToSpell(spellid);
++        if (removeAura)
++            RemoveAurasDueToSpell(spellid);
+ 
+         if (SpellEntry const* pCreateBySpell = sSpellMgr.GetSpellEntry(spellid))
+         {
+diff --git a/src/game/Objects/Unit.h b/src/game/Objects/Unit.h
+index acbc620..f2ef54b 100644
+--- a/src/game/Objects/Unit.h
++++ b/src/game/Objects/Unit.h
+@@ -882,7 +882,7 @@ class Unit : public WorldObject
+         // SPELL_EFFECT_TRANS_DOOR
+         GameObject* GetGameObject(uint32 spellId) const;
+         void AddGameObject(GameObject* pGo);
+-        void RemoveGameObject(GameObject* pGo, bool del);
++        void RemoveGameObject(GameObject* pGo, bool del, bool removeAura = true);
+         void RemoveGameObject(uint32 spellid, bool del);
+         void RemoveAllGameObjects();
+         ObjectGuid m_ObjectSlotGuid[4];

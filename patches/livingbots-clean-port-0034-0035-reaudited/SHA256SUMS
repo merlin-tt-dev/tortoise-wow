@@ -1,0 +1,8 @@
+033f6f2651d29213531821f11c2e6942c9a2e7a00c6180d674c92734979cc237  audits/core-patch-necessity-reaudit.txt
+278c6e51859a6ff989792dcb35514a7a4d8269b8b7c77ff3fb8158d169925758  audits/revised-build-audit.txt
+83e723cff8e27bb8d9018fdea0188963a8e271b9ba82dd88e0f4741adede327e  audits/series-apply-reverse-reapply.txt
+89258cad75a97c0414a352aba2dd81a4ee16bae08927d7221eff8f8f14527dd8  core/core-0006-channel-membership-query.patch
+29f299dd4c9afc3eb860b4ac6f5af64bd62f5424c6d33507b56d8abfa615c53b  core/core-0007-gameobject-selective-aura-removal.patch
+e3fe43367281f93d0d7e2dceb49030c20b139d3ba1fa86da6b34155d88be733e  core/core-0008-current-corpse-decay-clamp.patch
+5d4e968e6decfadd638645a4bf6101334b518f5ba727c7617e3a6e8ce75dfca4  mod/0034-build-compatibility-pass-5-playerbot-ai-chat-command-semantics.patch
+2849a876c29378f6fd3474fdaf4de7d605c92925558c9018d48f8e5974969d7d  mod/0035-build-compatibility-pass-6-chathelper-flee-native-adapters.patch

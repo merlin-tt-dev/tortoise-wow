@@ -1,0 +1,17 @@
+# Apply from repository root after 0031 + core-0005 + 0032 + 0033.
+# Core and module patches remain strictly separated.
+
+git apply --check core/core-0006-channel-membership-query.patch
+git apply core/core-0006-channel-membership-query.patch
+
+git apply --check core/core-0007-gameobject-selective-aura-removal.patch
+git apply core/core-0007-gameobject-selective-aura-removal.patch
+
+git apply --check core/core-0008-current-corpse-decay-clamp.patch
+git apply core/core-0008-current-corpse-decay-clamp.patch
+
+git apply --check mod/0034-build-compatibility-pass-5-playerbot-ai-chat-command-semantics.patch
+git apply mod/0034-build-compatibility-pass-5-playerbot-ai-chat-command-semantics.patch
+
+git apply --check mod/0035-build-compatibility-pass-6-chathelper-flee-native-adapters.patch
+git apply mod/0035-build-compatibility-pass-6-chathelper-flee-native-adapters.patch

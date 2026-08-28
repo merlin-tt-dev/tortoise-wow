@@ -1,0 +1,15 @@
+Revised 0034/0035 targeted ACE 8.0.2 build audit
+================================================
+Result: PASS (warnings are pre-existing core/compiler warnings; no compile errors)
+
+Targets verified after replacing stateful core-0008 with minimal clamp API:
+- Channel.cpp.o
+- Unit.cpp.o
+- Creature.cpp.o
+- HostHooks.cpp.o
+- PerformanceMonitor.cpp.o
+- PlayerbotAI.cpp.o
+- PlayerbotMgr.cpp.o
+- ChatHelper.cpp.o
+- FleeManager.cpp.o
+- ServerFacade.cpp.o

@@ -1,0 +1,8 @@
+audits/core-patch-necessity-reaudit.txt
+audits/revised-build-audit.txt
+audits/series-apply-reverse-reapply.txt
+core/core-0006-channel-membership-query.patch
+core/core-0007-gameobject-selective-aura-removal.patch
+core/core-0008-current-corpse-decay-clamp.patch
+mod/0034-build-compatibility-pass-5-playerbot-ai-chat-command-semantics.patch
+mod/0035-build-compatibility-pass-6-chathelper-flee-native-adapters.patch
