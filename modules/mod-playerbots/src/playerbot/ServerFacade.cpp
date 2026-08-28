@@ -26,6 +26,20 @@ float ServerFacade::GetDistance2d(Unit *unit, float x, float y)
     return round(dist * 10.0f) / 10.0f;
 }
 
+float ServerFacade::GetAggroDistance(Unit* attacker, Unit* target)
+{
+    if (!attacker || !target)
+        return 0.0f;
+
+    // Penqle owns aggro-radius calculation on Creature rather than Unit.
+    // Player units do not automatically aggro nearby enemies, so zero is the
+    // correct semantic for the travel/flee hazard checks using this helper.
+    if (Creature* creature = attacker->ToCreature())
+        return creature->GetAttackDistance(target);
+
+    return 0.0f;
+}
+
 bool ServerFacade::IsDistanceLessThan(float dist1, float dist2)
 {
     return dist1 - dist2 < sPlayerbotAIConfig.targetPosRecalcDistance;

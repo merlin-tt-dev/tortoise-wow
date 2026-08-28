@@ -437,7 +437,12 @@ std::string ChatHelper::formatQuest(Quest const* quest)
     std::ostringstream out;
     int loc_idx = sPlayerbotTextMgr.GetLocalePriority();
     std::string title = quest->GetTitle();
-    sObjectMgr.GetQuestLocaleStrings(quest->GetQuestId(), loc_idx, &title);
+    if (loc_idx >= 0)
+    {
+        if (QuestLocale const* locale = sObjectMgr.GetQuestLocale(quest->GetQuestId()))
+            if (locale->Title.size() > static_cast<size_t>(loc_idx) && !locale->Title[loc_idx].empty())
+                title = locale->Title[loc_idx];
+    }
     out << "|cFFFFFF00|Hquest:" << quest->GetQuestId() << ':' << quest->GetQuestLevel() << "|h[" << title << "]|h|r";
     return out.str();
 }
@@ -504,21 +509,15 @@ std::string ChatHelper::formatWorldEntry(int32 entry)
 
     if (loc_idx >= 0 && entry < 0)
     {
-        GameObjectLocale const* gl = sObjectMgr.GetGameObjectLocale(entry);
-        if (gl)
-        {
-            if ((int32)gl->Name.size() > loc_idx && !gl->Name[loc_idx].empty())
-                name = gl->Name[loc_idx];
-        }
+        GameObjectLocale const* gl = sObjectMgr.GetGameObjectLocale(static_cast<uint32>(-entry));
+        if (gl && gl->Name.size() > static_cast<size_t>(loc_idx) && !gl->Name[loc_idx].empty())
+            name = gl->Name[loc_idx];
     }
     if (loc_idx >= 0 && entry > 0)
     {
-        char const* tname = "";
-        sObjectMgr.GetCreatureLocaleStrings(entry, loc_idx, &tname);
-        if (*tname)
-        {
-            name = *tname;
-        }
+        if (CreatureLocale const* locale = sObjectMgr.GetCreatureLocale(static_cast<uint32>(entry)))
+            if (locale->Name.size() > static_cast<size_t>(loc_idx) && !locale->Name[loc_idx].empty())
+                name = locale->Name[loc_idx];
     }
     
     out << name;
@@ -545,10 +544,9 @@ std::string ChatHelper::formatItem(ItemQualifier& itemQualifier, int count, int 
     std::string name = proto->Name1;
     if (loc_idx >= 0)
     {
-        std::string tname;
-        sObjectMgr.GetItemLocaleStrings(itemQualifier.GetId(), loc_idx, &tname);
-        if (!tname.empty())
-            name = tname;
+        if (ItemLocale const* locale = sObjectMgr.GetItemLocale(itemQualifier.GetId()))
+            if (locale->Name.size() > static_cast<size_t>(loc_idx) && !locale->Name[loc_idx].empty())
+                name = locale->Name[loc_idx];
     }
 
     if (itemQualifier.GetRandomPropertyId())
@@ -697,11 +695,7 @@ std::string ChatHelper::formatFaction(uint32 factionId, Player* player)
 {
     std::string name = "unknown faction";
 
-#ifndef MANGOSBOT_ONE
-    const FactionEntry* factionEntry = sFactionStore.LookupEntry(factionId);
-#else
-    const FactionEntry* factionEntry = sFactionStore.LookupEntry<FactionEntry>(factionId);
-#endif
+    const FactionEntry* factionEntry = sObjectMgr.GetFactionEntry(factionId);
 
     if (factionEntry)
     {
@@ -1091,11 +1085,7 @@ std::string ChatHelper::formatFactionName(uint32 factionId)
 {
     std::string name = "unknown faction";
 
-#ifndef MANGOSBOT_ONE
-    const FactionEntry* factionEntry = sFactionStore.LookupEntry(factionId);
-#else
-    const FactionEntry* factionEntry = sFactionStore.LookupEntry<FactionEntry>(factionId);
-#endif
+    const FactionEntry* factionEntry = sObjectMgr.GetFactionEntry(factionId);
 
     if (factionEntry)
     {
@@ -1226,9 +1216,9 @@ inline std::string toInitCap(const std::string& str) {
 void ChatHelper::PopulateSpellNameList()
 {
     spellIds.clear();
-    for (uint32 i = 0; i < GetSpellStore()->GetMaxEntry(); ++i)
+    for (uint32 i = 0; i < sSpellMgr.GetMaxSpellId(); ++i)
     {
-        SpellEntry const* tempSpell = GetSpellStore()->LookupEntry<SpellEntry>(i);
+        SpellEntry const* tempSpell = sSpellMgr.GetSpellEntry(i);
 
         if (!tempSpell)
             continue;

@@ -33,6 +33,8 @@ class ServerFacade
 
         float GetDistance2d(Unit *unit, float x, float y);
 
+        float GetAggroDistance(Unit* attacker, Unit* target);
+
         DeathState GetDeathState(Unit* unit) { return unit->GetDeathState(); }
 
         bool isSpawned(GameObject* go) { return go->isSpawned(); }
