@@ -222,7 +222,7 @@ RollVote RollAction::CalculateRollVote(ItemQualifier& itemQualifier)
             needVote = ROLL_GREED;
     }
 
-    bool canLoot = StoreLootAction::IsLootAllowed(itemQualifier, bot->GetPlayerbotAI());
+    bool canLoot = StoreLootAction::IsLootAllowed(itemQualifier, GetPlayerbotAI(bot));
 
     if (AI_VALUE2(bool, "manual bool", "roll feedback"))
     {

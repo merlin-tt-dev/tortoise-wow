@@ -32,7 +32,7 @@ bool ChooseRpgTargetAction::HasSameTarget(ObjectGuid guid, uint32 max, std::list
         if (!ai->IsSafe(player))
             continue;
 
-        PlayerbotAI* ai = player->GetPlayerbotAI();
+        PlayerbotAI* ai = GetPlayerbotAI(player);
 
         if (!ai)
             continue;
@@ -60,7 +60,7 @@ std::unordered_map<ObjectGuid, float> ChooseRpgTargetAction::GetTargets(Player* 
     focusQuestTravelList focusList = AI_VALUE(focusQuestTravelList, "focus travel target");
 
     GuidPosition masterRpgTarget;
-    if (requester && ai->IsSafe(requester) && requester->GetPlayerbotAI())
+    if (requester && ai->IsSafe(requester) && GetPlayerbotAI(requester))
     {
         Player* player = requester;
         masterRpgTarget = PAI_VALUE(GuidPosition, "rpg target");
@@ -187,7 +187,7 @@ std::unordered_map<ObjectGuid, float> ChooseRpgTargetAction::GetTargets(Player* 
             if (!ai->IsSafe(player))
                 SkipRpgTarget("Player is not safe.");
 
-            if (player->GetPlayerbotAI())
+            if (GetPlayerbotAI(player))
             {
                 GuidPosition guidPP = PAI_VALUE(GuidPosition, "rpg target");
 
@@ -367,7 +367,7 @@ bool ChooseRpgTargetAction::Execute(Event& event)
         return false;
 
     GuidPosition masterRpgTarget;
-    if (requester && ai->IsSafe(requester) && requester->GetPlayerbotAI())
+    if (requester && ai->IsSafe(requester) && GetPlayerbotAI(requester))
     {
         Player* player = requester;
         masterRpgTarget = PAI_VALUE(GuidPosition, "rpg target");

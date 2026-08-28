@@ -272,8 +272,8 @@ bool ChangeTalentsAction::AutoSelectTalents(Player* bot, std::ostringstream* out
         TalentSpec newSpec = *GetBestPremadeSpec(bot, specId);
         newSpec.CropTalents(bot);
         newSpec.ApplyTalents(bot, out);
-        if (bot->GetPlayerbotAI())
-            bot->GetPlayerbotAI()->UpdateTalentSpec();
+        if (GetPlayerbotAI(bot))
+            GetPlayerbotAI(bot)->UpdateTalentSpec();
         if (newSpec.GetTalentPoints() > 0)
         {
             *out << "Upgrading spec " << "|h|cffffffff" << getPremadePath(bot->GetClass(), specId)->name << " (" << newSpec.formatSpec(cls) << ")";
@@ -284,8 +284,8 @@ bool ChangeTalentsAction::AutoSelectTalents(Player* bot, std::ostringstream* out
         TalentSpec newSpec(bot, specLink);
         newSpec.CropTalents(bot);
         newSpec.ApplyTalents(bot, out);
-        if (bot->GetPlayerbotAI())
-            bot->GetPlayerbotAI()->UpdateTalentSpec();
+        if (GetPlayerbotAI(bot))
+            GetPlayerbotAI(bot)->UpdateTalentSpec();
         if (newSpec.GetTalentPoints() > 0)
         {
             *out << "Upgrading saved spec " << "|h|cffffffff" << ChatHelper::formatClass(bot, newSpec.highestTree()) << " (" << newSpec.formatSpec(cls) << ")";
@@ -361,8 +361,8 @@ bool ChangeTalentsAction::AutoSelectTalents(Player* bot, std::ostringstream* out
             specLink = newSpec.GetTalentLink();
             newSpec.CropTalents(bot);
             newSpec.ApplyTalents(bot, out);
-            if (bot->GetPlayerbotAI())
-                bot->GetPlayerbotAI()->UpdateTalentSpec();
+            if (GetPlayerbotAI(bot))
+                GetPlayerbotAI(bot)->UpdateTalentSpec();
 
             if (paths.size() > 1)
                 *out << "Found " << paths.size() << " possible specs to choose from. ";

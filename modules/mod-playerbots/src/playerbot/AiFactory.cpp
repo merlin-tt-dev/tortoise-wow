@@ -936,10 +936,10 @@ void AiFactory::AddDefaultNonCombatStrategies(Player* player, PlayerbotAI* const
 
     if (!player->InBattleGround())
     {
-        PlayerbotAI* ai = player->GetPlayerbotAI();
+        PlayerbotAI* ai = GetPlayerbotAI(player);
         Player* master = ai ? ai->GetMaster() : nullptr;
 
-        if (master && !master->GetPlayerbotAI())
+        if (master && !GetPlayerbotAI(master))
         {
             const char* wanderFollow = sPlayerbotAIConfig.useWanderAsDefaultFollowStrategy ? "wander" : "follow";
             nonCombatEngine->addStrategies("racials", "nc", "food", wanderFollow, "default", "quest", "loot", "gather", "duel", "emote", "buff", "mount", NULL);
@@ -1009,7 +1009,7 @@ void AiFactory::AddDefaultNonCombatStrategies(Player* player, PlayerbotAI* const
                 nonCombatEngine->addStrategy("bg");
             }
 
-            if(!master || master->GetPlayerbotAI())
+            if(!master || GetPlayerbotAI(master))
             {
                 nonCombatEngine->addStrategy("maintenance");
             }
@@ -1022,7 +1022,7 @@ void AiFactory::AddDefaultNonCombatStrategies(Player* player, PlayerbotAI* const
             {
                 if (master)
                 {
-                    if (master->GetPlayerbotAI() || sRandomPlayerbotMgr.IsFreeBot(player))
+                    if (GetPlayerbotAI(master) || sRandomPlayerbotMgr.IsFreeBot(player))
                     {
                         nonCombatEngine->addStrategy("collision");
                         nonCombatEngine->addStrategy("grind");
@@ -1036,7 +1036,7 @@ void AiFactory::AddDefaultNonCombatStrategies(Player* player, PlayerbotAI* const
                             nonCombatEngine->addStrategy("rpg");
                         }
 
-                        if (!master || master->GetPlayerbotAI())
+                        if (!master || GetPlayerbotAI(master))
                         {
                             nonCombatEngine->addStrategy("maintenance");
                         }

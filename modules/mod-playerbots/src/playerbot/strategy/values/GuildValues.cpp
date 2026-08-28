@@ -150,7 +150,7 @@ uint32 ai::CountGuildFinishedItemDeficit(Player* bot, uint32 itemId, const std::
                     continue;
 
                 uint32 has = 0;
-                if (PlayerbotAI* memberAi = player->GetPlayerbotAI())
+                if (PlayerbotAI* memberAi = GetPlayerbotAI(player))
                     has = memberAi->GetInventoryItemsCountWithId(itemId);
                 else
                     has = player->GetItemCount(itemId, true);
@@ -208,7 +208,7 @@ static std::unordered_map<uint32, uint32> CountGuildFinishedItemDeficits(
                     continue;
 
                 uint32 has = 0;
-                PlayerbotAI* memberAi = player->GetPlayerbotAI();
+                PlayerbotAI* memberAi = GetPlayerbotAI(player);
                 if (memberAi)
                     has = memberAi->GetInventoryItemsCountWithId(entry.itemId);
                 else
@@ -479,7 +479,7 @@ bool GuildShareItemEntry::MatchesPlayer(Player* player) const
 
     case GuildShareFilter::FILTER_MELEE:
     {
-        PlayerbotAI* ai = player->GetPlayerbotAI();
+        PlayerbotAI* ai = GetPlayerbotAI(player);
         if (!ai)
             return true;
         return !ai->IsRanged(player, false);
@@ -487,7 +487,7 @@ bool GuildShareItemEntry::MatchesPlayer(Player* player) const
 
     case GuildShareFilter::FILTER_RANGED:
     {
-        PlayerbotAI* ai = player->GetPlayerbotAI();
+        PlayerbotAI* ai = GetPlayerbotAI(player);
         if (!ai)
             return true;
         return ai->IsRanged(player, false);
@@ -495,7 +495,7 @@ bool GuildShareItemEntry::MatchesPlayer(Player* player) const
 
     case GuildShareFilter::FILTER_TANK:
     {
-        PlayerbotAI* ai = player->GetPlayerbotAI();
+        PlayerbotAI* ai = GetPlayerbotAI(player);
         if (!ai)
             return true;
         return ai->IsTank(player, false);
@@ -503,7 +503,7 @@ bool GuildShareItemEntry::MatchesPlayer(Player* player) const
 
     case GuildShareFilter::FILTER_DPS:
     {
-        PlayerbotAI* ai = player->GetPlayerbotAI();
+        PlayerbotAI* ai = GetPlayerbotAI(player);
         if (!ai)
             return true;
         return !ai->IsTank(player, false) && !ai->IsHeal(player, false);
@@ -511,7 +511,7 @@ bool GuildShareItemEntry::MatchesPlayer(Player* player) const
 
     case GuildShareFilter::FILTER_HEAL:
     {
-        PlayerbotAI* ai = player->GetPlayerbotAI();
+        PlayerbotAI* ai = GetPlayerbotAI(player);
         if (!ai)
             return true;
         return ai->IsHeal(player, false);
@@ -1055,7 +1055,7 @@ GuildShareTarget GuildShareTargetValue::Calculate()
         if (player->GetGuildId() != bot->GetGuildId())
             continue;
 
-        PlayerbotAI* targetAi = player->GetPlayerbotAI();
+        PlayerbotAI* targetAi = GetPlayerbotAI(player);
         if (!targetAi)
             continue;
 

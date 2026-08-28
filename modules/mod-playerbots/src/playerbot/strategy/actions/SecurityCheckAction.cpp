@@ -7,7 +7,7 @@ using namespace ai;
 
 bool SecurityCheckAction::isUseful()
 {
-    return sRandomPlayerbotMgr.IsRandomBot(bot) && ai->GetMaster() && ai->GetMaster()->GetSession()->GetSecurity() < SEC_DEVELOPER && !ai->GetMaster()->GetPlayerbotAI();
+    return sRandomPlayerbotMgr.IsRandomBot(bot) && ai->GetMaster() && ai->GetMaster()->GetSession()->GetSecurity() < SEC_DEVELOPER && !GetPlayerbotAI(ai->GetMaster());
 }
 
 bool SecurityCheckAction::Execute(Event& event)

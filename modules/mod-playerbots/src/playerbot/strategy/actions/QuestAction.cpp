@@ -400,7 +400,7 @@ bool QuestUpdateFailedTimerAction::Execute(Event& event)
     }
 
     //drop quest
-    bot->GetPlayerbotAI()->DropQuest(questId);
+    GetPlayerbotAI(bot)->DropQuest(questId);
 
     sPlayerbotAIConfig.logEvent(ai, "QuestUpdateFailedTimerAction", std::to_string(questId), "FailedTimer");
     return false;

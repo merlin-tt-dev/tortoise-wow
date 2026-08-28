@@ -491,7 +491,7 @@ bool RpgHomeBindTrigger::IsActive()
         return false;
 
     //Update if the new bind is closer to the group leaders bind than the old one.
-    if (bot->GetGroup() && !ai->IsGroupLeader() && ai->GetGroupMaster() && ai->GetGroupMaster()->GetPlayerbotAI())
+    if (bot->GetGroup() && !ai->IsGroupLeader() && ai->GetGroupMaster() && GetPlayerbotAI(ai->GetGroupMaster()))
     {
         Player* player = ai->GetGroupMaster();
 
@@ -635,7 +635,7 @@ bool RpgAIChatTrigger::IsActive()
     {
         Player* player = guidP.GetPlayer();
 
-        if (!player || player->isRealPlayer())
+        if (!player || IsRealPlayer(player))
             return false;
     }
 
@@ -697,7 +697,7 @@ bool RpgTradeUsefulTrigger::isFriend(Player* player)
     if (ai->IsAlt() && GetMaster() == player)
         return true;
 
-    if (player->GetPlayerbotAI() && player->GetPlayerbotAI()->GetMaster() == bot && player->GetPlayerbotAI()->IsAlt())
+    if (GetPlayerbotAI(player) && GetPlayerbotAI(player)->GetMaster() == bot && GetPlayerbotAI(player)->IsAlt())
         return true;
 
     if (player->GetGuildId() && player->GetGuildId() == bot->GetGuildId())

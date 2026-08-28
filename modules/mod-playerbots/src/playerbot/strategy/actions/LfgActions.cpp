@@ -222,7 +222,7 @@ bool LfgJoinAction::JoinLFG()
     }
 
     bool groupQ = false;
-    TravelTarget* target = bot->GetPlayerbotAI()->GetAiObjectContext()->GetValue<TravelTarget*>("travel target")->Get();
+    TravelTarget* target = GetPlayerbotAI(bot)->GetAiObjectContext()->GetValue<TravelTarget*>("travel target")->Get();
     if (target)
     {
         state = target->GetTravelState();
@@ -761,7 +761,7 @@ bool LfgJoinAction::JoinLFG()
     }
     if (lfgType == LFG_TYPE_DUNGEON)
     {
-        std::string _gs = std::to_string(bot->GetPlayerbotAI()->GetEquipGearScore(bot, false, false));
+        std::string _gs = std::to_string(GetPlayerbotAI(bot)->GetEquipGearScore(bot, false, false));
         lfgComment += ", GS " + _gs;
     }
 
@@ -1089,7 +1089,7 @@ bool LfgLeaveAction::isUseful()
             return false;
     }
 
-    if ((ai->GetMaster() && !ai->GetMaster()->GetPlayerbotAI()))
+    if ((ai->GetMaster() && !GetPlayerbotAI(ai->GetMaster())))
     {
         return false;
     }

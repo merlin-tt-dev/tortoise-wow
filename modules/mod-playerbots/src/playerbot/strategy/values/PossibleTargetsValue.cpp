@@ -84,7 +84,7 @@ bool PossibleTargetsValue::IsFriendly(Unit* target, Player* player)
 
 bool PossibleTargetsValue::IsAttackable(Unit* target, Player* player)
 {
-    const bool inVehicle = player->GetPlayerbotAI() && player->GetPlayerbotAI()->IsInVehicle();
+    const bool inVehicle = GetPlayerbotAI(player) && GetPlayerbotAI(player)->IsInVehicle();
     return !target->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_ATTACKABLE_1) &&
            !target->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_UNTARGETABLE) &&
            (inVehicle || !target->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_UNINTERACTIBLE)) &&
@@ -125,7 +125,7 @@ bool PossibleTargetsValue::IsValid(Unit* target, Player* player, bool ignoreLos)
                 return false;
             }
         }
-        if (!CanFreeMoveValue::CanFreeAttack(player->GetPlayerbotAI(), target))
+        if (!CanFreeMoveValue::CanFreeAttack(GetPlayerbotAI(player), target))
             return false;
 
         return true;

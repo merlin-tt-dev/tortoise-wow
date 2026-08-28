@@ -35,7 +35,7 @@ Unit* GrindTargetValue::FindTargetForGrinding(int assistCount)
     Group* group = bot->GetGroup();
     Player* master = GetMaster();
 
-    if (master && (master == bot || master->GetMapId() != bot->GetMapId() || master->IsBeingTeleported() || !master->GetPlayerbotAI()))
+    if (master && (master == bot || master->GetMapId() != bot->GetMapId() || master->IsBeingTeleported() || !GetPlayerbotAI(master)))
         master = nullptr;
 
     std::list<ObjectGuid> attackers = context->GetValue<std::list<ObjectGuid>>("possible attack targets")->Get();
@@ -322,7 +322,7 @@ int GrindTargetValue::GetTargetingPlayerCount( Unit* unit )
         if( !member || !sServerFacade.IsAlive(member) || member == bot)
             continue;
 
-        PlayerbotAI* ai = member->GetPlayerbotAI();
+        PlayerbotAI* ai = GetPlayerbotAI(member);
         if ((ai && *ai->GetAiObjectContext()->GetValue<Unit*>("current target") == unit) ||
             (!ai && member->GetSelectionGuid() == unit->GetObjectGuid()))
             count++;

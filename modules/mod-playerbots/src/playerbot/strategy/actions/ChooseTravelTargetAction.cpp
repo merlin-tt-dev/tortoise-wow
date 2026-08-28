@@ -160,7 +160,7 @@ void ChooseTravelTargetAction::setNewTarget(Player* requester, TravelTarget* new
 //This should at some point be rewritten to be denser or perhaps logic moved to ->getTitle()
 void ChooseTravelTargetAction::ReportTravelTarget(Player* bot, Player* requester, TravelTarget* newTarget, TravelTarget* oldTarget)
 {
-    PlayerbotAI* ai = bot->GetPlayerbotAI();
+    PlayerbotAI* ai = GetPlayerbotAI(bot);
     AiObjectContext* context = ai->GetAiObjectContext();
 
     TravelDestination* destination = newTarget->GetDestination();
@@ -509,10 +509,10 @@ bool ChooseGroupTravelTargetAction::Execute(Event& event)
         if (!ai->IsSafe(player))
             continue;
 
-        if (!player->GetPlayerbotAI())
+        if (!GetPlayerbotAI(player))
             continue;
 
-        if (!player->GetPlayerbotAI()->GetAiObjectContext())
+        if (!GetPlayerbotAI(player)->GetAiObjectContext())
             continue;
 
         TravelTarget* groupTarget = PAI_VALUE(TravelTarget*, "travel target");
@@ -528,7 +528,7 @@ bool ChooseGroupTravelTargetAction::Execute(Event& event)
 
         if (!groupTarget->GetDestination()->IsActive(player, PlayerTravelInfo(player)) || !groupTarget->IsConditionsActive())
         {
-            player->GetPlayerbotAI()->TellDebug(requester,"Target is cooling down because a group member found it to be inactive.", "debug travel");
+            GetPlayerbotAI(player)->TellDebug(requester,"Target is cooling down because a group member found it to be inactive.", "debug travel");
             groupTarget->SetStatus(TravelStatus::TRAVEL_STATUS_COOLDOWN);
             continue;
         }
@@ -1357,7 +1357,7 @@ bool RequestQuestTravelTargetAction::Execute(Event& event)
         if (player->GetMapId() != bot->GetMapId())
             continue;
 
-        if (!player->GetPlayerbotAI())
+        if (!GetPlayerbotAI(player))
             continue;
 
         QuestStatusMap& questMap = player->getQuestStatusMap();

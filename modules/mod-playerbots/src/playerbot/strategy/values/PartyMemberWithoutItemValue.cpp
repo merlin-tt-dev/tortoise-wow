@@ -33,7 +33,7 @@ public:
 #endif
             return false;
 
-        PlayerbotAI *botAi = member->GetPlayerbotAI();
+        PlayerbotAI *botAi = GetPlayerbotAI(member);
         if (!botAi)
             return false;
 

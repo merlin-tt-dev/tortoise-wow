@@ -532,7 +532,7 @@ if ((proto->Class == ITEM_CLASS_PROJECTILE ||
 
 ItemUsage ItemUsageValue::QueryItemUsageForEquip(ItemQualifier& itemQualifier, Player* bot)
 {
-    PlayerbotAI* ai = bot->GetPlayerbotAI();
+    PlayerbotAI* ai = GetPlayerbotAI(bot);
     AiObjectContext* context = ai->GetAiObjectContext();
     ChatHelper* chat = ai->GetChatHelper();
     ItemPrototype const* itemProto = itemQualifier.GetProto();
@@ -589,7 +589,7 @@ ItemUsage ItemUsageValue::QueryItemUsageForEquip(ItemQualifier& itemQualifier, P
             if (!isCorrectQuiverTypeForCurrentWeapon)
                 return ItemUsage::ITEM_USAGE_NONE;
 
-            std::vector<Bag*> equippedQuivers = bot->GetPlayerbotAI()->GetEquippedQuivers();
+            std::vector<Bag*> equippedQuivers = GetPlayerbotAI(bot)->GetEquippedQuivers();
 
             for (auto quiver : equippedQuivers)
             {
@@ -1065,7 +1065,7 @@ bool ItemUsageValue::IsItemNeededForUsefullCraft(ItemPrototype const* proto, boo
 
 Item* ItemUsageValue::CurrentItem(ItemPrototype const* proto, Player* bot)
 {
-    PlayerbotAI* ai = bot->GetPlayerbotAI();
+    PlayerbotAI* ai = GetPlayerbotAI(bot);
     AiObjectContext* context = ai->GetAiObjectContext();
     ChatHelper* chat = ai->GetChatHelper();
     Item* bestItem = nullptr;
@@ -1460,7 +1460,7 @@ bool ItemUsageValue::IsItemSoldByAnyVendor(ItemPrototype const* proto)
 
 bool ItemUsageValue::MustEquipForQuest(ItemPrototype const* proto, Player* bot)
 {
-    PlayerbotAI* ai = bot->GetPlayerbotAI();
+    PlayerbotAI* ai = GetPlayerbotAI(bot);
     AiObjectContext* context = ai->GetAiObjectContext();
 
     switch (proto->ItemId)

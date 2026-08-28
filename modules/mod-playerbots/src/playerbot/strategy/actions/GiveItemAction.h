@@ -26,9 +26,9 @@ namespace ai
             if (!target)
                 return false;
 
-            bool isBot = target->IsPlayer() && ((Player*)target)->GetPlayerbotAI();
+            bool isBot = target->IsPlayer() && GetPlayerbotAI((Player*)target);
 
-            return !isBot || (isBot && !((Player*)target)->GetPlayerbotAI()->HasCheat(BotCheatMask::item));
+            return !isBot || (isBot && !GetPlayerbotAI((Player*)target)->HasCheat(BotCheatMask::item));
         }
     };
 
@@ -43,9 +43,9 @@ namespace ai
             if (!target)
                 return false;
 
-            bool isBot = target->IsPlayer() && ((Player*)target)->GetPlayerbotAI();
+            bool isBot = target->IsPlayer() && GetPlayerbotAI((Player*)target);
 
-            return !isBot || (isBot && !((Player*)target)->GetPlayerbotAI()->HasCheat(BotCheatMask::item));
+            return !isBot || (isBot && !GetPlayerbotAI((Player*)target)->HasCheat(BotCheatMask::item));
         }
     };
 }

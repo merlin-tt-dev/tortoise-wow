@@ -1,4 +1,5 @@
 #pragma once
+#include "playerbot/PlayerbotHost.h"
 #include "PlayerbotMgr.h"
 #include "Chat/Chat.h"
 #include "PlayerbotAIBase.h"
@@ -636,7 +637,7 @@ public:
     //Bot has a master that is a player.
     bool HasRealPlayerMaster() { return sRandomPlayerbotMgr.IsVisibleRealPlayer(master); }
     //Bot has a master that is actively playing and visible to bots.
-    bool HasActivePlayerMaster() const { return master && !master->GetPlayerbotAI() && sRandomPlayerbotMgr.IsVisibleRealPlayer(master); }
+    bool HasActivePlayerMaster() const { return master && !GetPlayerbotAI(master) && sRandomPlayerbotMgr.IsVisibleRealPlayer(master); }
     //Checks if the bot is summoned as alt of a player
     bool IsAlt() { return HasRealPlayerMaster() && !sRandomPlayerbotMgr.IsRandomBot(bot); }
     // Get the group leader or cached master without exposing a GM who is currently

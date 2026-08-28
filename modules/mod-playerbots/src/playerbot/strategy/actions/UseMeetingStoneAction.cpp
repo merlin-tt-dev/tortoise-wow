@@ -208,7 +208,7 @@ bool SummonAction::Teleport(Player* requester, Player *summoner, Player *player)
 
                 player->GetMotionMaster()->Clear();
                 player->TeleportTo(mapId, x, y, z, 0);
-                if(player->isRealPlayer())
+                if(IsRealPlayer(player))
                     player->SendHeartBeat();
 
                 if (summoner->GetTransport())

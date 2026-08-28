@@ -227,7 +227,7 @@ inline bool TellStuck(PlayerbotAI* ai, Player* requester)
     if (ai->HasActivePlayerMaster())
         return false;
 
-    if (ai->GetGroupMaster() && !ai->GetGroupMaster()->GetPlayerbotAI())
+    if (ai->GetGroupMaster() && !GetPlayerbotAI(ai->GetGroupMaster()))
         return false;
 
     if (!ai->AllowActivity(ALL_ACTIVITY))
