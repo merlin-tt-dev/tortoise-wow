@@ -6,7 +6,7 @@
 #include "Maps/GridNotifiers.h"
 #include "Maps/GridNotifiersImpl.h"
 #include "Maps/CellImpl.h"
-#include "World/WorldState.h"
+#include "WorldState.h"
 #include "playerbot/TravelMgr.h"
 
 

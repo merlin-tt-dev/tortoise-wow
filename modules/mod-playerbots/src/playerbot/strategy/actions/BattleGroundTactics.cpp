@@ -3632,7 +3632,7 @@ bool BGTactics::selectObjective(bool reset)
                     // Keep Gates open if any wall is destroyed, check it
                     if (GameObject* pGO = bg->GetSingleGameObjectFromStorage(BG_IC_GO_PORTCULLIS_KEEP_A1))
                     {
-                        if (sServerFacade.isSpawned(pGO) && pGO->GetLootState() == GO_ACTIVATED)
+                        if (sServerFacade.isSpawned(pGO) && pGO->getLootState() == GO_ACTIVATED)
                         {
                             gateOpen = true;
                         }
@@ -3681,12 +3681,12 @@ bool BGTactics::selectObjective(bool reset)
                     bool isCapping = false;
                     if (GameObject* pGO = bg->GetSingleGameObjectFromStorage(isleBanners[BG_IC_OBJECTIVE_KEEP_ALLY].entryHorde))
                     {
-                        if (sServerFacade.isSpawned(pGO) && pGO->GetLootState() == GO_READY)
+                        if (sServerFacade.isSpawned(pGO) && pGO->getLootState() == GO_READY)
                             isCapping = true;
                     }
                     if (GameObject* pGO = bg->GetSingleGameObjectFromStorage(isleBanners[BG_IC_OBJECTIVE_KEEP_ALLY].entryHorde_Grey))
                     {
-                        if (sServerFacade.isSpawned(pGO) && pGO->GetLootState() == GO_READY)
+                        if (sServerFacade.isSpawned(pGO) && pGO->getLootState() == GO_READY)
                             isCapping = true;
                     }
                     if (!isCapping)
@@ -3810,7 +3810,7 @@ bool BGTactics::selectObjective(bool reset)
                 {
                     if (GameObject* pGO =  bg->interactwith(BG_IC_VEHICLE_KEEP_CANNON))
                     {
-                        if (sServerFacade.isSpawned(pGO) && pGO->GetLootState() == GO_READY)
+                        if (sServerFacade.isSpawned(pGO) && pGO->getLootState() == GO_READY)
                             isCapping = true;
                     }
                 }*/
@@ -3903,7 +3903,7 @@ bool BGTactics::selectObjective(bool reset)
                     // Keep Gates open if any wall is destroyed, check it
                     if (GameObject* pGO = bg->GetSingleGameObjectFromStorage(BG_IC_GO_PORTCULLIS_KEEP_H))
                     {
-                        if (sServerFacade.isSpawned(pGO) && pGO->GetLootState() == GO_ACTIVATED)
+                        if (sServerFacade.isSpawned(pGO) && pGO->getLootState() == GO_ACTIVATED)
                         {
                             gateOpen = true;
                         }
@@ -4448,7 +4448,7 @@ bool BGTactics::atFlag(std::vector<BattleBotPath*> const& vPaths, std::vector<ui
         if (!isObjective)
             continue;
 
-        if (!sServerFacade.isSpawned(go) || go->IsInUse() || go->GetGoState() != GO_STATE_READY)
+        if (!sServerFacade.isSpawned(go) || go->HasFlag(GAMEOBJECT_FLAGS, GO_FLAG_IN_USE) || go->GetGoState() != GO_STATE_READY)
             continue;
 
         if (!bot->CanInteract(go) && bgType != BATTLEGROUND_WS)
@@ -4753,7 +4753,7 @@ bool BGTactics::IsLockedInsideKeep()
         {
             if (sServerFacade.isSpawned(go))
             {
-                gateLock = go->GetLootState() != GO_ACTIVATED;
+                gateLock = go->getLootState() != GO_ACTIVATED;
             }
             else
             {
@@ -4768,7 +4768,7 @@ bool BGTactics::IsLockedInsideKeep()
         {
             if (sServerFacade.isSpawned(go))
             {
-                gateLock = go->GetLootState() != GO_ACTIVATED;
+                gateLock = go->getLootState() != GO_ACTIVATED;
             }
             else
             {

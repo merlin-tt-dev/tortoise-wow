@@ -168,7 +168,7 @@ bool RpgTaxiAction::Execute(Event& event)
     for (uint32 i = 0; i < sTaxiPathStore.GetNumRows(); ++i)
     {
         TaxiPathEntry const* entry = sTaxiPathStore.LookupEntry(i);
-        if (entry && entry->from == node && (bot->m_taxi.IsTaximaskNodeKnown(entry->to) || bot->isTaxiCheater()))
+        if (entry && entry->from == node && (bot->GetTaxi().IsTaximaskNodeKnown(entry->to) || bot->IsTaxiCheater()))
         {
             nodes.push_back(i);
         }
@@ -188,8 +188,8 @@ bool RpgTaxiAction::Execute(Event& event)
     if (!entry)
         return false;
 
-    TaxiNodesEntry const* nodeFrom = sTaxiNodesStore.LookupEntry(entry->from);
-    TaxiNodesEntry const* nodeTo = sTaxiNodesStore.LookupEntry(entry->to);
+    TaxiNodesEntry const* nodeFrom = sObjectMgr.GetTaxiNodeEntry(entry->from);
+    TaxiNodesEntry const* nodeTo = sObjectMgr.GetTaxiNodeEntry(entry->to);
 
     Creature* flightMaster = bot->GetNPCIfCanInteractWith(guidP, UNIT_NPC_FLAG_FLIGHTMASTER);
     if (!flightMaster)

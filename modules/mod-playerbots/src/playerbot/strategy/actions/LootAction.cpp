@@ -86,7 +86,7 @@ bool OpenLootAction::DoLoot(LootObject& lootObject)
             WorldPacket data(SMSG_EMOTE, 4 + 8);
             data << uint32(EMOTE_ONESHOT_LOOT);
             data << bot->GetObjectGuid();
-            bot->GetSession()->SendPacket(data);
+            bot->GetSession()->SendPacket(&data);
         }
 
         return true;
@@ -94,7 +94,7 @@ bool OpenLootAction::DoLoot(LootObject& lootObject)
 
     if (creature)
     {
-        SkillType skill = (SkillType)creature->GetCreatureInfo()->GetRequiredLootSkill();
+        SkillType skill = (SkillType)SKILL_SKINNING;
         if (!CanOpenLock(skill, lootObject.reqSkillValue))
             return false;
 
@@ -115,7 +115,7 @@ bool OpenLootAction::DoLoot(LootObject& lootObject)
     if (go && sServerFacade.GetDistance2d(bot, go) > INTERACTION_DISTANCE)
         return false;
 
-    if (go && (go->IsInUse() || go->GetGoState() == GO_STATE_ACTIVE))
+    if (go && (go->HasFlag(GAMEOBJECT_FLAGS, GO_FLAG_IN_USE) || go->GetGoState() == GO_STATE_ACTIVE))
         return false;
 
     if (lootObject.skillId == SKILL_MINING)
@@ -130,7 +130,7 @@ bool OpenLootAction::DoLoot(LootObject& lootObject)
             if (go->ActivateToQuest(bot))
             {
                 std::list<uint32> lootItems = GAI_VALUE2(std::list<uint32>, "entry loot list", -1*int32(go->GetEntry()));
-                isForQuest = !lootItems.empty() || go->GetLootState() != GO_READY;
+                isForQuest = !lootItems.empty() || go->getLootState() != GO_READY;
             }
         }
 
@@ -171,15 +171,15 @@ uint32 OpenLootAction::GetOpeningSpell(LootObject& lootObject, GameObject* go)
     {
         uint32 spellId = itr->first;
 
-		if (itr->second.state == PLAYERSPELL_REMOVED || itr->second.disabled || IsPassiveSpell(spellId))
-			continue;
+        if (itr->second.state == PLAYERSPELL_REMOVED || itr->second.disabled || Spells::IsPassiveSpell(spellId))
+            continue;
 
 		if (spellId == MINING || spellId == HERB_GATHERING)
-			continue;
+            continue;
 
 		const SpellEntry* pSpellInfo = sServerFacade.LookupSpellInfo(spellId);
 		if (!pSpellInfo)
-			continue;
+            continue;
 
         if (CanOpenLock(lootObject, pSpellInfo, go))
             return spellId;
@@ -302,12 +302,12 @@ bool StoreLootAction::Execute(Event& event)
 
         ItemQualifier itemQualifier(itemid, ((int32)randomPropertyId));
 
-		if (lootslot_type != LOOT_SLOT_NORMAL
+        if (lootslot_type != LOOT_SLOT_TYPE_ALLOW_LOOT
 #ifndef MANGOSBOT_ZERO
-		        && lootslot_type != LOOT_SLOT_OWNER
+                && lootslot_type != LOOT_SLOT_TYPE_OWNER
 #endif
             )
-			continue;
+            continue;
 
         if (loot_type != LOOT_SKINNING && !IsLootAllowed(itemQualifier, ai))
             continue;
@@ -315,7 +315,7 @@ bool StoreLootAction::Execute(Event& event)
         if (AI_VALUE2(uint32, "stack space for item", itemid) < itemcount)
             continue;
 
-        ItemPrototype const *proto = sItemStorage.LookupEntry<ItemPrototype>(itemid);
+        ItemPrototype const *proto = sObjectMgr.GetItemPrototype(itemid);
         if (!proto)
             continue;
 

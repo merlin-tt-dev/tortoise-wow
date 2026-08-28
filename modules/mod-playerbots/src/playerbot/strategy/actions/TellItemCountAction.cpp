@@ -67,7 +67,7 @@ bool TellItemCountAction::Execute(Event& event)
             if (equiped[i->first] && i->second == 1)
                 continue;
 
-            ItemPrototype const* proto = sItemStorage.LookupEntry<ItemPrototype>(i->first);
+            ItemPrototype const* proto = sObjectMgr.GetItemPrototype(i->first);
             ai->InventoryTellItem(requester, proto, i->second - equiped[i->first], soulbound[i->first]);
         }
 

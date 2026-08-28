@@ -998,23 +998,23 @@ void RandomItemMgr::BuildItemInfoCache()
             continue;
 
         // skip test items
-        if (strstr(proto->Name1, "(Test)") ||
-            strstr(proto->Name1, "(TEST)") ||
-            strstr(proto->Name1, "(test)") ||
-            strstr(proto->Name1, "(JEFFTEST)") ||
-            strstr(proto->Name1, "Test ") ||
-            strstr(proto->Name1, "Test") ||
-            strstr(proto->Name1, "TEST") ||
-            strstr(proto->Name1, "TEST ") ||
-            strstr(proto->Name1, " TEST") ||
-            strstr(proto->Name1, "2200 ") ||
-            strstr(proto->Name1, "Deprecated ") ||
-            strstr(proto->Name1, "Unused ") ||
-            strstr(proto->Name1, "Monster ") ||
-            strstr(proto->Name1, "[PH]") ||
-            strstr(proto->Name1, "(OLD)") ||
-            strstr(proto->Name1, "zzz") ||
-            strstr(proto->Name1, "ZZZ")
+        if (proto->Name1.find("(Test)") != std::string::npos ||
+            proto->Name1.find("(TEST)") != std::string::npos ||
+            proto->Name1.find("(test)") != std::string::npos ||
+            proto->Name1.find("(JEFFTEST)") != std::string::npos ||
+            proto->Name1.find("Test ") != std::string::npos ||
+            proto->Name1.find("Test") != std::string::npos ||
+            proto->Name1.find("TEST") != std::string::npos ||
+            proto->Name1.find("TEST ") != std::string::npos ||
+            proto->Name1.find(" TEST") != std::string::npos ||
+            proto->Name1.find("2200 ") != std::string::npos ||
+            proto->Name1.find("Deprecated ") != std::string::npos ||
+            proto->Name1.find("Unused ") != std::string::npos ||
+            proto->Name1.find("Monster ") != std::string::npos ||
+            proto->Name1.find("[PH]") != std::string::npos ||
+            proto->Name1.find("(OLD)") != std::string::npos ||
+            proto->Name1.find("zzz") != std::string::npos ||
+            proto->Name1.find("ZZZ") != std::string::npos
             )
             continue;
 
@@ -1062,11 +1062,11 @@ void RandomItemMgr::BuildItemInfoCache()
 
         if (!cacheInfo->team && proto->AllowableRace > 1 && proto->AllowableRace < 8388607)
         {
-            if (FactionEntry const* faction = sFactionStore.LookupEntry(HORDE))
+            if (FactionEntry const* faction = sObjectMgr.GetFactionEntry(HORDE))
                 if ((proto->AllowableRace & faction->BaseRepRaceMask[0]) != 0)
                     cacheInfo->team = HORDE;
 
-            if (FactionEntry const* faction = sFactionStore.LookupEntry(ALLIANCE))
+            if (FactionEntry const* faction = sObjectMgr.GetFactionEntry(ALLIANCE))
                 if ((proto->AllowableRace & faction->BaseRepRaceMask[0]) != 0)
                     cacheInfo->team = ALLIANCE;
         }
@@ -1075,11 +1075,11 @@ void RandomItemMgr::BuildItemInfoCache()
         // check faction
         if (!cacheInfo->team && proto->AllowableRace > 1 && proto->AllowableRace < 8388607)
         {
-            if (FactionEntry const* faction = sFactionStore.LookupEntry<FactionEntry>(HORDE))
+            if (FactionEntry const* faction = sObjectMgr.GetFactionEntry(HORDE))
                 if ((proto->AllowableRace & faction->BaseRepRaceMask[0]) != 0)
                     cacheInfo->team = HORDE;
 
-            if (FactionEntry const* faction = sFactionStore.LookupEntry<FactionEntry>(ALLIANCE))
+            if (FactionEntry const* faction = sObjectMgr.GetFactionEntry(ALLIANCE))
                 if ((proto->AllowableRace & faction->BaseRepRaceMask[0]) != 0)
                     cacheInfo->team = ALLIANCE;
         }
@@ -1088,11 +1088,11 @@ void RandomItemMgr::BuildItemInfoCache()
         // check faction
         if (!cacheInfo->team && proto->AllowableRace > 1 && proto->AllowableRace < 8388607)
         {
-            if (FactionEntry const* faction = sFactionStore.LookupEntry(HORDE))
+            if (FactionEntry const* faction = sObjectMgr.GetFactionEntry(HORDE))
                 if ((proto->AllowableRace & faction->BaseRepRaceMask[0]) != 0)
                     cacheInfo->team = HORDE;
 
-            if (FactionEntry const* faction = sFactionStore.LookupEntry(ALLIANCE))
+            if (FactionEntry const* faction = sObjectMgr.GetFactionEntry(ALLIANCE))
                 if ((proto->AllowableRace & faction->BaseRepRaceMask[0]) != 0)
                     cacheInfo->team = ALLIANCE;
         }
@@ -1157,9 +1157,9 @@ void RandomItemMgr::BuildItemInfoCache()
                                     cacheInfo->repRank = uint32(r);
                             }
 #ifdef MANGOSBOT_ONE
-                            if (FactionEntry const* faction = sFactionStore.LookupEntry<FactionEntry>(quest->GetRequiredMinRepFaction()))
+                            if (FactionEntry const* faction = sObjectMgr.GetFactionEntry(quest->GetRequiredMinRepFaction()))
 #else
-                            if (FactionEntry const* faction = sFactionStore.LookupEntry(quest->GetRequiredMinRepFaction()))
+                            if (FactionEntry const* faction = sObjectMgr.GetFactionEntry(quest->GetRequiredMinRepFaction()))
 #endif
                             {
                                 if (faction->team == ALLIANCE)
@@ -1203,7 +1203,7 @@ void RandomItemMgr::BuildItemInfoCache()
                 cacheInfo->source = ITEM_SOURCE_VENDOR;
                 cacheInfo->sourceIds.push_back(vendor);
 
-                FactionTemplateEntry const* factionEntry = sFactionTemplateStore.LookupEntry(cInfo->Faction);
+                FactionTemplateEntry const* factionEntry = sObjectMgr.GetFactionTemplateEntry(cInfo->faction);
                 if (PlayerbotAI::friendToAlliance(factionEntry))
                     isAlly = true;
                 if (PlayerbotAI::friendToHorde(factionEntry))
@@ -1211,7 +1211,7 @@ void RandomItemMgr::BuildItemInfoCache()
 
                 // check faction conditions
                 VendorItemData const* vItems = sObjectMgr.GetNpcVendorItemList(vendor);
-                VendorItemData const* tItems = sObjectMgr.GetNpcVendorTemplateItemList(cInfo->VendorTemplateId);
+                VendorItemData const* tItems = sObjectMgr.GetNpcVendorTemplateItemList(cInfo->vendor_id);
 
                 if (vItems || tItems)
                 {
@@ -1236,9 +1236,9 @@ void RandomItemMgr::BuildItemInfoCache()
                                 uint32 m_value2 = fields[2].GetUInt32();
 
 #ifdef MANGOSBOT_ONE
-                                if (FactionEntry const* faction = sFactionStore.LookupEntry<FactionEntry>(m_value1))
+                                if (FactionEntry const* faction = sObjectMgr.GetFactionEntry(m_value1))
 #else
-                                if (FactionEntry const* faction = sFactionStore.LookupEntry(m_value1))
+                                if (FactionEntry const* faction = sObjectMgr.GetFactionEntry(m_value1))
 #endif
                                 {
                                     cacheInfo->repFaction = m_value1;
@@ -1671,7 +1671,7 @@ uint32 RandomItemMgr::CalculateStatWeight(uint8 playerclass, uint8 spec, ItemPro
             continue;
 
         // check if it is valid spell
-        SpellEntry const* spellproto = sSpellTemplate.LookupEntry<SpellEntry>(spellData.SpellId);
+        SpellEntry const* spellproto = sSpellMgr.GetSpellEntry(spellData.SpellId);
         if (!spellproto)
             continue;
 
@@ -1942,7 +1942,7 @@ uint32 RandomItemMgr::CalculateStatWeight(uint8 playerclass, uint8 spec, ItemPro
         {
             if (spellData.SpellCooldown != 0)
             {
-                int32 spellDuration = GetSpellDuration(spellproto);
+                int32 spellDuration = spellproto->GetDuration();
                 coverage = static_cast<float>(spellDuration) / spellData.SpellCooldown;
             }
             else
@@ -1961,7 +1961,7 @@ uint32 RandomItemMgr::CalculateStatWeight(uint8 playerclass, uint8 spec, ItemPro
 #ifdef MANGOSBOT_TWO
             float averageItemDelay = 2.39f;
 #endif
-            coverage = (static_cast<float>(spellproto->procChance) / 100) * (static_cast<float>(GetSpellDuration(spellproto)) / averageItemDelay);
+            coverage = (static_cast<float>(spellproto->procChance) / 100) * (static_cast<float>(spellproto->GetDuration()) / averageItemDelay);
 
             if (coverage > 0.9f)
                 coverage = 0.9f;
@@ -2241,7 +2241,7 @@ uint32 RandomItemMgr::CalculateEnchantWeight(uint8 playerclass, uint8 spec, uint
             if (!pEnchant->spellid[s])
                 continue;
 
-            SpellEntry const* spellInfo = sSpellTemplate.LookupEntry<SpellEntry>(pEnchant->spellid[s]);
+            SpellEntry const* spellInfo = sSpellMgr.GetSpellEntry(pEnchant->spellid[s]);
 
             if (!spellInfo)
                 continue;
@@ -2439,7 +2439,7 @@ uint32 RandomItemMgr::CalculateSocketWeight(uint8 playerclass, ItemQualifier& qu
         if (!gemid)
             return 0;
 
-        ItemPrototype const* gemProto = sItemStorage.LookupEntry<ItemPrototype>(gemid);
+        ItemPrototype const* gemProto = sObjectMgr.GetItemPrototype(gemid);
         if (!gemProto)
             return 0;
 
@@ -2923,7 +2923,7 @@ std::vector<uint32> RandomItemMgr::GetUpgradeList(Player* player, uint32 specId,
             if (!player->GetHonorPoints() && !player->GetArenaPoints())
                 continue;
 #else
-            if (!player->GetHonorRankInfo().rank)
+            if (!player->GetHonorMgr().GetRank().rank)
                 continue;
 #endif
         }
@@ -2979,7 +2979,7 @@ bool RandomItemMgr::CanBuyFromVendor(Player *player, uint32 itemId, uint32 creat
 
     VendorItemList vendorItems;
     VendorItemData const* vItems = sObjectMgr.GetNpcVendorItemList(creatureId);
-    VendorItemData const* tItems = sObjectMgr.GetNpcVendorTemplateItemList(cInfo->VendorTemplateId);
+    VendorItemData const* tItems = sObjectMgr.GetNpcVendorTemplateItemList(cInfo->vendor_id);
 
     if (!vItems && !tItems)
     {
@@ -3000,7 +3000,7 @@ bool RandomItemMgr::CanBuyFromVendor(Player *player, uint32 itemId, uint32 creat
             {
                 // when no faction required but rank > 0 will be used faction id from the vendor faction template to compare the rank
                 if (!pProto->RequiredReputationFaction && pProto->RequiredReputationRank > 0 &&
-                    ReputationRank(pProto->RequiredReputationRank) > player->GetReputationRank(sFactionTemplateStore.LookupEntry(cInfo->Faction)->faction))
+                    ReputationRank(pProto->RequiredReputationRank) > player->GetReputationRank(sObjectMgr.GetFactionTemplateEntry(cInfo->faction)->faction))
                     return false;
 
                 if (crItem->conditionId && !sObjectMgr.IsConditionSatisfied(crItem->conditionId, player, player->GetMap(), nullptr, CONDITION_FROM_VENDOR))
@@ -3211,7 +3211,7 @@ uint32 RandomItemMgr::GetLiveStatWeight(Player* player, uint32 itemId, uint32 sp
         if (!player->GetHonorPoints() && !player->GetArenaPoints())
             return 0;
 #else
-        if (!player->GetHonorRankInfo().rank)
+        if (!player->GetHonorMgr().GetRank().rank)
             return 0;
 #endif
     }*/
@@ -3222,13 +3222,13 @@ uint32 RandomItemMgr::GetLiveStatWeight(Player* player, uint32 itemId, uint32 sp
 
 #ifdef MANGOSBOT_ZERO
     // skip missing pvp ranks
-    if (info->pvpRank && player->GetHonorHighestRankInfo().rank < info->pvpRank)
+    if (info->pvpRank && player->GetHonorMgr().GetHighestRank().rank < info->pvpRank)
         return 0;
-    if (info->pvpRank && info->pvpRank < 16 && player->GetHonorHighestRankInfo().rank == 18)
+    if (info->pvpRank && info->pvpRank < 16 && player->GetHonorMgr().GetHighestRank().rank == 18)
         return 0;
 
     // skip non pvp items for some specs
-    if (info->pvpRank < 16 && player->GetHonorHighestRankInfo().rank == 18)
+    if (info->pvpRank < 16 && player->GetHonorMgr().GetHighestRank().rank == 18)
     {
         ItemPrototype const* proto = sObjectMgr.GetItemPrototype(itemId);
         if (proto && !(

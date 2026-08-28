@@ -66,7 +66,7 @@ void TravelNodePath::calculateCost(bool distanceOnly)
 
                     if (cInfo)
                     {
-                        FactionTemplateEntry const* factionEntry = sFactionTemplateStore.LookupEntry(cInfo->Faction);
+                        FactionTemplateEntry const* factionEntry = sObjectMgr.GetFactionTemplateEntry(cInfo->faction);
 
                         if (aReact.find(factionEntry) == aReact.end())
                             aReact.insert(std::make_pair(factionEntry, PlayerbotAI::friendToAlliance(factionEntry)));
@@ -76,12 +76,12 @@ void TravelNodePath::calculateCost(bool distanceOnly)
                             hReact.insert(std::make_pair(factionEntry, PlayerbotAI::friendToHorde(factionEntry)));
                         hFriend = hReact.find(factionEntry)->second;
 
-                        if (maxLevelCreature[0] < cInfo->MaxLevel && !aFriend && !hFriend)
-                            maxLevelCreature[0] = cInfo->MaxLevel;
-                        if (maxLevelCreature[1] < cInfo->MaxLevel && aFriend && !hFriend)
-                            maxLevelCreature[1] = cInfo->MaxLevel;
-                        if (maxLevelCreature[2] < cInfo->MaxLevel && !aFriend && hFriend)
-                            maxLevelCreature[2] = cInfo->MaxLevel;
+                        if (maxLevelCreature[0] < cInfo->level_max && !aFriend && !hFriend)
+                            maxLevelCreature[0] = cInfo->level_max;
+                        if (maxLevelCreature[1] < cInfo->level_max && aFriend && !hFriend)
+                            maxLevelCreature[1] = cInfo->level_max;
+                        if (maxLevelCreature[2] < cInfo->level_max && !aFriend && hFriend)
+                            maxLevelCreature[2] = cInfo->level_max;
                     }
                 }
 
@@ -136,12 +136,12 @@ float TravelNodePath::getCost(Unit* unit, uint32 cGold)
         {
             uint32 goEntry = getPathObject();
 
-            auto data = sGOStorage.LookupEntry<GameObjectInfo>(goEntry);
+            auto data = sObjectMgr.GetGameObjectInfo(goEntry);
 
             if (!data)
                 return -1;
 
-            FactionTemplateEntry const* factionEntry = sFactionTemplateStore.LookupEntry(data->faction);
+            FactionTemplateEntry const* factionEntry = sObjectMgr.GetFactionTemplateEntry(data->faction);
 
             if(factionEntry)
                 if (PlayerbotAI::GetFactionReaction(factionEntry, bot->GetFactionTemplateEntry()) < REP_NEUTRAL)
@@ -158,14 +158,14 @@ float TravelNodePath::getCost(Unit* unit, uint32 cGold)
             if (taxiPath)
             {
 
-                if (!bot->isTaxiCheater() && taxiPath->price > cGold)
+                if (!bot->IsTaxiCheater() && taxiPath->price > cGold)
                     return -1;
 
-                if (!bot->isTaxiCheater() && !bot->m_taxi.IsTaximaskNodeKnown(taxiPath->to))
+                if (!bot->IsTaxiCheater() && !bot->GetTaxi().IsTaximaskNodeKnown(taxiPath->to))
                     return -1;
 
-                TaxiNodesEntry const* startTaxiNode = sTaxiNodesStore.LookupEntry(taxiPath->from);
-                TaxiNodesEntry const* endTaxiNode = sTaxiNodesStore.LookupEntry(taxiPath->to);
+                TaxiNodesEntry const* startTaxiNode = sObjectMgr.GetTaxiNodeEntry(taxiPath->from);
+                TaxiNodesEntry const* endTaxiNode = sObjectMgr.GetTaxiNodeEntry(taxiPath->to);
 
                 if (!startTaxiNode || !endTaxiNode || !startTaxiNode->MountCreatureID[bot->GetTeam() == ALLIANCE ? 1 : 0] || !endTaxiNode->MountCreatureID[bot->GetTeam() == ALLIANCE ? 1 : 0])
                     return -1;
@@ -1145,7 +1145,7 @@ void TravelPath::ClipPath(PlayerbotAI* ai, Unit* mover, bool ignoreEnemyTargets)
             if (unit->GetLevel() > mover->GetLevel() + 5)
                 continue;
 
-            float range = unit->GetAttackDistance(mover);
+            float range = sServerFacade.GetAggroDistance(unit, mover);
             if (WorldPosition(unit).sqDistance(p->point) > range * range)
                 continue;
 
@@ -1692,7 +1692,7 @@ TravelNodeRoute TravelNodeMap::getRoute(TravelNode* start, TravelNode* goal, Uni
             childNode->m_h = h;
             childNode->parent = currentNode;
 
-            if (bot && !bot->isTaxiCheater())
+            if (bot && !bot->IsTaxiCheater())
                 childNode->currentGold = currentNode->currentGold - link.second->getPrice();
 
             if (childNode->close)
@@ -2125,33 +2125,33 @@ void TravelNodeMap::generateNpcNodes()
 
         uint32 flagMask = UNIT_NPC_FLAG_INNKEEPER | UNIT_NPC_FLAG_FLIGHTMASTER | UNIT_NPC_FLAG_SPIRITHEALER | UNIT_NPC_FLAG_SPIRITGUIDE;
 
-        if (cInfo->NpcFlags & flagMask)
+        if (cInfo->npc_flags & flagMask)
         {
             std::string nodeName = guidP.getAreaName(false);
 
-            if (cInfo->NpcFlags & UNIT_NPC_FLAG_INNKEEPER)
+            if (cInfo->npc_flags & UNIT_NPC_FLAG_INNKEEPER)
                 nodeName += " innkeeper";
-            else if (cInfo->NpcFlags & UNIT_NPC_FLAG_FLIGHTMASTER)
+            else if (cInfo->npc_flags & UNIT_NPC_FLAG_FLIGHTMASTER)
                 nodeName += " flightMaster";
-            else if (cInfo->NpcFlags & UNIT_NPC_FLAG_SPIRITHEALER)
+            else if (cInfo->npc_flags & UNIT_NPC_FLAG_SPIRITHEALER)
                 nodeName += " spirithealer";
-            else if (cInfo->NpcFlags & UNIT_NPC_FLAG_SPIRITGUIDE)
+            else if (cInfo->npc_flags & UNIT_NPC_FLAG_SPIRITGUIDE)
                 nodeName += " spiritguide";
 
             TravelNode* node = sTravelNodeMap.addNode(guidP, nodeName, true, true);
         }
-        else if (cInfo->Rank == 3)
+        else if (cInfo->rank == 3)
         {
             std::string nodeName = cInfo->name;
 
             sTravelNodeMap.addNode(guidP, nodeName, true, true);
         }
-        else if (cInfo->Rank == 1 && !guidP.isOverworld())
+        else if (cInfo->rank == 1 && !guidP.isOverworld())
         {
-            if (bossMap.find(cInfo->Entry) == bossMap.end())
-                bossMap[cInfo->Entry] = guidP;
-            else if (bossMap[cInfo->Entry])
-                bossMap[cInfo->Entry] = GuidPosition();
+            if (bossMap.find(cInfo->entry) == bossMap.end())
+                bossMap[cInfo->entry] = guidP;
+            else if (bossMap[cInfo->entry])
+                bossMap[cInfo->entry] = GuidPosition();
         }
     }
 
@@ -2282,7 +2282,7 @@ void TravelNodeMap::generatePortalNodes()
     {
         GuidPosition go(goData);
 
-        auto data = sGOStorage.LookupEntry<GameObjectInfo>(go.GetEntry());
+        auto data = sObjectMgr.GetGameObjectInfo(go.GetEntry());
 
         if (!data)
             continue;
@@ -2315,9 +2315,9 @@ void TravelNodeMap::generatePortalNodes()
     }
 
     //Portal spell destinations.
-    for (uint32 i = 0; i < GetSpellStore()->GetMaxEntry(); ++i)
+    for (uint32 i = 0; i < sSpellMgr.GetMaxSpellId(); ++i)
     {
-        const SpellEntry* pSpellInfo = GetSpellStore()->LookupEntry<SpellEntry>(i);
+        const SpellEntry* pSpellInfo = sSpellMgr.GetSpellEntry(i);
 
         if (!pSpellInfo)
             continue;
@@ -2971,12 +2971,12 @@ void TravelNodeMap::generateTaxiPaths()
         if (!taxiPath)
             continue;
 
-        TaxiNodesEntry const* startTaxiNode = sTaxiNodesStore.LookupEntry(taxiPath->from);
+        TaxiNodesEntry const* startTaxiNode = sObjectMgr.GetTaxiNodeEntry(taxiPath->from);
 
         if (!startTaxiNode)
             continue;
 
-        TaxiNodesEntry const* endTaxiNode = sTaxiNodesStore.LookupEntry(taxiPath->to);
+        TaxiNodesEntry const* endTaxiNode = sObjectMgr.GetTaxiNodeEntry(taxiPath->to);
 
         if (!endTaxiNode)
             continue;

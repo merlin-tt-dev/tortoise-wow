@@ -117,9 +117,9 @@ bool QuestAction::CompleteQuest(Player* player, uint32 entry)
         if (curRep < repValue)
         {
 #ifdef MANGOSBOT_ONE
-            if (FactionEntry const* factionEntry = sFactionStore.LookupEntry<FactionEntry>(repFaction))
+            if (FactionEntry const* factionEntry = sObjectMgr.GetFactionEntry(repFaction))
 #else
-            if (FactionEntry const* factionEntry = sFactionStore.LookupEntry(repFaction))
+            if (FactionEntry const* factionEntry = sObjectMgr.GetFactionEntry(repFaction))
 #endif
             {
                 player->GetReputationMgr().SetReputation(factionEntry, repValue);

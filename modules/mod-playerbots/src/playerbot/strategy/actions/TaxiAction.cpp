@@ -52,7 +52,7 @@ bool TaxiAction::Execute(Event& event)
                 TaxiPathEntry const* entry = sTaxiPathStore.LookupEntry(*i);
                 if (!entry) continue;
 
-                TaxiNodesEntry const* dest = sTaxiNodesStore.LookupEntry(entry->to);
+                TaxiNodesEntry const* dest = sObjectMgr.GetTaxiNodeEntry(entry->to);
                 if (!dest) continue;
 
                 std::ostringstream out;

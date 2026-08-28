@@ -2480,7 +2480,7 @@ void PlayerbotFactory::InitReputations()
     for (auto faction : factions)
     {
 #ifdef MANGOSBOT_ONE
-        FactionEntry const* factionEntry = sFactionStore.LookupEntry<FactionEntry>(faction);
+        FactionEntry const* factionEntry = sObjectMgr.GetFactionEntry(faction);
 #else
         FactionEntry const* factionEntry = sObjectMgr.GetFactionEntry(faction);
 #endif

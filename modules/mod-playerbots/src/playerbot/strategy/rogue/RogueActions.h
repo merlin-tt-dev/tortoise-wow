@@ -414,7 +414,7 @@ namespace ai
                             const _Spell& spellData = poisonProto->Spells[i];
                             if (spellData.SpellId)
                             {
-                                const SpellEntry* spellInfo = sSpellTemplate.LookupEntry<SpellEntry>(spellData.SpellId);
+                                const SpellEntry* spellInfo = sSpellMgr.GetSpellEntry(spellData.SpellId);
                                 if (spellInfo)
                                 {
                                     BotUseItemSpell* spell = new BotUseItemSpell(bot, spellInfo, count > 0);

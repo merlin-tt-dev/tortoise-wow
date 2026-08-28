@@ -110,9 +110,9 @@ const FactionTemplateEntry* GuidPosition::GetFactionTemplateEntry() const
     if (IsPlayer() && GetPlayer())
         return GetPlayer()->GetFactionTemplateEntry();
     if (IsCreature()  && GetCreatureTemplate())
-        return sFactionTemplateStore.LookupEntry(GetCreatureTemplate()->Faction);
+        return sObjectMgr.GetFactionTemplateEntry(GetCreatureTemplate()->faction);
     if (IsGameObject() && GetGameObjectInfo())
-        return sFactionTemplateStore.LookupEntry(GetGameObjectInfo()->faction);
+        return sObjectMgr.GetFactionTemplateEntry(GetGameObjectInfo()->faction);
 
     return nullptr;
 }
@@ -131,15 +131,15 @@ const ReputationRank GuidPosition::GetReactionTo(const GuidPosition& other, uint
                     return (*rank);
 
 #ifdef MANGOSBOT_ZERO
-                const FactionEntry* unitFactionEntry = sFactionStore.LookupEntry(GetFactionTemplateEntry()->faction);
+                const FactionEntry* unitFactionEntry = sObjectMgr.GetFactionEntry(GetFactionTemplateEntry()->faction);
                 return unitPlayer->GetReputationMgr().IsAtWar(unitFactionEntry) ? REP_HOSTILE : REP_FRIENDLY;
 #else
                 if (!other.GetUnit(instanceId)->HasFlag(UNIT_FIELD_FLAGS_2, UNIT_FLAG2_IGNORE_REPUTATION))
                 {
 #ifdef MANGOSBOT_TWO
-                    const FactionEntry* thisFactionEntry = sFactionStore.LookupEntry(GetFactionTemplateEntry()->faction);
+                    const FactionEntry* thisFactionEntry = sObjectMgr.GetFactionEntry(GetFactionTemplateEntry()->faction);
 #else
-                    const FactionEntry* thisFactionEntry = sFactionStore.LookupEntry<FactionEntry>(GetFactionTemplateEntry()->faction);
+                    const FactionEntry* thisFactionEntry = sObjectMgr.GetFactionEntry(GetFactionTemplateEntry()->faction);
 #endif
                     if (thisFactionEntry && thisFactionEntry->HasReputation())
                     {

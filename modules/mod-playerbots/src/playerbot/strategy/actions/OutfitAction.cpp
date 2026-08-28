@@ -90,7 +90,7 @@ bool OutfitAction::Execute(Event& event)
         for (ItemIds::iterator i = items.begin(); i != items.end(); i++)
         {
             uint32 itemid = *i;
-            ItemPrototype const *proto = sItemStorage.LookupEntry<ItemPrototype>(*i);
+            ItemPrototype const *proto = sObjectMgr.GetItemPrototype(*i);
             std::ostringstream out;
             out << chat->formatItem(proto);
             if (remove)
@@ -154,7 +154,7 @@ void OutfitAction::List(Player* requester)
         out << name << ": ";
         for (ItemIds::iterator j = items.begin(); j != items.end(); ++j)
         {
-            ItemPrototype const *proto = sItemStorage.LookupEntry<ItemPrototype>(*j);
+            ItemPrototype const *proto = sObjectMgr.GetItemPrototype(*j);
             if (proto)
             {
                 out << chat->formatItem(proto) << " ";

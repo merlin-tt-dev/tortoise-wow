@@ -1,6 +1,7 @@
 
 #include "playerbot/playerbot.h"
 #include "SetAvoidAreaAction.h"
+#include "playerbot/ServerFacade.h"
 
 #include "playerbot/strategy/values/PositionValue.h"
 #include "Maps/PathFinder.h"
@@ -18,8 +19,8 @@ bool SetAvoidAreaAction::Execute(Event& event)
     if (targets.empty())
         return false;
 
-    FactionTemplateEntry const* humanFaction = sFactionTemplateStore.LookupEntry(1);
-    FactionTemplateEntry const* orcFaction = sFactionTemplateStore.LookupEntry(2);
+    FactionTemplateEntry const* humanFaction = sObjectMgr.GetFactionTemplateEntry(1);
+    FactionTemplateEntry const* orcFaction = sObjectMgr.GetFactionTemplateEntry(2);
 
     for (auto& target : targets)
     {
@@ -28,13 +29,13 @@ bool SetAvoidAreaAction::Execute(Event& event)
         if (!cInfo)
             continue;
 
-        if (cInfo->NpcFlags > 0) //Ignore npcs.
+        if (cInfo->npc_flags > 0) //Ignore npcs.
             continue;
 
-        if (cInfo->MaxLevel < bot->GetLevel() - 3) //Ignore lower level mobs.
+        if (cInfo->level_max < bot->GetLevel() - 3) //Ignore lower level mobs.
             continue;
 
-        FactionTemplateEntry const* factionEntry = sFactionTemplateStore.LookupEntry(cInfo->Faction);
+        FactionTemplateEntry const* factionEntry = sObjectMgr.GetFactionTemplateEntry(cInfo->faction);
         ReputationRank reactionHum = PlayerbotAI::GetFactionReaction(humanFaction, factionEntry);
         ReputationRank reactionOrc = PlayerbotAI::GetFactionReaction(orcFaction, factionEntry);
 
@@ -47,8 +48,8 @@ bool SetAvoidAreaAction::Execute(Event& event)
             continue;
 
         WorldPosition point(targetUnit);
-        pathfinder.MarkNavArea(point.getX(), point.getY(), point.getZ(), PLAYERBOT_MMAP_AREA_AVOID, targetUnit->GetAttackDistance(bot) * 2.5f);
-        pathfinder.MarkNavArea(point.getX(), point.getY(), point.getZ(), PLAYERBOT_MMAP_AREA_DANGER, targetUnit->GetAttackDistance(bot));
+        pathfinder.MarkNavArea(point.getX(), point.getY(), point.getZ(), PLAYERBOT_MMAP_AREA_AVOID, sServerFacade.GetAggroDistance(targetUnit, bot) * 2.5f);
+        pathfinder.MarkNavArea(point.getX(), point.getY(), point.getZ(), PLAYERBOT_MMAP_AREA_DANGER, sServerFacade.GetAggroDistance(targetUnit, bot));
     }
 
     return true;

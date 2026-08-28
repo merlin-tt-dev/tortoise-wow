@@ -5,7 +5,7 @@
 #include "AccountMgr.h"
 #include "playerbot/PlayerbotFactory.h"
 #include "RandomItemMgr.h"
-#include "World/WorldState.h"
+#include "WorldState.h"
 #include "playerbot/PlayerbotHelpMgr.h"
 #include "playerbot/strategy/actions/CheatAction.h"
 
@@ -312,7 +312,7 @@ bool PlayerbotAIConfig::Initialize()
 
     LoadListString<std::vector<std::string>>(sConfig.GetStringDefault("AiPlayerbot.DefaultLoginCriteria", "maxbots,spareroom,offline"), defaultLoginCriteria);
 
-    std::vector<std::string> criteriaValues = GetConfigKeysContaining(config, "AiPlayerbot.LoginCriteria");
+    std::vector<std::string> criteriaValues = GetConfigKeysContaining(sConfig, "AiPlayerbot.LoginCriteria");
     std::sort(criteriaValues.begin(), criteriaValues.end());
     loginCriteria.clear();
     for (auto& value : criteriaValues)
@@ -441,7 +441,7 @@ bool PlayerbotAIConfig::Initialize()
     worldBuffs.clear();
 
     //Get all config values starting with AiPlayerbot.WorldBuff
-    std::vector<std::string> values = GetConfigKeysContaining(config, "AiPlayerbot.WorldBuff");
+    std::vector<std::string> values = GetConfigKeysContaining(sConfig, "AiPlayerbot.WorldBuff");
 
     if (values.size())
     {
@@ -1142,7 +1142,7 @@ void PlayerbotAIConfig::logEvent(PlayerbotAI* ai, std::string eventName, std::st
         out << std::fixed << std::setprecision(2);
         WorldPosition(bot).printWKT(out);
 
-        out << std::to_string(bot->getRace()) << ",";
+        out << std::to_string(bot->GetRace()) << ",";
         out << std::to_string(bot->GetClass()) << ",";
         float subLevel = ai->GetLevelFloat();
 

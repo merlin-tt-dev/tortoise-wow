@@ -1127,7 +1127,7 @@ void DebugAction::FakeSpell(uint32 spellId, Unit* truecaster, Unit* caster, Obje
 
 void DebugAction::addAura(uint32 spellId, Unit* target)
 {
-    SpellEntry const* spellInfo = sSpellTemplate.LookupEntry<SpellEntry>(spellId);
+    SpellEntry const* spellInfo = sSpellMgr.GetSpellEntry(spellId);
     if (!spellInfo)
         return;
 
@@ -1611,7 +1611,7 @@ bool DebugAction::HandleTransport(Event& event, Player* requester, const std::st
 
     for (auto trans : transports)
     {
-        GameObjectInfo const* data = sGOStorage.LookupEntry<GameObjectInfo>(trans->GetEntry());
+        GameObjectInfo const* data = sObjectMgr.GetGameObjectInfo(trans->GetEntry());
         std::ostringstream out;
 
         std::string transportName = trans->GetName();
@@ -1660,7 +1660,7 @@ bool DebugAction::HandlePointOnTrans(Event& event, Player* requester, const std:
 
     Transport* transport = transports.back();
 
-    GameObjectInfo const* data = sGOStorage.LookupEntry<GameObjectInfo>(transport->GetEntry());
+    GameObjectInfo const* data = sObjectMgr.GetGameObjectInfo(transport->GetEntry());
     std::string transportName = transport->GetName();
     if (transportName.empty())
         transportName = data->name;
@@ -2310,9 +2310,9 @@ bool DebugAction::HandleQuest(Event& event, Player* requester, const std::string
                 if (curRep < repValue)
                 {
 #ifndef MANGOSBOT_ONE
-                    if (FactionEntry const* factionEntry = sFactionStore.LookupEntry(repFaction))
+                    if (FactionEntry const* factionEntry = sObjectMgr.GetFactionEntry(repFaction))
 #else
-                    if (FactionEntry const* factionEntry = sFactionStore.LookupEntry<FactionEntry>(repFaction))
+                    if (FactionEntry const* factionEntry = sObjectMgr.GetFactionEntry(repFaction))
 #endif
                         bot->GetReputationMgr().SetReputation(factionEntry, repValue);
                 }
@@ -3350,12 +3350,12 @@ bool DebugAction::HandleNPC(Event& event, Player* requester, const std::string& 
 
 
     std::ostringstream out2;
-    FactionTemplateEntry const* requestFaction = sFactionTemplateStore.LookupEntry(requester->GetFaction());
+    FactionTemplateEntry const* requestFaction = sObjectMgr.GetFactionTemplateEntry(requester->GetFaction());
     FactionTemplateEntry const* objectFaction = nullptr;
-    if(guidP.GetCreatureTemplate() && guidP.GetCreatureTemplate()->Faction)
-        objectFaction = sFactionTemplateStore.LookupEntry(guidP.GetCreatureTemplate()->Faction);
-    FactionTemplateEntry const* humanFaction = sFactionTemplateStore.LookupEntry(1);
-    FactionTemplateEntry const* orcFaction = sFactionTemplateStore.LookupEntry(2);
+    if(guidP.GetCreatureTemplate() && guidP.GetCreatureTemplate()->faction)
+        objectFaction = sObjectMgr.GetFactionTemplateEntry(guidP.GetCreatureTemplate()->faction);
+    FactionTemplateEntry const* humanFaction = sObjectMgr.GetFactionTemplateEntry(1);
+    FactionTemplateEntry const* orcFaction = sObjectMgr.GetFactionTemplateEntry(2);
 
     std::map<ReputationRank, std::string> rep;
 
@@ -3374,7 +3374,7 @@ bool DebugAction::HandleNPC(Event& event, Player* requester, const std::string& 
         ReputationRank reactionHum = PlayerbotAI::GetFactionReaction(humanFaction, objectFaction);
         ReputationRank reactionOrc = PlayerbotAI::GetFactionReaction(orcFaction, objectFaction);
 
-        out2 << " faction:" << guidP.GetCreatureTemplate()->Faction << " reaction me: " << rep[reactionRequest] << ",alliance: " << rep[reactionHum] << " ,horde: " << rep[reactionOrc];
+        out2 << " faction:" << guidP.GetCreatureTemplate()->faction << " reaction me: " << rep[reactionRequest] << ",alliance: " << rep[reactionHum] << " ,horde: " << rep[reactionOrc];
     }
 
     ai->TellPlayerNoFacing(requester, out2);
@@ -3429,10 +3429,10 @@ bool DebugAction::HandleGO(Event& event, Player* requester, const std::string& t
 
     std::ostringstream out2;
     
-    FactionTemplateEntry const* requestFaction = sFactionTemplateStore.LookupEntry(requester->GetFaction());
-    FactionTemplateEntry const* objectFaction = sFactionTemplateStore.LookupEntry(guidP.GetGameObjectInfo()->faction);
-    FactionTemplateEntry const* humanFaction = sFactionTemplateStore.LookupEntry(1);
-    FactionTemplateEntry const* orcFaction = sFactionTemplateStore.LookupEntry(2);
+    FactionTemplateEntry const* requestFaction = sObjectMgr.GetFactionTemplateEntry(requester->GetFaction());
+    FactionTemplateEntry const* objectFaction = sObjectMgr.GetFactionTemplateEntry(guidP.GetGameObjectInfo()->faction);
+    FactionTemplateEntry const* humanFaction = sObjectMgr.GetFactionTemplateEntry(1);
+    FactionTemplateEntry const* orcFaction = sObjectMgr.GetFactionTemplateEntry(2);
 
     std::map<ReputationRank, std::string> rep;
 
@@ -3519,9 +3519,9 @@ bool DebugAction::HandleGO(Event& event, Player* requester, const std::string& t
         if (state == GO_STATE_ACTIVE_ALTERNATIVE)
             out << "GO_STATE_ACTIVE_ALTERNATIVE";
 
-        out << (object->IsInUse() ? ", in use" : ", not in use");
+        out << (object->HasFlag(GAMEOBJECT_FLAGS, GO_FLAG_IN_USE) ? ", in use" : ", not in use");
 
-        LootState lootState = object->GetLootState();
+        LootState lootState = object->getLootState();
 
         out << " lootState:";
 
@@ -4068,12 +4068,12 @@ bool DebugAction::HandleDrops(Event& event, Player* requester, const std::string
 
 bool DebugAction::HandleTaxi(Event& event, Player* requester, const std::string& text)
 {
-    for (uint32 i = 1; i < sTaxiNodesStore.GetNumRows(); ++i)
+    for (uint32 i = 1; i < sObjectMgr.GetMaxTaxiNodeId(); ++i)
     {
-        if (!bot->m_taxi.IsTaximaskNodeKnown(i))
+        if (!bot->GetTaxi().IsTaximaskNodeKnown(i))
             continue;
 
-        TaxiNodesEntry const* taxiNode = sTaxiNodesStore.LookupEntry(i);
+        TaxiNodesEntry const* taxiNode = sObjectMgr.GetTaxiNodeEntry(i);
 
         std::ostringstream out;
 
@@ -5404,7 +5404,7 @@ bool DebugAction::HandleTransanal(Event& event, Player* requester, const std::st
         for (auto& transport : WorldPosition(map->GetId(), 1, 1).getTransports())
         {
             std::string transportName = transport->GetName();
-            GameObjectInfo const* data = sGOStorage.LookupEntry<GameObjectInfo>(transport->GetEntry());
+            GameObjectInfo const* data = sObjectMgr.GetGameObjectInfo(transport->GetEntry());
             if (transportName.empty())
                 transportName = data->name;
 

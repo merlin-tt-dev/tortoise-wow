@@ -320,7 +320,7 @@ uint32 StackSpaceForItem::Calculate()
 
 	uint32 itemId = stoi(getQualifier());
 
-	ItemPrototype const* proto = sItemStorage.LookupEntry<ItemPrototype>(itemId);
+    ItemPrototype const* proto = sObjectMgr.GetItemPrototype(itemId);
 
 	if (!proto) 
 		return maxValue;
@@ -380,7 +380,7 @@ bool ShouldLootObject::Calculate()
 		if (!spellId)
             return true;
 
-		SpellEntry const* lootSpell = GetSpellStore()->LookupEntry<SpellEntry>(spellId);
+        SpellEntry const* lootSpell = sSpellMgr.GetSpellEntry(spellId);
 
 		if (!lootSpell || lootSpell->Effect[0] != SPELL_EFFECT_CREATE_ITEM)
             return true;
@@ -496,7 +496,7 @@ std::string ActiveRolls::Format()
 
             if (item)
             {
-                const ItemPrototype* proto = sItemStorage.LookupEntry<ItemPrototype>(item->itemid);
+                const ItemPrototype* proto = sObjectMgr.GetItemPrototype(item->itemid);
 
 				if (proto)
 				{

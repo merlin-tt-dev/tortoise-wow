@@ -254,7 +254,7 @@ bool RollAction::RollOnItemInSlot(RollVote vote, ObjectGuid lootGuid, uint32 slo
     if (!item)
         return false;
 
-    ItemPrototype const* proto = sItemStorage.LookupEntry<ItemPrototype>(item->itemid);
+    ItemPrototype const* proto = sObjectMgr.GetItemPrototype(item->itemid);
     if (!proto)
         return false;
 

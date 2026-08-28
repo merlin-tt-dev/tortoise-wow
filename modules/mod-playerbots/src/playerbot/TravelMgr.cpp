@@ -1183,8 +1183,8 @@ void TravelMgr::BuildAreaCreatureLevels()
 
     areaCreatureLevelsLoaded = true;
 
-    FactionTemplateEntry const* humanFaction = sFactionTemplateStore.LookupEntry(1);
-    FactionTemplateEntry const* orcFaction = sFactionTemplateStore.LookupEntry(2);
+    FactionTemplateEntry const* humanFaction = sObjectMgr.GetFactionTemplateEntry(1);
+    FactionTemplateEntry const* orcFaction = sObjectMgr.GetFactionTemplateEntry(2);
     if (!humanFaction || !orcFaction)
         return;
 
@@ -1199,7 +1199,7 @@ void TravelMgr::BuildAreaCreatureLevels()
         if (!cInfo)
             continue;
 
-        FactionTemplateEntry const* factionEntry = sFactionTemplateStore.LookupEntry(cInfo->faction);
+        FactionTemplateEntry const* factionEntry = sObjectMgr.GetFactionTemplateEntry(cInfo->faction);
         if (!factionEntry)
             continue;
 
@@ -1307,8 +1307,8 @@ void TravelMgr::SetMobAvoidArea()
 void TravelMgr::SetMobAvoidAreaMap(uint32 mapId) 
 {
     PathFinder path(mapId);
-    FactionTemplateEntry const* humanFaction = sFactionTemplateStore.LookupEntry(1);
-    FactionTemplateEntry const* orcFaction = sFactionTemplateStore.LookupEntry(2);
+    FactionTemplateEntry const* humanFaction = sObjectMgr.GetFactionTemplateEntry(1);
+    FactionTemplateEntry const* orcFaction = sObjectMgr.GetFactionTemplateEntry(2);
 
     std::vector<CreatureDataPair const*> creatures = WorldPosition(mapId, 1,1).getCreaturesNear();
 
@@ -1325,7 +1325,7 @@ void TravelMgr::SetMobAvoidAreaMap(uint32 mapId)
         if (cInfo->npc_flags > 0)
             continue;
 
-        FactionTemplateEntry const* factionEntry = sFactionTemplateStore.LookupEntry(cInfo->faction);
+        FactionTemplateEntry const* factionEntry = sObjectMgr.GetFactionTemplateEntry(cInfo->faction);
         ReputationRank reactionHum = PlayerbotAI::GetFactionReaction(humanFaction, factionEntry);
         ReputationRank reactionOrc = PlayerbotAI::GetFactionReaction(orcFaction, factionEntry);
 
@@ -2153,7 +2153,7 @@ void TravelMgr::LoadQuestTravelTable()
         for (auto& gameObjectPair : WorldPosition().getGameObjectsNear())
         {
             GameObjectData const gData = gameObjectPair->second;
-            auto data = sGOStorage.LookupEntry<GameObjectInfo>(gData.id);
+            auto data = sObjectMgr.GetGameObjectInfo(gData.id);
 
             if (!data)
                 continue;

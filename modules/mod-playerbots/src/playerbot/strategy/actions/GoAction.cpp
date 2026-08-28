@@ -189,7 +189,7 @@ inline void TellPosition(PlayerbotAI* ai, Player* requester)
     {
         Transport* transport = bot->GetTransport();
 
-        GameObjectInfo const* data = sGOStorage.LookupEntry<GameObjectInfo>(transport->GetEntry());
+        GameObjectInfo const* data = sObjectMgr.GetGameObjectInfo(transport->GetEntry());
 
         std::string transportName = transport->GetName();
         if (transportName.empty())

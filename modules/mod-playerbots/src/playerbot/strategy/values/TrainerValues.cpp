@@ -90,9 +90,9 @@ trainableSpellMap* TrainableSpellMapValue::Calculate()
                 {
                     // exist, already checked at loading
 #ifdef MANGOSBOT_ZERO
-                    SpellEntry const* spell = sSpellTemplate.LookupEntry<SpellEntry>(trainerSpell.learnedSpell);
+                    SpellEntry const* spell = sSpellMgr.GetSpellEntry(trainerSpell.learnedSpell);
 #else
-                    SpellEntry const* spell = sSpellTemplate.LookupEntry<SpellEntry>(trainerSpell.learnedSpell[0]);
+                    SpellEntry const* spell = sSpellMgr.GetSpellEntry(trainerSpell.learnedSpell[0]);
 #endif
 
                     spellRequirement = spell->EffectMiscValue[1];
@@ -124,7 +124,7 @@ std::vector<TrainerSpell const*> TrainableSpellsValue::Calculate()
         {
             if (trainerType == TRAINER_TYPE_CLASS && requirement != bot->GetClass())
                 continue;
-            if (trainerType == TRAINER_TYPE_MOUNTS && requirement != bot->getRace())
+            if (trainerType == TRAINER_TYPE_MOUNTS && requirement != bot->GetRace())
                 continue;
 
             for (auto& [trainerSpell, trainers] : trainerSpellList)
@@ -183,7 +183,7 @@ std::vector<int32> AvailableTrainersValue::Calculate()
         {
             if (trainerType == TRAINER_TYPE_CLASS && requirement != bot->GetClass())
                 continue;
-            if (trainerType == TRAINER_TYPE_MOUNTS && requirement != bot->getRace())
+            if (trainerType == TRAINER_TYPE_MOUNTS && requirement != bot->GetRace())
                 continue;
 
             for (auto& [trainerSpell, trainers] : trainerSpellList)

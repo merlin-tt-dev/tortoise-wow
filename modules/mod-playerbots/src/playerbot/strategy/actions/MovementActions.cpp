@@ -311,7 +311,7 @@ bool MovementAction::UseTaxi(PlayerbotAI* ai, uint32 entry, bool needNpc)
             return false;
         }
 
-        if (unit && !bot->m_taxi.IsTaximaskNodeKnown(tEntry->from))
+        if (unit && !bot->GetTaxi().IsTaximaskNodeKnown(tEntry->from))
         {
             bot->GetSession()->SendLearnNewTaxiNode(unit);
 
@@ -464,7 +464,7 @@ bool MovementAction::UseTransport(PlayerbotAI* ai, uint32 entry, WorldPosition d
 
     if (transport)
     {
-        GameObjectInfo const* data = sGOStorage.LookupEntry<GameObjectInfo>(transport->GetEntry());
+        GameObjectInfo const* data = sObjectMgr.GetGameObjectInfo(transport->GetEntry());
         std::string transportName = transport->GetName();
         if (transportName.empty())
             transportName = data->name;
@@ -498,7 +498,7 @@ bool MovementAction::UseTransport(PlayerbotAI* ai, uint32 entry, WorldPosition d
         transport = trans;
         minDist = distance;
 
-        GameObjectInfo const* data = sGOStorage.LookupEntry<GameObjectInfo>(transport->GetEntry());
+        GameObjectInfo const* data = sObjectMgr.GetGameObjectInfo(transport->GetEntry());
         transportName = transport->GetName();
         if (transportName.empty())
             transportName = data->name;
@@ -746,7 +746,7 @@ bool MovementAction::HandleSpecialMovement(TravelPath& path)
     //Game object portals
     if (currentPoint.type == PathNodeType::NODE_STATIC_PORTAL && currentPoint.entry)
     {
-        GameObjectInfo const* goInfo = sGOStorage.LookupEntry<GameObjectInfo>(currentPoint.entry);
+        GameObjectInfo const* goInfo = sObjectMgr.GetGameObjectInfo(currentPoint.entry);
         if (!goInfo || goInfo->type != GAMEOBJECT_TYPE_SPELLCASTER)
             return false;
 
@@ -1579,7 +1579,7 @@ bool MovementAction::MoveTo(uint32 mapId, float x, float y, float z, bool idle, 
                     else
                         startPosition.printWKT({startPosition, movePosition}, out, 1);
 
-                    out << std::to_string(bot->getRace()) << ",";
+                    out << std::to_string(bot->GetRace()) << ",";
                     out << std::to_string(bot->GetClass()) << ",";
                     float subLevel = ai->GetLevelFloat();
                     out << subLevel << ",";
@@ -1588,7 +1588,7 @@ bool MovementAction::MoveTo(uint32 mapId, float x, float y, float z, bool idle, 
                     sPlayerbotAIConfig.log("bot_movement.csv", out.str().c_str());
                 }
 
-                GameObjectInfo const* goInfo = sGOStorage.LookupEntry<GameObjectInfo>(entry);
+                GameObjectInfo const* goInfo = sObjectMgr.GetGameObjectInfo(entry);
                 if (!goInfo || goInfo->type != GAMEOBJECT_TYPE_SPELLCASTER)
                     return false;
 
@@ -1654,7 +1654,7 @@ bool MovementAction::MoveTo(uint32 mapId, float x, float y, float z, bool idle, 
                     else
                         startPosition.printWKT({startPosition, movePosition}, out, 1);
 
-                    out << std::to_string(bot->getRace()) << ",";
+                    out << std::to_string(bot->GetRace()) << ",";
                     out << std::to_string(bot->GetClass()) << ",";
                     float subLevel = ai->GetLevelFloat();
                     out << subLevel << ",";
@@ -1931,7 +1931,7 @@ bool MovementAction::MoveTo(uint32 mapId, float x, float y, float z, bool idle, 
                     if (unit->GetLevel() > bot->GetLevel() + 5)
                         continue;
 
-                    float range = unit->GetAttackDistance(bot);
+                    float range = sServerFacade.GetAggroDistance(unit, bot);
 
                     if (WorldPosition(unit).sqDistance(point) > range * range)
                         continue;
@@ -1995,7 +1995,7 @@ bool MovementAction::MoveTo(uint32 mapId, float x, float y, float z, bool idle, 
         out << sPlayerbotAIConfig.GetTimestampStr() << "+00,";
         out << bot->GetName() << ",";
         startPosition.printWKT({startPosition, movePosition}, out, 1);
-        out << std::to_string(bot->getRace()) << ",";
+        out << std::to_string(bot->GetRace()) << ",";
         out << std::to_string(bot->GetClass()) << ",";
         float subLevel = ai->GetLevelFloat();
         out << subLevel << ",";

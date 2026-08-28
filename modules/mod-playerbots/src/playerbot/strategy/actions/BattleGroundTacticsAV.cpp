@@ -456,7 +456,7 @@ bool BGTactics::CheckFlagAv()
         if (event.event1 >= BG_AV_NODES_MAX)
             continue;
 
-        if (!sServerFacade.isSpawned(go) || go->IsInUse() || go->GetGoState() != GO_STATE_READY)
+        if (!sServerFacade.isSpawned(go) || go->HasFlag(GAMEOBJECT_FLAGS, GO_FLAG_IN_USE) || go->GetGoState() != GO_STATE_READY)
             continue;
 
         if (!bot->CanInteract(go))

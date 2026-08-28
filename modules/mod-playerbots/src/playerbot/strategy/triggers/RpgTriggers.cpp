@@ -38,14 +38,14 @@ bool RpgTaxiTrigger::IsActive()
     if (!node)
         return false;
 
-    if (!bot->m_taxi.IsTaximaskNodeKnown(node))
+    if (!bot->GetTaxi().IsTaximaskNodeKnown(node))
         return false;
 
     std::vector<uint32> nodes;
     for (uint32 i = 0; i < sTaxiPathStore.GetNumRows(); ++i)
     {
         TaxiPathEntry const* entry = sTaxiPathStore.LookupEntry(i);
-        if (entry && entry->from == node && (bot->m_taxi.IsTaximaskNodeKnown(entry->to) || bot->isTaxiCheater()))
+        if (entry && entry->from == node && (bot->GetTaxi().IsTaximaskNodeKnown(entry->to) || bot->IsTaxiCheater()))
         {
             return true;
         }
@@ -61,12 +61,12 @@ bool RpgDiscoverTrigger::IsActive()
     if (!guidP.HasNpcFlag(UNIT_NPC_FLAG_FLIGHTMASTER))
         return false;
 
-    if (bot->isTaxiCheater())
+    if (bot->IsTaxiCheater())
         return false;
 
     uint32 node = sObjectMgr.GetNearestTaxiNode(guidP.getX(), guidP.getY(), guidP.getZ(), guidP.getMapId(), bot->GetTeam());
 
-    if (bot->m_taxi.IsTaximaskNodeKnown(node))
+    if (bot->GetTaxi().IsTaximaskNodeKnown(node))
         return false;
 
     return true;
@@ -274,10 +274,10 @@ bool RpgTrainTrigger::IsTrainerOf(CreatureInfo const* cInfo, Player* pPlayer)
         }
         break;
     case TRAINER_TYPE_MOUNTS:
-        if (cInfo->TrainerRace && pPlayer->getRace() != cInfo->TrainerRace)
+        if (cInfo->TrainerRace && pPlayer->GetRace() != cInfo->TrainerRace)
         {
             // Allowed to train if exalted
-            if (FactionTemplateEntry const* faction_template = sFactionTemplateStore.LookupEntry(cInfo->Faction))
+            if (FactionTemplateEntry const* faction_template = sObjectMgr.GetFactionTemplateEntry(cInfo->faction))
             {
                 if (pPlayer->GetReputationRank(faction_template->faction) == REP_EXALTED)
                     return true;
@@ -323,7 +323,7 @@ bool RpgTrainTrigger::IsActive()
         return false;
     }
 
-    FactionTemplateEntry const* factionTemplate = sFactionTemplateStore.LookupEntry(cInfo->Faction);
+    FactionTemplateEntry const* factionTemplate = sObjectMgr.GetFactionTemplateEntry(cInfo->faction);
     float fDiscountMod = bot->GetReputationPriceDiscount(factionTemplate);
 
     TrainerSpellMap trainer_spells;

@@ -127,7 +127,7 @@ namespace ai
                 if (!go)
                     continue;
 
-                if (go->GetLootState() != GO_READY)
+                if (go->getLootState() != GO_READY)
                     continue;
 
                 if (!bot->GetGameObjectIfCanInteractWith(go->GetObjectGuid(), GAMEOBJECT_TYPE_TRAP))
@@ -182,7 +182,7 @@ namespace ai
                 if (!go)
                     continue;
 
-                if (go->GetLootState() != GO_READY)
+                if (go->getLootState() != GO_READY)
                     continue;
 
                 float dist = botPos.distance(WorldPosition(go));

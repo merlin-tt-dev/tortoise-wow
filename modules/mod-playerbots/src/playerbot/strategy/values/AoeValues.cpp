@@ -108,7 +108,7 @@ bool HasAreaDebuffValue::Calculate()
         if (!go)
             continue;
 
-        SpellEntry const* spellProto = sSpellTemplate.LookupEntry<SpellEntry>(go->GetSpellId());
+        SpellEntry const* spellProto = sSpellMgr.GetSpellEntry(go->GetSpellId());
         if (!spellProto)
             continue;
 

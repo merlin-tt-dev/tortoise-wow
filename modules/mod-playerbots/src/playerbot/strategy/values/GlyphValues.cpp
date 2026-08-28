@@ -28,7 +28,7 @@ uint32 AvailableGlyphsValue::GetGlyphIdFromProto(const ItemPrototype* glyphProto
     if (glyphProto->Class != 16)
         return 0;
 
-    SpellEntry const* spellInfo = sSpellTemplate.LookupEntry<SpellEntry>(glyphProto->Spells[0].SpellId);
+    SpellEntry const* spellInfo = sSpellMgr.GetSpellEntry(glyphProto->Spells[0].SpellId);
 
     if (!spellInfo)
         return 0;

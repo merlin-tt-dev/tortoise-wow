@@ -276,7 +276,7 @@ void ChooseTravelTargetAction::ReportTravelTarget(Player* bot, Player* requester
         out << bot->GetName() << ",";
         out << std::fixed << std::setprecision(2);
 
-        out << std::to_string(bot->getRace()) << ",";
+        out << std::to_string(bot->GetRace()) << ",";
         out << std::to_string(bot->GetClass()) << ",";
         float subLevel = ai->GetLevelFloat();
 

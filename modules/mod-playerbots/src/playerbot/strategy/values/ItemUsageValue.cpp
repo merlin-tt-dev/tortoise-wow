@@ -1328,9 +1328,9 @@ void ItemUsageValue::PopulateProfessionReagentIds()
 
         if (skillInfo->categoryId == SKILL_CATEGORY_PROFESSION || skillInfo->categoryId == SKILL_CATEGORY_SECONDARY)
         {
-            for (uint32 j = 0; j < sSkillLineAbilityStore.GetNumRows(); ++j)
+            for (uint32 j = 0; j < sObjectMgr.GetMaxSkillLineAbilityId(); ++j)
             {
-                SkillLineAbilityEntry const* skillLine = sSkillLineAbilityStore.LookupEntry(j);
+                SkillLineAbilityEntry const* skillLine = sObjectMgr.GetSkillLineAbility(j);
                 if (!skillLine)
                     continue;
 
@@ -1338,7 +1338,7 @@ void ItemUsageValue::PopulateProfessionReagentIds()
                 if (skillLine->skillId != skillInfo->id)
                     continue;
 
-                SpellEntry const* spellInfo = sSpellTemplate.LookupEntry<SpellEntry>(skillLine->spellId);
+                SpellEntry const* spellInfo = sSpellMgr.GetSpellEntry(skillLine->spellId);
                 if (spellInfo)
                 {
                     bool isReagentFor = false;
@@ -1361,13 +1361,13 @@ void ItemUsageValue::PopulateProfessionReagentIds()
 void ItemUsageValue::PopulateReagentItemIdsForCraftableItemIds()
 {
     m_craftingReagentItemIdsForCraftableItem.clear();
-    for (uint32 j = 0; j < sSkillLineAbilityStore.GetNumRows(); ++j)
+    for (uint32 j = 0; j < sObjectMgr.GetMaxSkillLineAbilityId(); ++j)
     {
-        SkillLineAbilityEntry const* skillLine = sSkillLineAbilityStore.LookupEntry(j);
+        SkillLineAbilityEntry const* skillLine = sObjectMgr.GetSkillLineAbility(j);
         if (!skillLine)
             continue;
 
-        SpellEntry const* spellInfo = sSpellTemplate.LookupEntry<SpellEntry>(skillLine->spellId);
+        SpellEntry const* spellInfo = sSpellMgr.GetSpellEntry(skillLine->spellId);
         if (spellInfo)
         {
             for (int i = 0; i < 3; ++i)

@@ -28,7 +28,7 @@ public:
 
 PlayerLoginInfo::PlayerLoginInfo(const uint32 account, const uint32 guid, const uint8 race, const uint8 cls, const uint32 level, const bool isNew, const WorldPosition& position, const uint32 guildId) : account(account), guid(guid), race(race), cls(cls), level(level), isNew(isNew), position(position), guildId(guildId) {}
 
-PlayerLoginInfo::PlayerLoginInfo(Player* player) : PlayerLoginInfo(player->GetSession()->GetAccountId(), player->GetDbGuid(), player->getRace(), player->GetClass(), player->GetLevel(), player->GetTotalPlayedTime() == 0, player, player->GetGuildId()) {};
+PlayerLoginInfo::PlayerLoginInfo(Player* player) : PlayerLoginInfo(player->GetSession()->GetAccountId(), player->GetDbGuid(), player->GetRace(), player->GetClass(), player->GetLevel(), player->GetTotalPlayedTime() == 0, player, player->GetGuildId()) {};
 
 uint32 PlayerLoginInfo::GetLevel() const
 {

@@ -77,7 +77,7 @@ CreatureDataPair const* BgMasterValue::NearestBm(bool allowDead)
         if (!bmTemplate)
             continue;
 
-        FactionTemplateEntry const* bmFactionEntry = sFactionTemplateStore.LookupEntry(bmTemplate->Faction);
+        FactionTemplateEntry const* bmFactionEntry = sObjectMgr.GetFactionTemplateEntry(bmTemplate->faction);
 
         //Is the unit hostile?
         if (ai->getReaction(bmFactionEntry) < REP_NEUTRAL)

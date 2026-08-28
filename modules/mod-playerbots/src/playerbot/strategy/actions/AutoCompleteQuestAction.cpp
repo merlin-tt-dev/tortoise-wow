@@ -120,9 +120,9 @@ bool AutoCompleteQuestAction::Execute(Event& event)
             uint32 curRep = bot->GetReputationMgr().GetReputation(repFaction);
             if (curRep < repValue)
 #ifndef MANGOSBOT_ONE
-                if (FactionEntry const* factionEntry = sFactionStore.LookupEntry(repFaction))
+                if (FactionEntry const* factionEntry = sObjectMgr.GetFactionEntry(repFaction))
 #else
-                if (FactionEntry const* factionEntry = sFactionStore.LookupEntry<FactionEntry>(repFaction))
+                if (FactionEntry const* factionEntry = sObjectMgr.GetFactionEntry(repFaction))
 #endif
                     bot->GetReputationMgr().SetReputation(factionEntry, repValue);
         }

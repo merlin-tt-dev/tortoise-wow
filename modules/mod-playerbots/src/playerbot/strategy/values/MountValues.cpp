@@ -13,7 +13,7 @@ uint32 MountValue::GetSpeed(uint32 spellId, bool canFly)
         return 0;
 #endif
 
-    const SpellEntry* const spellInfo = sSpellTemplate.LookupEntry<SpellEntry>(spellId);
+    const SpellEntry* const spellInfo = sSpellMgr.GetSpellEntry(spellId);
 
     if (!spellInfo)
         return 0;
@@ -128,7 +128,7 @@ bool MountValue::IsValidLocation(Player* bot)
 #endif
     }
 
-    const SpellEntry* const spellInfo = sSpellTemplate.LookupEntry<SpellEntry>(spellId);
+    const SpellEntry* const spellInfo = sSpellMgr.GetSpellEntry(spellId);
 
     bool isAQ40Mounted = false;
 
@@ -222,9 +222,9 @@ std::vector<MountValue> FullMountListValue::Calculate()
         GAI_VALUE2(std::list<int32>, "item vendor list", pProto->ItemId);
     }
 
-    for (uint32 id = 0; id < sSpellTemplate.GetMaxEntry(); ++id)
+    for (uint32 id = 0; id < sSpellMgr.GetMaxSpellId(); ++id)
     {
-        SpellEntry const* spellInfo = sSpellTemplate.LookupEntry<SpellEntry>(id);
+        SpellEntry const* spellInfo = sSpellMgr.GetSpellEntry(id);
         if (!spellInfo)
             continue;
 
@@ -281,7 +281,7 @@ std::string MountListValue::Format()
 uint32 MountSkillTypeValue::Calculate()
 {
 #ifdef MANGOSBOT_ZERO
-    switch (bot->getRace())
+    switch (bot->GetRace())
     {
     case RACE_HUMAN:
         return SKILL_RIDING_HORSE;

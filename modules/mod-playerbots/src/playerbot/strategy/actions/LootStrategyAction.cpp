@@ -141,7 +141,7 @@ void LootStrategyAction::TellLootList(Player* requester, const std::string& name
 
     for (std::set<uint32>::iterator i = alwaysLootItems.begin(); i != alwaysLootItems.end(); i++)
     {
-        ItemPrototype const *proto = sItemStorage.LookupEntry<ItemPrototype>(*i);
+        ItemPrototype const *proto = sObjectMgr.GetItemPrototype(*i);
         if (!proto)
         {
             continue;
@@ -162,7 +162,7 @@ void LootStrategyAction::TellGoList(Player* requester, const std::string& name)
     for (std::set<uint32>::iterator i = skipGoItems.begin(); i != skipGoItems.end(); i++)
     {
         uint32 id = *i;
-        GameObjectInfo const *proto = sGOStorage.LookupEntry<GameObjectInfo>(id);
+        GameObjectInfo const *proto = sObjectMgr.GetGameObjectInfo(id);
         if (!proto)
             continue;
 
