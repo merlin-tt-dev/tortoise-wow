@@ -534,23 +534,14 @@ std::string RpgTravelDestination::GetTitle() const
     return out.str();
 }
 
-AreaTableEntry const* ZoneTravelDestination::GetArea() const
+AreaEntry const* ZoneTravelDestination::GetArea() const
 {
-    for (uint32 areaid = 0; areaid <= sAreaStore.GetNumRows(); ++areaid)
-    {
-        AreaTableEntry const* areaEntry = sAreaStore.LookupEntry<AreaEntry>(areaid);
-        if (areaEntry && areaEntry->Id == GetEntry())
-        {
-            return areaEntry;
-        }
-    }
-
-    return nullptr;
+    return AreaEntry::GetById(GetEntry());
 }
 
 bool ExploreTravelDestination::IsPossible(const PlayerTravelInfo& info) const
 {
-    AreaTableEntry const* area = GetArea();
+    AreaEntry const* area = GetArea();
 
     if (GetLevel() && (uint32)GetLevel() > info.GetLevel() && info.GetLevel() < DEFAULT_MAX_LEVEL)
         return false;
@@ -563,7 +554,7 @@ bool ExploreTravelDestination::IsActive(Player* bot, const PlayerTravelInfo& inf
     if (!IsPossible(info))
         return false;
 
-    AreaTableEntry const* area = GetArea();
+    AreaEntry const* area = GetArea();
 
     if (area->ExploreFlag == 0xffff)
         return false;
@@ -1093,98 +1084,147 @@ void TravelMgr::Clear()
 
 int32 TravelMgr::GetAreaLevel(uint32 area_id)
 {
-    auto lev = areaLevels.find(area_id);
+    std::set<uint32> resolving;
+    return GetAreaLevel(area_id, resolving);
+}
 
+int32 TravelMgr::GetAreaLevel(uint32 area_id, std::set<uint32>& resolving)
+{
+    auto lev = areaLevels.find(area_id);
     if (lev != areaLevels.end())
         return lev->second;
 
-    AreaTableEntry const* area = GetAreaEntryByAreaID(area_id);
+    // Turtle's custom area_template is not guaranteed to be an acyclic tree
+    // (5091 currently points to itself). A recursion-cycle result is contextual,
+    // so do not persist it in areaLevels.
+    if (!resolving.insert(area_id).second)
+        return 0;
 
+    AreaEntry const* area = AreaEntry::GetById(area_id);
     if (!area)
     {
+        resolving.erase(area_id);
         areaLevels[area_id] = -2;
         return -2;
     }
 
-    //Get exploration level
-    if (area->AreaLevel)
+    // Native area_template level is authoritative when present.
+    if (area->AreaLevel > 0)
     {
+        resolving.erase(area_id);
         areaLevels[area_id] = area->AreaLevel;
         return area->AreaLevel;
     }
 
-
     int32 level = 0;
     uint32 cnt = 0;
 
-    //Get sub-area's
-    for (uint32 i = 0; i <= sAreaStore.GetNumRows(); i++)
+    // Derive a zone level from valid child areas. Never recurse into a
+    // self-parent row and never average unknown/invalid sentinel values.
+    for (auto itr = sAreaStorage.begin<AreaEntry>(); itr != sAreaStorage.end<AreaEntry>(); ++itr)
     {
-        AreaTableEntry const* subArea = GetAreaEntryByAreaID(i);
-
-        if (!subArea || subArea->ZoneId != area->Id)
+        if (itr->Id == area->Id || itr->ZoneId != area->Id)
             continue;
 
-        int32 subLevel = GetAreaLevel(subArea->Id);
-
-        if (!subLevel)
+        int32 subLevel = GetAreaLevel(itr->Id, resolving);
+        if (subLevel <= 0)
             continue;
 
         level += subLevel;
-
-        cnt++;
+        ++cnt;
     }
 
     if (cnt)
     {
-        areaLevels[area_id] = std::max(uint32(1), level / cnt);
+        resolving.erase(area_id);
+        areaLevels[area_id] = std::max<int32>(1, level / static_cast<int32>(cnt));
         return areaLevels[area_id];
     }
 
-    //Get units avarage
+    // Fall back to the average hostile/neutral creature level in this exact
+    // area. Build that index once: a fresh v2 cache can contain hundreds of
+    // unresolved Turtle areas, and rescanning every spawn for every area would
+    // turn first startup into O(areas * creature spawns).
+    BuildAreaCreatureLevels();
+    auto creatureLevel = areaCreatureLevels.find(area->Id);
+    if (creatureLevel != areaCreatureLevels.end())
+    {
+        resolving.erase(area_id);
+        areaLevels[area_id] = creatureLevel->second;
+        return creatureLevel->second;
+    }
+
+    // Sub-areas inherit their real parent zone. If that parent is already being
+    // resolved, return a transient "no contribution" value rather than caching
+    // a result that only exists because of the recursion context.
+    if (area->ZoneId && area->ZoneId != area->Id)
+    {
+        if (resolving.find(area->ZoneId) != resolving.end())
+        {
+            resolving.erase(area_id);
+            return 0;
+        }
+
+        int32 parentLevel = GetAreaLevel(area->ZoneId, resolving);
+        resolving.erase(area_id);
+        areaLevels[area_id] = parentLevel;
+        return parentLevel;
+    }
+
+    resolving.erase(area_id);
+    areaLevels[area_id] = -1;
+    return -1;
+}
+
+void TravelMgr::BuildAreaCreatureLevels()
+{
+    if (areaCreatureLevelsLoaded)
+        return;
+
+    areaCreatureLevelsLoaded = true;
+
     FactionTemplateEntry const* humanFaction = sFactionTemplateStore.LookupEntry(1);
     FactionTemplateEntry const* orcFaction = sFactionTemplateStore.LookupEntry(2);
+    if (!humanFaction || !orcFaction)
+        return;
 
-    for (auto& creaturePair : WorldPosition().getCreaturesNear())
+    std::unordered_map<uint32, std::pair<uint64, uint32>> totals;
+    for (CreatureDataPair const* creaturePair : WorldPosition().getCreaturesNear())
     {
-        if (WorldPosition(creaturePair).GetArea() != area)
+        if (!creaturePair)
             continue;
 
-        CreatureData const cData = creaturePair->second;
+        CreatureData const& cData = creaturePair->second;
         CreatureInfo const* cInfo = sObjectMgr.GetCreatureTemplate(cData.creature_id[0]);
-
         if (!cInfo)
             continue;
 
         FactionTemplateEntry const* factionEntry = sFactionTemplateStore.LookupEntry(cInfo->faction);
+        if (!factionEntry)
+            continue;
+
         ReputationRank reactionHum = PlayerbotAI::GetFactionReaction(humanFaction, factionEntry);
         ReputationRank reactionOrc = PlayerbotAI::GetFactionReaction(orcFaction, factionEntry);
-
         if (reactionHum > REP_NEUTRAL || reactionOrc > REP_NEUTRAL)
             continue;
 
-        level += cInfo->level_max;
-        cnt++;
+        WorldPosition creaturePos(cData.position.mapid, cData.position.coord_x, cData.position.coord_y, cData.position.coord_z);
+        AreaEntry const* creatureArea = creaturePos.GetArea();
+        if (!creatureArea)
+            continue;
+
+        auto& total = totals[creatureArea->Id];
+        total.first += cInfo->level_max;
+        ++total.second;
     }
 
-    if (cnt)
+    for (auto const& [areaId, total] : totals)
     {
-        areaLevels[area_id] = std::max(uint32(1),level / cnt);
-        return areaLevels[area_id];
+        if (!total.second)
+            continue;
+
+        areaCreatureLevels[areaId] = std::max<int32>(1, static_cast<int32>(total.first / total.second));
     }
-
-    //Use parent zone value.
-    if (area->ZoneId)
-    {
-        areaLevels[area_id] = 0; //Set a temporary value so it wont be counted.
-        level = GetAreaLevel(area->ZoneId);
-        areaLevels[area_id] = level;        
-        return areaLevels[area_id];
-    }
-
-    areaLevels[area_id] = -1;
-
-    return areaLevels[area_id];
 }
 
 void TravelMgr::LoadAreaLevels()
@@ -1192,51 +1232,48 @@ void TravelMgr::LoadAreaLevels()
     if (!areaLevels.empty())
         return;
 
-    WorldDatabase.PExecute("CREATE TABLE IF NOT EXISTS `ai_playerbot_zone_level` (`id` bigint(20) NOT NULL ,`level` bigint(20) NOT NULL,PRIMARY KEY(`id`))");
+    // v2 deliberately invalidates rows generated by the historical recursive
+    // algorithm, which could recurse through self-parenting Turtle areas and
+    // average negative "unknown" values as if they were real levels.
+    static char const* const areaLevelTable = "ai_playerbot_zone_level_v2";
+    WorldDatabase.PExecute("CREATE TABLE IF NOT EXISTS `%s` (`id` bigint(20) NOT NULL, `level` bigint(20) NOT NULL, PRIMARY KEY(`id`))", areaLevelTable);
 
-    std::string query = "SELECT id, level FROM ai_playerbot_zone_level";
+    std::string query = std::string("SELECT id, level FROM `") + areaLevelTable + "`";
+    auto result = WorldDatabase.PQuery("%s", query.c_str());
+    std::set<uint32> loadedAreas;
 
+    if (result)
     {
-        auto result = WorldDatabase.PQuery("%s", query.c_str());
-
-        std::vector<uint32> loadedAreas;
-
-        if (result)
+        BarGoLink bar(result->GetRowCount());
+        do
         {
-            BarGoLink bar(result->GetRowCount());            
-
-            do
-            {
-                Field* fields = result->Fetch();
-                bar.step();
-
-                areaLevels[fields[0].GetUInt32()] = fields[1].GetInt32();
-
-                loadedAreas.push_back(fields[0].GetUInt32());
-            } while (result->NextRow());
-
-            sLog.outString(">> Loaded " SIZEFMTD " area levels.", areaLevels.size());
-        }
-
-        BarGoLink bar(sAreaStore.GetNumRows());
-        WorldDatabase.BeginTransaction();
-        for (uint32 i = 0; i < sAreaStore.GetNumRows(); ++i)    // areaflag numbered from 0
-        {
+            Field* fields = result->Fetch();
             bar.step();
-            if (AreaTableEntry const* area = sAreaStore.LookupEntry<AreaEntry>(i))
-            {
-                if (std::find(loadedAreas.begin(), loadedAreas.end(), area->Id) == loadedAreas.end())
-                {
-                    int32 level = sTravelMgr.GetAreaLevel(area->Id);
 
-                    WorldDatabase.PExecute("INSERT INTO `ai_playerbot_zone_level` (`id`, `level`) VALUES ('%d', '%d')", area->Id, level);
-                }
-            }
+            uint32 areaId = fields[0].GetUInt32();
+            areaLevels[areaId] = fields[1].GetInt32();
+            loadedAreas.insert(areaId);
         }
-        WorldDatabase.CommitTransaction();
-        if(areaLevels.size() > loadedAreas.size())
-            sLog.outString(">> Generated " SIZEFMTD " areas.", areaLevels.size()- loadedAreas.size());
+        while (result->NextRow());
+
+        sLog.outString(">> Loaded " SIZEFMTD " area levels.", areaLevels.size());
     }
+
+    BarGoLink bar(sAreaStorage.GetRecordCount());
+    WorldDatabase.BeginTransaction();
+    for (auto itr = sAreaStorage.begin<AreaEntry>(); itr != sAreaStorage.end<AreaEntry>(); ++itr)
+    {
+        bar.step();
+        if (loadedAreas.find(itr->Id) != loadedAreas.end())
+            continue;
+
+        int32 level = GetAreaLevel(itr->Id);
+        WorldDatabase.PExecute("INSERT INTO `%s` (`id`, `level`) VALUES ('%u', '%d')", areaLevelTable, itr->Id, level);
+    }
+    WorldDatabase.CommitTransaction();
+
+    if (areaLevels.size() > loadedAreas.size())
+        sLog.outString(">> Generated " SIZEFMTD " areas.", areaLevels.size() - loadedAreas.size());
 }
 
 void TravelMgr::SetMobAvoidArea()
@@ -1442,7 +1479,7 @@ void TravelMgr::LoadQuestTravelTable()
         if (!point.isValid())
             continue;
 
-        AreaTableEntry const* area = point.GetArea();
+        AreaEntry const* area = point.GetArea();
        
         if (!area)
             continue;
@@ -2280,7 +2317,7 @@ void TravelMgr::GetPopulatedGrids(uint32 mapId)
     {
         for (auto& guidP : guidPs)
         {
-            if (guidP.getMapId() == mapId)
+            if (guidP.getMapId() == mapId && guidP.getMapId() < sizeof(populatedGrids) / sizeof(populatedGrids[0]))
             {
                 populatedGrids[guidP.getMapId()][guidP.getGridPair().x_coord][guidP.getGridPair().y_coord] = true;
             }
@@ -2362,43 +2399,33 @@ void TravelMgr::GetFishLocations()
 {
     sLog.outString("Generating Fish locations.");
 
-    BarGoLink bar(1000);
+    std::set<uint32> fishingMaps;
+    uint32 mapCapacity = sizeof(populatedGrids) / sizeof(populatedGrids[0]);
 
-    std::vector<std::future<void>> calculations;
-
-    for (int32 mapId = 1000; mapId >= 0; mapId--)
-    {       
-        bool hashFishing = false;
-        for (uint32 i = 0; i < sAreaStore.GetNumRows(); ++i)    // areaflag numbered from 0
-        {
-            AreaTableEntry const* area = sAreaStore.LookupEntry<AreaEntry>(i);
-
-            if (!area)
-                continue;
-
-            if (area->MapId != mapId)
-                continue;
-
-            if (!sObjectMgr.GetFishingBaseSkillLevel(area->Id))
-                continue;
-
-            hashFishing = true;
-            break;
-        }
-
-        if (!hashFishing)
+    for (auto itr = sAreaStorage.begin<AreaEntry>(); itr != sAreaStorage.end<AreaEntry>(); ++itr)
+    {
+        if (itr->MapId >= mapCapacity)
+            continue;
+        if (!sObjectMgr.GetFishingBaseSkillLevel(itr->Id))
             continue;
 
-        calculations.push_back(std::async([this, mapId] { GetFishLocations(mapId); }));
+        fishingMaps.insert(itr->MapId);
+    }
 
+    BarGoLink bar(fishingMaps.size());
+    std::vector<std::future<void>> calculations;
+    calculations.reserve(fishingMaps.size());
+
+    for (uint32 mapId : fishingMaps)
+    {
+        calculations.push_back(std::async([this, mapId] { GetFishLocations(mapId); }));
         bar.step();
     }
 
-    BarGoLink bar1(calculations.size());   
-
-    for (uint32 i = 0; i < calculations.size(); i++)
+    BarGoLink bar1(calculations.size());
+    for (auto& calculation : calculations)
     {
-        calculations[i].wait();
+        calculation.wait();
         bar1.step();
     }
 }

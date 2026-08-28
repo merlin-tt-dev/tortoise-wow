@@ -1288,16 +1288,7 @@ bool CanBuyTabard::Calculate()
 	if (AI_VALUE(TravelTarget*,"travel target")->GetStatus() == TravelStatus::TRAVEL_STATUS_TRAVEL)
 		return false;
 
-	bool inCity = false;
-	AreaTableEntry const* areaEntry = GetAreaEntryByAreaID(sServerFacade.GetAreaId(bot));
-	if (areaEntry)
-	{
-		if (areaEntry->zone)
-			areaEntry = GetAreaEntryByAreaID(areaEntry->zone);
-
-		if (areaEntry && areaEntry->flags & AREA_FLAG_CAPITAL)
-			inCity = true;
-	}
+    bool inCity = WorldPosition(bot).HasAreaFlag(AREA_FLAG_CAPITAL);
 
 	if (!inCity)
 		return false;

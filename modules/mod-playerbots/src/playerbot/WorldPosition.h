@@ -225,8 +225,7 @@ namespace ai
         Map* getMap(uint32 instanceId) const { if (!*this) return nullptr; loadMapAndVMap(instanceId); return sMapMgr.FindMap(mapid, instanceId ? instanceId : (getMapEntry()->Instanceable() ? getFirstInstanceId() : 0)); }
         const TerrainInfo* getTerrain() const { return getMap(getFirstInstanceId()) ? getMap(getFirstInstanceId())->GetTerrain() : sTerrainMgr.LoadTerrain(getMapId()); }
         bool isDungeon() { return getMapEntry()->IsDungeon(); }
-        // Penqle's AreaEntry uses Flags (capital F); cmangos uses flags.
-        bool isCity() { return GetArea() && GetArea()->Flags & (AREA_FLAG_CITY | AREA_FLAG_SLAVE_CAPITAL); }
+        bool isCity() const { return HasAreaFlag(static_cast<AreaFlags>(AREA_FLAG_CITY | AREA_FLAG_SLAVE_CAPITAL)); }
         float getVisibilityDistance() { return getMap(0) ? getMap(0)->GetVisibilityDistance() : (isOverworld() ? World::GetMaxVisibleDistanceOnContinents() : World::GetMaxVisibleDistanceInInstances()); }
 
         bool IsInStaticLineOfSight(WorldPosition pos, float heightMod = 0.5f) const;
@@ -305,13 +304,9 @@ namespace ai
 
         bool isValid() const { return MaNGOS::IsValidMapCoord(coord_x, coord_y, coord_z, orientation); };
         virtual uint16 getAreaFlag() const {
-            loadVMap();
-            return isValid() && isVmapLoaded() ? sTerrainMgr.GetAreaFlag(getMapId(), coord_x, coord_y, coord_z) : 0; };
-        AreaTableEntry const* GetArea() const;
+            return isValid() ? sTerrainMgr.GetAreaFlag(getMapId(), coord_x, coord_y, coord_z) : 0; };
+        AreaEntry const* GetArea() const;
         std::string getAreaName(const bool fullName = true, const bool zoneName = false) const;
-        // Penqle's TerrainInfo has no AreaNameInfo or GetAreaName method.
-        // Stub to empty string (loses WMO area-override lookup; would need a Penqle-side equivalent).
-        std::string getAreaOverride() const { return ""; }
         int32 getAreaLevel() const;
 
         bool HasAreaFlag(const AreaFlags flag = AREA_FLAG_CAPITAL) const;

@@ -1221,10 +1221,15 @@ bool DebugAction::HandleUnmount(Event& event, Player* requester, const std::stri
 bool DebugAction::HandleArea(Event& event, Player* requester, const std::string& text)
 {
     WorldPosition point(requester);
-    AreaTableEntry const* area = point.GetArea();
+    AreaEntry const* area = point.GetArea();
     std::ostringstream out;
-    out << point.getAreaName(true, false); 
-    out << "," << area->team << " (" << (area->team != FACTION_MASK_ALLIANCE ? (area->team != FACTION_MASK_HORDE ? "neutral" : "horde") : "alliance") << ")";
+    out << point.getAreaName(true, false);
+    if (area)
+    {
+        char const* teamName = area->Team == AREATEAM_ALLY ? "alliance" :
+                               area->Team == AREATEAM_HORDE ? "horde" : "neutral";
+        out << "," << area->Team << " (" << teamName << ")";
+    }
     ai->TellPlayerNoFacing(requester, out, PlayerbotSecurityLevel::PLAYERBOT_SECURITY_ALLOW_ALL, true, false);
     return true;
 }
@@ -2598,17 +2603,17 @@ bool DebugAction::HandlePosition(Event& event, Player* requester, const std::str
         }
 
         uint32 areaId = sTerrainMgr.GetAreaId(mapId, x, y, bot->GetPositionZ());
-        const AreaTableEntry* area = GetAreaEntryByAreaID(areaId);
+        const AreaEntry* area = AreaEntry::GetById(areaId);
         std::ostringstream out;
         out << "Zone: " << areaId;
         if (area)
         {
-            out << " (" << area->area_name[0] << ")";
-            if (area->zone)
+            out << " (" << (area->Name ? area->Name : "unknown") << ")";
+            if (area->ZoneId && area->ZoneId != area->Id)
             {
-                const AreaTableEntry* zone = GetAreaEntryByAreaID(area->zone);
+                const AreaEntry* zone = AreaEntry::GetById(area->ZoneId);
                 if (zone)
-                    out << " Zone: " << zone->area_name[0];
+                    out << " Zone: " << (zone->Name ? zone->Name : "unknown");
             }
         }
         ai->TellPlayer(requester, out.str());
@@ -2995,12 +3000,10 @@ bool DebugAction::HandlePosition(Event& event, Player* requester, const std::str
                 totalDist += dist;
                 
                 uint32 areaId = sTerrainMgr.GetAreaId(nodePos.getMapId(), nodePos.getX(), nodePos.getY(), nodePos.getZ());
-                const AreaTableEntry* area = GetAreaEntryByAreaID(areaId);
+                const AreaEntry* area = AreaEntry::GetById(areaId);
                 std::string areaName = "Unknown";
-                if (area)
-                {
-                    areaName = area->area_name[0];
-                }
+                if (area && area->Name)
+                    areaName = area->Name;
                 
                 std::ostringstream nodeOut;
                 nodeOut << "  " << (i + 1) << ". " << node->getName() << " [" << areaName << ", m" << nodePos.getMapId() << "] (" << dist << " yd)";
@@ -3164,10 +3167,14 @@ bool DebugAction::HandlePosition(Event& event, Player* requester, const std::str
         std::ostringstream out;
         out << bot->GetPositionX() << " " << bot->GetPositionY() << " " << bot->GetPositionZ() << " " << bot->GetMapId() << " " << bot->GetOrientation();
         uint32 area = sServerFacade.GetAreaId(bot);
-        if (const AreaTableEntry* areaEntry = GetAreaEntryByAreaID(area))
+        if (const AreaEntry* areaEntry = AreaEntry::GetById(area))
         {
-            if (AreaTableEntry const* zoneEntry = areaEntry->zone ? GetAreaEntryByAreaID(areaEntry->zone) : areaEntry)
-                out << " |" << zoneEntry->area_name[0] << "|";
+            AreaEntry const* zoneEntry = areaEntry;
+            if (areaEntry->ZoneId && areaEntry->ZoneId != areaEntry->Id)
+                if (AreaEntry const* parent = AreaEntry::GetById(areaEntry->ZoneId))
+                    zoneEntry = parent;
+
+            out << " |" << (zoneEntry->Name ? zoneEntry->Name : "unknown") << "|";
         }
         ai->TellPlayer(requester, out.str());
         return true;
@@ -3271,15 +3278,25 @@ bool DebugAction::HandleNPC(Event& event, Player* requester, const std::string& 
 
     guidP.printWKT(out);
 
-    out << "[a:" << guidP.GetArea()->area_name[0]; 
+    AreaEntry const* area = guidP.GetArea();
+    out << "[a:" << (area && area->Name ? area->Name : "unknown");
 
-    if (guidP.GetArea() && guidP.getAreaLevel())
-        out << " level: " << guidP.getAreaLevel();
-    if (guidP.GetArea()->zone && GetAreaEntryByAreaID(guidP.GetArea()->zone))
+    if (area)
     {
-        out << " z:" << GetAreaEntryByAreaID(guidP.GetArea()->zone)->area_name[0];
-        if (sTravelMgr.GetAreaLevel(guidP.GetArea()->zone))
-            out << " level: " << sTravelMgr.GetAreaLevel(guidP.GetArea()->zone);
+        int32 areaLevel = guidP.getAreaLevel();
+        if (areaLevel > 0)
+            out << " level: " << areaLevel;
+
+        if (area->ZoneId && area->ZoneId != area->Id)
+        {
+            if (AreaEntry const* zone = AreaEntry::GetById(area->ZoneId))
+            {
+                out << " z:" << (zone->Name ? zone->Name : "unknown");
+                int32 zoneLevel = sTravelMgr.GetAreaLevel(zone->Id);
+                if (zoneLevel > 0)
+                    out << " level: " << zoneLevel;
+            }
+        }
     }
 
     out << "] ";

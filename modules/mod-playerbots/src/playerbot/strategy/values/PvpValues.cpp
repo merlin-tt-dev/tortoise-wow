@@ -83,15 +83,20 @@ CreatureDataPair const* BgMasterValue::NearestBm(bool allowDead)
         if (ai->getReaction(bmFactionEntry) < REP_NEUTRAL)
             continue;
 
-        AreaTableEntry const* area = bmPos.GetArea();
-
+        AreaEntry const* area = bmPos.GetArea();
         if (!area)
             continue;
 
-        //Is the area hostile?
-        if (area->team == 4 && bot->GetTeam() == ALLIANCE)
+        if (area->ZoneId && area->ZoneId != area->Id)
+        {
+            if (AreaEntry const* zone = AreaEntry::GetById(area->ZoneId))
+                area = zone;
+        }
+
+        // Is the battlemaster's zone hostile to the bot?
+        if (area->Team == AREATEAM_HORDE && bot->GetTeam() == ALLIANCE)
             continue;
-        if (area->team == 2 && bot->GetTeam() == HORDE)
+        if (area->Team == AREATEAM_ALLY && bot->GetTeam() == HORDE)
             continue;
 
         if (!allowDead)

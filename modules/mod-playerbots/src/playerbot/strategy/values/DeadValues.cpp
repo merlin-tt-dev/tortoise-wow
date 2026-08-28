@@ -66,7 +66,10 @@ WorldSafeLocsEntry const* GraveyardValue::GetAnotherAppropriateClosestGraveyard(
     // far
     WorldSafeLocsEntry const* entryFar = nullptr;
 
-    Corpse* corpse = bot->GetCorpse(); //
+    Corpse* corpse = bot->GetCorpse();
+    if (!corpse)
+        return nullptr;
+
     uint32 botMapId = corpse->GetMapId();
     uint32 botZoneId = corpse->GetZoneId();
 
@@ -80,13 +83,15 @@ WorldSafeLocsEntry const* GraveyardValue::GetAnotherAppropriateClosestGraveyard(
             continue;
 
         WorldSafeLocsEntry const* graveyardCoreEntry = sWorldSafeLocsStore.LookupEntry(graveyardData.safeLocId);
+        if (!graveyardCoreEntry)
+            continue;
 
         //skip different maps (no need for other continents)
         if (graveyardCoreEntry->map_id != botMapId)
             continue;
 
         uint32 graveyardZoneId = sTerrainMgr.GetZoneId(graveyardCoreEntry->map_id, graveyardCoreEntry->x, graveyardCoreEntry->y, graveyardCoreEntry->z);
-        auto graveyardAreaEntry = GetAreaEntryByAreaID(graveyardZoneId);
+        auto graveyardAreaEntry = AreaEntry::GetById(graveyardZoneId);
 
         //skip same zone
         if (graveyardZoneId == botZoneId)
@@ -96,7 +101,7 @@ WorldSafeLocsEntry const* GraveyardValue::GetAnotherAppropriateClosestGraveyard(
             continue;
 
         //skip higher level zones
-        if (bot->GetLevel() + 5 < (uint32)graveyardAreaEntry->area_level)
+        if (bot->GetLevel() + 5 < (uint32)graveyardAreaEntry->AreaLevel)
             continue;
 
         float dist = WorldPosition(corpse).sqDistance(graveyardCoreEntry);

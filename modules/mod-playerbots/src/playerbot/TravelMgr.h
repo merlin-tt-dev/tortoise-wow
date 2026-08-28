@@ -249,11 +249,11 @@ namespace ai
 	{
 	public:
 		ZoneTravelDestination(TravelDestinationPurpose purpose, uint32 /*id*/, int32 entry) : EntryTravelDestination(purpose, entry) {
-			SetExpireFast(); SetCooldownShort(); if (auto area = GetArea()) { title = area->area_name[0]; level = area->area_level; }
+            SetExpireFast(); SetCooldownShort(); if (auto area = GetArea()) { title = area->Name ? area->Name : ""; level = area->AreaLevel; }
 		}
 	protected:
 		virtual std::string GetZoneName() const { return title; }
-		AreaTableEntry const* GetArea() const;
+        AreaEntry const* GetArea() const;
 		int32 GetLevel() const { return level; }
 	private:
 		std::string title = "";
@@ -453,6 +453,8 @@ namespace ai
 		int32 GetAreaLevel(uint32 area_id);
 		void LoadAreaLevels();
 	private:
+        int32 GetAreaLevel(uint32 area_id, std::set<uint32>& resolving);
+        void BuildAreaCreatureLevels();
 		void Clear();
 		void SetMobAvoidAreaMap(uint32 mapId);
 
@@ -493,6 +495,8 @@ namespace ai
 		GatherTravelDestination fishMap;
 		std::list<AsyncGuidPosition> fishPoints;
 		std::unordered_map<uint32, int32> areaLevels;
+        std::unordered_map<uint32, int32> areaCreatureLevels;
+        bool areaCreatureLevelsLoaded = false;
 
 		std::mutex getDestinationMutex;
 		std::condition_variable getDestinationVar;

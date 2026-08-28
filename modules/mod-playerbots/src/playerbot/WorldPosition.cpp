@@ -370,8 +370,8 @@ bool WorldPosition::canFly() const
 
     // don't allow flying in Dalaran restricted areas
     // (no other zones currently has areas with AREA_FLAG_CANNOT_FLY)
-    if (AreaTableEntry const* atEntry = GetAreaEntryByAreaID(areaid))
-        return (!(atEntry->flags & AREA_FLAG_CANNOT_FLY));
+    if (AreaEntry const* atEntry = AreaEntry::GetById(areaid))
+        return (!(atEntry->Flags & AREA_FLAG_CANNOT_FLY));
 #endif
 
     return true;
@@ -447,10 +447,15 @@ WorldPosition WorldPosition::getDisplayLocation() const
     return offset(mapOffset);
 };
 
-AreaTableEntry const* WorldPosition::GetArea() const
+AreaEntry const* WorldPosition::GetArea() const
 {
-    // Penqle uses areaId not areaFlag.
-    return AreaEntry::GetById(getAreaFlag());
+    if (!isValid())
+        return nullptr;
+
+    // TerrainManager::GetAreaId resolves the terrain/WMO ExploreFlag together
+    // with the map id. An ExploreFlag is not an AreaEntry::Id: treating it as
+    // one can silently resolve a completely unrelated, but valid, area.
+    return AreaEntry::GetById(sTerrainMgr.GetAreaId(getMapId(), getX(), getY(), getZ()));
 }
 
 std::string WorldPosition::getAreaName(const bool fullName, const bool zoneName) const
@@ -462,33 +467,31 @@ std::string WorldPosition::getAreaName(const bool fullName, const bool zoneName)
             return std::string(map->name ? map->name : "");
     }
 
-    AreaTableEntry const* area = GetArea();
-
+    AreaEntry const* area = GetArea();
     if (!area)
         return "";
 
-    std::string areaName = area->area_name ? area->area_name : "";
+    std::string areaName = area->Name ? area->Name : "";
+    if (!fullName)
+        return areaName;
 
-    if (fullName)
+    // Turtle has custom area rows whose ZoneId can point back to themselves.
+    // Guard the whole parent walk rather than assuming an acyclic DBC tree.
+    std::set<uint32> visited = { area->Id };
+    uint32 zoneId = area->ZoneId;
+    while (zoneId && visited.insert(zoneId).second)
     {
-        uint16 zoneId = area->zone;
+        AreaEntry const* parentArea = AreaEntry::GetById(zoneId);
+        if (!parentArea)
+            break;
 
-        while (zoneId > 0)
-        {
-            AreaTableEntry const* parentArea = GetAreaEntryByAreaID(zoneId);
+        std::string parentName = parentArea->Name ? parentArea->Name : "";
+        if (zoneName)
+            areaName = parentName;
+        else if (!parentName.empty())
+            areaName = parentName + " " + areaName;
 
-            if (!parentArea)
-                break;
-
-            std::string subAreaName = parentArea->area_name ? parentArea->area_name : "";
-
-            if (zoneName)
-                areaName = subAreaName;
-            else
-                areaName = subAreaName + " " + areaName;
-
-            zoneId = parentArea->zone;
-        }
+        zoneId = parentArea->ZoneId;
     }
 
     return areaName;
@@ -499,40 +502,47 @@ int32 WorldPosition::getAreaLevel() const
     if (mapid == 609)
         return 1;
 
-    if(GetArea())
-        return sTravelMgr.GetAreaLevel(GetArea()->ID);
-
-    return 0;
+    AreaEntry const* area = GetArea();
+    return area ? sTravelMgr.GetAreaLevel(area->Id) : 0;
 }
 
 bool WorldPosition::HasAreaFlag(const AreaFlags flag) const
 {
-    AreaTableEntry const* areaEntry = GetArea();
-    if (areaEntry)
-    {
-        if (areaEntry->zone)
-            areaEntry = GetAreaEntryByAreaID(areaEntry->zone);
+    AreaEntry const* areaEntry = GetArea();
+    if (!areaEntry)
+        return false;
 
-        if (areaEntry && areaEntry->flags & flag)
-            return true;
+    // Core PvP/capital handling applies zone-level flags to sub-areas. Mirror
+    // that rule and tolerate malformed/self-parenting custom area rows.
+    if (areaEntry->ZoneId && areaEntry->ZoneId != areaEntry->Id)
+    {
+        if (AreaEntry const* zoneEntry = AreaEntry::GetById(areaEntry->ZoneId))
+            areaEntry = zoneEntry;
     }
 
-    return false;
+    return (areaEntry->Flags & flag) != 0;
 }
 
 bool WorldPosition::HasFaction(const Team team) const
 {
-    AreaTableEntry const* areaEntry = GetArea();
-    if (areaEntry)
+    AreaEntry const* areaEntry = GetArea();
+    if (!areaEntry)
+        return false;
+
+    if (areaEntry->ZoneId && areaEntry->ZoneId != areaEntry->Id)
     {
-        if (areaEntry->team == 2 && team == ALLIANCE)
-            return true;
-        if (areaEntry->team == 4 && team == HORDE)
-            return true;
-        if (areaEntry->team == 6)
-            return true;
+        if (AreaEntry const* zoneEntry = AreaEntry::GetById(areaEntry->ZoneId))
+            areaEntry = zoneEntry;
     }
-    return false;
+
+    if (areaEntry->Team == AREATEAM_ALLY && team == ALLIANCE)
+        return true;
+    if (areaEntry->Team == AREATEAM_HORDE && team == HORDE)
+        return true;
+
+    // Core recognizes 6 as the legacy "both controlled" value even though the
+    // enum only gives names to the individual faction bits.
+    return areaEntry->Team == (AREATEAM_ALLY | AREATEAM_HORDE);
 }
 
 std::set<GenericTransport*> WorldPosition::getTransports(uint32 entry)

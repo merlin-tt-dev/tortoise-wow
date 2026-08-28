@@ -38,11 +38,6 @@ typedef Transport GenericTransport;
 #include "ObjectGuid.h"
 typedef ObjectGuidSet GuidSet;
 
-// cmangos uses AreaTableEntry; Penqle has AreaEntry (defined in Maps/Map.h).
-// They model the same data. Forward-declare and typedef.
-struct AreaEntry;
-typedef AreaEntry AreaTableEntry;
-
 // === Define mappings ===
 // cmangos's ItemClass enum has ITEM_CLASS_MISC at value 15. Penqle renamed
 // this to ITEM_CLASS_JUNK (also at 15). The bot module's ahbot/Category.h
@@ -301,10 +296,6 @@ struct CmangosSkillLineAbilityStoreProxy
 };
 inline CmangosSkillLineAbilityStoreProxy sSkillLineAbilityStore;
 
-// === sAreaStore proxy (cmangos uses sAreaStore; Penqle has sAreaStorage) ===
-// Same shape; keep both names.
-#define sAreaStore sAreaStorage
-
 // === sGOStorage (cmangos) → sObjectMgr.GetGameObjectInfo ===
 struct CmangosGOStorageProxy
 {
@@ -391,13 +382,6 @@ inline bool IsNonCombatSpell(SpellEntry const* spellInfo) {
 }
 inline bool IsPositiveEffect(SpellEntry const* spellInfo, SpellEffectIndex eff) {
     return spellInfo && spellInfo->IsPositiveEffect(eff);
-}
-
-// === GetAreaEntryByAreaID free function (cmangos) → AreaEntry::GetById (Penqle) ===
-inline AreaEntry const* GetAreaEntryByAreaID(uint32 id) { return AreaEntry::GetById(id); }
-inline AreaEntry const* GetAreaEntryByMapId(uint32 mapId) {
-    auto* mapEntry = sMapStorage.LookupEntry<MapEntry>(mapId);
-    return mapEntry ? AreaEntry::GetById(mapEntry->linkedZone) : nullptr;
 }
 
 // === MeetingStoneInfo / MeetingStoneSet (cmangos LFG) ===

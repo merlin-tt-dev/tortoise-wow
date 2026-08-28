@@ -51,8 +51,8 @@ bool SayAction::Execute(Event& event)
 
     if (bot->IsInWorld())
     {
-        if (AreaTableEntry const* area = GetAreaEntryByAreaID(sServerFacade.GetAreaId(bot)))
-            placeholders["<subzone>"] = area->area_name[0];
+        if (AreaEntry const* area = AreaEntry::GetById(sServerFacade.GetAreaId(bot)))
+            placeholders["<subzone>"] = area->Name ? area->Name : "";
     }
 
     // set delay before next say
@@ -156,7 +156,10 @@ void ChatReplyAction::GetAIChatPlaceholders(std::map<std::string, std::string>& 
     placeholders["<" + preFix + " faction>"] = ChatHelper::formatFactionName(factionId);
     WorldPosition pos(unit);
     placeholders["<" + preFix + " zone>"] = pos.getAreaName();
-    placeholders["<" + preFix + " subzone>"] = pos.getAreaOverride();
+    // Penqle intentionally does not load WMOAreaTable localized names. Keep
+    // the historical WMO subzone placeholder explicit instead of substituting
+    // an unrelated AreaEntry name.
+    placeholders["<" + preFix + " subzone>"] = "";
 
     if (unit->IsPlayer())
     {
@@ -740,8 +743,8 @@ bool ChatReplyAction::HandleToxicLinksReply(Player* bot, ChatChannelSource chatC
     }
 
     placeholders["%my_role"] = bot->GetPlayerbotAI()->GetChatHelper()->formatClass(bot, AiFactory::GetPlayerSpecTab(bot));
-    AreaTableEntry const* current_area = bot->GetPlayerbotAI()->GetCurrentArea();
-    AreaTableEntry const* current_zone = bot->GetPlayerbotAI()->GetCurrentZone();
+    AreaEntry const* current_area = bot->GetPlayerbotAI()->GetCurrentArea();
+    AreaEntry const* current_zone = bot->GetPlayerbotAI()->GetCurrentZone();
     placeholders["%area_name"] = current_area ? bot->GetPlayerbotAI()->GetLocalizedAreaName(current_area) : BOT_TEXT("string_unknown_area");
     placeholders["%zone_name"] = current_zone ? bot->GetPlayerbotAI()->GetLocalizedAreaName(current_zone) : BOT_TEXT("string_unknown_area");
     placeholders["%my_class"] = bot->GetPlayerbotAI()->GetChatHelper()->formatClass(bot->getClass());
@@ -813,8 +816,8 @@ bool ChatReplyAction::HandleWTBItemsReply(Player* bot, ChatChannelSource chatCha
     {
         std::map<std::string, std::string> placeholders;
         placeholders["%other_name"] = name;
-        AreaTableEntry const* current_area = bot->GetPlayerbotAI()->GetCurrentArea();
-        AreaTableEntry const* current_zone = bot->GetPlayerbotAI()->GetCurrentZone();
+        AreaEntry const* current_area = bot->GetPlayerbotAI()->GetCurrentArea();
+        AreaEntry const* current_zone = bot->GetPlayerbotAI()->GetCurrentZone();
         placeholders["%area_name"] = current_area ? bot->GetPlayerbotAI()->GetLocalizedAreaName(current_area) : BOT_TEXT("string_unknown_area");
         placeholders["%zone_name"] = current_zone ? bot->GetPlayerbotAI()->GetLocalizedAreaName(current_zone) : BOT_TEXT("string_unknown_area");
         placeholders["%my_class"] = bot->GetPlayerbotAI()->GetChatHelper()->formatClass(bot->getClass());
@@ -911,8 +914,8 @@ bool ChatReplyAction::HandleLFGQuestsReply(Player* bot, ChatChannelSource chatCh
     {
         std::map<std::string, std::string> placeholders;
         placeholders["%other_name"] = name;
-        AreaTableEntry const* current_area = bot->GetPlayerbotAI()->GetCurrentArea();
-        AreaTableEntry const* current_zone = bot->GetPlayerbotAI()->GetCurrentZone();
+        AreaEntry const* current_area = bot->GetPlayerbotAI()->GetCurrentArea();
+        AreaEntry const* current_zone = bot->GetPlayerbotAI()->GetCurrentZone();
         placeholders["%area_name"] = current_area ? bot->GetPlayerbotAI()->GetLocalizedAreaName(current_area) : BOT_TEXT("string_unknown_area");
         placeholders["%zone_name"] = current_zone ? bot->GetPlayerbotAI()->GetLocalizedAreaName(current_zone) : BOT_TEXT("string_unknown_area");
         placeholders["%my_class"] = bot->GetPlayerbotAI()->GetChatHelper()->formatClass(bot->getClass());

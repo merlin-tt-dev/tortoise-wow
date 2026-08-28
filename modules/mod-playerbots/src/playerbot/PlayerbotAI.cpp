@@ -2951,33 +2951,32 @@ std::vector<std::pair<const Quest*, uint32>> PlayerbotAI::GetCurrentQuestsRequir
     return result;
 }
 
-const AreaTableEntry* PlayerbotAI::GetCurrentArea()
+const AreaEntry* PlayerbotAI::GetCurrentArea()
 {
-    return GetAreaEntryByAreaID(sServerFacade.GetAreaId(bot));
+    return AreaEntry::GetById(sServerFacade.GetAreaId(bot));
 }
 
-const AreaTableEntry* PlayerbotAI::GetCurrentZone()
+const AreaEntry* PlayerbotAI::GetCurrentZone()
 {
-    return GetAreaEntryByAreaID(sTerrainMgr.GetZoneId(bot->GetMapId(), bot->GetPositionX(), bot->GetPositionY(), bot->GetPositionZ()));
+    return AreaEntry::GetById(sTerrainMgr.GetZoneId(bot->GetMapId(), bot->GetPositionX(), bot->GetPositionY(), bot->GetPositionZ()));
 }
 
 /*
 * @return localized area_name
 */
-std::string PlayerbotAI::GetLocalizedAreaName(const AreaTableEntry* entry)
+std::string PlayerbotAI::GetLocalizedAreaName(const AreaEntry* entry)
 {
-    // Penqle's area_name is single char* (no locale array).
-    return entry && entry->area_name ? std::string(entry->area_name) : std::string();
+    if (!entry)
+        return {};
+
+    std::string name = entry->Name ? entry->Name : "";
+    sObjectMgr.GetAreaLocaleString(entry->Id, sObjectMgr.GetIndexForLocale(LocaleConstant(BroadcastHelper::GetLocale())), &name);
+    return name;
 }
 
 bool PlayerbotAI::IsInCapitalCity()
 {
-    AreaTableEntry const* current_area = GetAreaEntryByAreaID(sServerFacade.GetAreaId(bot));
-    if (!current_area)
-    {
-        return false;
-    }
-    return current_area->flags & AREA_FLAG_CAPITAL;
+    return WorldPosition(bot).HasAreaFlag(AREA_FLAG_CAPITAL);
 }
 
 ChatChannelSource PlayerbotAI::GetChatChannelSource(Player* bot, uint32 type, std::string channelName)
@@ -3164,7 +3163,7 @@ bool PlayerbotAI::SayToGeneral(std::string msg)
         return false;
     }
 
-    AreaTableEntry const* current_zone = GetCurrentZone();
+    AreaEntry const* current_zone = GetCurrentZone();
     if (!current_zone)
     {
         return false;
@@ -3214,7 +3213,7 @@ bool PlayerbotAI::SayToTrade(std::string msg)
     for (auto const& [key, channel] : cMgr->GetChannels())
     {
         if (channel && channel->GetChannelId() == ChatChannelId::TRADE
-            && boost::algorithm::contains(channel->GetName(), GetLocalizedAreaName(GetAreaEntryByAreaID(ImportantAreaId::CITY))))
+            && boost::algorithm::contains(channel->GetName(), GetLocalizedAreaName(AreaEntry::GetById(ImportantAreaId::CITY))))
         {
             channel->Say(bot, msg.c_str(), LANG_UNIVERSAL);
             return true;
@@ -3270,7 +3269,7 @@ bool PlayerbotAI::SayToLocalDefense(std::string msg)
         return false;
     }
 
-    AreaTableEntry const* current_zone = GetCurrentZone();
+    AreaEntry const* current_zone = GetCurrentZone();
     if (!current_zone)
     {
         return false;
@@ -3354,7 +3353,7 @@ bool PlayerbotAI::SayToGuildRecruitment(std::string msg)
     {
         //check for current zone (can only be used in major cities)
         if (channel && channel->GetChannelId() == ChatChannelId::GUILD_RECRUITMENT
-            && boost::algorithm::contains(channel->GetName(), GetLocalizedAreaName(GetAreaEntryByAreaID(ImportantAreaId::CITY))))
+            && boost::algorithm::contains(channel->GetName(), GetLocalizedAreaName(AreaEntry::GetById(ImportantAreaId::CITY))))
         {
             channel->Say(bot, msg.c_str(), LANG_UNIVERSAL);
             return true;
@@ -6508,10 +6507,14 @@ std::string PlayerbotAI::HandleRemoteCommand(std::string command)
     {
         std::ostringstream out; out << bot->GetPositionX() << " " << bot->GetPositionY() << " " << bot->GetPositionZ() << " " << bot->GetMapId() << " " << bot->GetOrientation();
         uint32 area = sServerFacade.GetAreaId(bot);
-        if (const AreaTableEntry* areaEntry = GetAreaEntryByAreaID(area))
+        if (const AreaEntry* areaEntry = AreaEntry::GetById(area))
         {
-            if (AreaTableEntry const* zoneEntry = areaEntry->zone ? GetAreaEntryByAreaID(areaEntry->zone) : areaEntry)
-                out << " |" << zoneEntry->area_name[0] << "|";
+            AreaEntry const* zoneEntry = areaEntry;
+            if (areaEntry->ZoneId && areaEntry->ZoneId != areaEntry->Id)
+                if (AreaEntry const* parent = AreaEntry::GetById(areaEntry->ZoneId))
+                    zoneEntry = parent;
+
+            out << " |" << (zoneEntry->Name ? zoneEntry->Name : "unknown") << "|";
         }
         return out.str();
     }

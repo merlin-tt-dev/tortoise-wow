@@ -414,9 +414,9 @@ public:
     const Quest* GetCurrentIncompleteQuestWithId(uint32 questId);
     bool HasCurrentIncompleteQuestWithId(uint32 questId);
     std::vector<std::pair<const Quest*, uint32>> GetCurrentQuestsRequiringItemId(uint32 itemId);
-    const AreaTableEntry* GetCurrentArea();
-    const AreaTableEntry* GetCurrentZone();
-    std::string GetLocalizedAreaName(const AreaTableEntry* entry);
+    const AreaEntry* GetCurrentArea();
+    const AreaEntry* GetCurrentZone();
+    std::string GetLocalizedAreaName(const AreaEntry* entry);
     bool IsInCapitalCity();
     ChatChannelSource GetChatChannelSource(Player* bot, uint32 type, std::string channelName);
     bool SayToGuild(std::string msg, bool likePlayer = false);

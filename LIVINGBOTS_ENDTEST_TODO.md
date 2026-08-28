@@ -27,7 +27,8 @@
 | 0024 Native UnitAI / Distance Semantics | eingebaut | ausstehend |
 | 0025 Native Taxi Flight Path | eingebaut | ausstehend |
 | 0026 Native Metadata / Diagnostics Shim Cleanup | eingebaut | ausstehend |
-| 0027 Native Security / Script Dispatch Semantics | mit diesem Patch | ausstehend |
+| 0027 Native Security / Script Dispatch Semantics | eingebaut | ausstehend |
+| 0028 Native Area / Zone + Strategy Semantics | mit diesem Patch | ausstehend |
 
 **Wichtig:** „eingebaut“ bedeutet nur statisch/source-seitig portiert. Kein Punkt gilt dadurch als getestet.
 
@@ -99,6 +100,14 @@
 - [ ] 0027: Console/RA-Dispatch verwendet ausschließlich virtuelle `ChatHandler::GetAccessLevel()` / `GetAccountId()`; kein unchecked `CliHandler*`-Downcast.
 - [ ] 0027: `.bot debug` verlangt `SEC_DEVELOPER`, `.bot c` verlangt `SEC_MODERATOR`, und ein generisches `.bot do ... cdebug` wird nicht allein durch den `.bot`-Event-Source zum Moderatorpfad.
 - [ ] 0027: kein fake `sScriptDevAIMgr` / `ScriptDevAIMgr`-Stub verbleibt; aktives Gossip/RPG-Scripting läuft über Penqles natives `sScriptMgr`.
+- [ ] 0028: kein `AreaTableEntry`, `sAreaStore`, `GetAreaEntryByAreaID`, `GetAreaEntryByAreaFlagAndMap` oder `GetAreaFlagByMapId` verbleibt im aktiven Playerbot-Modul; Consumer verwenden Penqles natives `AreaEntry` / `sAreaStorage`.
+- [ ] 0028: Positionsauflösung behandelt `ExploreFlag` und `AreaEntry::Id` als verschiedene Schlüssel; `WorldPosition::GetArea()` liefert dieselbe Area-ID wie Penqles `TerrainManager::GetAreaId()` für dieselben Koordinaten.
+- [ ] 0028: selbstreferenzierende oder zyklische Turtle-`ZoneId`-Hierarchien verursachen weder Rekursion noch Endlosschleifen; nur positive Child-/Creature-Level fließen in abgeleitete Area-Level ein; Creature-Fallback-Level werden ohne N×Full-Spawn-Rescan aufgebaut.
+- [ ] 0028: der generierte Area-Level-Cache `ai_playerbot_zone_level_v2` wird neu erzeugt und übernimmt keine semantisch falschen Werte aus der alten Tabelle.
+- [ ] 0028: Area-/Zone-Chatnamen verwenden Penqles `AreaEntry::Name` plus `locales_area`; der historische WMO-Subzone-Name bleibt leer, solange Penqle dessen Name-Felder nicht lädt.
+- [ ] 0028: `Engine::removeStrategy()` entfernt den Map-Eintrag vor `OnStrategyRemoved()`; rekursives Entfernen durch `RpgStrategy` erzeugt keinen Iterator-/RB-tree-Crash.
+- [ ] 0028: alternative Graveyard-Auswahl überspringt fehlende Corpse-/WorldSafeLoc-Daten statt sie zu dereferenzieren.
+- [ ] 0028: Gnome-Bots werden im Low-Level-Random-Teleportfilter in Dun Morogh/Loch Modan wie Dwarves zugelassen; High Elf/Goblin bleiben first-class Turtle-Rassen ohne Human-/Orc-Fallback.
 - [ ] Rest-Shim-Audit (MMap/BG/Loot/LFG/InstanceTemplate/etc.) vollständig abgeschlossen.
 
 ## A1. Clean Build

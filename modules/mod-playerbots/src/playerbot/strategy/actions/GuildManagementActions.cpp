@@ -151,10 +151,10 @@ bool GuildManageNearbyAction::Execute(Event& event)
             placeholders["%name"] = player->GetName();
             placeholders["%members"] = std::to_string(guild->GetMemberSize());
             placeholders["%guildname"] = guild->GetName();
-            AreaTableEntry const* current_area = GetAreaEntryByAreaID(sServerFacade.GetAreaId(bot));
-            AreaTableEntry const* current_zone = GetAreaEntryByAreaID(sTerrainMgr.GetZoneId(bot->GetMapId(), bot->GetPositionX(), bot->GetPositionY(), bot->GetPositionZ()));
-            placeholders["%area_name"] = current_area && current_area->area_name ? std::string(current_area->area_name) : BOT_TEXT("string_unknown_area");
-            placeholders["%zone_name"] = current_zone && current_zone->area_name ? std::string(current_zone->area_name) : BOT_TEXT("string_unknown_area");
+            AreaEntry const* current_area = AreaEntry::GetById(sServerFacade.GetAreaId(bot));
+            AreaEntry const* current_zone = AreaEntry::GetById(sTerrainMgr.GetZoneId(bot->GetMapId(), bot->GetPositionX(), bot->GetPositionY(), bot->GetPositionZ()));
+            placeholders["%area_name"] = current_area ? ai->GetLocalizedAreaName(current_area) : BOT_TEXT("string_unknown_area");
+            placeholders["%zone_name"] = current_zone ? ai->GetLocalizedAreaName(current_zone) : BOT_TEXT("string_unknown_area");
 
             std::vector<std::string> lines;
 

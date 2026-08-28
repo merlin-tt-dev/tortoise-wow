@@ -226,8 +226,8 @@ bool BroadcastHelper::BroadcastLootingItem(
 {
     std::map<std::string, std::string> placeholders;
     placeholders["%item_link"] = ai->GetChatHelper()->formatItem(itemQualifier);
-    AreaTableEntry const* current_area = ai->GetCurrentArea();
-    AreaTableEntry const* current_zone = ai->GetCurrentZone();
+    AreaEntry const* current_area = ai->GetCurrentArea();
+    AreaEntry const* current_zone = ai->GetCurrentZone();
     placeholders["%area_name"] = current_area ? ai->GetLocalizedAreaName(current_area) : BOT_TEXT("string_unknown_area");
     placeholders["%zone_name"] = current_zone ? ai->GetLocalizedAreaName(current_zone) : BOT_TEXT("string_unknown_area");
     placeholders["%my_class"] = ai->GetChatHelper()->formatClass(bot->getClass());
@@ -323,8 +323,8 @@ bool BroadcastHelper::BroadcastQuestAccepted(
     {
         std::map<std::string, std::string> placeholders;
         placeholders["%quest_link"] = ai->GetChatHelper()->formatQuest(quest);
-        AreaTableEntry const* current_area = ai->GetCurrentArea();
-        AreaTableEntry const* current_zone = ai->GetCurrentZone();
+        AreaEntry const* current_area = ai->GetCurrentArea();
+        AreaEntry const* current_zone = ai->GetCurrentZone();
         placeholders["%area_name"] = current_area ? ai->GetLocalizedAreaName(current_area) : BOT_TEXT("string_unknown_area");
         placeholders["%zone_name"] = current_zone ? ai->GetLocalizedAreaName(current_zone) : BOT_TEXT("string_unknown_area");
         placeholders["%my_class"] = ai->GetChatHelper()->formatClass(bot->getClass());
@@ -351,8 +351,8 @@ bool BroadcastHelper::BroadcastQuestUpdateAddKill(
 )
 {
     std::map<std::string, std::string> placeholders;
-    AreaTableEntry const* current_area = ai->GetCurrentArea();
-    AreaTableEntry const* current_zone = ai->GetCurrentZone();
+    AreaEntry const* current_area = ai->GetCurrentArea();
+    AreaEntry const* current_zone = ai->GetCurrentZone();
     placeholders["%area_name"] = current_area ? ai->GetLocalizedAreaName(current_area) : BOT_TEXT("string_unknown_area");
     placeholders["%zone_name"] = current_zone ? ai->GetLocalizedAreaName(current_zone) : BOT_TEXT("string_unknown_area");
     placeholders["%quest_link"] = ai->GetChatHelper()->formatQuest(quest);
@@ -397,8 +397,8 @@ bool BroadcastHelper::BroadcastQuestUpdateAddItem(
 )
 {
     std::map<std::string, std::string> placeholders;
-    AreaTableEntry const* current_area = ai->GetCurrentArea();
-    AreaTableEntry const* current_zone = ai->GetCurrentZone();
+    AreaEntry const* current_area = ai->GetCurrentArea();
+    AreaEntry const* current_zone = ai->GetCurrentZone();
     placeholders["%area_name"] = current_area ? ai->GetLocalizedAreaName(current_area) : BOT_TEXT("string_unknown_area");
     placeholders["%zone_name"] = current_zone ? ai->GetLocalizedAreaName(current_zone) : BOT_TEXT("string_unknown_area");
     placeholders["%quest_link"] = ai->GetChatHelper()->formatQuest(quest);
@@ -444,8 +444,8 @@ bool BroadcastHelper::BroadcastQuestUpdateFailedTimer(
     {
         std::map<std::string, std::string> placeholders;
         placeholders["%quest_link"] = ai->GetChatHelper()->formatQuest(quest);
-        AreaTableEntry const* current_area = ai->GetCurrentArea();
-        AreaTableEntry const* current_zone = ai->GetCurrentZone();
+        AreaEntry const* current_area = ai->GetCurrentArea();
+        AreaEntry const* current_zone = ai->GetCurrentZone();
         placeholders["%area_name"] = current_area ? ai->GetLocalizedAreaName(current_area) : BOT_TEXT("string_unknown_area");
         placeholders["%zone_name"] = current_zone ? ai->GetLocalizedAreaName(current_zone) : BOT_TEXT("string_unknown_area");
         placeholders["%my_class"] = ai->GetChatHelper()->formatClass(bot->getClass());
@@ -472,8 +472,8 @@ bool BroadcastHelper::BroadcastQuestUpdateComplete(
     {
         std::map<std::string, std::string> placeholders;
         placeholders["%quest_link"] = ai->GetChatHelper()->formatQuest(quest);
-        AreaTableEntry const* current_area = ai->GetCurrentArea();
-        AreaTableEntry const* current_zone = ai->GetCurrentZone();
+        AreaEntry const* current_area = ai->GetCurrentArea();
+        AreaEntry const* current_zone = ai->GetCurrentZone();
         placeholders["%area_name"] = current_area ? ai->GetLocalizedAreaName(current_area) : BOT_TEXT("string_unknown_area");
         placeholders["%zone_name"] = current_zone ? ai->GetLocalizedAreaName(current_zone) : BOT_TEXT("string_unknown_area");
         placeholders["%my_class"] = ai->GetChatHelper()->formatClass(bot->getClass());
@@ -501,8 +501,8 @@ bool BroadcastHelper::BroadcastQuestTurnedIn(
     {
         std::map<std::string, std::string> placeholders;
         placeholders["%quest_link"] = ai->GetChatHelper()->formatQuest(quest);
-        AreaTableEntry const* current_area = ai->GetCurrentArea();
-        AreaTableEntry const* current_zone = ai->GetCurrentZone();
+        AreaEntry const* current_area = ai->GetCurrentArea();
+        AreaEntry const* current_zone = ai->GetCurrentZone();
         placeholders["%area_name"] = current_area ? ai->GetLocalizedAreaName(current_area) : BOT_TEXT("string_unknown_area");
         placeholders["%zone_name"] = current_zone ? ai->GetLocalizedAreaName(current_zone) : BOT_TEXT("string_unknown_area");
         placeholders["%my_class"] = ai->GetChatHelper()->formatClass(bot->getClass());
@@ -527,8 +527,8 @@ bool BroadcastHelper::BroadcastCreatureKill(
 {
     std::map<std::string, std::string> placeholders;
     placeholders["%victim_name"] = creature->GetName();
-    AreaTableEntry const* current_area = ai->GetCurrentArea();
-    AreaTableEntry const* current_zone = ai->GetCurrentZone();
+    AreaEntry const* current_area = ai->GetCurrentArea();
+    AreaEntry const* current_zone = ai->GetCurrentZone();
     placeholders["%area_name"] = current_area ? ai->GetLocalizedAreaName(current_area) : BOT_TEXT("string_unknown_area");
     placeholders["%zone_name"] = current_zone ? ai->GetLocalizedAreaName(current_zone) : BOT_TEXT("string_unknown_area");
     placeholders["%victim_level"] = creature->GetLevel();
@@ -632,8 +632,8 @@ bool BroadcastHelper::BroadcastPlayerKill(
 {
     std::map<std::string, std::string> placeholders;
     placeholders["%victim_name"] = victim->GetName();
-    AreaTableEntry const* current_area = ai->GetCurrentArea();
-    AreaTableEntry const* current_zone = ai->GetCurrentZone();
+    AreaEntry const* current_area = ai->GetCurrentArea();
+    AreaEntry const* current_zone = ai->GetCurrentZone();
     placeholders["%area_name"] = current_area ? ai->GetLocalizedAreaName(current_area) : BOT_TEXT("string_unknown_area");
     placeholders["%zone_name"] = current_zone ? ai->GetLocalizedAreaName(current_zone) : BOT_TEXT("string_unknown_area");
     placeholders["%victim_level"] = victim->GetLevel();
@@ -666,8 +666,8 @@ bool BroadcastHelper::BroadcastLevelup(
     uint32 level = bot->GetLevel();
 
     std::map<std::string, std::string> placeholders;
-    AreaTableEntry const* current_area = ai->GetCurrentArea();
-    AreaTableEntry const* current_zone = ai->GetCurrentZone();
+    AreaEntry const* current_area = ai->GetCurrentArea();
+    AreaEntry const* current_zone = ai->GetCurrentZone();
     placeholders["%area_name"] = current_area ? ai->GetLocalizedAreaName(current_area) : BOT_TEXT("string_unknown_area");
     placeholders["%zone_name"] = current_zone ? ai->GetLocalizedAreaName(current_zone) : BOT_TEXT("string_unknown_area");
     placeholders["%my_class"] = ai->GetChatHelper()->formatClass(bot->getClass());
@@ -755,8 +755,8 @@ bool BroadcastHelper::BroadcastGuildGroupOrRaidInvite(
 {
     std::map<std::string, std::string> placeholders;
     placeholders["%name"] = player->GetName();
-    AreaTableEntry const* current_area = ai->GetCurrentArea();
-    AreaTableEntry const* current_zone = ai->GetCurrentZone();
+    AreaEntry const* current_area = ai->GetCurrentArea();
+    AreaEntry const* current_zone = ai->GetCurrentZone();
     placeholders["%area_name"] = current_area ? ai->GetLocalizedAreaName(current_area) : BOT_TEXT("string_unknown_area");
     placeholders["%zone_name"] = current_zone ? ai->GetLocalizedAreaName(current_zone) : BOT_TEXT("string_unknown_area");
 
@@ -952,8 +952,8 @@ bool BroadcastHelper::BroadcastSuggestSomething(
         std::map<std::string, std::string> placeholders;
         placeholders["%my_role"] = ai->GetChatHelper()->formatClass(bot, AiFactory::GetPlayerSpecTab(bot));
 
-        AreaTableEntry const* current_area = ai->GetCurrentArea();
-        AreaTableEntry const* current_zone = ai->GetCurrentZone();
+        AreaEntry const* current_area = ai->GetCurrentArea();
+        AreaEntry const* current_zone = ai->GetCurrentZone();
         placeholders["%area_name"] = current_area ? ai->GetLocalizedAreaName(current_area) : BOT_TEXT("string_unknown_area");
         placeholders["%zone_name"] = current_zone ? ai->GetLocalizedAreaName(current_zone) : BOT_TEXT("string_unknown_area");
         placeholders["%my_class"] = ai->GetChatHelper()->formatClass(bot->getClass());
@@ -985,8 +985,8 @@ bool BroadcastHelper::BroadcastSuggestSomethingToxic(
         placeholders["%random_inventory_item_link"] = botItems.size() > 0 ? ai->GetChatHelper()->formatItem(botItems[rand() % botItems.size()]) : BOT_TEXT("string_empty_link");
 
         placeholders["%my_role"] = ai->GetChatHelper()->formatClass(bot, AiFactory::GetPlayerSpecTab(bot));
-        AreaTableEntry const* current_area = ai->GetCurrentArea();
-        AreaTableEntry const* current_zone = ai->GetCurrentZone();
+        AreaEntry const* current_area = ai->GetCurrentArea();
+        AreaEntry const* current_zone = ai->GetCurrentZone();
         placeholders["%area_name"] = current_area ? ai->GetLocalizedAreaName(current_area) : BOT_TEXT("string_unknown_area");
         placeholders["%zone_name"] = current_zone ? ai->GetLocalizedAreaName(current_zone) : BOT_TEXT("string_unknown_area");
         placeholders["%my_class"] = ai->GetChatHelper()->formatClass(bot->getClass());
@@ -1045,8 +1045,8 @@ bool BroadcastHelper::BroadcastSuggestToxicLinks(
         }
 
         placeholders["%my_role"] = ai->GetChatHelper()->formatClass(bot, AiFactory::GetPlayerSpecTab(bot));
-        AreaTableEntry const* current_area = ai->GetCurrentArea();
-        AreaTableEntry const* current_zone = ai->GetCurrentZone();
+        AreaEntry const* current_area = ai->GetCurrentArea();
+        AreaEntry const* current_zone = ai->GetCurrentZone();
         placeholders["%area_name"] = current_area ? ai->GetLocalizedAreaName(current_area) : BOT_TEXT("string_unknown_area");
         placeholders["%zone_name"] = current_zone ? ai->GetLocalizedAreaName(current_zone) : BOT_TEXT("string_unknown_area");
         placeholders["%my_class"] = ai->GetChatHelper()->formatClass(bot->getClass());

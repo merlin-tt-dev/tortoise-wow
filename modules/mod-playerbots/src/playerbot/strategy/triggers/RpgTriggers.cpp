@@ -822,8 +822,8 @@ bool RpgDuelTrigger::IsActive()
     if (bot->m_duel || player->m_duel || !player->GetSocial() || player->GetSocial()->HasIgnore(bot->GetObjectGuid()))
         return false;
 
-    AreaTableEntry const* targetAreaEntry = GetAreaEntryByAreaID(sServerFacade.GetAreaId(player));
-    if (targetAreaEntry && !(targetAreaEntry->flags & AREA_FLAG_DUEL))
+    AreaEntry const* targetAreaEntry = AreaEntry::GetById(sServerFacade.GetAreaId(player));
+    if (targetAreaEntry && !(targetAreaEntry->Flags & AREA_FLAG_DUEL))
     {
         // Dueling isn't allowed here
         return false;

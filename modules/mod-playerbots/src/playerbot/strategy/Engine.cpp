@@ -554,8 +554,15 @@ bool Engine::removeStrategy(const std::string& name, bool init)
         return false;
 
     LogAction("S:-%s", name.c_str());
-    i->second->OnStrategyRemoved(state);
+
+    // OnStrategyRemoved() may recursively change the strategy map (for example
+    // RpgStrategy removes "rpg bg"). Detach first so the callback cannot
+    // invalidate the iterator held by this removal. The map does not own the
+    // Strategy object, so the raw pointer remains valid across erase().
+    Strategy* removed = i->second;
     strategies.erase(i);
+    if (removed)
+        removed->OnStrategyRemoved(state);
 
     if (init)
     {

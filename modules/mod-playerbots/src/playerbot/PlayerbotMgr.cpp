@@ -616,7 +616,7 @@ void PlayerbotHolder::JoinChatChannels(Player* bot)
     // join standard channels
     uint8 locale = BroadcastHelper::GetLocale();
 
-    AreaTableEntry const* current_zone = bot->GetPlayerbotAI()->GetCurrentZone();
+    AreaEntry const* current_zone = bot->GetPlayerbotAI()->GetCurrentZone();
     ChannelMgr* cMgr = channelMgr(bot->GetTeam());
     std::string current_zone_name = current_zone ? bot->GetPlayerbotAI()->GetLocalizedAreaName(current_zone) : "";
 
@@ -662,7 +662,7 @@ void PlayerbotHolder::JoinChatChannels(Player* bot)
                         new_channel_name_buf,
                         100,
                         channelPattern.c_str(),
-                        bot->GetPlayerbotAI()->GetLocalizedAreaName(GetAreaEntryByAreaID(ImportantAreaId::CITY)).c_str()
+                        bot->GetPlayerbotAI()->GetLocalizedAreaName(AreaEntry::GetById(ImportantAreaId::CITY)).c_str()
                     );
 
                     new_channel = cMgr->GetOrCreateChannel(new_channel_name_buf);

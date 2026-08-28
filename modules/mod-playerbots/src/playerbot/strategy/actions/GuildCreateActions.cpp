@@ -306,16 +306,7 @@ bool PetitionTurnInAction::isUseful()
     if (!ChooseTravelTargetAction::isUseful())
         return false;
 
-    bool inCity = false;
-    AreaTableEntry const* areaEntry = GetAreaEntryByAreaID(sServerFacade.GetAreaId(bot));
-    if (areaEntry)
-    {
-        if (areaEntry->zone)
-            areaEntry = GetAreaEntryByAreaID(areaEntry->zone);
-
-        if (areaEntry && areaEntry->flags & AREA_FLAG_CAPITAL)
-            inCity = true;
-    }
+    bool inCity = WorldPosition(bot).HasAreaFlag(AREA_FLAG_CAPITAL);
 
     return inCity && !bot->GetGuildId() && AI_VALUE2(uint32, "item count", chat->formatQItem(5863)) && AI_VALUE(uint8, "petition signs") >= sWorld.getConfig(CONFIG_UINT32_MIN_PETITION_SIGNS) && !AI_VALUE(bool, "travel target traveling");
 };
@@ -365,16 +356,7 @@ bool BuyTabardAction::isUseful()
             return false;
     }
 
-    bool inCity = false;
-    AreaTableEntry const* areaEntry = GetAreaEntryByAreaID(sServerFacade.GetAreaId(bot));
-    if (areaEntry)
-    {
-        if (areaEntry->zone)
-            areaEntry = GetAreaEntryByAreaID(areaEntry->zone);
-
-        if (areaEntry && areaEntry->flags & AREA_FLAG_CAPITAL)
-            inCity = true;
-    }
+    bool inCity = WorldPosition(bot).HasAreaFlag(AREA_FLAG_CAPITAL);
 
     return inCity && bot->GetGuildId() && !AI_VALUE2(uint32, "item count", chat->formatQItem(5976)) && AI_VALUE2(uint32, "free money for", uint32(NeedMoneyFor::guild)) >= 10000 && !AI_VALUE(bool, "travel target traveling");
 };
