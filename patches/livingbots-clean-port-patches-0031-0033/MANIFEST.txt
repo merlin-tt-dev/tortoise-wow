@@ -1,0 +1,16 @@
+LivingBots Clean Port patch bundle manifest
+
+APPLY_ORDER.txt
+MANIFEST.txt
+README.md
+SHA256SUMS
+audits/0031-build-compatibility-pass-2-audit.txt
+audits/0032-build-compatibility-pass-3-rti-targeting-audit.txt
+audits/0032-original-monolithic-audit-HISTORICAL.txt
+audits/0033-build-compatibility-pass-4-playerbot-factory-audit.txt
+audits/archive-apply-verification.txt
+audits/core-0005-player-homebind-location-accessor-audit.txt
+core/core-0005-player-homebind-location-accessor.patch
+mod/0031-build-compatibility-pass-2-native-host-lfg-useitem-randommgr.patch
+mod/0032-build-compatibility-pass-3-rti-targeting.patch
+mod/0033-build-compatibility-pass-4-playerbot-factory.patch

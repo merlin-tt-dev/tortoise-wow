@@ -1,0 +1,8 @@
+BASE: user-provided tortoise-wow.tar(2).xz with 0030 already applied
+
+1. mod/0031-build-compatibility-pass-2-native-host-lfg-useitem-randommgr.patch
+2. core/core-0005-player-homebind-location-accessor.patch
+3. mod/0032-build-compatibility-pass-3-rti-targeting.patch
+4. mod/0033-build-compatibility-pass-4-playerbot-factory.patch
+
+0034 + core-0006/0007/0008 are WIP and deliberately excluded.

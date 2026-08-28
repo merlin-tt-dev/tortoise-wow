@@ -1,0 +1,66 @@
+Patch: 0031-build-compatibility-pass-2-native-host-lfg-useitem-randommgr.patch
+Base/source of truth: user-provided tortoise-wow.tar(2).xz snapshot
+Audit baseline commit (local-only representation of snapshot): 4eca65fcb8bf35735c1fbab01be2aa97ccaabef3
+Expected project branch: livingbots/playerbots-clean-base
+Remote snapshot correspondence previously verified: ccc380f634a68367bb151b1a61d171b3a0d83c3b
+
+Patch statistics:
+  files changed: 26
+  additions: 670
+  deletions: 345
+  changed lines: 1015
+  bytes: 115861
+  SHA-256: c41e54d123e903482474bb41e09ef53977d254519c06ba342c8729f8216f0080
+
+Patch integrity checks:
+  git diff --check: PASS
+  git apply --check against pristine snapshot baseline: PASS
+  git apply: PASS
+  git apply -R --check: PASS
+  git apply -R: PASS
+  clean baseline after reverse: PASS
+  reapply --check: PASS
+  reapply: PASS
+  reproduced git diff byte-identical to patch: PASS
+
+ACE / configure status:
+  Debian 13 ACE 8.0.2: CMake configure PASS
+  mod-playerbots: static
+  discovered Playerbot object targets: 458
+  Audit build flags: -O0 -g0 (compiler feedback loop only)
+
+ACE 8.0.2 object status confirmed green in this pass:
+  modules/mod-playerbots/src/playerbot/HostHooks.cpp.o
+  modules/mod-playerbots/src/playerbot/PlayerbotMgr.cpp.o
+  modules/mod-playerbots/src/playerbot/RandomPlayerbotMgr.cpp.o
+  modules/mod-playerbots/src/playerbot/strategy/actions/GenericActions.cpp.o
+  modules/mod-playerbots/src/playerbot/strategy/actions/UseItemAction.cpp.o
+  modules/mod-playerbots/src/playerbot/strategy/actions/LfgActions.cpp.o
+  modules/mod-playerbots/src/ahbot/TradeCategory.cpp.o
+
+Major semantics in 0031:
+  - module-owned simulated-client packet pump using Penqle's real opcode table/WorldSession handlers
+  - session-token protection for delayed asynchronous bot packets
+  - Penqle-native bot/session ownership; no new Player core ownership fields
+  - PlayerbotMgr login/logout/character-level compatibility without fake core APIs
+  - Classic LFG/Meeting Stone port using sLFGMgr plus module-side observation of real-player join/leave packets
+  - UseItem custom-cast compatibility using Penqle Spell APIs and scoped native cheat options only for historical bypass cases
+  - RandomPlayerbotMgr store/time/WorldLocation/BG/faction/AH/chat compatibility pass
+  - AHBot TradeCategory moved to ObjectMgr-native skill/trainer stores
+  - diagnostic GetMaxDiff was NOT faked; output/header now truthfully uses GetLastDiff
+
+Known remaining compiler work (not claimed green):
+  - PlayerbotFactory.cpp still has legacy TaxiNodes/store/pet/player naming/API errors
+  - PlayerbotAI.cpp still has a larger legacy API block (corpse acceleration, hostile range check, old master access, packet pointer signatures, spell store, movement state names, etc.)
+  - next general 458-object sweep also exposes BroadcastHelper/ChatFilter/RTI compatibility, including missing public Group::GetTargetIcon semantics and private quest-slot access
+  - full modules target currently also reaches an independent core compile issue in CustomMerchantMgr.cpp via Conditions.h; this was intentionally NOT folded into 0031
+
+NOT YET VERIFIED / DO NOT CLAIM:
+  - all 458 Playerbot objects green
+  - mod-playerbots static library link green
+  - full server build green
+  - install/config runtime test
+  - Manjaro ACE 8.0.5 build
+
+Next patch: 0032
+Suggested first coherent block: RTI/Broadcast/Chat + PlayerbotFactory, then continue PlayerbotAI as size permits.

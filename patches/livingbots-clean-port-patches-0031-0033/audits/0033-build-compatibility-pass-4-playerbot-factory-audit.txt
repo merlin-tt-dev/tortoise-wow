@@ -1,0 +1,36 @@
+0033 Build Compatibility Pass 4 - PlayerbotFactory
+
+Base audit checkpoint: 8829835366c4fb1feb63e008bec71178dee15b6b
+Target branch: livingbots/playerbots-clean-base
+Source of truth: user-provided tortoise-wow.tar(2).xz + applied 0031/0032 audit checkpoints
+
+Patch stats:
+ .../src/playerbot/PlayerbotFactory.cpp             | 229 ++++++++++-----------
+ 1 file changed, 109 insertions(+), 120 deletions(-)
+109	120	modules/mod-playerbots/src/playerbot/PlayerbotFactory.cpp
+
+Validation:
+- git diff --check: PASS
+- pristine 0032 checkpoint git apply --check: PASS
+- apply: PASS
+- reproduced diff byte-identical to patch: PASS
+- reverse --check/reverse: PASS
+- worktree clean after reverse: PASS
+- reapply: PASS
+- Debian 13 ACE 8.0.2 PlayerbotFactory.cpp.o: PASS
+
+Semantics:
+- Native Penqle taxi, creature template, pet, spell, reputation, trainer, talent, guild and Player APIs.
+- Trainer recipes use real TrainerSpell spell/effect semantics; no fake learnedSpell member.
+- Level-dependent bot skills are updated module-side through public DBC/race-class range data and Player::SetSkill; no new core accessor.
+- Quest reset uses public Player::RemoveQuest plus quest-status erase; no private quest-slot access.
+- Talent initialization uses Player::LearnTalent for prerequisites/free-point accounting.
+
+Note: git apply may report legacy tab whitespace from deleted preimage lines; the resulting tree passes git diff --check.
+
+Not claimed:
+- full 458-object module compile
+- module link/full server build
+- ACE 8.0.5 compatibility
+
+SHA-256: 60ac55e4e87fd71c2384d8e0a8985804d12c6ad2dd7ff8ce086fb78182c2856e

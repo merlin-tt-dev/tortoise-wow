@@ -1,0 +1,55 @@
+Patch: 0032-build-compatibility-pass-3-rti-targeting.patch
+Packaging revision: split-core/module canonical form
+Base: supplied 0030 snapshot + applied 0031 + core-0005
+Expected project branch: livingbots/playerbots-clean-base
+
+Scope enforcement:
+  module paths only: PASS
+  src/ core paths present: NO
+  docs/core patch registration present: NO (moved to core-0005)
+
+Patch statistics:
+  files changed: 13
+  additions: 123
+  deletions: 54
+  changed lines: 177
+  bytes: 30651
+  SHA-256: 46b30e30b9ef95c5cb6f1342349eff536a8e03e4dd2415ef41552c378192b6b9
+
+Patch integrity checks against clean sequence checkpoint:
+  git apply --check: PASS
+  apply: PASS
+  git diff --check after apply: PASS
+  reverse --check: PASS
+  reverse: PASS
+  clean checkpoint after reverse: PASS
+  reapply: PASS
+
+Split validation:
+  original monolithic 0032 result vs core-0005 + module-only 0032:
+  byte-for-byte complete tree comparison: PASS
+
+ACE / object status inherited from the original audited 0032 block:
+  Debian 13 ACE 8.0.2: configured
+  audit flags: -O0 -g0
+  BroadcastHelper.cpp.o: PASS
+  ChatFilter.cpp.o: PASS
+  HostHooks.cpp.o: PASS
+  RtiAction.cpp.o: PASS
+  DpsTargetValue.cpp.o: PASS
+  PossibleAttackTargetsValue.cpp.o: PASS
+  TargetValue.cpp.o: PASS
+
+Major semantics:
+  - module-side mirror of Penqle's authoritative raid-target update packets
+  - Penqle-native Player/GetRace, Group/isRaidGroup, CreatureInfo and WorldLocation naming
+  - quest broadcast enumeration uses public quest-status map instead of private quest slots
+  - hostile range checks use Penqle's public 3-argument range predicate
+  - stun/group/threat checks ported to Penqle APIs
+  - exact homebind X/Y/Z dependency is supplied solely by separate core-0005
+
+NOT CLAIMED:
+  all 458 Playerbot objects green
+  module link green
+  full server build green
+  ACE 8.0.5 verification

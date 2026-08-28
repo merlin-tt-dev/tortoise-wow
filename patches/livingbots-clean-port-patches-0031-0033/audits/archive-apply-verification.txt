@@ -1,0 +1,28 @@
+== 0031-build-compatibility-pass-2-native-host-lfg-useitem-randommgr.patch ==
+apply-check: PASS
+diff-check-after-apply: PASS
+reverse-check: PASS
+reverse-restore: PASS
+reapply: PASS
+== core-0005-player-homebind-location-accessor.patch ==
+apply-check: PASS
+diff-check-after-apply: PASS
+reverse-check: PASS
+reverse-restore: PASS
+reapply: PASS
+== 0032-build-compatibility-pass-3-rti-targeting.patch ==
+apply-check: PASS
+diff-check-after-apply: PASS
+reverse-check: PASS
+reverse-restore: PASS
+reapply: PASS
+== 0033-build-compatibility-pass-4-playerbot-factory.patch ==
+apply-check: PASS
+diff-check-after-apply: PASS
+reverse-check: PASS
+reverse-restore: PASS
+reapply: PASS
+
+Final git diff --check: PASS
+Final HEAD: d700f432c0b9414316be75a1625e382f5e965c2f
+split-vs-original-0032-byte-tree: PASS

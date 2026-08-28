@@ -1,0 +1,35 @@
+Patch: core-0005-player-homebind-location-accessor.patch
+Base: supplied 0030 snapshot + applied 0031
+Expected project branch: livingbots/playerbots-clean-base
+
+Core-only scope:
+  src/game/Objects/Player.h
+  docs/playerbots-clean-port/UPSTREAM_CORE_PATCH_MAINTENANCE.md
+  patches/core-0005-player-homebind-location-accessor.patch
+
+Patch statistics:
+  files changed: 3
+  additions: 47
+  deletions: 0
+  changed lines: 47
+  bytes: 3312
+  SHA-256: 6c09ac64c669de3956839700fdfe24d44ee8172d882b8edba986f5cfd0885c33
+
+Integrity checks:
+  git apply --check: PASS
+  apply: PASS
+  git diff --check after apply: PASS
+  reverse --check: PASS
+  reverse: PASS
+  clean checkpoint after reverse: PASS
+  reapply: PASS
+
+Semantic purpose:
+  - expose the exact existing Player homebind WorldLocation as a read-only accessor
+  - required because Penqle publicly exposes homebind map/area but keeps X/Y/Z private
+  - avoids DB re-querying or approximate home positions in mod-playerbots
+  - no Playerbot ownership, manager, login or mutable core state is introduced
+
+Maintenance:
+  - core dependency is registered under patches/
+  - UPSTREAM_CORE_PATCH_MAINTENANCE.md is updated with re-audit/retirement guidance

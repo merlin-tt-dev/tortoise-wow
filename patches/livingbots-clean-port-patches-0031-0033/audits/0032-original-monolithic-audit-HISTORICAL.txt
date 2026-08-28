@@ -1,0 +1,54 @@
+Patch: 0032-build-compatibility-pass-3-rti-targeting-homebind.patch
+Base: local audit checkpoint cb02d5f6641b791be8fea70b2380b1e71218e2b4 (0031 applied)
+Source of truth lineage: user-provided tortoise-wow.tar(2).xz -> 0031 -> 0032
+Expected project branch: livingbots/playerbots-clean-base
+
+Patch statistics:
+  files changed: 16
+  additions: 171
+  deletions: 54
+  changed lines: 225
+  SHA-256: aaba6d12be839c0bd4d0ada980bc46ae228afd7912d96f6ed57fc42dd87d640c
+
+Patch integrity checks:
+  git diff --check: PASS
+  git apply --check against clean 0031 checkpoint: PASS
+  git apply: PASS
+  git apply -R --check: PASS
+  git apply -R: PASS
+  clean checkpoint after reverse: PASS
+  reapply --check/reapply: PASS
+
+ACE / object status:
+  Debian 13 ACE 8.0.2: configured
+  audit flags: -O0 -g0
+  affected RTI/Broadcast/Target objects: PASS
+
+Confirmed green objects in this block:
+  BroadcastHelper.cpp.o
+  ChatFilter.cpp.o
+  HostHooks.cpp.o
+  RtiAction.cpp.o
+  DpsTargetValue.cpp.o
+  PossibleAttackTargetsValue.cpp.o
+  TargetValue.cpp.o
+
+Major semantics:
+  - module-side mirror of Penqle's authoritative raid-target update packets; no Group core ownership added
+  - Penqle-native Player/GetRace, Group/isRaidGroup, CreatureInfo field and WorldLocation field names
+  - quest broadcast enumeration moved from private quest-slot access to public quest-status map
+  - hostile range check uses Penqle's 3-argument AnyUnfriendlyUnitInObjectRangeCheck
+  - stun/group/threat checks ported to Penqle unit/group APIs
+  - core-0005 adds one read-only Player::GetHomebindLocation() accessor because Penqle exposes map/area but keeps X/Y/Z private
+  - core-0005 is separately stored under patches/ and documented in UPSTREAM_CORE_PATCH_MAINTENANCE.md with retirement/regression conditions
+
+NOT YET VERIFIED / DO NOT CLAIM:
+  all 458 Playerbot objects green
+  PlayerbotFactory.cpp green
+  PlayerbotAI.cpp green
+  mod-playerbots link green
+  full server build green
+  Manjaro ACE 8.0.5 build
+
+Next patch: 0033
+First block: PlayerbotFactory compatibility, then PlayerbotAI as size permits.

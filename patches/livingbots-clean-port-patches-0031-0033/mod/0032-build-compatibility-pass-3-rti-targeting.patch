@@ -1,0 +1,586 @@
+diff --git a/modules/mod-playerbots/src/playerbot/BroadcastHelper.cpp b/modules/mod-playerbots/src/playerbot/BroadcastHelper.cpp
+index cc018db..b48cf54 100644
+--- a/modules/mod-playerbots/src/playerbot/BroadcastHelper.cpp
++++ b/modules/mod-playerbots/src/playerbot/BroadcastHelper.cpp
+@@ -231,7 +231,7 @@ bool BroadcastHelper::BroadcastLootingItem(
+     placeholders["%area_name"] = current_area ? ai->GetLocalizedAreaName(current_area) : BOT_TEXT("string_unknown_area");
+     placeholders["%zone_name"] = current_zone ? ai->GetLocalizedAreaName(current_zone) : BOT_TEXT("string_unknown_area");
+     placeholders["%my_class"] = ai->GetChatHelper()->formatClass(bot->GetClass());
+-    placeholders["%my_race"] = ai->GetChatHelper()->formatRace(bot->getRace());
++    placeholders["%my_race"] = ai->GetChatHelper()->formatRace(bot->GetRace());
+     placeholders["%my_level"] = std::to_string(bot->GetLevel());
+ 
+     switch (proto->Quality)
+@@ -328,7 +328,7 @@ bool BroadcastHelper::BroadcastQuestAccepted(
+         placeholders["%area_name"] = current_area ? ai->GetLocalizedAreaName(current_area) : BOT_TEXT("string_unknown_area");
+         placeholders["%zone_name"] = current_zone ? ai->GetLocalizedAreaName(current_zone) : BOT_TEXT("string_unknown_area");
+         placeholders["%my_class"] = ai->GetChatHelper()->formatClass(bot->GetClass());
+-        placeholders["%my_race"] = ai->GetChatHelper()->formatRace(bot->getRace());
++        placeholders["%my_race"] = ai->GetChatHelper()->formatRace(bot->GetRace());
+         placeholders["%my_level"] = std::to_string(bot->GetLevel());
+ 
+         return BroadcastToChannelWithGlobalChance(
+@@ -358,7 +358,7 @@ bool BroadcastHelper::BroadcastQuestUpdateAddKill(
+     placeholders["%quest_link"] = ai->GetChatHelper()->formatQuest(quest);
+     placeholders["%quest_obj_name"] = obectiveName;
+     placeholders["%my_class"] = ai->GetChatHelper()->formatClass(bot->GetClass());
+-    placeholders["%my_race"] = ai->GetChatHelper()->formatRace(bot->getRace());
++    placeholders["%my_race"] = ai->GetChatHelper()->formatRace(bot->GetRace());
+     placeholders["%my_level"] = std::to_string(bot->GetLevel());
+     placeholders["%quest_obj_available"] = std::to_string(availableCount);
+     placeholders["%quest_obj_required"] = std::to_string(requiredCount);
+@@ -405,7 +405,7 @@ bool BroadcastHelper::BroadcastQuestUpdateAddItem(
+     std::string itemLinkFormatted = ai->GetChatHelper()->formatItem(proto);
+     placeholders["%item_link"] = itemLinkFormatted;
+     placeholders["%my_class"] = ai->GetChatHelper()->formatClass(bot->GetClass());
+-    placeholders["%my_race"] = ai->GetChatHelper()->formatRace(bot->getRace());
++    placeholders["%my_race"] = ai->GetChatHelper()->formatRace(bot->GetRace());
+     placeholders["%my_level"] = std::to_string(bot->GetLevel());
+     placeholders["%quest_obj_available"] = std::to_string(availableCount);
+     placeholders["%quest_obj_required"] = std::to_string(requiredCount);
+@@ -449,7 +449,7 @@ bool BroadcastHelper::BroadcastQuestUpdateFailedTimer(
+         placeholders["%area_name"] = current_area ? ai->GetLocalizedAreaName(current_area) : BOT_TEXT("string_unknown_area");
+         placeholders["%zone_name"] = current_zone ? ai->GetLocalizedAreaName(current_zone) : BOT_TEXT("string_unknown_area");
+         placeholders["%my_class"] = ai->GetChatHelper()->formatClass(bot->GetClass());
+-        placeholders["%my_race"] = ai->GetChatHelper()->formatRace(bot->getRace());
++        placeholders["%my_race"] = ai->GetChatHelper()->formatRace(bot->GetRace());
+         placeholders["%my_level"] = std::to_string(bot->GetLevel());
+ 
+         return BroadcastToChannelWithGlobalChance(
+@@ -477,7 +477,7 @@ bool BroadcastHelper::BroadcastQuestUpdateComplete(
+         placeholders["%area_name"] = current_area ? ai->GetLocalizedAreaName(current_area) : BOT_TEXT("string_unknown_area");
+         placeholders["%zone_name"] = current_zone ? ai->GetLocalizedAreaName(current_zone) : BOT_TEXT("string_unknown_area");
+         placeholders["%my_class"] = ai->GetChatHelper()->formatClass(bot->GetClass());
+-        placeholders["%my_race"] = ai->GetChatHelper()->formatRace(bot->getRace());
++        placeholders["%my_race"] = ai->GetChatHelper()->formatRace(bot->GetRace());
+         placeholders["%my_level"] = std::to_string(bot->GetLevel());
+ 
+ 
+@@ -506,7 +506,7 @@ bool BroadcastHelper::BroadcastQuestTurnedIn(
+         placeholders["%area_name"] = current_area ? ai->GetLocalizedAreaName(current_area) : BOT_TEXT("string_unknown_area");
+         placeholders["%zone_name"] = current_zone ? ai->GetLocalizedAreaName(current_zone) : BOT_TEXT("string_unknown_area");
+         placeholders["%my_class"] = ai->GetChatHelper()->formatClass(bot->GetClass());
+-        placeholders["%my_race"] = ai->GetChatHelper()->formatRace(bot->getRace());
++        placeholders["%my_race"] = ai->GetChatHelper()->formatRace(bot->GetRace());
+         placeholders["%my_level"] = std::to_string(bot->GetLevel());
+ 
+         return BroadcastToChannelWithGlobalChance(
+@@ -533,7 +533,7 @@ bool BroadcastHelper::BroadcastCreatureKill(
+     placeholders["%zone_name"] = current_zone ? ai->GetLocalizedAreaName(current_zone) : BOT_TEXT("string_unknown_area");
+     placeholders["%victim_level"] = creature->GetLevel();
+     placeholders["%my_class"] = ai->GetChatHelper()->formatClass(bot->GetClass());
+-    placeholders["%my_race"] = ai->GetChatHelper()->formatRace(bot->getRace());
++    placeholders["%my_race"] = ai->GetChatHelper()->formatRace(bot->GetRace());
+     placeholders["%my_level"] = std::to_string(bot->GetLevel());
+ 
+     //if ((creature->IsElite() && !creature->GetMap()->IsDungeon())
+@@ -554,7 +554,7 @@ bool BroadcastHelper::BroadcastCreatureKill(
+     }
+     else
+     {
+-        switch (creature->GetCreatureInfo()->Rank)
++        switch (creature->GetCreatureInfo()->rank)
+         {
+         case CREATURE_ELITE_NORMAL:
+             if (urand(1, sPlayerbotAIConfig.broadcastChanceMaxValue) <= sPlayerbotAIConfig.broadcastChanceKillNormal)
+@@ -638,7 +638,7 @@ bool BroadcastHelper::BroadcastPlayerKill(
+     placeholders["%zone_name"] = current_zone ? ai->GetLocalizedAreaName(current_zone) : BOT_TEXT("string_unknown_area");
+     placeholders["%victim_level"] = victim->GetLevel();
+     placeholders["%my_class"] = ai->GetChatHelper()->formatClass(bot->GetClass());
+-    placeholders["%my_race"] = ai->GetChatHelper()->formatRace(bot->getRace());
++    placeholders["%my_race"] = ai->GetChatHelper()->formatRace(bot->GetRace());
+     placeholders["%my_level"] = std::to_string(bot->GetLevel());
+ 
+     if (victim)
+@@ -671,7 +671,7 @@ bool BroadcastHelper::BroadcastLevelup(
+     placeholders["%area_name"] = current_area ? ai->GetLocalizedAreaName(current_area) : BOT_TEXT("string_unknown_area");
+     placeholders["%zone_name"] = current_zone ? ai->GetLocalizedAreaName(current_zone) : BOT_TEXT("string_unknown_area");
+     placeholders["%my_class"] = ai->GetChatHelper()->formatClass(bot->GetClass());
+-    placeholders["%my_race"] = ai->GetChatHelper()->formatRace(bot->getRace());
++    placeholders["%my_race"] = ai->GetChatHelper()->formatRace(bot->GetRace());
+     placeholders["%my_level"] = std::to_string(level);
+ 
+     if (level == sPlayerbotAIConfig.randomBotMaxLevel
+@@ -716,7 +716,7 @@ bool BroadcastHelper::BroadcastGuildMemberPromotion(
+         std::map<std::string, std::string> placeholders;
+         placeholders["%other_name"] = player->GetName();
+         placeholders["%other_class"] = ai->GetChatHelper()->formatClass(player->GetClass());
+-        placeholders["%other_race"] = ai->GetChatHelper()->formatRace(player->getRace());
++        placeholders["%other_race"] = ai->GetChatHelper()->formatRace(player->GetRace());
+         placeholders["%other_level"] = std::to_string(player->GetLevel());
+ 
+         return ai->SayToGuild(BOT_TEXT2("broadcast_guild_promotion", placeholders));
+@@ -736,7 +736,7 @@ bool BroadcastHelper::BroadcastGuildMemberDemotion(
+         std::map<std::string, std::string> placeholders;
+         placeholders["%other_name"] = player->GetName();
+         placeholders["%other_class"] = ai->GetChatHelper()->formatClass(player->GetClass());
+-        placeholders["%other_race"] = ai->GetChatHelper()->formatRace(player->getRace());
++        placeholders["%other_race"] = ai->GetChatHelper()->formatRace(player->GetRace());
+         placeholders["%other_level"] = std::to_string(player->GetLevel());
+ 
+         return ai->SayToGuild(BOT_TEXT2("broadcast_guild_demotion", placeholders));
+@@ -761,7 +761,7 @@ bool BroadcastHelper::BroadcastGuildGroupOrRaidInvite(
+     placeholders["%zone_name"] = current_zone ? ai->GetLocalizedAreaName(current_zone) : BOT_TEXT("string_unknown_area");
+ 
+     //TODO move texts to sql!
+-    if (group && group->IsRaidGroup())
++    if (group && group->isRaidGroup())
+     {
+         if (urand(0, 3))
+         {
+@@ -805,7 +805,7 @@ bool BroadcastHelper::BroadcastSuggestInstance(
+         placeholders["%instance_name"] = itemout.str();
+ 
+         placeholders["%my_class"] = ai->GetChatHelper()->formatClass(bot->GetClass());
+-        placeholders["%my_race"] = ai->GetChatHelper()->formatRace(bot->getRace());
++        placeholders["%my_race"] = ai->GetChatHelper()->formatRace(bot->GetRace());
+         placeholders["%my_level"] = std::to_string(bot->GetLevel());
+ 
+         return BroadcastToChannelWithGlobalChance(
+@@ -836,7 +836,7 @@ bool BroadcastHelper::BroadcastSuggestQuest(
+         placeholders["%quest_link"] = ai->GetChatHelper()->formatQuest(quest);
+         placeholders["%quest_level"] = std::to_string(quest->GetQuestLevel());
+         placeholders["%my_class"] = ai->GetChatHelper()->formatClass(bot->GetClass());
+-        placeholders["%my_race"] = ai->GetChatHelper()->formatRace(bot->getRace());
++        placeholders["%my_race"] = ai->GetChatHelper()->formatRace(bot->GetRace());
+         placeholders["%my_level"] = std::to_string(bot->GetLevel());
+ 
+         return BroadcastToChannelWithGlobalChance(
+@@ -863,7 +863,7 @@ bool BroadcastHelper::BroadcastSuggestGrindMaterials(
+         placeholders["%category"] = item;
+ 
+         placeholders["%my_class"] = ai->GetChatHelper()->formatClass(bot->GetClass());
+-        placeholders["%my_race"] = ai->GetChatHelper()->formatRace(bot->getRace());
++        placeholders["%my_race"] = ai->GetChatHelper()->formatRace(bot->GetRace());
+         placeholders["%my_level"] = std::to_string(bot->GetLevel());
+ 
+         return BroadcastToChannelWithGlobalChance(
+@@ -898,7 +898,7 @@ bool BroadcastHelper::BroadcastSuggestGrindReputation(
+         placeholders["%faction"] = itemout.str();
+ 
+         placeholders["%my_class"] = ai->GetChatHelper()->formatClass(bot->GetClass());
+-        placeholders["%my_race"] = ai->GetChatHelper()->formatRace(bot->getRace());
++        placeholders["%my_race"] = ai->GetChatHelper()->formatRace(bot->GetRace());
+         placeholders["%my_level"] = std::to_string(bot->GetLevel());
+ 
+         return BroadcastToChannelWithGlobalChance(
+@@ -929,7 +929,7 @@ bool BroadcastHelper::BroadcastSuggestSell(
+         placeholders["%cost_gold"] = ai->GetChatHelper()->formatMoney(price);
+ 
+         placeholders["%my_class"] = ai->GetChatHelper()->formatClass(bot->GetClass());
+-        placeholders["%my_race"] = ai->GetChatHelper()->formatRace(bot->getRace());
++        placeholders["%my_race"] = ai->GetChatHelper()->formatRace(bot->GetRace());
+         placeholders["%my_level"] = std::to_string(bot->GetLevel());
+ 
+         return BroadcastToChannelWithGlobalChance(
+@@ -957,7 +957,7 @@ bool BroadcastHelper::BroadcastSuggestSomething(
+         placeholders["%area_name"] = current_area ? ai->GetLocalizedAreaName(current_area) : BOT_TEXT("string_unknown_area");
+         placeholders["%zone_name"] = current_zone ? ai->GetLocalizedAreaName(current_zone) : BOT_TEXT("string_unknown_area");
+         placeholders["%my_class"] = ai->GetChatHelper()->formatClass(bot->GetClass());
+-        placeholders["%my_race"] = ai->GetChatHelper()->formatRace(bot->getRace());
++        placeholders["%my_race"] = ai->GetChatHelper()->formatRace(bot->GetRace());
+         placeholders["%my_level"] = std::to_string(bot->GetLevel());
+ 
+         return BroadcastToChannelWithGlobalChance(
+@@ -990,7 +990,7 @@ bool BroadcastHelper::BroadcastSuggestSomethingToxic(
+         placeholders["%area_name"] = current_area ? ai->GetLocalizedAreaName(current_area) : BOT_TEXT("string_unknown_area");
+         placeholders["%zone_name"] = current_zone ? ai->GetLocalizedAreaName(current_zone) : BOT_TEXT("string_unknown_area");
+         placeholders["%my_class"] = ai->GetChatHelper()->formatClass(bot->GetClass());
+-        placeholders["%my_race"] = ai->GetChatHelper()->formatRace(bot->getRace());
++        placeholders["%my_race"] = ai->GetChatHelper()->formatRace(bot->GetRace());
+         placeholders["%my_level"] = std::to_string(bot->GetLevel());
+ 
+         return BroadcastToChannelWithGlobalChance(
+@@ -1012,14 +1012,9 @@ bool BroadcastHelper::BroadcastSuggestToxicLinks(
+     {
+         //quests
+         std::vector<uint32> incompleteQuests;
+-        for (uint16 slot = 0; slot < MAX_QUEST_LOG_SIZE; ++slot)
++        for (auto const& [questId, statusData] : bot->getQuestStatusMap())
+         {
+-            uint32 questId = bot->GetQuestSlotQuestId(slot);
+-            if (!questId)
+-                continue;
+-
+-            QuestStatus status = bot->GetQuestStatus(questId);
+-            if (status == QUEST_STATUS_INCOMPLETE || status == QUEST_STATUS_NONE)
++            if (statusData.m_status == QUEST_STATUS_INCOMPLETE || statusData.m_status == QUEST_STATUS_NONE)
+                 incompleteQuests.push_back(questId);
+         }
+ 
+@@ -1050,7 +1045,7 @@ bool BroadcastHelper::BroadcastSuggestToxicLinks(
+         placeholders["%area_name"] = current_area ? ai->GetLocalizedAreaName(current_area) : BOT_TEXT("string_unknown_area");
+         placeholders["%zone_name"] = current_zone ? ai->GetLocalizedAreaName(current_zone) : BOT_TEXT("string_unknown_area");
+         placeholders["%my_class"] = ai->GetChatHelper()->formatClass(bot->GetClass());
+-        placeholders["%my_race"] = ai->GetChatHelper()->formatRace(bot->getRace());
++        placeholders["%my_race"] = ai->GetChatHelper()->formatRace(bot->GetRace());
+         placeholders["%my_level"] = std::to_string(bot->GetLevel());
+ 
+         return BroadcastToChannelWithGlobalChance(
+diff --git a/modules/mod-playerbots/src/playerbot/ChatFilter.cpp b/modules/mod-playerbots/src/playerbot/ChatFilter.cpp
+index 8f8ca21..6b22068 100644
+--- a/modules/mod-playerbots/src/playerbot/ChatFilter.cpp
++++ b/modules/mod-playerbots/src/playerbot/ChatFilter.cpp
+@@ -454,7 +454,7 @@ public:
+             if (!isRti)
+                 continue;
+ 
+-            ObjectGuid rtiTarget = group->GetTargetIcon(RtiTargetValue::GetRtiIndex(rti.substr(1)));
++            ObjectGuid rtiTarget = GetPlayerbotTargetIcon(group, RtiTargetValue::GetRtiIndex(rti.substr(1)));
+             if (bot->GetObjectGuid() == rtiTarget)
+                 return ChatFilter::Filter(message);
+ 
+@@ -571,7 +571,7 @@ public:
+     {
+         Player* bot = ai->GetBot();
+ 
+-        std::string filter = "@" + ChatHelper::formatRace(bot->getRace());
++        std::string filter = "@" + ChatHelper::formatRace(bot->GetRace());
+ 
+         filter[1] = tolower(filter[1]);
+ 
+@@ -650,14 +650,14 @@ public:
+         }
+         if (message.find("@raid") == 0)
+         {
+-            if (!bot->GetGroup() || !bot->GetGroup()->IsRaidGroup())
++            if (!bot->GetGroup() || !bot->GetGroup()->isRaidGroup())
+                 return message;
+ 
+             return ChatFilter::Filter(message);
+         }
+         if (message.find("@noraid") == 0)
+         {
+-            if (bot->GetGroup() && bot->GetGroup()->IsRaidGroup())
++            if (bot->GetGroup() && bot->GetGroup()->isRaidGroup())
+                 return message;
+ 
+             return ChatFilter::Filter(message);
+@@ -667,7 +667,7 @@ public:
+             if (!bot->GetGroup())
+                 return message;
+ 
+-            if (!bot->GetGroup()->IsRaidGroup())
++            if (!bot->GetGroup()->isRaidGroup())
+                 return message;
+ 
+             if (bot->GetGroup()->IsLeader(bot->GetObjectGuid()))
+diff --git a/modules/mod-playerbots/src/playerbot/HostHooks.cpp b/modules/mod-playerbots/src/playerbot/HostHooks.cpp
+index 53b704a..b9a4de7 100644
+--- a/modules/mod-playerbots/src/playerbot/HostHooks.cpp
++++ b/modules/mod-playerbots/src/playerbot/HostHooks.cpp
+@@ -17,7 +17,9 @@
+ #include "playerbot/PlayerbotAIConfig.h"
+ #include "BotDiagnostics.h"
+ #include "Protocol/Opcodes.h"
++#include "Group/Group.h"
+ 
++#include <array>
+ #include <deque>
+ #include <memory>
+ #include <mutex>
+@@ -35,6 +37,61 @@ std::unordered_set<PlayerbotHolder*> s_liveHolders;
+ std::mutex s_observedLfgMutex;
+ std::map<ObjectGuid, uint32> s_observedRealPlayerLfgAreas;
+ 
++std::mutex s_targetIconMutex;
++using TargetIconCacheKey = std::pair<uint32, uint64>;
++std::map<TargetIconCacheKey, std::array<ObjectGuid, TARGET_ICON_COUNT>> s_targetIcons;
++
++TargetIconCacheKey GetTargetIconCacheKey(Group const* group)
++{
++    return group ? TargetIconCacheKey(group->GetId(), group->GetLeaderGuid().GetRawValue()) : TargetIconCacheKey();
++}
++
++void ObserveTargetIconPacket(Player* player, WorldPacket const& packet)
++{
++    if (!player || packet.GetOpcode() != MSG_RAID_TARGET_UPDATE)
++        return;
++
++    Group* group = player->GetGroup();
++    if (!group)
++        group = player->GetOriginalGroup();
++    if (!group)
++        return;
++
++    WorldPacket copy(packet);
++    copy.rpos(0);
++    if (copy.size() < 1)
++        return;
++
++    uint8 fullList = 0;
++    copy >> fullList;
++
++    std::lock_guard<std::mutex> lock(s_targetIconMutex);
++    auto& icons = s_targetIcons[GetTargetIconCacheKey(group)];
++
++    if (fullList == 1)
++    {
++        icons.fill(ObjectGuid());
++        while (copy.size() - copy.rpos() >= 9)
++        {
++            uint8 index = 0;
++            ObjectGuid guid;
++            copy >> index >> guid;
++            if (index < TARGET_ICON_COUNT)
++                icons[index] = guid;
++        }
++        return;
++    }
++
++    if (fullList == 0 && copy.size() - copy.rpos() >= 9)
++    {
++        uint8 index = 0;
++        ObjectGuid guid;
++        copy >> index >> guid;
++        if (index < TARGET_ICON_COUNT)
++            icons[index] = guid;
++    }
++}
++
+ void ObserveRealPlayerLfgArea(Player* player, uint32 areaId)
+ {
+     if (!player || !areaId)
+@@ -276,6 +333,16 @@ void ClearObservedRealPlayerLfgArea(Player const* player)
+     s_observedRealPlayerLfgAreas.erase(player->GetObjectGuid());
+ }
+ 
++ObjectGuid GetPlayerbotTargetIcon(Group const* group, uint8 index)
++{
++    if (!group || index >= TARGET_ICON_COUNT)
++        return ObjectGuid();
++
++    std::lock_guard<std::mutex> lock(s_targetIconMutex);
++    auto const it = s_targetIcons.find(GetTargetIconCacheKey(group));
++    return it == s_targetIcons.end() ? ObjectGuid() : it->second[index];
++}
++
+ void QueueDelayedPlayerbotPacket(uint32 guidLow, std::uintptr_t sessionToken, std::unique_ptr<WorldPacket> packet)
+ {
+     if (!guidLow || !sessionToken || !packet)
+@@ -577,6 +644,8 @@ public:
+     bool CanPacketSend(WorldSession* session, WorldPacket const& packet) override
+     {
+         Player* player = session ? session->GetPlayer() : nullptr;
++        ObserveTargetIconPacket(player, packet);
++
+         PlayerbotAI* ai = GetPlayerbotAI(player);
+         if (!ai || ai->IsRealPlayer())
+             return true;
+diff --git a/modules/mod-playerbots/src/playerbot/PlayerbotHost.h b/modules/mod-playerbots/src/playerbot/PlayerbotHost.h
+index c520032..724dde6 100644
+--- a/modules/mod-playerbots/src/playerbot/PlayerbotHost.h
++++ b/modules/mod-playerbots/src/playerbot/PlayerbotHost.h
+@@ -10,6 +10,8 @@ class PlayerbotAI;
+ class PlayerbotMgr;
+ class PlayerbotHolder;
+ class WorldPacket;
++class Group;
++class ObjectGuid;
+ 
+ // Module-owned host state for the historical playerbot implementation.
+ // Penqle's Player stays untouched; bot AI/manager ownership lives in mod-playerbots.
+@@ -29,6 +31,10 @@ bool IsRealPlayer(Player const* player);
+ uint32 GetObservedRealPlayerLfgArea(Player const* player);
+ void ClearObservedRealPlayerLfgArea(Player const* player);
+ 
++// Penqle keeps raid target icons private to Group. Mirror the authoritative
++// MSG_RAID_TARGET_UPDATE packets in the module instead of adding a core getter.
++ObjectGuid GetPlayerbotTargetIcon(Group const* group, uint8 index);
++
+ // Historical playerbots enqueue simulated client packets. Penqle intentionally
+ // does not process the receive queue of socketless module bots, so keep that
+ // queue module-owned and dispatch it through Penqle's real opcode handlers.
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/RtiAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/RtiAction.cpp
+index 1e85d29..7be0a7e 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/RtiAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/RtiAction.cpp
+@@ -68,7 +68,7 @@ bool MarkRtiAction::Execute(Event& event)
+         bool marked = false;
+         for (int i = 0; i < 8; i++)
+         {
+-            ObjectGuid guid = group->GetTargetIcon(i);
++            ObjectGuid guid = GetPlayerbotTargetIcon(group, i);
+             if (guid == unit->GetObjectGuid())
+             {
+                 marked = true;
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/triggers/RtiTriggers.h b/modules/mod-playerbots/src/playerbot/strategy/triggers/RtiTriggers.h
+index 637e283..a0c5c34 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/triggers/RtiTriggers.h
++++ b/modules/mod-playerbots/src/playerbot/strategy/triggers/RtiTriggers.h
+@@ -26,7 +26,7 @@ namespace ai
+                     Group* group = bot->GetGroup();
+                     if (group)
+                     {
+-                        const ObjectGuid guid = group->GetTargetIcon(RtiTargetValue::GetRtiIndex("skull"));
++                        const ObjectGuid guid = GetPlayerbotTargetIcon(group, RtiTargetValue::GetRtiIndex("skull"));
+                         if (!guid.IsEmpty())
+                         {
+                             Unit* unit = ai->GetUnit(ObjectGuid(guid));
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/DpsTargetValue.cpp b/modules/mod-playerbots/src/playerbot/strategy/values/DpsTargetValue.cpp
+index 71d8328..5b27ba8 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/DpsTargetValue.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/DpsTargetValue.cpp
+@@ -29,7 +29,7 @@ public:
+         Group* group = ai->GetBot()->GetGroup();
+         if (group)
+         {
+-            uint64 guid = group->GetTargetIcon(4);
++            uint64 guid = GetPlayerbotTargetIcon(group, 4);
+             if (guid && attacker->GetObjectGuid() == ObjectGuid(guid))
+                 return;
+         }
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/Formations.h b/modules/mod-playerbots/src/playerbot/strategy/values/Formations.h
+index a7a87e2..8e457a5 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/Formations.h
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/Formations.h
+@@ -67,7 +67,7 @@ namespace ai
+             Formation* formation = AI_VALUE(Formation*, "formation");
+ 
+             WorldLocation loc = formation->GetLocation();
+-            if (Formation::IsNullLocation(loc) || loc.mapid == -1)
++            if (Formation::IsNullLocation(loc) || loc.mapId == uint32(-1))
+                 return WorldLocation();
+ 
+             return loc;
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/LeastHpTargetValue.h b/modules/mod-playerbots/src/playerbot/strategy/values/LeastHpTargetValue.h
+index 06bf0d3..1dcba2f 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/LeastHpTargetValue.h
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/LeastHpTargetValue.h
+@@ -24,7 +24,7 @@ namespace ai
+             Group* group = ai->GetBot()->GetGroup();
+             if (group)
+             {
+-                uint64 guid = group->GetTargetIcon(4);
++                uint64 guid = GetPlayerbotTargetIcon(group, 4);
+                 if (guid && attacker->GetObjectGuid() == ObjectGuid(guid))
+                     return;
+             }
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/NearestUnitsValue.h b/modules/mod-playerbots/src/playerbot/strategy/values/NearestUnitsValue.h
+index 82b4476..2923d4e 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/NearestUnitsValue.h
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/NearestUnitsValue.h
+@@ -52,7 +52,7 @@ namespace ai
+     protected:
+         void FindUnits(std::list<Unit*>& targets) override
+         {
+-            MaNGOS::AnyUnfriendlyUnitInObjectRangeCheck u_check(bot, range);
++            MaNGOS::AnyUnfriendlyUnitInObjectRangeCheck u_check(bot, bot, range);
+             MaNGOS::UnitListSearcher<MaNGOS::AnyUnfriendlyUnitInObjectRangeCheck> searcher(targets, u_check);
+             Cell::VisitAllObjects(bot, searcher, range);
+         }
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/PossibleAttackTargetsValue.cpp b/modules/mod-playerbots/src/playerbot/strategy/values/PossibleAttackTargetsValue.cpp
+index 52d4e7e..0e13438 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/PossibleAttackTargetsValue.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/PossibleAttackTargetsValue.cpp
+@@ -106,7 +106,7 @@ void PossibleAttackTargetsValue::RemoveNonThreating(std::list<ObjectGuid>& targe
+ bool PossibleAttackTargetsValue::HasIgnoreCCRti(Unit* target, Player* player)
+ {
+     Group* group = player->GetGroup();
+-    return group && (group->GetTargetIcon(7) == target->GetObjectGuid());
++    return group && (GetPlayerbotTargetIcon(group, 7) == target->GetObjectGuid());
+ }
+ 
+ bool PossibleAttackTargetsValue::HasBreakableCC(Unit* target, Player* player)
+@@ -145,7 +145,7 @@ bool PossibleAttackTargetsValue::HasBreakableCC(Unit* target, Player* player)
+ 
+ bool PossibleAttackTargetsValue::HasUnBreakableCC(Unit* target, Player* player)
+ {
+-    if (target->IsStunned())
++    if (target->HasUnitState(UNIT_STAT_STUNNED | UNIT_STAT_PENDING_STUNNED))
+     {
+         return true;
+     }
+@@ -166,7 +166,7 @@ bool PossibleAttackTargetsValue::HasUnBreakableCC(Unit* target, Player* player)
+ bool PossibleAttackTargetsValue::IsImmuneToDamage(Unit* target, Player* player)
+ {
+     // Charmed
+-    if (sServerFacade.IsCharmed(target) && target->IsInTeam(player, true))
++    if (sServerFacade.IsCharmed(target) && target->IsFriendlyTo(player))
+     {
+         return true;
+     }
+@@ -240,7 +240,8 @@ bool PossibleAttackTargetsValue::IsTapped(Unit* target, Player* player)
+             if (master && victim == master) //Target is attacking master.
+                 return true;
+ 
+-            if (player->IsInGroup(victim)) //Target is attacking groupmember.
++            if (Player* victimPlayer = victim->GetCharmerOrOwnerPlayerOrPlayerItself();
++                victimPlayer && player->IsInSameRaidWith(victimPlayer)) //Target is attacking groupmember or group pet.
+                 return true;
+ 
+             if (!creature->HasLootRecipient()) //Target is untapped.
+@@ -249,7 +250,7 @@ bool PossibleAttackTargetsValue::IsTapped(Unit* target, Player* player)
+             if (creature->IsTappedBy(player)) //Target is tapped by player.
+                 return true;
+ 
+-            if (master && target->getThreatManager().getThreat(master)) //Master as threat
++            if (master && target->GetThreatManager().getThreat(master)) //Master as threat
+                 return true;
+ 
+             if (ai && ai->HasStrategy("attack tagged", BotState::BOT_STATE_NON_COMBAT)) //Can attack tagged.
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/RtiTargetValue.h b/modules/mod-playerbots/src/playerbot/strategy/values/RtiTargetValue.h
+index e3a8f61..c25f77c 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/RtiTargetValue.h
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/RtiTargetValue.h
+@@ -40,7 +40,7 @@ namespace ai
+             if (index == -1)
+                 return NULL;
+ 
+-            ObjectGuid guid = group->GetTargetIcon(index);
++            ObjectGuid guid = GetPlayerbotTargetIcon(group, index);
+             if (!guid)
+                 return NULL;
+ 
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/TargetValue.cpp b/modules/mod-playerbots/src/playerbot/strategy/values/TargetValue.cpp
+index ae0d304..4286e0c 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/TargetValue.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/TargetValue.cpp
+@@ -47,14 +47,14 @@ bool FindNonCcTargetStrategy::IsCcTarget(Unit* attacker)
+                 int index = RtiTargetValue::GetRtiIndex(rti);
+                 if (index != -1)
+                 {
+-                    uint64 guid = group->GetTargetIcon(index);
++                    uint64 guid = GetPlayerbotTargetIcon(group, index);
+                     if (guid && attacker->GetObjectGuid() == ObjectGuid(guid))
+                         return true;
+                 }
+             }
+         }
+ 
+-        uint64 guid = group->GetTargetIcon(4);
++        uint64 guid = GetPlayerbotTargetIcon(group, 4);
+         if (guid && attacker->GetObjectGuid() == ObjectGuid(guid))
+             return true;
+     }
+@@ -75,7 +75,7 @@ void FindTargetStrategy::GetPlayerCount(Unit* creature, int* tankCount, int* dps
+     *tankCount = 0;
+     *dpsCount = 0;
+ 
+-    Unit::AttackerSet attackers(creature->getAttackers());
++    Unit::AttackerSet attackers(creature->GetAttackers());
+     for (std::set<Unit*>::const_iterator i = attackers.begin(); i != attackers.end(); i++)
+     {
+         Unit* attacker = *i;
+@@ -131,10 +131,7 @@ WorldPosition LastLongMoveValue::Calculate()
+ 
+ WorldPosition HomeBindValue::Calculate()
+ {
+-    float x, y, z;
+-    uint32 mapId;
+-    bot->GetHomebindLocation(x, y, z, mapId);
+-    return WorldPosition(mapId, x, y, z, 0.0);
++    return WorldPosition(bot->GetHomebindLocation());
+ }
+ 
+ std::string HomeBindValue::Format()
+@@ -208,7 +205,8 @@ std::list<ObjectGuid> FriendlyManualTargetsValue::Get()
+         Unit* player = ai->GetUnit(playerGuid);
+         if (ai->IsSafe(player))
+         {
+-            if (bot->IsInGroup(player))
++            if (Player* targetPlayer = player->GetCharmerOrOwnerPlayerOrPlayerItself();
++                targetPlayer && bot->IsInSameRaidWith(targetPlayer))
+             {
+                 return false;
+             }

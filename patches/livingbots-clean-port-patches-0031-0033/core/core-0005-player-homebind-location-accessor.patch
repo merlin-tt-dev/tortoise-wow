@@ -1,0 +1,76 @@
+diff --git a/docs/playerbots-clean-port/UPSTREAM_CORE_PATCH_MAINTENANCE.md b/docs/playerbots-clean-port/UPSTREAM_CORE_PATCH_MAINTENANCE.md
+index ca86351..638f748 100644
+--- a/docs/playerbots-clean-port/UPSTREAM_CORE_PATCH_MAINTENANCE.md
++++ b/docs/playerbots-clean-port/UPSTREAM_CORE_PATCH_MAINTENANCE.md
+@@ -145,6 +145,47 @@ Regression checks:
+ - interrupt/finalize clears roaming states;
+ - existing Point/Waypoint/Patrol generators are unchanged.
+ 
++## core-0005: read-only homebind location
++
++Patch:
++
++- `patches/core-0005-player-homebind-location-accessor.patch`
++
++Files to watch:
++
++- `src/game/Objects/Player.h`
++
++Purpose:
++
++- expose the already-loaded character homebind coordinates as a read-only
++  `WorldLocation` so the historical travel/maintenance values can reason about the
++  exact bind point without querying `character_homebind` from every bot.
++
++Why this remains a core patch:
++
++Penqle exposes only `GetHomeBindMap()` and `GetHomeBindAreaId()`. The X/Y/Z values
++remain private. Approximating the bind position from area data would change runtime
++semantics, while synchronous module-side SQL polling would duplicate state that
++`Player` already owns and scale poorly with a large bot population. The accessor is
++read-only and does not alter ownership or login state.
++
++Upstream retirement condition:
++
++- Penqle exposes the full homebind `WorldLocation` (or equivalent X/Y/Z getters)
++  through a public API.
++
++Rebase-sensitive areas:
++
++- homebind storage/member names in `Player`;
++- `SetHomebindToLocation()` and character-homebind loading;
++- any upstream replacement of the individual map/X/Y/Z fields with a location object.
++
++Regression checks:
++
++- value equals the coordinates loaded from `character_homebind`;
++- binding at a different inn is reflected immediately in the getter;
++- `TeleportToHomebind()` and all existing bind behavior remain unchanged.
++
+ ## Update workflow
+ 
+ Before modifying the working branch, record the Penqle base commit. After applying
+diff --git a/patches/core-0005-player-homebind-location-accessor.patch b/patches/core-0005-player-homebind-location-accessor.patch
+new file mode 100644
+index 0000000..f4421da
+--- /dev/null
++++ b/patches/core-0005-player-homebind-location-accessor.patch
+@@ -0,0 +1,6 @@
++diff --git a/src/game/Objects/Player.h b/src/game/Objects/Player.h
++index ddd3a2c..157f8af 100644
++--- a/src/game/Objects/Player.h
+++++ b/src/game/Objects/Player.h
++@@ -2182,0 +2183 @@ class Player final: public Unit
+++        WorldLocation GetHomebindLocation() const { return WorldLocation(m_homebindMapId, m_homebindX, m_homebindY, m_homebindZ, 0.0f); }
+diff --git a/src/game/Objects/Player.h b/src/game/Objects/Player.h
+index ddd3a2c..157f8af 100644
+--- a/src/game/Objects/Player.h
++++ b/src/game/Objects/Player.h
+@@ -2180,6 +2180,7 @@ class Player final: public Unit
+ 
+         uint32 GetHomeBindMap() const { return m_homebindMapId; }
+         uint16 GetHomeBindAreaId() const { return m_homebindAreaId; }
++        WorldLocation GetHomebindLocation() const { return WorldLocation(m_homebindMapId, m_homebindX, m_homebindY, m_homebindZ, 0.0f); }
+ 
+         void SendSummonRequest(ObjectGuid summonerGuid, uint32 mapId, uint32 zoneId, float x, float y, float z);
+         void SetSummonPoint(uint32 mapid, float x, float y, float z)

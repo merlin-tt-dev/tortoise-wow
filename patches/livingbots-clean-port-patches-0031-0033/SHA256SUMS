@@ -1,0 +1,4 @@
+c41e54d123e903482474bb41e09ef53977d254519c06ba342c8729f8216f0080  mod/0031-build-compatibility-pass-2-native-host-lfg-useitem-randommgr.patch
+46b30e30b9ef95c5cb6f1342349eff536a8e03e4dd2415ef41552c378192b6b9  mod/0032-build-compatibility-pass-3-rti-targeting.patch
+60ac55e4e87fd71c2384d8e0a8985804d12c6ad2dd7ff8ce086fb78182c2856e  mod/0033-build-compatibility-pass-4-playerbot-factory.patch
+6c09ac64c669de3956839700fdfe24d44ee8172d882b8edba986f5cfd0885c33  core/core-0005-player-homebind-location-accessor.patch
