@@ -1536,9 +1536,9 @@ void TravelMgr::LoadQuestTravelTable()
         std::ostringstream out;
         out << "Timestamp,";
 
-        out << "sWorld.GetCurrentDiff(),";
+        out << "sWorld.GetLastDiff(),";
         out << "sWorld.GetAverageDiff(),";
-        out << "sWorld.GetMaxDiff(),";
+        out << "sWorld.GetLastDiff(),";
         out << "virtualMemUsedByMe" << ",";
         out << "activityPercentage,";
         out << "pidCorrection,";

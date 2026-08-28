@@ -3108,7 +3108,7 @@ bool PlayerbotAI::SayToGuild(std::string msg, bool likePlayer)
 
                         std::unique_ptr<WorldPacket> packetPtr(new WorldPacket(packet_template));
 
-                        bot->GetSession()->QueuePacket(std::move(packetPtr));
+                        QueuePlayerbotPacket(bot, std::move(packetPtr));
                         return true;
                     }
                     break;
@@ -3388,7 +3388,7 @@ bool PlayerbotAI::SayToParty(std::string msg, bool likePlayer)
 
                 std::unique_ptr<WorldPacket> packetPtr(new WorldPacket(packet_template));
 
-                bot->GetSession()->QueuePacket(std::move(packetPtr));
+                QueuePlayerbotPacket(bot, std::move(packetPtr));
                 return true;
             }
         }
@@ -3448,7 +3448,7 @@ bool PlayerbotAI::Yell(std::string msg, bool likePlayer)
 
             std::unique_ptr<WorldPacket> packetPtr(new WorldPacket(packet_template));
 
-            bot->GetSession()->QueuePacket(std::move(packetPtr));
+            QueuePlayerbotPacket(bot, std::move(packetPtr));
             return true;
         }
     }
@@ -3484,7 +3484,7 @@ bool PlayerbotAI::Say(std::string msg, bool likePlayer)
 
             std::unique_ptr<WorldPacket> packetPtr(new WorldPacket(packet_template));
 
-            bot->GetSession()->QueuePacket(std::move(packetPtr));
+            QueuePlayerbotPacket(bot, std::move(packetPtr));
             return true;
         }
     }
@@ -7806,14 +7806,19 @@ std::list<Unit*> PlayerbotAI::GetAllHostileNPCNonPetUnitsAroundWO(WorldObject* w
 
 void PlayerbotAI::SendDelayedPacket(WorldSession* session, futurePackets futPackets)
 {
-    std::thread t([session, futPacket = std::move(futPackets)]() mutable {
+    Player* player = session ? session->GetPlayer() : nullptr;
+    if (!player)
+        return;
+
+    uint32 const guidLow = player->GetGUIDLow();
+    std::uintptr_t const sessionToken = reinterpret_cast<std::uintptr_t>(session);
+    std::thread t([guidLow, sessionToken, futPacket = std::move(futPackets)]() mutable {
         for (auto& delayedPacket : futPacket.get())
         {
             if (delayedPacket.second)
                 std::this_thread::sleep_for(std::chrono::milliseconds(delayedPacket.second));
 
-            std::unique_ptr<WorldPacket> packetPtr(new WorldPacket(delayedPacket.first));
-            session->QueuePacket(std::move(packetPtr));
+            QueueDelayedPlayerbotPacket(guidLow, sessionToken, std::make_unique<WorldPacket>(delayedPacket.first));
         }
     });
 
@@ -8242,10 +8247,10 @@ void PlayerbotAI::ImbueItem(Item* item, uint32 targetFlag, ObjectGuid targetGUID
       *packet << targetGUID.WriteAsPacked();
 
 #ifdef CMANGOS
-   bot->GetSession()->QueuePacket(std::move(packet));
+   QueuePlayerbotPacket(bot, std::move(packet));
 #endif
 #ifdef MANGOS
-   bot->GetSession()->QueuePacket(packet);
+   QueuePlayerbotPacket(bot, *packet);
 #endif
 }
 
@@ -8528,7 +8533,7 @@ void PlayerbotAI::QueuePacket(WorldPacket& pkt)
 {
     // Penqle WorldPacket has deleted copy-assign; copy-construct + move-assign.
     std::unique_ptr<WorldPacket> packet(new WorldPacket(pkt));
-    bot->GetSession()->QueuePacket(std::move(packet));
+    QueuePlayerbotPacket(bot, std::move(packet));
 }
 
 float PlayerbotAI::GetLevelFloat() const

@@ -231,7 +231,7 @@ void PlayerbotHolder::UpdateSessions(uint32 elapsed)
         }
         else if (bot->IsInWorld())
         {
-            bot->GetSession()->HandleBotPackets();
+            HandlePlayerbotPackets(bot);
         }
         else
         {
@@ -256,7 +256,7 @@ void PlayerbotHolder::UpdateSessions(uint32 elapsed)
             }
         }
 
-        if (GetPlayerbotAI(bot) && GetPlayerbotAI(bot)->GetShouldLogOut() && !bot->IsStunnedByLogout() && !bot->GetSession()->isLogingOut())
+        if (GetPlayerbotAI(bot) && GetPlayerbotAI(bot)->GetShouldLogOut() && !bot->GetSession()->isLogingOut())
         {
             LogoutPlayerBot(bot->GetObjectGuid().GetRawValue());
         }
@@ -314,7 +314,7 @@ void PlayerbotMgr::CancelLogout()
         PlayerbotAI* ai = GetPlayerbotAI(bot);
         if (ai && !ai->IsRealPlayer())
         {
-            if (bot->IsStunnedByLogout() || bot->GetSession()->isLogingOut())
+            if (bot->GetSession()->isLogingOut())
             {
                 WorldPacket p;
                 bot->GetSession()->HandleLogoutCancelOpcode(p);
@@ -328,7 +328,7 @@ void PlayerbotMgr::CancelLogout()
         PlayerbotAI* ai = GetPlayerbotAI(bot);
         if (ai && !ai->IsRealPlayer() && ai->GetMaster() == master)
         {
-            if (bot->IsStunnedByLogout() || bot->GetSession()->isLogingOut())
+            if (bot->GetSession()->isLogingOut())
             {
                 WorldPacket p;
                 bot->GetSession()->HandleLogoutCancelOpcode(p);
@@ -388,7 +388,7 @@ void PlayerbotHolder::LogoutPlayerBot(uint32 guid, bool allowInstant, bool forDe
         // if no instant logout, request normal logout
         if (!allowInstant)
         {
-            if (bot && (bot->IsStunnedByLogout() || bot->GetSession()->isLogingOut()))
+            if (bot && (bot->GetSession()->isLogingOut()))
             {
                 return;
             }
@@ -399,7 +399,7 @@ void PlayerbotHolder::LogoutPlayerBot(uint32 guid, bool allowInstant, bool forDe
 
                 WorldPacket p(CMSG_LOGOUT_REQUEST);
                 std::unique_ptr<WorldPacket> packet(new WorldPacket(p));
-                botWorldSessionPtr->QueuePacket(std::move(packet));
+                QueuePlayerbotPacket(bot, std::move(packet));
                 SC_LOG("LogoutPlayerBot bot=%s — CMSG_LOGOUT_REQUEST queued, returning", bot->GetName());
 
                 //WorldPacket p;
@@ -425,7 +425,7 @@ void PlayerbotHolder::LogoutPlayerBot(uint32 guid, bool allowInstant, bool forDe
         {
             ai->TellPlayer(ai->GetMaster(), BOT_TEXT("goodbye"));
             playerBots[guid] = nullptr;    // deletes bot player ptr inside this WorldSession PlayerBotMap
-            botWorldSessionPtr->LogoutPlayer(); // this will delete the bot Player object and PlayerbotAI object
+            botWorldSessionPtr->LogoutPlayer(true); // save and delete the bot Player object
             //botWorldSessionPtr->LogoutPlayer(true); // this will delete the bot Player object and PlayerbotAI object
             if(!sWorld.FindSession(botWorldSessionPtr->GetAccountId())) //Real player sessions will get removed later.
                 delete botWorldSessionPtr;  // finally delete the bot's WorldSession
@@ -438,8 +438,11 @@ void PlayerbotHolder::DisablePlayerBot(uint32 guid, bool logOutPlayer)
     Player* bot = GetPlayerBot(guid);
     if (bot)
     {
-        if (logOutPlayer && GetPlayerbotAI(bot)->IsRealPlayer() && bot->GetGroup() && sPlayerbotAIConfig.IsFreeAltBot(guid))
-            bot->GetSession()->SetOffline(); //Prevent groupkick
+        // CMaNGOS SetOffline changed the socket/session state before removing bot AI.
+        // Penqle has no equivalent public state transition, and this function does
+        // not log the live real-player session out; leaving that session untouched
+        // preserves its group membership while only detaching module AI.
+        (void)logOutPlayer;
         GetPlayerbotAI(bot)->TellPlayer(GetPlayerbotAI(bot)->GetMaster(), BOT_TEXT("goodbye"));
         GetPlayerbotAI(bot)->StopMoving();
         MotionMaster& mm = *bot->GetMotionMaster();
@@ -808,9 +811,9 @@ std::list<std::string> PlayerbotHolder::HandlePlayerbotCommand(const std::string
 
     if (charname.empty())
     {
-        if (master && master->GetTarget() && master->GetTarget()->IsPlayer() && !IsRealPlayer((Player*)master->GetTarget()))
+        if (master && master->GetSelectedUnit() && master->GetSelectedUnit()->IsPlayer() && !IsRealPlayer((Player*)master->GetSelectedUnit()))
         {
-            bots.insert(master->GetTarget()->GetName());
+            bots.insert(master->GetSelectedUnit()->GetName());
         }
         else
         {
@@ -1224,9 +1227,9 @@ void PlayerbotMgr::OnBotLoginInternal(Player * const bot)
 
 void PlayerbotMgr::OnPlayerLogin(Player* player)
 {
-    if (player->GetSession() != player->GetPlayerMenu()->GetGossipMenu().GetMenuSession())
+    if (player->GetSession() != player->PlayerTalkClass->GetGossipMenu().GetMenuSession())
     {
-        player->GetPlayerMenu()->GetGossipMenu() = GossipMenu(player->GetSession());
+        player->PlayerTalkClass->GetGossipMenu() = GossipMenu(player->GetSession());
     }
 
     if (!sPlayerbotAIConfig.enabled)
@@ -1418,7 +1421,7 @@ std::string PlayerbotHolder::HandleBotAlways(Player* bot, Player* master, const 
         }
         else
         {
-            Player* player = sObjectMgr.GetPlayer(guid, false);
+            Player* player = sObjectMgr.GetPlayer(guid);
             if (player)
                 OnBotLogin(player);
         }
@@ -1429,7 +1432,7 @@ std::string PlayerbotHolder::HandleBotAlways(Player* bot, Player* master, const 
     {
         sRandomPlayerbotMgr.SetValue(guid.GetCounter(), "always", (uint32)BotAlwaysOnline::DISABLED_BY_COMMAND);
 
-        Player* onlineBot = sObjectMgr.GetPlayer(guid, false);
+        Player* onlineBot = sObjectMgr.GetPlayer(guid);
         if (onlineBot && GetPlayerbotAI(onlineBot))
         {
             if (!master || guid != master->GetObjectGuid())
@@ -1589,7 +1592,7 @@ std::string PlayerbotHolder::HandleConsoleWhisper(Player* bot, Player* master, c
 
         out << reciever->GetName();
         out << " level " << std::to_string(reciever->GetLevel());
-        out << " " << ChatHelper::formatRace(reciever->getRace());
+        out << " " << ChatHelper::formatRace(reciever->GetRace());
         out << " " << ChatHelper::formatClass(reciever->GetClass());
 
         if (GetPlayerbotAI(sender) && GetPlayerbotAI(sender)->GetMaster())
@@ -1607,7 +1610,7 @@ std::string PlayerbotHolder::HandleConsoleWhisper(Player* bot, Player* master, c
 
     std::unique_ptr<WorldPacket> packetPtr(new WorldPacket(packet_template));
 
-    sender->GetSession()->QueuePacket(std::move(packetPtr));
+    QueuePlayerbotPacket(sender, std::move(packetPtr));
 
     std::string msg = "Sending whisper " + message + " to player " + reciever->GetName() + " from " + sender->GetName();
 
@@ -1824,7 +1827,7 @@ std::list<std::string> PlayerbotHolder::HandleParty(Player* master, const std::s
     packet_template << message;
 
     std::unique_ptr<WorldPacket> packetPtr(new WorldPacket(packet_template));
-    master->GetSession()->QueuePacket(std::move(packetPtr));
+    QueuePlayerbotPacket(master, std::move(packetPtr));
     return {"Sent party message \"" + message + "\" as " + master->GetName()};
 }
 
@@ -1870,7 +1873,7 @@ std::list<std::string> PlayerbotHolder::HandleGuild(Player* master, const std::s
     packet_template << message;
 
     std::unique_ptr<WorldPacket> packetPtr(new WorldPacket(packet_template));
-    master->GetSession()->QueuePacket(std::move(packetPtr));
+    QueuePlayerbotPacket(master, std::move(packetPtr));
     return {"Sent guild message \"" + message + "\" as " + master->GetName()};
 }
 
@@ -1890,7 +1893,7 @@ std::list<std::string> PlayerbotHolder::HandleRaid(Player* master, const std::st
     if (!master)
         return {"No sender found"};
 
-    if (!master->GetGroup() || !master->GetGroup()->IsRaidGroup())
+    if (!master->GetGroup() || !master->GetGroup()->isRaidGroup())
         return {"Sender is not in a raid group"};
 
     if (message.empty())
@@ -1925,7 +1928,7 @@ std::list<std::string> PlayerbotHolder::HandleRaid(Player* master, const std::st
     packet_template << message;
 
     std::unique_ptr<WorldPacket> packetPtr(new WorldPacket(packet_template));
-    master->GetSession()->QueuePacket(std::move(packetPtr));
+    QueuePlayerbotPacket(master, std::move(packetPtr));
     return {"Sent raid message \"" + message + "\" as " + master->GetName()};
 }
 
@@ -1945,7 +1948,7 @@ std::list<std::string> PlayerbotHolder::HandleRaidLeader(Player* master, const s
     if (!master)
         return {"No sender found"};
 
-    if (!master->GetGroup() || !master->GetGroup()->IsRaidGroup())
+    if (!master->GetGroup() || !master->GetGroup()->isRaidGroup())
         return {"Sender is not in a raid group"};
 
     WorldPacket packet_template(CMSG_MESSAGECHAT);
@@ -1954,7 +1957,7 @@ std::list<std::string> PlayerbotHolder::HandleRaidLeader(Player* master, const s
     packet_template << message;
 
     std::unique_ptr<WorldPacket> packetPtr(new WorldPacket(packet_template));
-    master->GetSession()->QueuePacket(std::move(packetPtr));
+    QueuePlayerbotPacket(master, std::move(packetPtr));
     std::string result = "Sent raid leader transfer request as " + std::string(master->GetName());
     return {result};
 }
@@ -2242,10 +2245,10 @@ void PlayerbotHolder::CreateBot(Player* master, const std::string param, std::li
         0, LOCALE_enUS, "disconnected/bot", 0);
 #endif
 
-        botSession->SetNoAnticheat();
-
+        // Null-socket Penqle sessions are constructed with NullSessionAnticheat.
+        // Do not add the removed CMaNGOS SetNoAnticheat compatibility API.
         Player* newBot = new Player(botSession);
-        if (!newBot->Create(sObjectMgr.GeneratePlayerLowGuid(), name, race, cls, gender, skin, face, hairStyle, hairColor, facialHair, 0))
+        if (!newBot->Create(sObjectMgr.GeneratePlayerLowGuid(), name, race, cls, gender, skin, face, hairStyle, hairColor, facialHair))
         {
             delete botSession;
             delete newBot;
@@ -2253,7 +2256,7 @@ void PlayerbotHolder::CreateBot(Player* master, const std::string param, std::li
             return;
         }
 
-        newBot->setCinematic(2);
+        newBot->SetCinematic(2);
         newBot->SetAtLoginFlag(AT_LOGIN_NONE);
         sObjectAccessor.AddObject(newBot);
 
@@ -2271,8 +2274,9 @@ void PlayerbotHolder::CreateBot(Player* master, const std::string param, std::li
         newBot->InitTaxiNodesForLevel();
 #endif
             newBot->InitTalentForLevel();
-            newBot->InitPrimaryProfessions();
-            newBot->learnDefaultSpells();
+            // Player::Create already initialized the primary-profession allowance.
+            newBot->LearnDefaultSpells();
+            LearnPlayerbotClassLevelSpells(newBot);
 
             std::ostringstream out;
             ChangeTalentsAction::AutoSelectTalents(newBot, &out, role);
@@ -2286,7 +2290,7 @@ void PlayerbotHolder::CreateBot(Player* master, const std::string param, std::li
 
         if (!testName.empty())
         {
-            testName = std::regex_replace(testName, std::regex("'"), "\\'");
+            CharacterDatabase.escape_string(testName);
 
             sRandomPlayerbotMgr.SetValue(botGuid, "test", 1, testName);
         }
@@ -2305,7 +2309,7 @@ void PlayerbotHolder::CreateBot(Player* master, const std::string param, std::li
 
         messages.push_back("Bot created: " + name);
 
-        botSession->LogoutPlayer();
+        botSession->LogoutPlayer(true);
         sObjectAccessor.RemoveObject(newBot);
         delete newBot;
         delete botSession;
@@ -2676,7 +2680,7 @@ bool PlayerbotHolder::DeleteBot(ObjectGuid guid, bool allowInstant)
 {
     uint32 botAccount = sObjectMgr.GetPlayerAccountIdByGUID(guid);
 
-    if (Player* player = sObjectMgr.GetPlayer(guid, true))
+    if (Player* player = sObjectMgr.GetPlayer(guid))
     {
         //Attempt instant logout.
         player->SetFlag(PLAYER_FLAGS, PLAYER_FLAGS_RESTING); 
@@ -2779,7 +2783,7 @@ std::string PlayerbotHolder::HandleBotGear(Player* bot, Player* master, const st
 std::string PlayerbotHolder::HandleBotTrainLearn(Player* bot, Player* master, const std::string param)
 {
 #ifndef MANGOSBOT_ONE
-    bot->learnClassLevelSpells();
+    LearnPlayerbotClassLevelSpells(bot);
 #endif
     return "class level spells learned";
 }
@@ -3043,7 +3047,7 @@ std::list<std::string> PlayerbotHolder::HandleSpoof(Player* master, const std::s
     }
     
     // Get the player to verify they exist
-    Player* player = sObjectMgr.GetPlayer(guid, false);
+    Player* player = sObjectMgr.GetPlayer(guid);
     if (!player)
     {
         messages.push_back("Player '" + param + "' found but is not online.");

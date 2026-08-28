@@ -27,7 +27,6 @@
 #include "Battlegrounds/BattleGroundMgr.h"
 #include "Chat/ChannelMgr.h"
 #include "Guild/GuildMgr.h"
-#include "World/WorldState.h"
 #include "PlayerbotLoginMgr.h"
 #include "Transports/Transport.h"
 
@@ -44,6 +43,7 @@
 #include <iomanip>
 #include <float.h>
 #include <unordered_set>
+#include <regex>
 
 #if PLATFORM == PLATFORM_WINDOWS
 #include "windows.h"
@@ -333,14 +333,8 @@ RandomPlayerbotMgr::RandomPlayerbotMgr()
         // sync event timers
         SyncEventTimers();
 
-        for (uint32 i = 0; i < sMapStore.GetNumRows(); ++i)
-        {
-            if (!sMapStore.LookupEntry(i))
-                continue;
-
-            uint32 mapId = sMapStore.LookupEntry(i)->MapID;
-            facingFix[mapId] = {};
-        }
+        for (auto itr = sMapStorage.begin<MapEntry>(); itr < sMapStorage.end<MapEntry>(); ++itr)
+            facingFix[itr->id] = {};
 
         showLoginWarning = true;
     }
@@ -367,7 +361,7 @@ inline void print_line(Unit* bot, const std::vector<std::pair<int, int>> line, b
     }    
     out << ")\",";
     out << bot->GetOrientation() << ",";
-    out << std::to_string(bot->getRace()) << ",";
+    out << std::to_string(bot->GetRace()) << ",";
     out << std::to_string(bot->GetClass()) << ",";
     out << (is_sqDist_greater_200 ? "1" : "0");
     sPlayerbotAIConfig.log("player_paths.csv", out.str().c_str());
@@ -446,12 +440,12 @@ void RandomPlayerbotMgr::LogPlayerLocation()
                     out << std::fixed << std::setprecision(2);
                     WorldPosition(bot).printWKT(out);
                     out << bot->GetOrientation() << ",";
-                    out << std::to_string(bot->getRace()) << ",";
+                    out << std::to_string(bot->GetRace()) << ",";
                     out << std::to_string(bot->GetClass()) << ",";
                     out << bot->GetMapId() << ",";
                     out << bot->GetLevel() << ",";
                     out << bot->GetHealth() << ",";
-                    out << bot->GetPowerPercent() << ",";
+                    out << bot->GetPowerPercent(bot->GetPowerType()) << ",";
                     out << bot->GetMoney() << ",";
 
                     if (GetPlayerbotAI(bot))
@@ -512,7 +506,7 @@ void RandomPlayerbotMgr::LogPlayerLocation()
                                     WorldPosition().printWKT(segement, out, 1, false);
 
                                     out << bot->GetOrientation() << ",";
-                                    out << std::to_string(bot->getRace()) << ",";
+                                    out << std::to_string(bot->GetRace()) << ",";
                                     out << std::to_string(bot->GetClass()) << ",";
                                     out << (walkable ? "1" : "0") << ",";
                                     out << lastMove.moveEvent.getSource();
@@ -565,12 +559,12 @@ void RandomPlayerbotMgr::LogPlayerLocation()
                 out << std::fixed << std::setprecision(2);
                 WorldPosition(bot).printWKT(out);
                 out << bot->GetOrientation() << ",";
-                out << std::to_string(bot->getRace()) << ",";
+                out << std::to_string(bot->GetRace()) << ",";
                 out << std::to_string(bot->GetClass()) << ",";
                 out << bot->GetMapId() << ",";
                 out << bot->GetLevel() << ",";
                 out << bot->GetHealth() << ",";
-                out << bot->GetPowerPercent() << ",";
+                out << bot->GetPowerPercent(bot->GetPowerType()) << ",";
                 out << bot->GetMoney() << ",";
                 if (GetPlayerbotAI(bot))
                 {
@@ -632,7 +626,7 @@ void RandomPlayerbotMgr::LogPlayerLocation()
                 out << sPlayerbotAIConfig.GetTimestampStr() << "+00,";
                 if (transport->GetName() == nullptr || transport->GetName()[0] == '\0')
                 {
-                    GameObjectInfo const* data = sGOStorage.LookupEntry<GameObjectInfo>(transport->GetEntry());
+                    GameObjectInfo const* data = sObjectMgr.GetGameObjectInfo(transport->GetEntry());
                     out << data->name << ",";
                 }
                 else
@@ -799,7 +793,7 @@ void RandomPlayerbotMgr::UpdateAIInternal(uint32 elapsed, bool minimal)
     }
 
     //Ping character database.
-    CharacterDatabase.AsyncPQuery(&RandomPlayerbotMgr::DatabasePing, sWorld.GetCurrentMSTime(), std::string("CharacterDatabase"), "SELECT 1");
+    CharacterDatabase.AsyncPQuery(&RandomPlayerbotMgr::DatabasePing, WorldTimer::getMSTime(), std::string("CharacterDatabase"), "SELECT 1");
 
     PlayerbotHolder::UpdateAIInternal(elapsed, minimal);
 }
@@ -819,7 +813,7 @@ void RandomPlayerbotMgr::UpdateLoadOptimization()
         return;
     }
 
-    uint32 now = sWorld.GetCurrentMSTime();
+    uint32 now = WorldTimer::getMSTime();
     if (loadOptimizationLastSample && (now - loadOptimizationLastSample) < sPlayerbotAIConfig.loadOptimizationSampleIntervalMs)
         return;
     loadOptimizationLastSample = now;
@@ -861,11 +855,11 @@ void RandomPlayerbotMgr::UpdateLoadOptimization()
 #endif
 
         std::ostringstream out;
-        out << sWorld.GetCurrentMSTime() << ", ";
+        out << WorldTimer::getMSTime() << ", ";
 
-        out << sWorld.GetCurrentDiff() << ",";
+        out << sWorld.GetLastDiff() << ",";
         out << sWorld.GetAverageDiff() << ",";
-        out << sWorld.GetMaxDiff() << ",";
+        out << sWorld.GetLastDiff() << ",";
         out << virtualMemUsedByMe << ",";
         out << activityPercentage << ",";
         out << correction << ",";
@@ -924,7 +918,7 @@ void RandomPlayerbotMgr::LoginFreeBots()
         for (auto [accountId, botGuid] : sPlayerbotAIConfig.freeAltBots)
         {
             ObjectGuid guid(ObjectGuid(HIGHGUID_PLAYER, botGuid));
-            Player* bot = sObjectMgr.GetPlayer(guid, false);
+            Player* bot = sObjectMgr.GetPlayer(guid);
 
             if (!bot)
             {
@@ -1089,10 +1083,10 @@ void RandomPlayerbotMgr::DelayedFacingFix()
                     if (!data)
                         continue;
 
-                    if (unit->GetOrientation() == data->position.orientation)
+                    if (unit->GetOrientation() == data->position.o)
                         continue;
 
-                    unit->SetFacingTo(data->position.orientation);
+                    unit->SetFacingTo(data->position.o);
                 }
             }
         }
@@ -1102,7 +1096,7 @@ void RandomPlayerbotMgr::DelayedFacingFix()
 
 void RandomPlayerbotMgr::DatabasePing(QueryResult* result, uint32 pingStart, std::string db)
 {
-    sRandomPlayerbotMgr.SetDatabaseDelay(db, sWorld.GetCurrentMSTime() - pingStart);
+    sRandomPlayerbotMgr.SetDatabaseDelay(db, WorldTimer::getMSTime() - pingStart);
     delete result;
 }
 
@@ -1426,23 +1420,15 @@ void RandomPlayerbotMgr::LoadBattleMastersCache()
         if (!bmaster)
             continue;
 
-#ifdef MANGOS
-        FactionTemplateEntry const* bmFaction = sFactionTemplateStore.LookupEntry(bmaster->FactionAlliance);
-#endif
-#ifdef CMANGOS
-        FactionTemplateEntry const* bmFaction = sFactionTemplateStore.LookupEntry(bmaster->Faction);
-#endif
+        FactionTemplateEntry const* bmFaction = sObjectMgr.GetFactionTemplateEntry(bmaster->faction);
+        if (!bmFaction)
+            continue;
+
         uint32 bmFactionId = bmFaction->faction;
-#ifdef MANGOS
-        FactionEntry const* bmParentFaction = sFactionStore.LookupEntry(bmFactionId);
-#endif
-#ifdef CMANGOS
-#ifdef MANGOSBOT_ONE
-        FactionEntry const* bmParentFaction = sFactionStore.LookupEntry<FactionEntry>(bmFactionId);
-#else
-        FactionEntry const* bmParentFaction = sFactionStore.LookupEntry(bmFactionId);
-#endif
-#endif
+        FactionEntry const* bmParentFaction = sObjectMgr.GetFactionEntry(bmFactionId);
+        if (!bmParentFaction)
+            continue;
+
         uint32 bmParentTeam = bmParentFaction->team;
         Team bmTeam = TEAM_NONE;
         if (bmParentTeam == 891)
@@ -1515,7 +1501,7 @@ void RandomPlayerbotMgr::CheckBgQueue()
 
             BattleGroundTypeId bgTypeId = sServerFacade.BgTemplateId(queueTypeId);
 #ifndef MANGOSBOT_TWO
-            BattleGroundBracketId bracketId = sBattleGroundMgr.GetBattleGroundBracketIdFromLevel(bgTypeId, player->GetLevel());
+            BattleGroundBracketId bracketId = Player::GetBattleGroundBracketIdFromLevel(bgTypeId, player->GetLevel());
 #endif
 #ifdef MANGOSBOT_TWO
             BattleGround* bg = sBattleGroundMgr.GetBattleGroundTemplate(bgTypeId);
@@ -1613,7 +1599,7 @@ void RandomPlayerbotMgr::CheckBgQueue()
             else
                 BgPlayers[queueTypeId][bracketId][TeamId]++;
 
-            if (!player->IsInvitedForBattleGroundQueueType(queueTypeId) && (!player->InBattleGround() || player->GetBattleGround()->GetTypeId() != sServerFacade.BgTemplateId(queueTypeId)))
+            if (!player->IsInvitedForBattleGroundQueueType(queueTypeId) && (!player->InBattleGround() || player->GetBattleGround()->GetTypeID() != sServerFacade.BgTemplateId(queueTypeId)))
             {
 #ifndef MANGOSBOT_ZERO
                 if (ArenaType arenaType = sServerFacade.BgArenaType(queueTypeId))
@@ -1658,7 +1644,7 @@ void RandomPlayerbotMgr::CheckBgQueue()
             BattleGroundTypeId bgTypeId = sServerFacade.BgTemplateId(queueTypeId);
 
 #ifndef MANGOSBOT_TWO
-            BattleGroundBracketId bracketId = sBattleGroundMgr.GetBattleGroundBracketIdFromLevel(bgTypeId, bot->GetLevel());;
+            BattleGroundBracketId bracketId = Player::GetBattleGroundBracketIdFromLevel(bgTypeId, bot->GetLevel());;
 #endif
 #ifdef MANGOSBOT_TWO
             BattleGround* bg = sBattleGroundMgr.GetBattleGroundTemplate(bgTypeId);
@@ -1825,37 +1811,43 @@ void RandomPlayerbotMgr::CheckLfgQueue()
         bool isLFG = false;
 
 #ifdef MANGOSBOT_ZERO
-        WorldSafeLocsEntry const* ClosestGrave = player->GetMap()->GetGraveyardManager().GetClosestGraveYard(player->GetPositionX(), player->GetPositionY(), player->GetPositionZ(), player->GetMapId(), player->GetTeam());
+        WorldSafeLocsEntry const* ClosestGrave = sObjectMgr.GetClosestGraveYard(player->GetPositionX(), player->GetPositionY(), player->GetPositionZ(), player->GetMapId(), player->GetTeam());
         uint32 zoneId = ClosestGrave ? ClosestGrave->ID : 0;
 
         Group* group = player->GetGroup();
-        if (group)
+        if (group && group->isInLFG())
         {
-            if (sWorld.GetLFGQueue().IsGroupInQueue(group->GetId()))
+            uint32 const areaId = group->GetLFGAreaId();
+            if (areaId)
             {
                 isLFG = true;
-                LFGGroupQueueInfo lfgInfo;
-                sWorld.GetLFGQueue().GetGroupQueueInfo(&lfgInfo, group->GetId());
-                uint32 lfgType = (zoneId << 16) | lfgInfo.areaId;
+                uint32 const lfgType = (zoneId << 16) | areaId;
                 LfgDungeons[player->GetTeam()].push_back(lfgType);
             }
         }
-        else
+        else if (!group && sLFGMgr.IsPlayerInQueue(player->GetObjectGuid()))
         {
-            if (sWorld.GetLFGQueue().IsPlayerInQueue(player->GetObjectGuid()))
+            // Penqle keeps a solo player's queued area private to LFGQueue.
+            // HostHooks observes the native meeting-stone join packet so we
+            // can preserve the historical "follow real-player demand" logic
+            // without adding a core-only queue getter.
+            uint32 const areaId = GetObservedRealPlayerLfgArea(player);
+            if (areaId)
             {
                 isLFG = true;
-                LFGPlayerQueueInfo lfgInfo;
-                sWorld.GetLFGQueue().GetPlayerQueueInfo(&lfgInfo, player->GetObjectGuid());
-                uint32 lfgType = (zoneId << 16) | lfgInfo.areaId;
+                uint32 const lfgType = (zoneId << 16) | areaId;
                 LfgDungeons[player->GetTeam()].push_back(lfgType);
             }
+        }
+        else if (!group)
+        {
+            ClearObservedRealPlayerLfgArea(player);
         }
 #endif
 
 #ifdef MANGOSBOT_ONE
         /* todo: Fix with new system
-        WorldSafeLocsEntry const* ClosestGrave = player->GetMap()->GetGraveyardManager().GetClosestGraveYard(player->GetPositionX(), player->GetPositionY(), player->GetPositionZ(), player->GetMapId(), player->GetTeam());
+        WorldSafeLocsEntry const* ClosestGrave = sObjectMgr.GetClosestGraveYard(player->GetPositionX(), player->GetPositionY(), player->GetPositionZ(), player->GetMapId(), player->GetTeam());
         uint32 zoneId = ClosestGrave ? ClosestGrave->ID : 0;
 
         Group* group = player->GetGroup();
@@ -2267,7 +2259,7 @@ bool RandomPlayerbotMgr::ProcessBot(uint32 bot)
         if (!player || !player->IsInWorld())
             sLog.outDetail("Bot #%d: log out", bot);
         else
-            sLog.outDetail("Bot #%d %s:%d <%s>: log out", bot, IsAlliance(player->getRace()) ? "A" : "H", player->GetLevel(), player->GetName());
+            sLog.outDetail("Bot #%d %s:%d <%s>: log out", bot, IsAlliance(player->GetRace()) ? "A" : "H", player->GetLevel(), player->GetName());
 
         currentBots.remove(bot);
         SetEventValue(bot, "add", 0, 0);
@@ -2499,7 +2491,7 @@ void RandomPlayerbotMgr::RandomTeleport(Player* bot, std::vector<WorldLocation> 
 
     //Continent is about 20.000 large
     //Bot will travel 0-5000 units + 75-150 units per level.
-    //tlocs.erase(std::remove_if(tlocs.begin(), tlocs.end(), [bot](WorldLocation const& l) {return l.position.mapid == bot->GetMapId() && sServerFacade.GetDistance2d(bot, l.coord_x, l.coord_y) > urand(0, 5000) + bot->GetLevel() * 15 * urand(5, 10); }), tlocs.end());
+    //tlocs.erase(std::remove_if(tlocs.begin(), tlocs.end(), [bot](WorldLocation const& l) {return l.position.mapid == bot->GetMapId() && sServerFacade.GetDistance2d(bot, l.x, l.y) > urand(0, 5000) + bot->GetLevel() * 15 * urand(5, 10); }), tlocs.end());
 
     // teleport to active areas only
     if (sPlayerbotAIConfig.randomBotTeleportNearPlayer && activeOnly)
@@ -2511,7 +2503,7 @@ void RandomPlayerbotMgr::RandomTeleport(Player* bot, std::vector<WorldLocation> 
             if (!tMap || !tMap->IsContinent())
                 return true;
 
-            uint32 zoneId = sTerrainMgr.GetZoneId(mapId, l.coord_x, l.coord_y, l.coord_z);
+            uint32 zoneId = sTerrainMgr.GetZoneId(mapId, l.x, l.y, l.z);
             if (!HasVisibleRealPlayer(tMap, zoneId))
                 return true;
 
@@ -2541,7 +2533,7 @@ void RandomPlayerbotMgr::RandomTeleport(Player* bot, std::vector<WorldLocation> 
     {
         uint32 mapId = l.getMapId();
         uint32 zoneId, areaId;
-        sTerrainMgr.GetZoneAndAreaId(zoneId, areaId, mapId, l.coord_x, l.coord_y, l.coord_z);
+        sTerrainMgr.GetZoneAndAreaId(zoneId, areaId, mapId, l.x, l.y, l.z);
         AreaEntry const* area = AreaEntry::GetById(areaId);
         if (zoneId && zoneId != areaId)
         {
@@ -2568,25 +2560,25 @@ void RandomPlayerbotMgr::RandomTeleport(Player* bot, std::vector<WorldLocation> 
             // filter other races zones
             if (bot->GetLevel() < 30)
             {
-                if ((zoneId == 12 || zoneId == 40) && bot->getRace() != RACE_HUMAN)
+                if ((zoneId == 12 || zoneId == 40) && bot->GetRace() != RACE_HUMAN)
                     return true;
-                if ((zoneId == 1 || zoneId == 38) && bot->getRace() != RACE_DWARF && bot->getRace() != RACE_GNOME)
+                if ((zoneId == 1 || zoneId == 38) && bot->GetRace() != RACE_DWARF && bot->GetRace() != RACE_GNOME)
                     return true;
-                if ((zoneId == 85 || zoneId == 130) && bot->getRace() != RACE_UNDEAD)
+                if ((zoneId == 85 || zoneId == 130) && bot->GetRace() != RACE_UNDEAD)
                     return true;
-                if ((zoneId == 141 || zoneId == 148) && bot->getRace() != RACE_NIGHTELF)
+                if ((zoneId == 141 || zoneId == 148) && bot->GetRace() != RACE_NIGHTELF)
                     return true;
-                if ((zoneId == 14 || zoneId == 17) && !(bot->getRace() == RACE_ORC || bot->getRace() == RACE_TROLL))
+                if ((zoneId == 14 || zoneId == 17) && !(bot->GetRace() == RACE_ORC || bot->GetRace() == RACE_TROLL))
                     return true;
-                if ((zoneId == 215) && bot->getRace() != RACE_TAUREN)
+                if ((zoneId == 215) && bot->GetRace() != RACE_TAUREN)
                     return true;
                 // redridge / duskwood
                 if ((zoneId == 44 || zoneId == 10) && bot->GetTeam() != ALLIANCE)
                     return true;
 #ifndef MANGOSBOT_ZERO
-                if ((zoneId == 3524 || zoneId == 3525) && bot->getRace() != RACE_DRAENEI)
+                if ((zoneId == 3524 || zoneId == 3525) && bot->GetRace() != RACE_DRAENEI)
                     return true;
-                if ((zoneId == 3430 || zoneId == 3433) && bot->getRace() != RACE_BLOODELF)
+                if ((zoneId == 3430 || zoneId == 3433) && bot->GetRace() != RACE_BLOODELF)
                     return true;
 #endif
             }
@@ -2648,22 +2640,22 @@ void RandomPlayerbotMgr::RandomTeleport(Player* bot, std::vector<WorldLocation> 
             }
 #endif
 
-            float x = loc.coord_x + (attemtps > 0 ? urand(0, sPlayerbotAIConfig.grindDistance) - sPlayerbotAIConfig.grindDistance / 2 : 0);
-            float y = loc.coord_y + (attemtps > 0 ? urand(0, sPlayerbotAIConfig.grindDistance) - sPlayerbotAIConfig.grindDistance / 2 : 0);
-            float z = loc.coord_z;
+            float x = loc.x + (attemtps > 0 ? urand(0, sPlayerbotAIConfig.grindDistance) - sPlayerbotAIConfig.grindDistance / 2 : 0);
+            float y = loc.y + (attemtps > 0 ? urand(0, sPlayerbotAIConfig.grindDistance) - sPlayerbotAIConfig.grindDistance / 2 : 0);
+            float z = loc.z;
 
-            Map* map = sMapMgr.FindMap(loc.mapid, 0);
+            Map* map = sMapMgr.FindMap(loc.mapId, 0);
             if (!map)
                 continue;
 
-            uint32 areaId = sTerrainMgr.GetAreaId(loc.mapid, x, y, z);
+            uint32 areaId = sTerrainMgr.GetAreaId(loc.mapId, x, y, z);
             AreaEntry const* area = AreaEntry::GetById(areaId);
             if (!area)
                 continue;
 
 #ifndef MANGOSBOT_ZERO
             // Do not teleport to outland before portal opening (allow new races zones)
-            if (sWorldState.GetExpansion() == EXPANSION_NONE && (loc.mapid == 571 || (loc.mapid == 530 && area->Team != AREATEAM_ALLY && area->Team != AREATEAM_HORDE)))
+            if (sWorldState.GetExpansion() == EXPANSION_NONE && (loc.mapId == 571 || (loc.mapId == 530 && area->Team != AREATEAM_ALLY && area->Team != AREATEAM_HORDE)))
                 continue;
 #endif
 
@@ -2686,7 +2678,7 @@ void RandomPlayerbotMgr::RandomTeleport(Player* bot, std::vector<WorldLocation> 
                 bot->SetHomebindToLocation(loc, area->Id);
 
             bot->GetMotionMaster()->Clear();
-            bot->TeleportTo(loc.mapid, x, y, z, 0);
+            bot->TeleportTo(loc.mapId, x, y, z, 0);
             bot->SendHeartBeat();
             GetPlayerbotAI(bot)->Reset(true);
 
@@ -2704,7 +2696,7 @@ void RandomPlayerbotMgr::RandomTeleport(Player* bot, std::vector<WorldLocation> 
                             member->SetHomebindToLocation(loc, area->Id);
 
                         member->GetMotionMaster()->Clear();
-                        member->TeleportTo(loc.mapid, x, y, z, 0);
+                        member->TeleportTo(loc.mapId, x, y, z, 0);
                         member->SendHeartBeat();
                         GetPlayerbotAI(member)->Reset(true);
                     }
@@ -2879,7 +2871,7 @@ void RandomPlayerbotMgr::PrepareTeleportCache()
     {
         GuidPosition go(goData);
 
-        auto data = sGOStorage.LookupEntry<GameObjectInfo>(go.GetEntry());
+        auto data = sObjectMgr.GetGameObjectInfo(go.GetEntry());
 
         if (!data)
             continue;
@@ -2929,11 +2921,11 @@ void RandomPlayerbotMgr::PrepareTeleportCache()
 
         for (auto flag : allowedNpcFlags)
         {          
-            if ((cInfo->NpcFlags & flag) != 0)
+            if ((cInfo->npc_flags & flag) != 0)
             {
                 std::vector<std::pair<uint32, uint32>> ranges = RpgLocationsNear(WorldPosition(creatureData), areaNames);
 
-                if (cInfo->NpcFlags & UNIT_NPC_FLAG_INNKEEPER)
+                if (cInfo->npc_flags & UNIT_NPC_FLAG_INNKEEPER)
                 {
                     for (auto& range : ranges)
                         innPoints.push_back(std::make_pair(std::make_pair(range.first, range.second), creatureData));
@@ -3003,7 +2995,7 @@ void RandomPlayerbotMgr::RandomTeleportForLevel(Player* bot, bool activeOnly)
 
     ObjectGuid closestInn;
     float minDistance = -1.0f;
-    for (auto& [innGuid, innPosition] : innCacheLevel[bot->getRace()][bot->GetLevel()])
+    for (auto& [innGuid, innPosition] : innCacheLevel[bot->GetRace()][bot->GetLevel()])
     {
         float distance = botPos.sqDistance(innPosition);
         if (minDistance > 0 || distance >= minDistance)
@@ -3018,7 +3010,7 @@ void RandomPlayerbotMgr::RandomTeleportForLevel(Player* bot, bool activeOnly)
         WorldPacket data(SMSG_TRAINER_BUY_SUCCEEDED, (8 + 4));
         data << closestInn;
         data << uint32(3286);                                   // Bind
-        bot->GetSession()->SendPacket(data);
+        bot->GetSession()->SendPacket(&data);
     }
 }
 
@@ -3457,7 +3449,11 @@ bool RandomPlayerbotMgr::HandlePlayerbotConsoleCommand(ChatHandler* handler, cha
         return false;
     }
 
-    bool isRA = handler->GetSession() || handler->GetAccountId();
+    WorldSession* commandSession = handler->GetSession();
+    CliHandler* cliHandler = commandSession ? nullptr : dynamic_cast<CliHandler*>(handler);
+    bool isRA = commandSession || (cliHandler && cliHandler->GetAccountId());
+    AccountTypes commandSecurity = commandSession ? commandSession->GetSecurity()
+        : (cliHandler ? cliHandler->GetAccessLevel() : SEC_PLAYER);
 
     if (!args || !*args)
     {
@@ -3577,8 +3573,8 @@ bool RandomPlayerbotMgr::HandlePlayerbotConsoleCommand(ChatHandler* handler, cha
 
     std::list<std::string> messages = sRandomPlayerbotMgr.HandlePlayerbotCommand(
         args,
-        handler->GetSession() ? handler->GetSession()->GetPlayer() : nullptr,
-        handler->GetAccessLevel());
+        commandSession ? commandSession->GetPlayer() : nullptr,
+        commandSecurity);
     for (std::list<std::string>::iterator i = messages.begin(); i != messages.end(); ++i)
     {
         sLog.outString("%s", i->c_str());
@@ -3635,7 +3631,7 @@ void RandomPlayerbotMgr::HandleCommand(uint32 type, const std::string& text, Pla
         {
             if (ChannelMgr* cMgr = channelMgr(bot->GetTeam()))
             {
-                Channel* chn = cMgr->GetChannel(channelName, bot);
+                Channel* chn = cMgr->GetChannel(channelName, bot->GetSession()->GetPlayerPointer());
                 if (!chn)
                 {
                     return;
@@ -3653,8 +3649,9 @@ void RandomPlayerbotMgr::OnPlayerLogout(Player* player)
 
     DisablePlayerBot(player->GetGUIDLow());
 
-    if (!hadPlayerBot && GetPlayerbotAI(player) && GetPlayerbotAI(player)->IsRealPlayer() && player->GetGroup() && sPlayerbotAIConfig.IsFreeAltBot(player))
-        player->GetSession()->SetOffline(); //Prevent groupkick
+    // Penqle preserves non-raid group membership for disconnected sessions after the socket
+    // is detached in WorldSession::Update. Do not fabricate the old CMaNGOS SetOffline()
+    // transition here; a deliberate client logout retains Penqle's native group-leave semantics.
 
     ForEachPlayerbot([&](Player* bot) {
         PlayerbotAI* ai = GetPlayerbotAI(bot);
@@ -3818,7 +3815,7 @@ void RandomPlayerbotMgr::PrintStats(uint32 requesterGuid)
     Player* requester = GetPlayer(requesterGuid);
     std::stringstream ss; ss << GetPlayerbotsAmount() << " Random Bots online";
     sLog.outString("%s", ss.str().c_str());
-    if (requester) { requester->SendMessageToPlayer(ss.str()); }
+    if (requester) { ChatHandler(requester->GetSession()).SendSysMessage(ss.str().c_str()); }
 
     std::map<uint32, int> alliance, horde;
     for (uint32 i = 0; i < 10; ++i)
@@ -3843,12 +3840,12 @@ void RandomPlayerbotMgr::PrintStats(uint32 requesterGuid)
 
     ForEachPlayerbot([this, &dps, &heal, &tank, &active, &update, &randomize, &teleport, &changeStrategy, &dead, &combat, &revive, &taxi, &moving, &mounted, &afk, &alliance, &horde, &perRace, &perClass, &stateCount, &questCount](Player* bot)
     {
-        if (IsAlliance(bot->getRace()))
+        if (IsAlliance(bot->GetRace()))
             alliance[bot->GetLevel() / 10]++;
         else
             horde[bot->GetLevel() / 10]++;
 
-        perRace[bot->getRace()]++;
+        perRace[bot->GetRace()]++;
         perClass[bot->GetClass()]++;
 
         if (GetPlayerbotAI(bot)->AllowActivity())
@@ -3879,7 +3876,7 @@ void RandomPlayerbotMgr::PrintStats(uint32 requesterGuid)
         if (bot->IsInCombat())
             combat++;
 
-        if (bot->isAFK())
+        if (bot->IsAFK())
             afk++;
 
         if (sServerFacade.UnitIsDead(bot))
@@ -3947,7 +3944,7 @@ void RandomPlayerbotMgr::PrintStats(uint32 requesterGuid)
 
     ss.str(""); ss << "Bots level:";
     sLog.outString("%s", ss.str().c_str());
-    if (requester) { requester->SendMessageToPlayer(ss.str()); }
+    if (requester) { ChatHandler(requester->GetSession()).SendSysMessage(ss.str().c_str()); }
 
 	uint32 maxLevel = sWorld.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL);
 	for (uint32 i = 0; i < 10; ++i)
@@ -3961,12 +3958,12 @@ void RandomPlayerbotMgr::PrintStats(uint32 requesterGuid)
 
         ss.str(""); ss << "    " << from << ".." << to << ": " << alliance[i] << " alliance, " << horde[i] << " horde";
         sLog.outString("%s", ss.str().c_str());
-        if (requester) { requester->SendMessageToPlayer(ss.str()); }
+        if (requester) { ChatHandler(requester->GetSession()).SendSysMessage(ss.str().c_str()); }
     }
 
     ss.str(""); ss << "Bots race:";
     sLog.outString("%s", ss.str().c_str());
-    if (requester) { requester->SendMessageToPlayer(ss.str()); }
+    if (requester) { ChatHandler(requester->GetSession()).SendSysMessage(ss.str().c_str()); }
 
     for (uint8 race = RACE_HUMAN; race < MAX_RACES; ++race)
     {
@@ -3974,13 +3971,13 @@ void RandomPlayerbotMgr::PrintStats(uint32 requesterGuid)
         {
             ss.str(""); ss << "    " << ChatHelper::formatRace(race) << ": " << perRace[race];
             sLog.outString("%s", ss.str().c_str());
-            if (requester) { requester->SendMessageToPlayer(ss.str()); }
+            if (requester) { ChatHandler(requester->GetSession()).SendSysMessage(ss.str().c_str()); }
         }
     }
 
     ss.str(""); ss << "Bots class:";
     sLog.outString("%s", ss.str().c_str());
-    if (requester) { requester->SendMessageToPlayer(ss.str()); }
+    if (requester) { ChatHandler(requester->GetSession()).SendSysMessage(ss.str().c_str()); }
 
     for (uint8 cls = CLASS_WARRIOR; cls < MAX_CLASSES; ++cls)
     {
@@ -3988,29 +3985,29 @@ void RandomPlayerbotMgr::PrintStats(uint32 requesterGuid)
         {
             ss.str(""); ss << "    " << ChatHelper::formatClass(cls) << ": " << perClass[cls];
             sLog.outString("%s", ss.str().c_str());
-            if (requester) { requester->SendMessageToPlayer(ss.str()); }
+            if (requester) { ChatHandler(requester->GetSession()).SendSysMessage(ss.str().c_str()); }
         }
     }
 
     ss.str(""); ss << "Bots role:";
     sLog.outString("%s", ss.str().c_str());
-    if (requester) { requester->SendMessageToPlayer(ss.str()); }
+    if (requester) { ChatHandler(requester->GetSession()).SendSysMessage(ss.str().c_str()); }
 
     ss.str(""); ss << "    tank: " << tank << ", heal: " << heal << ", dps: " << dps;
     sLog.outString("%s", ss.str().c_str());
-    if (requester) { requester->SendMessageToPlayer(ss.str()); }
+    if (requester) { ChatHandler(requester->GetSession()).SendSysMessage(ss.str().c_str()); }
 
     ss.str(""); ss << "Bots status:";
     sLog.outString("%s", ss.str().c_str());
-    if (requester) { requester->SendMessageToPlayer(ss.str()); }
+    if (requester) { ChatHandler(requester->GetSession()).SendSysMessage(ss.str().c_str()); }
 
     ss.str(""); ss << "    Active: " << active;
     sLog.outString("%s", ss.str().c_str());
-    if (requester) { requester->SendMessageToPlayer(ss.str()); }
+    if (requester) { ChatHandler(requester->GetSession()).SendSysMessage(ss.str().c_str()); }
 
     ss.str(""); ss << "    Moving: " << moving;
     sLog.outString("%s", ss.str().c_str());
-    if (requester) { requester->SendMessageToPlayer(ss.str()); }
+    if (requester) { ChatHandler(requester->GetSession()).SendSysMessage(ss.str().c_str()); }
 
     //sLog.outString("Bots to:");
     //sLog.outString("    update: %d", update);
@@ -4021,43 +4018,43 @@ void RandomPlayerbotMgr::PrintStats(uint32 requesterGuid)
 
     ss.str(""); ss << "    On taxi: " << taxi;
     sLog.outString("%s", ss.str().c_str());
-    if (requester) { requester->SendMessageToPlayer(ss.str()); }
+    if (requester) { ChatHandler(requester->GetSession()).SendSysMessage(ss.str().c_str()); }
 
     ss.str(""); ss << "    On mount: " << mounted;
     sLog.outString("%s", ss.str().c_str());
-    if (requester) { requester->SendMessageToPlayer(ss.str()); }
+    if (requester) { ChatHandler(requester->GetSession()).SendSysMessage(ss.str().c_str()); }
 
     ss.str(""); ss << "    In combat: " << combat;
     sLog.outString("%s", ss.str().c_str());
-    if (requester) { requester->SendMessageToPlayer(ss.str()); }
+    if (requester) { ChatHandler(requester->GetSession()).SendSysMessage(ss.str().c_str()); }
 
     ss.str(""); ss << "    Dead: " << dead;
     sLog.outString("%s", ss.str().c_str());
-    if (requester) { requester->SendMessageToPlayer(ss.str()); }
+    if (requester) { ChatHandler(requester->GetSession()).SendSysMessage(ss.str().c_str()); }
 
     ss.str(""); ss << "    AFK: " << afk;
     sLog.outString("%s", ss.str().c_str());
-    if (requester) { requester->SendMessageToPlayer(ss.str()); }
+    if (requester) { ChatHandler(requester->GetSession()).SendSysMessage(ss.str().c_str()); }
 
     ss.str(""); ss << "Bots questing:";
     sLog.outString("%s", ss.str().c_str());
-    if (requester) { requester->SendMessageToPlayer(ss.str()); }
+    if (requester) { ChatHandler(requester->GetSession()).SendSysMessage(ss.str().c_str()); }
 
     ss.str(""); ss << "    Picking quests: " << stateCount[(uint8)TravelState::TRAVEL_STATE_TRAVEL_PICK_UP_QUEST] + stateCount[(uint8)TravelState::TRAVEL_STATE_WORK_PICK_UP_QUEST];
     sLog.outString("%s", ss.str().c_str());
-    if (requester) { requester->SendMessageToPlayer(ss.str()); }
+    if (requester) { ChatHandler(requester->GetSession()).SendSysMessage(ss.str().c_str()); }
 
     ss.str(""); ss << "    Doing quests: " << stateCount[(uint8)TravelState::TRAVEL_STATE_TRAVEL_DO_QUEST] + stateCount[(uint8)TravelState::TRAVEL_STATE_WORK_DO_QUEST];
     sLog.outString("%s", ss.str().c_str());
-    if (requester) { requester->SendMessageToPlayer(ss.str()); }
+    if (requester) { ChatHandler(requester->GetSession()).SendSysMessage(ss.str().c_str()); }
 
     ss.str(""); ss << "    Completing quests: " << stateCount[(uint8)TravelState::TRAVEL_STATE_TRAVEL_HAND_IN_QUEST] + stateCount[(uint8)TravelState::TRAVEL_STATE_WORK_HAND_IN_QUEST];
     sLog.outString("%s", ss.str().c_str());
-    if (requester) { requester->SendMessageToPlayer(ss.str()); }
+    if (requester) { ChatHandler(requester->GetSession()).SendSysMessage(ss.str().c_str()); }
 
     ss.str(""); ss << "    Idling: " << stateCount[(uint8)TravelState::TRAVEL_STATE_IDLE];
     sLog.outString("%s", ss.str().c_str());
-    if (requester) { requester->SendMessageToPlayer(ss.str()); }
+    if (requester) { ChatHandler(requester->GetSession()).SendSysMessage(ss.str().c_str()); }
 }
 
 double RandomPlayerbotMgr::GetBuyMultiplier(Player* bot)
@@ -4159,7 +4156,7 @@ void RandomPlayerbotMgr::ChangeStrategy(Player* player)
 
 void RandomPlayerbotMgr::RandomTeleportForRpg(Player* bot, bool activeOnly)
 {
-    uint32 race = bot->getRace();
+    uint32 race = bot->GetRace();
     uint32 level = bot->GetLevel();
     sLog.outDetail("Random teleporting bot %s for RPG (%zu locations available)", bot->GetName(), rpgLocsCacheLevel[race][level].size());
     RandomTeleport(bot, rpgLocsCacheLevel[race][level], true, activeOnly);
@@ -4242,7 +4239,7 @@ uint32 RandomPlayerbotMgr::GetBattleMasterEntry(Player* bot, BattleGroundTypeId 
 
         CreatureData const* data = &dataPair->second;
 
-        Unit* Bm = sMapMgr.FindMap((uint32)data->position.mapid)->GetUnit(ObjectGuid(HIGHGUID_UNIT, *i, dataPair->first));
+        Unit* Bm = sMapMgr.FindMap((uint32)data->position.mapId)->GetUnit(ObjectGuid(HIGHGUID_UNIT, *i, dataPair->first));
         if (!Bm)
             continue;
 
@@ -4269,7 +4266,7 @@ uint32 RandomPlayerbotMgr::GetBattleMasterEntry(Player* bot, BattleGroundTypeId 
         if (Bm->GetDeathState() == DEAD)
             continue;
 
-        float dist2 = sServerFacade.GetDistance2d(bot, data->position.coord_x, data->position.coord_y);
+        float dist2 = sServerFacade.GetDistance2d(bot, data->position.x, data->position.y);
         if (dist2 < dist1)
         {
             dist1 = dist2;
@@ -4378,7 +4375,8 @@ void RandomPlayerbotMgr::MirrorAh()
             if (!auctionEntry.buyout)
                 continue;
 
-            if (!auctionEntry.itemCount)
+            Item* auctionItem = sAuctionMgr.GetAItem(auctionEntry.itemGuidLow);
+            if (!auctionItem || !auctionItem->GetCount())
                 continue;
 
             ahMirror[auctionEntry.itemTemplate].push_back(auctionEntry);
@@ -4673,7 +4671,7 @@ std::list<std::string> RandomPlayerbotMgr::HandleConsoleDiff(std::string param)
     {
         std::stringstream ss;
         ss << "Avg diff: " << sWorld.GetAverageDiff() << "\n";
-        ss << "Max diff: " << sWorld.GetMaxDiff() << "\n";
+        ss << "Last diff: " << sWorld.GetLastDiff() << "\n";
         ss << "char db ping: " << sRandomPlayerbotMgr.GetDatabaseDelay("CharacterDatabase") << "\n";
         ss << "Sessions online: " << sWorld.GetActiveSessionCount() << "\n";
         ss << "Bots online: " << sRandomPlayerbotMgr.botCount << " (active: " << sRandomPlayerbotMgr.activeBots << ")\n";
@@ -4717,12 +4715,9 @@ std::list<std::string> RandomPlayerbotMgr::HandleConsoleDiff(std::string param)
 std::list<std::string> RandomPlayerbotMgr::HandleConsoleCleanMap(std::string param)
 {
     std::list<std::string> messages;
-    for (uint32 i = 0; i < sMapStore.GetNumRows(); ++i)
+    for (auto itr = sMapStorage.begin<MapEntry>(); itr < sMapStorage.end<MapEntry>(); ++itr)
     {
-        if (!sMapStore.LookupEntry(i))
-            continue;
-
-        uint32 mapId = sMapStore.LookupEntry(i)->MapID;
+        uint32 mapId = itr->id;
         boost::thread t([mapId]() {WorldPosition::unloadMapAndVMaps(mapId); });
         t.detach();
     }

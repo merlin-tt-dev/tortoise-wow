@@ -6,8 +6,6 @@
 #include "playerbot/RandomPlayerbotMgr.h"
 #ifdef MANGOSBOT_ZERO
 #include "LFG/LFGMgr.h"
-#include "LFG/LFGDefines.h"
-#include "LFG/LFGQueue.h"
 #endif
 #ifdef MANGOSBOT_TWO
 #include "LFG/LFGMgr.h"

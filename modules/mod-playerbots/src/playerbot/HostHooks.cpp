@@ -16,8 +16,12 @@
 #include "playerbot/RandomPlayerbotMgr.h"
 #include "playerbot/PlayerbotAIConfig.h"
 #include "BotDiagnostics.h"
+#include "Protocol/Opcodes.h"
 
+#include <deque>
 #include <memory>
+#include <mutex>
+#include <map>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -27,6 +31,27 @@ namespace
 std::unordered_map<Player*, std::unique_ptr<PlayerbotAI>> s_playerbotAIs;
 std::unordered_map<Player*, std::unique_ptr<PlayerbotMgr>> s_playerbotMgrs;
 std::unordered_set<PlayerbotHolder*> s_liveHolders;
+
+std::mutex s_observedLfgMutex;
+std::map<ObjectGuid, uint32> s_observedRealPlayerLfgAreas;
+
+void ObserveRealPlayerLfgArea(Player* player, uint32 areaId)
+{
+    if (!player || !areaId)
+        return;
+
+    std::lock_guard<std::mutex> lock(s_observedLfgMutex);
+    s_observedRealPlayerLfgAreas[player->GetObjectGuid()] = areaId;
+}
+
+struct QueuedPlayerbotPacket
+{
+    std::uintptr_t sessionToken = 0;
+    std::unique_ptr<WorldPacket> packet;
+};
+
+std::mutex s_playerbotPacketMutex;
+std::unordered_map<uint32, std::deque<QueuedPlayerbotPacket>> s_playerbotIncomingPackets;
 
 struct LoginBootstrap;
 std::unordered_map<uint32, std::unique_ptr<LoginBootstrap>> s_loginBootstraps;
@@ -197,7 +222,10 @@ void CreatePlayerbotAI(Player* player)
 void RemovePlayerbotAI(Player* player)
 {
     if (player)
+    {
+        ClearPlayerbotPackets(player);
         s_playerbotAIs.erase(player);
+    }
 }
 
 void CreatePlayerbotMgr(Player* player)
@@ -227,6 +255,138 @@ bool IsRealPlayer(Player const* player)
 
     std::string const& address = session->GetRemoteAddress();
     return address != "<BOT>" && address != "disconnected/bot";
+}
+
+uint32 GetObservedRealPlayerLfgArea(Player const* player)
+{
+    if (!player)
+        return 0;
+
+    std::lock_guard<std::mutex> lock(s_observedLfgMutex);
+    auto const it = s_observedRealPlayerLfgAreas.find(player->GetObjectGuid());
+    return it == s_observedRealPlayerLfgAreas.end() ? 0 : it->second;
+}
+
+void ClearObservedRealPlayerLfgArea(Player const* player)
+{
+    if (!player)
+        return;
+
+    std::lock_guard<std::mutex> lock(s_observedLfgMutex);
+    s_observedRealPlayerLfgAreas.erase(player->GetObjectGuid());
+}
+
+void QueueDelayedPlayerbotPacket(uint32 guidLow, std::uintptr_t sessionToken, std::unique_ptr<WorldPacket> packet)
+{
+    if (!guidLow || !sessionToken || !packet)
+        return;
+
+    std::lock_guard<std::mutex> lock(s_playerbotPacketMutex);
+    s_playerbotIncomingPackets[guidLow].push_back({ sessionToken, std::move(packet) });
+}
+
+void QueuePlayerbotPacket(Player* player, std::unique_ptr<WorldPacket> packet)
+{
+    if (!player || !packet || !player->GetSession())
+        return;
+
+    // Real client sessions already have Penqle's native packet pump. Only
+    // socketless historical bots need the module-owned queue.
+    if (IsRealPlayer(player))
+    {
+        player->GetSession()->QueuePacket(packet.release());
+        return;
+    }
+
+    QueueDelayedPlayerbotPacket(player->GetGUIDLow(),
+        reinterpret_cast<std::uintptr_t>(player->GetSession()), std::move(packet));
+}
+
+void QueuePlayerbotPacket(Player* player, WorldPacket const& packet)
+{
+    QueuePlayerbotPacket(player, std::make_unique<WorldPacket>(packet));
+}
+
+void HandlePlayerbotPackets(Player* player)
+{
+    if (!player || !player->GetSession())
+        return;
+
+    uint32 const guidLow = player->GetGUIDLow();
+    std::uintptr_t const sessionToken = reinterpret_cast<std::uintptr_t>(player->GetSession());
+    std::deque<QueuedPlayerbotPacket> packets;
+
+    {
+        std::lock_guard<std::mutex> lock(s_playerbotPacketMutex);
+        auto it = s_playerbotIncomingPackets.find(guidLow);
+        if (it == s_playerbotIncomingPackets.end())
+            return;
+        packets.swap(it->second);
+        s_playerbotIncomingPackets.erase(it);
+    }
+
+    WorldSession* session = player->GetSession();
+    for (QueuedPlayerbotPacket& queued : packets)
+    {
+        // Async LLM replies may finish after a bot logged out/relogged. Never
+        // deliver a packet to a replacement session from an older lifetime.
+        if (queued.sessionToken != sessionToken || !queued.packet)
+            continue;
+
+        OpcodeHandler const* handler = opcodeTable.LookupOpcode(queued.packet->GetOpcode());
+        if (!handler || !handler->handler)
+        {
+            sLog.outError("[PlayerBots] no Penqle opcode handler for queued bot packet %u (guid %u)",
+                queued.packet->GetOpcode(), guidLow);
+            continue;
+        }
+
+        // Penqle's native PlayerBots host invokes public WorldSession handlers
+        // directly as well. WorldSession::ExecuteOpcode owns additional private
+        // delayed-teleport bookkeeping that is intentionally not a module API;
+        // do not expose or duplicate that core-private state just for bots.
+        (session->*handler->handler)(*queued.packet);
+    }
+}
+
+void ClearPlayerbotPackets(Player* player)
+{
+    if (!player)
+        return;
+
+    std::lock_guard<std::mutex> lock(s_playerbotPacketMutex);
+    s_playerbotIncomingPackets.erase(player->GetGUIDLow());
+}
+
+void LearnPlayerbotClassLevelSpells(Player* player)
+{
+    if (!player)
+        return;
+
+    uint32 const classMask = 1u << (player->GetClass() - 1);
+    uint32 const raceMask = 1u << (player->GetRace() - 1);
+    uint32 const maxSkillId = sObjectMgr.GetMaxSkillLineAbilityId();
+
+    // This is the same public DBC/SpellMgr algorithm used by Penqle's native
+    // PlayerBotAI::AutoLearnSpellsForLevel. Keep the historical module's
+    // "learn class level spells" behavior without reaching into native AI
+    // ownership or adding a Player/core compatibility method.
+    for (uint32 i = 0; i < maxSkillId; ++i)
+    {
+        SkillLineAbilityEntry const* ability = sObjectMgr.GetSkillLineAbility(i);
+        if (!ability || !ability->classmask || !(ability->classmask & classMask))
+            continue;
+        if (ability->racemask && !(ability->racemask & raceMask))
+            continue;
+        if (ability->req_skill_value != 0)
+            continue;
+
+        SpellEntry const* spellInfo = sSpellMgr.GetSpellEntry(ability->spellId);
+        if (!spellInfo || (spellInfo->spellLevel && spellInfo->spellLevel > player->GetLevel()))
+            continue;
+        if (!player->HasSpell(ability->spellId))
+            player->LearnSpell(ability->spellId, false);
+    }
 }
 
 void RegisterPlayerbotHolder(PlayerbotHolder* holder)
@@ -349,6 +509,8 @@ public:
         if (!player)
             return;
 
+        ClearObservedRealPlayerLfgArea(player);
+
         if (sPlayerbotAIConfig.enabled)
             sRandomPlayerbotMgr.OnPlayerLogout(player);
 
@@ -376,8 +538,40 @@ class PlayerbotServerScript final : public ServerScript
 {
 public:
     PlayerbotServerScript()
-        : ServerScript("mod_playerbots_server", { SERVERHOOK_CAN_PACKET_SEND })
+        : ServerScript("mod_playerbots_server", { SERVERHOOK_CAN_PACKET_SEND, SERVERHOOK_CAN_PACKET_RECEIVE })
     {
+    }
+
+    bool CanPacketReceive(WorldSession* session, WorldPacket const& packet) override
+    {
+        Player* player = session ? session->GetPlayer() : nullptr;
+        if (!player || !IsRealPlayer(player))
+            return true;
+
+        switch (packet.GetOpcode())
+        {
+            case CMSG_MEETINGSTONE_JOIN:
+            {
+                WorldPacket copy(packet);
+                copy.rpos(0);
+                ObjectGuid guid;
+                copy >> guid;
+
+                GameObject* stone = player->GetGameObjectIfCanInteractWith(guid, GAMEOBJECT_TYPE_MEETINGSTONE);
+                GameObjectInfo const* info = stone ? stone->GetGOInfo() : nullptr;
+                if (info)
+                    ObserveRealPlayerLfgArea(player, info->meetingstone.areaID);
+                break;
+            }
+            case CMSG_MEETINGSTONE_LEAVE:
+                ClearObservedRealPlayerLfgArea(player);
+                break;
+            default:
+                break;
+        }
+
+        // Observation only; Penqle's native handler still owns the packet.
+        return true;
     }
 
     bool CanPacketSend(WorldSession* session, WorldPacket const& packet) override

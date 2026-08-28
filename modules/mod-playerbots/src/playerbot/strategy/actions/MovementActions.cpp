@@ -779,7 +779,7 @@ bool MovementAction::HandleSpecialMovement(TravelPath& path)
 
             std::unique_ptr<WorldPacket> packet(new WorldPacket(CMSG_GAMEOBJ_USE));
             *packet << *i;
-            bot->GetSession()->QueuePacket(std::move(packet));
+            QueuePlayerbotPacket(bot, std::move(packet));
             return true;
         }
 
@@ -1624,7 +1624,7 @@ bool MovementAction::MoveTo(uint32 mapId, float x, float y, float z, bool idle, 
 
                     std::unique_ptr<WorldPacket> packet(new WorldPacket(CMSG_GAMEOBJ_USE));
                     *packet << *i;
-                    bot->GetSession()->QueuePacket(std::move(packet));
+                    QueuePlayerbotPacket(bot, std::move(packet));
                     return true;
                 }
 

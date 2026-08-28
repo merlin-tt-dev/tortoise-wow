@@ -44,33 +44,53 @@ SpellCastResult BotUseItemSpell::ForceSpellStart(SpellCastTargets const* targets
     if (triggeredByAura)
         m_triggeredByAuraSpell = triggeredByAura->GetSpellProto();
 
-    SpellCastResult result = PreCastCheck();
-    bool failed = result != SPELL_CAST_OK;
-    if (result == SPELL_FAILED_BAD_TARGETS && OpenLockCheck())
-    {
-        failed = false;
-        m_IsTriggeredSpell = true;
-        m_ignoreCastTime = true;
-    }
+    // Penqle has no cmangos PreCastCheck/m_ignoreCastTime pair. Run the
+    // native strict cast validation once to determine whether this is one of
+    // the historical item-cheat cases. Normal casts then go through the
+    // untouched native prepare() path.
+    m_powerCost = CalculatePowerCost(m_spellInfo, m_casterUnit, this, m_CastItem);
+    SpellCastResult result = CheckCast(true);
+    bool bypassNativeChecks = false;
 
-    if (result == SPELL_FAILED_REAGENTS && itemCheats)
-    {
-        failed = false;
-    }
-
-    if (failed)
+    if (result == SPELL_FAILED_BAD_TARGETS && itemCheats && OpenLockCheck())
+        bypassNativeChecks = true;
+    else if (result == SPELL_FAILED_REAGENTS && itemCheats)
+        bypassNativeChecks = true;
+    else if (result != SPELL_CAST_OK)
     {
         SendCastResult(result);
         finish(false);
-        // No SpellEvent owns this Spell, so the standard destruction path
-        // (~SpellEvent → m_Spell->Delete()) won't fire. Delete ourselves.
+        // No SpellEvent owns this Spell yet.
         Delete();
         return result;
     }
 
-    // Hand off to Spell::prepare which creates exactly one SpellEvent and
-    // becomes the sole owner of this Spell.
-    return prepare(*targets, triggeredByAura);
+    if (!bypassNativeChecks)
+        return prepare(*targets, triggeredByAura);
+
+    // The historical bot cheat intentionally allows a key/reagent-less item
+    // use. Penqle's PLAYER_CHEAT_NO_CHECK_CAST is the native mechanism for
+    // bypassing CheckCast. Scope it to this synchronous triggered cast only;
+    // never leave a cheat option enabled on the Player.
+    Player* playerCaster = m_caster->ToPlayer();
+    if (!playerCaster)
+    {
+        finish(false);
+        Delete();
+        return result;
+    }
+
+    bool const hadNoCheckCast = playerCaster->HasOption(PLAYER_CHEAT_NO_CHECK_CAST);
+    bool const hadNoCastTime = playerCaster->HasOption(PLAYER_CHEAT_NO_CAST_TIME);
+    playerCaster->SetOption(PLAYER_CHEAT_NO_CHECK_CAST, true);
+    playerCaster->SetOption(PLAYER_CHEAT_NO_CAST_TIME, true);
+    m_IsTriggeredSpell = true;
+
+    SpellCastResult const prepareResult = prepare(*targets, triggeredByAura);
+
+    playerCaster->SetOption(PLAYER_CHEAT_NO_CHECK_CAST, hadNoCheckCast);
+    playerCaster->SetOption(PLAYER_CHEAT_NO_CAST_TIME, hadNoCastTime);
+    return prepareResult;
 }
 
 bool BotUseItemSpell::OpenLockCheck()
@@ -108,10 +128,7 @@ bool BotUseItemSpell::OpenLockCheck()
                     if (!lockId)
                         return false;
 
-                    // check if its in use only when cast is finished (called from spell::cast() with strict = false)
-                    if (go->IsInUse())
-                        return false;
-
+                    // Penqle represents GO in-use state through the native flag.
                     if (go->HasFlag(GAMEOBJECT_FLAGS, GO_FLAG_IN_USE))
                         return false;
 
@@ -145,7 +162,10 @@ bool BotUseItemSpell::OpenLockCheck()
 
                 // check lock compatibility
                 SpellEffectIndex effIdx = SpellEffectIndex(i);
-                SpellCastResult res = CanOpenLock(effIdx, lockId, m_effectSkillInfo[effIdx].skillId, m_effectSkillInfo[effIdx].reqSkillValue, m_effectSkillInfo[effIdx].skillValue);
+                SkillType skillId = SKILL_NONE;
+                int32 reqSkillValue = 0;
+                int32 skillValue = 0;
+                SpellCastResult res = CanOpenLock(effIdx, lockId, skillId, reqSkillValue, skillValue);
                 if (res == SPELL_FAILED_BAD_TARGETS)
                     return true;
             }
@@ -305,7 +325,10 @@ bool UseAction::Execute(Event& event)
             itemID = items[0];
             if (items.size() > 1)
             {
-                targetItem = bot->GetItemByEntry(items[1]);
+                FindItemByIdVisitor visitor(items[1]);
+                ai->InventoryIterateItems(&visitor, IterateItemsMask::ITERATE_ITEMS_IN_BAGS);
+                if (!visitor.GetResult().empty())
+                    targetItem = visitor.GetResult().front();
             }
         }
 
@@ -399,7 +422,7 @@ bool UseAction::UseItemInternal(Player* requester, uint32 itemId, Unit* unit, Ga
         return false;
     }
 
-    if (proto->Flags & ITEM_FLAG_HAS_LOOT)
+    if (proto->Flags & ITEM_FLAG_LOOTABLE)
     {
         std::list<Item*> items = AI_VALUE2(std::list<Item*>, "inventory items", ChatHelper::formatQItem(itemId));
         if (!items.empty())
@@ -521,13 +544,13 @@ bool UseAction::UseItemInternal(Player* requester, uint32 itemId, Unit* unit, Ga
             continue;
         }
 
-        const SpellEntry* spellInfo = sSpellTemplate.LookupEntry<SpellEntry>(spellData.SpellId);
+        const SpellEntry* spellInfo = sServerFacade.LookupSpellInfo(spellData.SpellId);
         if (!spellInfo)
         {
             continue;
         }
 
-        if (IsNonCombatSpell(spellInfo) && bot->IsInCombat())
+        if (spellInfo->IsNonCombatSpell() && bot->IsInCombat())
         {
             continue;
         }
@@ -574,7 +597,7 @@ bool UseAction::UseItemInternal(Player* requester, uint32 itemId, Unit* unit, Ga
                 targets.setDestination(unit->GetPositionX(), unit->GetPositionY(), unit->GetPositionZ());
                 validTarget = true;
             }
-            else if (gameObject && gameObject->IsSpawned())
+            else if (gameObject && gameObject->isSpawned())
             {
                 gameObjectTarget = gameObject;
                 targets.setDestination(gameObject->GetPositionX(), gameObject->GetPositionY(), gameObject->GetPositionZ());
@@ -594,7 +617,7 @@ bool UseAction::UseItemInternal(Player* requester, uint32 itemId, Unit* unit, Ga
         
         if ((spellTargets & TARGET_FLAG_OBJECT || spellTargets & TARGET_FLAG_UNK1) && !validTarget)
         {
-            if (gameObject && gameObject->IsSpawned())
+            if (gameObject && gameObject->isSpawned())
             {
                 gameObjectTarget = gameObject;
                 targets.setGOTarget(gameObject);
@@ -645,14 +668,14 @@ bool UseAction::UseItemInternal(Player* requester, uint32 itemId, Unit* unit, Ga
         if (validTarget)
         {
             // Validate spellInfo is a proper sSpellTemplate entry before constructing (mirrors MANGOS_ASSERT in Spell::Spell)
-            if (!spellInfo || spellInfo != sSpellTemplate.LookupEntry<SpellEntry>(spellInfo->Id))
+            if (!spellInfo || spellInfo != sServerFacade.LookupSpellInfo(spellInfo->Id))
             {
                 continue;
             }
 
             // Use triggered flag only for items with many spell casts and for not first cast
             BotUseItemSpell* spell = new BotUseItemSpell(bot, spellInfo, successCasts > 0);
-            spell->m_clientCast = true;
+            spell->SetClientStarted(true);
             
 #ifdef MANGOSBOT_ONE
             // used in item_template.spell_2 with spell_id with SPELL_GENERIC_LEARN in spell_1
@@ -670,11 +693,10 @@ bool UseAction::UseItemInternal(Player* requester, uint32 itemId, Unit* unit, Ga
             if (itemUsed)
             {
                 spell->SetCastItem(itemUsed);
-                itemUsed->SetUsedInSpell(true);
             }
 
             // Stop the movement for casted items
-            const bool isCastedSpell = spell->GetCastedTime() > 0 || IsChanneledSpell(spellInfo);
+            const bool isCastedSpell = spellInfo->GetCastTime(bot, spell) > 0 || spellInfo->IsChanneledSpell();
             if (isCastedSpell)
             {
                 ai->StopMoving();
@@ -695,8 +717,8 @@ bool UseAction::UseItemInternal(Player* requester, uint32 itemId, Unit* unit, Ga
                 {
                     if (!HasItemCooldown(itemId))
                     {
-                        bot->RemoveSpellCooldown(*spellInfo, false);
-                        bot->AddCooldown(*spellInfo, proto, false);
+                        bot->RemoveSpellCooldown(spellInfo->Id, false);
+                        bot->AddSpellAndCategoryCooldowns(spellInfo, proto->ItemId);
                     }
                 }
 
@@ -790,7 +812,7 @@ bool UseAction::UseGameObject(Player* requester, Event& event, GameObject* gameO
     }
 
     ObjectGuid guid = gameObject->GetObjectGuid();
-    if (!sServerFacade.isSpawned(gameObject) || gameObject->IsInUse() || gameObject->GetGoState() != GO_STATE_READY)
+    if (!sServerFacade.isSpawned(gameObject) || gameObject->HasFlag(GAMEOBJECT_FLAGS, GO_FLAG_IN_USE) || gameObject->GetGoState() != GO_STATE_READY)
     {
         std::ostringstream out; out << "I can't use " << chat->formatGameobject(gameObject);
         ai->TellPlayerNoFacing(requester, out.str(), PlayerbotSecurityLevel::PLAYERBOT_SECURITY_ALLOW_ALL, false);
@@ -875,7 +897,7 @@ bool UseAction::UseGameObject(Player* requester, Event& event, GameObject* gameO
             for (PlayerSpellMap::iterator itr = bot->GetSpellMap().begin(); itr != bot->GetSpellMap().end(); ++itr)
             {
                 uint32 possibleSpellId = itr->first;
-                if (itr->second.state == PLAYERSPELL_REMOVED || itr->second.disabled || IsPassiveSpell(possibleSpellId))
+                if (itr->second.state == PLAYERSPELL_REMOVED || itr->second.disabled || Spells::IsPassiveSpell(possibleSpellId))
                     continue;
 
                 if (CanOpenLock(sServerFacade.LookupSpellInfo(possibleSpellId), gameObject))
@@ -924,7 +946,7 @@ bool UseAction::UseGameObject(Player* requester, Event& event, GameObject* gameO
 
     std::unique_ptr<WorldPacket> packet(new WorldPacket(CMSG_GAMEOBJ_USE));
     *packet << guid;
-    bot->GetSession()->QueuePacket(std::move(packet));
+    QueuePlayerbotPacket(bot, std::move(packet));
     
     std::ostringstream out; out << "Using " << chat->formatGameobject(gameObject);
     ai->TellPlayerNoFacing(requester, out.str(), PlayerbotSecurityLevel::PLAYERBOT_SECURITY_ALLOW_ALL, false);
@@ -995,14 +1017,14 @@ bool UseAction::OpenItem(Player* requester, Item* item)
     if (spellId)
         return false;
 
-    if (!(item->GetProto()->Flags & ITEM_FLAG_HAS_LOOT))
+    if (!(item->GetProto()->Flags & ITEM_FLAG_LOOTABLE))
         return false;
 
         // Open quest item in inventory, containing related items (e.g Gnarlpine necklace, containing Tallonkai's Jewel)
         std::unique_ptr<WorldPacket> packet(new WorldPacket(CMSG_OPEN_ITEM, 2));
         *packet << item->GetBagSlot();
         *packet << item->GetSlot();
-        bot->GetSession()->QueuePacket(std::move(packet)); // queue the packet to get around race condition
+        QueuePlayerbotPacket(bot, std::move(packet)); // queue the packet to get around race condition
         return true;
 }
 
@@ -1184,7 +1206,7 @@ bool UseItemIdAction::isPossible()
 
     for (int i = 0; i < MAX_ITEM_PROTO_SPELLS; ++i)
     {
-        _Spell const& spellData = proto->Spells[i];
+        _ItemSpell const& spellData = proto->Spells[i];
 
         // no spell
         if (!spellData.SpellId)
@@ -1198,7 +1220,7 @@ bool UseItemIdAction::isPossible()
 #endif
             continue;
 
-        SpellEntry const* spellInfo = sSpellTemplate.LookupEntry<SpellEntry>(spellData.SpellId);
+        SpellEntry const* spellInfo = sServerFacade.LookupSpellInfo(spellData.SpellId);
         if (!spellInfo)
         {
             continue;
@@ -1226,7 +1248,7 @@ bool UseItemIdAction::isUseful()
         {
             for (int i = 0; i < MAX_ITEM_PROTO_SPELLS; ++i)
             {
-                const _Spell& spellData = proto->Spells[i];
+                const _ItemSpell& spellData = proto->Spells[i];
                 if (spellData.SpellId)
                 {
                     if (skipSpells.find(spellData.SpellId) != skipSpells.end())

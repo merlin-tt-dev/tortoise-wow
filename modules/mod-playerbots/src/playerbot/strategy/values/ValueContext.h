@@ -252,6 +252,8 @@ namespace ai
             creators["mana save level"] = [](PlayerbotAI* ai) { return new ManaSaveLevelValue(ai); };
             creators["combat"] = [](PlayerbotAI* ai) { return new IsInCombatValue(ai); };
             creators["lfg proposal"] = [](PlayerbotAI* ai) { return new LfgProposalValue(ai); };
+            creators["lfg join time"] = [](PlayerbotAI* ai) { return new LfgJoinTimeValue(ai); };
+            creators["lfg area"] = [](PlayerbotAI* ai) { return new LfgAreaValue(ai); };
             creators["bag space"] = [](PlayerbotAI* ai) { return new BagSpaceValue(ai); };
             creators["durability"] = [](PlayerbotAI* ai) { return new DurabilityValue(ai); };
             creators["durability inventory"] = [](PlayerbotAI* ai) { return new DurabilityInventoryValue(ai); };

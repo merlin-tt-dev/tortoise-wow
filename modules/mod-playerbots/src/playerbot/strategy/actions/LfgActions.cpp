@@ -6,6 +6,82 @@
 
 using namespace ai;
 
+#ifdef MANGOSBOT_ZERO
+namespace
+{
+struct BotMeetingStoneInfo
+{
+    uint32 area = 0;
+    std::string name;
+};
+
+std::vector<BotMeetingStoneInfo> GetEligibleMeetingStones(Player* player)
+{
+    std::vector<BotMeetingStoneInfo> result;
+    if (!player)
+        return result;
+
+    uint32 const level = player->GetLevel();
+    for (auto const& [entry, info] : sObjectMgr.GetGameObjectInfoMap())
+    {
+        (void)entry;
+        if (info.type != GAMEOBJECT_TYPE_MEETINGSTONE || !info.meetingstone.areaID)
+            continue;
+        if (info.meetingstone.minLevel && info.meetingstone.minLevel > level)
+            continue;
+        if (info.meetingstone.maxLevel && info.meetingstone.maxLevel < level)
+            continue;
+
+        AreaEntry const* area = AreaEntry::GetById(info.meetingstone.areaID);
+        if (!area)
+            continue;
+
+        result.push_back({ info.meetingstone.areaID, area->Name ? area->Name : "unknown" });
+    }
+
+    return result;
+}
+
+RolesPriority GetBotLfgPriority(Player* player)
+{
+    if (!player)
+        return LFG_PRIORITY_NONE;
+
+    BotRoles const botRoles = AiFactory::GetPlayerRoles(player);
+    RolesPriority priority = LFG_PRIORITY_NONE;
+    for (ClassRoles role : { LFG_ROLE_TANK, LFG_ROLE_HEALER, LFG_ROLE_DPS })
+    {
+        if (!(botRoles & static_cast<BotRoles>(role)))
+            continue;
+
+        RolesPriority const rolePriority = LFGQueue::getPriority(static_cast<Classes>(player->GetClass()), role);
+        if (rolePriority > priority)
+            priority = rolePriority;
+    }
+
+    return priority;
+}
+
+void SetBotLfgState(PlayerbotAI* ai, uint32 areaId)
+{
+    if (!ai)
+        return;
+
+    ai->GetAiObjectContext()->GetValue<time_t>("lfg join time")->Set(time(nullptr));
+    ai->GetAiObjectContext()->GetValue<uint32>("lfg area")->Set(areaId);
+}
+
+void ClearBotLfgState(PlayerbotAI* ai)
+{
+    if (!ai)
+        return;
+
+    ai->GetAiObjectContext()->GetValue<time_t>("lfg join time")->Set(0);
+    ai->GetAiObjectContext()->GetValue<uint32>("lfg area")->Set(0);
+}
+}
+#endif
+
 bool LfgJoinAction::Execute(Event& event)
 {
     return JoinLFG();
@@ -90,85 +166,68 @@ bool LfgJoinAction::SetRoles()
 bool LfgJoinAction::JoinLFG()
 {
 #ifdef MANGOSBOT_ZERO
-    //ItemCountByQuality visitor;
-    //IterateItems(&visitor, ITERATE_ITEMS_IN_EQUIP);
-    //bool raid = (urand(0, 100) < 50 && visitor.count[ITEM_QUALITY_EPIC] >= 5 && (bot->GetLevel() == 60 || bot->GetLevel() == 70 || bot->GetLevel() == 80));
-
-    MeetingStoneSet stones = sWorld.GetLFGQueue().GetDungeonsForPlayer(bot);
-    if (!stones.size())
+    std::vector<BotMeetingStoneInfo> const stones = GetEligibleMeetingStones(bot);
+    if (stones.empty())
         return false;
 
-    std::vector<uint32> dungeons = sRandomPlayerbotMgr.LfgDungeons[bot->GetTeam()];
-    if (!dungeons.size())
+    std::vector<uint32> const dungeons = sRandomPlayerbotMgr.LfgDungeons[bot->GetTeam()];
+    if (dungeons.empty())
         return false;
 
-    std::vector<MeetingStoneInfo> selected;
-    for (std::vector<uint32>::iterator i = dungeons.begin(); i != dungeons.end(); ++i)
+    std::vector<BotMeetingStoneInfo> selected;
+    for (uint32 const lfgType : dungeons)
     {
-        uint32 zoneId = 0;
-        uint32 dungeonId = (*i & 0xFFFF);
-        zoneId = ((*i >> 16) & 0xFFFF);
+        uint32 const dungeonId = lfgType & 0xFFFF;
+        uint32 const zoneId = (lfgType >> 16) & 0xFFFF;
 
-        // join only if close to closest graveyard
+        // Preserve the historical locality rule: only mirror a real player's
+        // queue if the bot is in the corresponding graveyard map, unless the
+        // bot is already in a capital city.
         if (zoneId)
         {
-            WorldSafeLocsEntry const* ClosestGrave = nullptr;
-            ClosestGrave = sWorldSafeLocsStore.LookupEntry(zoneId);
-
-            bool inCity = WorldPosition(bot).HasAreaFlag(AREA_FLAG_CAPITAL);
-
-            if (ClosestGrave)
-            {
-                if (!(inCity || bot->GetMapId() == ClosestGrave->map_id))
-                    continue;
-            }
-            else
+            WorldSafeLocsEntry const* closestGrave = sWorldSafeLocsStore.LookupEntry(zoneId);
+            bool const inCity = WorldPosition(bot).HasAreaFlag(AREA_FLAG_CAPITAL);
+            if (!closestGrave || !(inCity || bot->GetMapId() == closestGrave->map_id))
                 continue;
         }
 
-        for (MeetingStoneSet::iterator i = stones.begin(); i != stones.end(); ++i)
-        {
-            if (i->area == dungeonId)
-                selected.push_back(*i);
-        }
+        for (BotMeetingStoneInfo const& stone : stones)
+            if (stone.area == dungeonId)
+                selected.push_back(stone);
     }
 
-    if (!selected.size())
+    if (selected.empty())
         return false;
 
-    uint32 dungeon = urand(0, selected.size() - 1);
-    MeetingStoneInfo stoneInfo = selected[dungeon];
-    BotRoles botRoles = AiFactory::GetPlayerRoles(bot);
-    std::string _botRoles;
+    BotMeetingStoneInfo const& stoneInfo = selected[urand(0, selected.size() - 1)];
+    BotRoles const botRoles = AiFactory::GetPlayerRoles(bot);
+    std::string botRoleName;
     switch (botRoles)
     {
-    case BOT_ROLE_TANK:
-        _botRoles = "Tank";
-        break;
-    case BOT_ROLE_HEALER:
-        _botRoles = "Healer";
-        break;
-    case BOT_ROLE_DPS:
-    default:
-        _botRoles = "Dps";
-        break;
+        case BOT_ROLE_TANK:
+            botRoleName = "Tank";
+            break;
+        case BOT_ROLE_HEALER:
+            botRoleName = "Healer";
+            break;
+        case BOT_ROLE_DPS:
+        default:
+            botRoleName = "Dps";
+            break;
     }
 
-    if (botRoles & BOT_ROLE_TANK && botRoles & BOT_ROLE_DPS)
-        _botRoles = "Tank/Dps";
-    /*for (MeetingStoneSet::const_iterator itr = stones.begin(); itr != stones.end(); ++itr)
-    {
-        auto data = *itr;
+    if ((botRoles & BOT_ROLE_TANK) && (botRoles & BOT_ROLE_DPS))
+        botRoleName = "Tank/Dps";
 
-        idx.push_back(data.area);
-    }
-
-    if (idx.empty())
-        return false;*/
-
-    sLog.outDetail("Bot #%d %s:%d <%s>: uses LFG, Dungeon - %s (%s)", bot->GetGUIDLow(), bot->GetTeam() == ALLIANCE ? "A" : "H", bot->GetLevel(), bot->GetName(), stoneInfo.name, _botRoles.c_str());
+    sLog.outDetail("Bot #%d %s:%d <%s>: uses LFG, Dungeon - %s (%s)",
+        bot->GetGUIDLow(), bot->GetTeam() == ALLIANCE ? "A" : "H", bot->GetLevel(), bot->GetName(),
+        stoneInfo.name.c_str(), botRoleName.c_str());
 
     sLFGMgr.AddToQueue(bot, stoneInfo.area);
+    if (!sLFGMgr.IsPlayerInQueue(bot->GetObjectGuid()))
+        return false;
+
+    SetBotLfgState(ai, stoneInfo.area);
 #endif
 #ifdef MANGOSBOT_ONE
     uint32 zoneLFG = 0;
@@ -1024,14 +1083,18 @@ bool LfgLeaveAction::Execute(Event& event)
     //if (ai->HasStrategy("lfg", BotState::BOT_STATE_NON_COMBAT))
     //    return false;
 #ifdef MANGOSBOT_ZERO
-    LFGPlayerQueueInfo qInfo;
-    sWorld.GetLFGQueue().GetPlayerQueueInfo(&qInfo, bot->GetObjectGuid());
-    AreaEntry const* area = AreaEntry::GetById(qInfo.areaId);
-    if (area)
-    {
-        sLog.outDetail("Bot #%d %s:%d <%s>: leaves LFG queue to %s after %u minutes", bot->GetGUIDLow(), bot->GetTeam() == ALLIANCE ? "A" : "H", bot->GetLevel(), bot->GetName(), area->Name ? area->Name : "unknown", (qInfo.timeInLFG / 60000));
-        sWorld.GetLFGQueue().RemovePlayerFromQueue(bot->GetObjectGuid(), PLAYER_CLIENT_LEAVE);
-    }
+    uint32 const areaId = AI_VALUE(uint32, "lfg area");
+    time_t const joinedAt = AI_VALUE(time_t, "lfg join time");
+    AreaEntry const* area = AreaEntry::GetById(areaId);
+    uint32 const queuedMinutes = joinedAt && time(nullptr) > joinedAt ? uint32((time(nullptr) - joinedAt) / MINUTE) : 0;
+
+    sLog.outDetail("Bot #%d %s:%d <%s>: leaves LFG queue to %s after %u minutes",
+        bot->GetGUIDLow(), bot->GetTeam() == ALLIANCE ? "A" : "H", bot->GetLevel(), bot->GetName(),
+        area && area->Name ? area->Name : "unknown", queuedMinutes);
+
+    if (sLFGMgr.IsPlayerInQueue(bot->GetObjectGuid()))
+        sLFGMgr.RemovePlayerFromQueue(bot->GetObjectGuid(), PLAYER_CLIENT_LEAVE);
+    ClearBotLfgState(ai);
 #endif
 #ifdef MANGOSBOT_ONE
     /* todo: Fix with new system
@@ -1073,26 +1136,27 @@ bool LfgLeaveAction::Execute(Event& event)
 bool LfgLeaveAction::isUseful()
 {
 #ifdef MANGOSBOT_ZERO
-    if (!sWorld.GetLFGQueue().IsPlayerInQueue(bot->GetObjectGuid()))
-        return false;
-    else
+    if (!sLFGMgr.IsPlayerInQueue(bot->GetObjectGuid()))
     {
-        LFGPlayerQueueInfo qInfo;
-        sWorld.GetLFGQueue().GetPlayerQueueInfo(&qInfo, bot->GetObjectGuid());
-        if (qInfo.timeInLFG < (5 * MINUTE * IN_MILLISECONDS))
-            return false;
-    }
-
-    if (bot->GetGroup() && !ai->IsGroupLeader())
-    {
-        if (sWorld.GetLFGQueue().IsPlayerInQueue(bot->GetGroup()->GetLeaderGuid()))
-            return false;
-    }
-
-    if ((ai->GetMaster() && !GetPlayerbotAI(ai->GetMaster())))
-    {
+        ClearBotLfgState(ai);
         return false;
     }
+
+    time_t joinedAt = AI_VALUE(time_t, "lfg join time");
+    if (!joinedAt)
+    {
+        // Queue state can survive a module-side state reset. Start a fresh
+        // minimum-wait window rather than immediately ejecting the bot.
+        joinedAt = time(nullptr);
+        ai->GetAiObjectContext()->GetValue<time_t>("lfg join time")->Set(joinedAt);
+        return false;
+    }
+
+    if (time(nullptr) - joinedAt < 5 * MINUTE)
+        return false;
+
+    if (ai->GetMaster() && !GetPlayerbotAI(ai->GetMaster()))
+        return false;
 #endif
     return true;
 }
@@ -1165,13 +1229,13 @@ bool LfgJoinAction::isUseful()
     if (sRandomPlayerbotMgr.LfgDungeons[bot->GetTeam()].empty())
         return false;
 
-    if (sWorld.GetLFGQueue().IsPlayerInQueue(bot->GetObjectGuid()))
+    if (sLFGMgr.IsPlayerInQueue(bot->GetObjectGuid()))
         return false;
 
-    LfgRoles botRoles = sLFGMgr.CalculateTalentRoles(bot);
-
-    LfgRolePriority prio = sLFGMgr.GetPriority((Classes)bot->GetClass(), (LfgRoles)botRoles);
-    if (prio < LFG_PRIORITY_NORMAL)
+    // Penqle's native Classic queue classifies by class. Keep the historical
+    // bot-side talent/spec filter using the module's own role calculation,
+    // while queue ownership and matchmaking remain entirely native.
+    if (GetBotLfgPriority(bot) < LFG_PRIORITY_NORMAL)
         return false;
 
     if (bot->GetGroup() && bot->GetGroup()->IsFull())

@@ -4250,7 +4250,7 @@ void PlayerbotFactory::InitAvailableSpells()
 {
     auto pmo = sPerformanceMonitor.start(PERF_MON_RNDBOT, "PlayerbotFactory_Spells1");
     bot->learnDefaultSpells();
-    bot->learnClassLevelSpells(true);
+    LearnPlayerbotClassLevelSpells(bot);
 
 #ifndef MANGOSBOT_TWO
     if (bot->GetClass() == CLASS_PALADIN)
@@ -5424,7 +5424,7 @@ void PlayerbotFactory::LoadEnchantContainer()
                         {
                             *packet << gem_guids[i];
                         }
-                        bot->GetSession()->QueuePacket(std::move(packet));
+                        QueuePlayerbotPacket(bot, std::move(packet));
                         }
                     }
             }

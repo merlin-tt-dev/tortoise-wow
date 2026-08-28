@@ -10,6 +10,18 @@ namespace ai
         LfgProposalValue(PlayerbotAI* ai) : ManualSetValue<uint32>(ai, 0, "lfg proposal") {}
     };
 
+    class LfgJoinTimeValue : public ManualSetValue<time_t>
+    {
+    public:
+        LfgJoinTimeValue(PlayerbotAI* ai) : ManualSetValue<time_t>(ai, 0, "lfg join time") {}
+    };
+
+    class LfgAreaValue : public ManualSetValue<uint32>
+    {
+    public:
+        LfgAreaValue(PlayerbotAI* ai) : ManualSetValue<uint32>(ai, 0, "lfg area") {}
+    };
+
     class BotRolesValue : public Uint8CalculatedValue, public Qualified
     {
     public:

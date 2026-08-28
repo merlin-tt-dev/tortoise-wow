@@ -34,9 +34,9 @@ bool TradeSkill::Contains(ItemPrototype const* proto)
 bool TradeSkill::ContainsInternal(ItemPrototype const* proto)
 {
 
-    for (uint32 j = 0; j < sSkillLineAbilityStore.GetNumRows(); ++j)
+    for (uint32 j = 0; j < sObjectMgr.GetMaxSkillLineAbilityId(); ++j)
     {
-        SkillLineAbilityEntry const* skillLine = sSkillLineAbilityStore.LookupEntry(j);
+        SkillLineAbilityEntry const* skillLine = sObjectMgr.GetSkillLineAbility(j);
         if (!skillLine || skillLine->skillId != skill)
             continue;
 
@@ -47,12 +47,12 @@ bool TradeSkill::ContainsInternal(ItemPrototype const* proto)
     for (auto const& creatureEntry : sObjectMgr.GetCreatureInfoMap())
     {
         CreatureInfo const* co = creatureEntry.second.get();
-        if (!co || co->TrainerType != TRAINER_TYPE_TRADESKILLS)
+        if (!co || co->trainer_type != TRAINER_TYPE_TRADESKILLS)
             continue;
 
-        uint32 trainerId = co->TrainerTemplateId;
+        uint32 trainerId = co->trainer_id;
         if (!trainerId)
-            trainerId = co->Entry;
+            trainerId = co->entry;
 
         TrainerSpellData const* trainer_spells = sObjectMgr.GetNpcTrainerTemplateSpells(trainerId);
         if (!trainer_spells)

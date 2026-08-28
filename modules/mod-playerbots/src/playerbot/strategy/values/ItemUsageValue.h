@@ -1,6 +1,8 @@
 #pragma once
 #include "playerbot/strategy/Value.h"
 #include "playerbot/strategy/NamedObjectContext.h"
+#include "AuctionHouse/AuctionHouseMgr.h"
+#include "ObjectMgr.h"
 
 namespace ai
 {
@@ -11,7 +13,15 @@ namespace ai
         ItemQualifier(uint32 itemId, int32 randomPropertyId = 0, uint32 enchantId = 0, uint32 gem1 = 0, uint32 gem2 = 0, uint32 gem3 = 0, uint32 gem4 = 0) : itemId(itemId), randomPropertyId(randomPropertyId), enchantId(enchantId), gem1(gem1), gem2(gem2), gem3(gem3), gem4(gem4) { proto = nullptr; };
         ItemQualifier(Item* item) { itemId = item->GetProto()->ItemId; enchantId = item->GetEnchantmentId(PERM_ENCHANTMENT_SLOT); randomPropertyId = item->GetItemRandomPropertyId(); gem1 = GemId(item, 0); gem2 = GemId(item, 1); gem3 = GemId(item, 2); gem4 = GemId(item, 3); proto = item->GetProto(); };
         ItemQualifier(LootItem* item) { itemId = item->itemid; enchantId = 0; randomPropertyId = item->randomPropertyId; gem1 = 0; gem2 = 0; gem3 = 0; gem4 = 0; proto = nullptr; };
-        ItemQualifier(AuctionEntry* auction) { itemId = auction->itemTemplate; enchantId = 0; randomPropertyId = auction->itemRandomPropertyId; gem1 = 0; gem2 = 0; gem3 = 0; gem4 = 0; proto = nullptr; };
+        ItemQualifier(AuctionEntry* auction)
+        {
+            itemId = auction ? auction->itemTemplate : 0;
+            enchantId = 0;
+            Item* auctionItem = auction ? sAuctionMgr.GetAItem(auction->itemGuidLow) : nullptr;
+            randomPropertyId = auctionItem ? auctionItem->GetItemRandomPropertyId() : 0;
+            gem1 = gem2 = gem3 = gem4 = 0;
+            proto = auctionItem ? auctionItem->GetProto() : nullptr;
+        };
         ItemQualifier(std::string qualifier, bool linkQualifier = true);
 
         uint32 GetId() { return itemId; }
@@ -33,7 +43,7 @@ namespace ai
 #endif
         std::string GetQualifier() { return std::to_string(itemId) + ((enchantId || gem1 || gem2 || gem3 || gem4 || randomPropertyId) ? ":" + std::to_string(enchantId) + ":" + std::to_string(gem1) + ":" + std::to_string(gem2) + ":" + std::to_string(gem3) + ":" + std::to_string(gem4) + ":" + std::to_string(randomPropertyId) : ""); }
 
-        ItemPrototype const* GetProto() { if (!proto) proto = sItemStorage.LookupEntry<ItemPrototype>(itemId); return proto; };
+        ItemPrototype const* GetProto() { if (!proto) proto = sObjectMgr.GetItemPrototype(itemId); return proto; };
         static uint32 GemId(Item* item, uint8 gemSlot = 0);
     private:
         uint32 itemId;

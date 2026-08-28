@@ -17,7 +17,7 @@ namespace ai
             if (!caster || !info)
                 return nullptr;
 
-            if (info != sSpellTemplate.LookupEntry<SpellEntry>(info->Id))
+            if (info != sServerFacade.LookupSpellInfo(info->Id))
                 return nullptr;
 
             return new BotUseItemSpell(caster, info, triggered, originalCasterGUID, triggeredBy, itemCheats);
@@ -125,7 +125,7 @@ namespace ai
                 {
                     for (int i = 0; i < MAX_ITEM_PROTO_SPELLS; ++i)
                     {
-                        _Spell const& spellData = proto->Spells[i];
+                        _ItemSpell const& spellData = proto->Spells[i];
                         if (spellData.SpellId)
                         {
                             // wrong triggering type
@@ -138,11 +138,11 @@ namespace ai
                                 continue;
                             }
 
-                            const SpellEntry* spellInfo = sSpellTemplate.LookupEntry<SpellEntry>(spellData.SpellId);
+                            const SpellEntry* spellInfo = sServerFacade.LookupSpellInfo(spellData.SpellId);
                             if (spellInfo)
                             {
-                                bot->RemoveSpellCooldown(*spellInfo, false);
-                                bot->AddCooldown(*spellInfo, proto, false);
+                                bot->RemoveSpellCooldown(spellInfo->Id, false);
+                                bot->AddSpellAndCategoryCooldowns(spellInfo, proto->ItemId);
                                 break;
                             }
                         }
@@ -248,7 +248,7 @@ namespace ai
                 {
                     for (int i = 0; i < MAX_ITEM_PROTO_SPELLS; ++i)
                     {
-                        _Spell const& spellData = proto->Spells[i];
+                        _ItemSpell const& spellData = proto->Spells[i];
                         if (spellData.SpellId)
                         {
                             // wrong triggering type
@@ -261,11 +261,11 @@ namespace ai
                                 continue;
                             }
 
-                            const SpellEntry* spellInfo = sSpellTemplate.LookupEntry<SpellEntry>(spellData.SpellId);
+                            const SpellEntry* spellInfo = sServerFacade.LookupSpellInfo(spellData.SpellId);
                             if (spellInfo)
                             {
-                                bot->RemoveSpellCooldown(*spellInfo, false);
-                                bot->AddCooldown(*spellInfo, proto, false);
+                                bot->RemoveSpellCooldown(spellInfo->Id, false);
+                                bot->AddSpellAndCategoryCooldowns(spellInfo, proto->ItemId);
                                 break;
                             }
                         }
@@ -655,7 +655,7 @@ namespace ai
             if (sServerFacade.IsInCombat(bot))
                 return false;
 
-            if (!bot->HasMana())
+            if (!bot->GetMaxPower(POWER_MANA) > 0)
                 return false;
 
             if (ai->HasCheat(BotCheatMask::item))
@@ -663,8 +663,8 @@ namespace ai
                 if (bot->IsNonMeleeSpellCasted(true))
                     return false;
 
-                bot->clearUnitState(UNIT_STAT_CHASE);
-                bot->clearUnitState(UNIT_STAT_FOLLOW);
+                bot->ClearUnitState(UNIT_STAT_CHASE);
+                bot->ClearUnitState(UNIT_STAT_FOLLOW);
 
                 if (ai->GetBot()->GetMotionMaster()->GetCurrentMovementGeneratorType() == FOLLOW_MOTION_TYPE)
                 {
@@ -678,7 +678,7 @@ namespace ai
                     return false;
                 }
 
-                bot->addUnitState(UNIT_STAND_STATE_SIT);
+                bot->SetStandState(UNIT_STAND_STATE_SIT);
                 ai->InterruptSpell();
 
                 float drinkDuration = AI_VALUE(float, "drink duration");
@@ -691,7 +691,7 @@ namespace ai
 
                 ai->CastSpell(24355, bot);
                 SetDuration(drinkDuration);
-                bot->RemoveSpellCooldown(*pSpellInfo);
+                bot->RemoveSpellCooldown(pSpellInfo->Id);
 
                 // Eat and drink at the same time
 
@@ -701,7 +701,7 @@ namespace ai
                     if (pSpellInfo2)
                     {
                         ai->AddAura(bot, 24005);
-                        bot->RemoveSpellCooldown(*pSpellInfo2);
+                        bot->RemoveSpellCooldown(pSpellInfo2->Id);
                     }
                 }
 
@@ -740,8 +740,8 @@ namespace ai
                 if (bot->IsNonMeleeSpellCasted(true))
                     return false;
 
-                bot->clearUnitState(UNIT_STAT_CHASE);
-                bot->clearUnitState(UNIT_STAT_FOLLOW);
+                bot->ClearUnitState(UNIT_STAT_CHASE);
+                bot->ClearUnitState(UNIT_STAT_FOLLOW);
 
                 if (ai->GetBot()->GetMotionMaster()->GetCurrentMovementGeneratorType() == FOLLOW_MOTION_TYPE)
                 {
@@ -755,7 +755,7 @@ namespace ai
                     return false;
                 }
 
-                bot->addUnitState(UNIT_STAND_STATE_SIT);
+                bot->SetStandState(UNIT_STAND_STATE_SIT);
                 ai->InterruptSpell();
 
                 float eatDuration = AI_VALUE(float, "eat duration");
@@ -768,7 +768,7 @@ namespace ai
 
                 ai->CastSpell(24005, bot);
                 SetDuration(eatDuration);
-                bot->RemoveSpellCooldown(*pSpellInfo);
+                bot->RemoveSpellCooldown(pSpellInfo->Id);
 
                 // Eat and drink at the same time
                 if (AI_VALUE(bool, "should drink"))
@@ -777,7 +777,7 @@ namespace ai
                     if (pSpellInfo2)
                     {
                         ai->AddAura(bot, 24355);
-                        bot->RemoveSpellCooldown(*pSpellInfo2);
+                        bot->RemoveSpellCooldown(pSpellInfo2->Id);
                     }
                 }
 
