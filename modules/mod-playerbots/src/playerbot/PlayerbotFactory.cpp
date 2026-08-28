@@ -55,6 +55,31 @@ std::list<uint32> PlayerbotFactory::specialQuestIds;
 TaxiNodeLevelContainer PlayerbotFactory::overworldTaxiNodeLevelsA;
 TaxiNodeLevelContainer PlayerbotFactory::overworldTaxiNodeLevelsH;
 
+namespace
+{
+void UpdatePlayerbotSkillsForLevel(Player* bot)
+{
+    const uint16 maxSkill = std::min<uint16>(bot->GetSkillMaxForLevel(), sWorld.GetConfigMaxSkillValue());
+
+    for (uint32 skillId = 1; skillId < sSkillLineStore.GetNumRows(); ++skillId)
+    {
+        SkillLineEntry const* skill = sSkillLineStore.LookupEntry(skillId);
+        if (!skill || !bot->HasSkill(skillId))
+            continue;
+
+        SkillRaceClassInfoEntry const* raceClassInfo = GetSkillRaceClassInfo(skillId, bot->GetRace(), bot->GetClass());
+        if (!raceClassInfo || GetSkillRangeType(skill, raceClassInfo) != SKILL_RANGE_LEVEL)
+            continue;
+
+        // The historical factory called UpdateSkillsForLevel(true) after changing
+        // the level directly. Penqle keeps its core helper private; SetSkill() is
+        // the public path that also marks the skill dirty for persistence.
+        if (bot->GetSkillMaxPure(skillId) > 1)
+            bot->SetSkill(skillId, maxSkill, maxSkill);
+    }
+}
+}
+
 void PlayerbotFactory::Init()
 {
     if (sPlayerbotAIConfig.randomBotPreQuests) {
@@ -83,9 +108,9 @@ void PlayerbotFactory::Init()
     overworldTaxiNodeLevelsH.clear();
     overworldTaxiNodeLevelsA.clear();
 
-    for (uint32 i = 1; i < sTaxiNodesStore.GetNumRows(); ++i)
+    for (uint32 i = 1; i < sObjectMgr.GetMaxTaxiNodeId(); ++i)
     {
-        TaxiNodesEntry const* taxiNode = sTaxiNodesStore.LookupEntry(i);
+        TaxiNodesEntry const* taxiNode = sObjectMgr.GetTaxiNodeEntry(i);
 
         if (!taxiNode)
             continue;
@@ -188,7 +213,7 @@ void PlayerbotFactory::Randomize(bool incremental, bool syncWithMaster)
     {
         ClearInventory();
         ResetQuests();
-        bot->resetTalents(true);
+        bot->ResetTalents(true);
         CancelAuras();
     }
     if (isRealRandomBot)
@@ -202,7 +227,7 @@ void PlayerbotFactory::Randomize(bool incremental, bool syncWithMaster)
         }
 
         InitQuests(specialQuestIds);
-        bot->learnQuestRewardedSpells();
+        bot->LearnQuestRewardedSpells();
 
         // clear inventory and set level after getting xp and quest rewards
         ClearInventory();
@@ -571,7 +596,7 @@ void PlayerbotFactory::InitPet()
 #endif
                 continue;
 
-            if ((int)co->MinLevel > (int)bot->GetLevel())
+            if ((int)co->level_min > (int)bot->GetLevel())
                 continue;
 
 			ids.push_back(id);
@@ -586,7 +611,7 @@ void PlayerbotFactory::InitPet()
 		for (int i = 0; i < 100; i++)
 		{
 			int index = urand(0, ids.size() - 1);
-            CreatureInfo const* co = sCreatureStorage.LookupEntry<CreatureInfo>(ids[index]);
+            CreatureInfo const* co = sObjectMgr.GetCreatureTemplate(ids[index]);
             if (!co)
                 continue;
 
@@ -607,7 +632,7 @@ void PlayerbotFactory::InitPet()
 
             pet->SetOwnerGuid(bot->GetObjectGuid());
             pet->SetGuidValue(UNIT_FIELD_CREATEDBY, bot->GetObjectGuid());
-            pet->setFaction(bot->GetFaction());
+            pet->SetFactionTemplateId(bot->GetFactionTemplateId());
             pet->SetLevel(bot->GetLevel());
             pet->InitStatsForLevel(bot->GetLevel());
 #ifndef MANGOSBOT_TWO
@@ -617,11 +642,10 @@ void PlayerbotFactory::InitPet()
             pet->GetCharmInfo()->SetPetNumber(pet->GetObjectGuid().GetEntry(), true);
             pet->GetMap()->Add((Creature*)pet);
             pet->AIM_Initialize();
-            pet->AI()->SetReactState(REACT_DEFENSIVE);
+            pet->SetReactState(REACT_DEFENSIVE);
             pet->InitPetCreateSpells();
             pet->LearnPetPassives();
             pet->CastPetAuras(true);
-            pet->CastOwnerTalentAuras();
             pet->UpdateAllStats();
             bot->SetPet(pet);
             bot->SetPetGuid(pet->GetObjectGuid());
@@ -629,8 +653,8 @@ void PlayerbotFactory::InitPet()
             pet->SetUInt32Value(UNIT_CREATED_BY_SPELL, 13481);
 #endif
 
-            sLog.outDebug(  "Bot %s: assign pet %d (%d level)", bot->GetName(), co->Entry, bot->GetLevel());
-            pet->SavePetToDB(PET_SAVE_AS_CURRENT, bot);
+            sLog.outDebug(  "Bot %s: assign pet %d (%d level)", bot->GetName(), co->entry, bot->GetLevel());
+            pet->SavePetToDB(PET_SAVE_AS_CURRENT);
             bot->PetSpellInitialize();
             break;
         }
@@ -647,7 +671,7 @@ void PlayerbotFactory::InitPet()
         pet->SetPower(POWER_HAPPINESS, HAPPINESS_LEVEL_SIZE * 2);
         pet->SetHealth(pet->GetMaxHealth());
         pet->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PLAYER_CONTROLLED);
-        pet->AI()->SetReactState(REACT_DEFENSIVE);
+        pet->SetReactState(REACT_DEFENSIVE);
     }
     else
     {
@@ -655,13 +679,13 @@ void PlayerbotFactory::InitPet()
         return;
     }
 
-    for (PetSpellMap::const_iterator itr = pet->m_spells.begin(); itr != pet->m_spells.end(); ++itr)
+    for (PetSpellMap::const_iterator itr = pet->m_petSpells.begin(); itr != pet->m_petSpells.end(); ++itr)
     {
         if(itr->second.state == PETSPELL_REMOVED)
             continue;
 
         uint32 spellId = itr->first;
-        if(IsPassiveSpell(spellId))
+        if(Spells::IsPassiveSpell(spellId))
             continue;
 
         pet->ToggleAutocast(spellId, true);
@@ -1162,7 +1186,7 @@ void PlayerbotFactory::InitPetSpells()
             if (!ci)
                 return PET_UNKNOWN;
 
-            switch (ci->Family)
+            switch (ci->beast_family)
             {
                 case 1: return PET_WOLF;
                 case 2: return PET_CAT;
@@ -1202,10 +1226,10 @@ void PlayerbotFactory::InitPetSpells()
                 {
                     if (!pet->HasSpell(spellID))
                     {
-                        pet->learnSpell(spellID);
+                        pet->LearnSpell(spellID);
                     }
 
-                    if (!IsPassiveSpell(spellID))
+                    if (!Spells::IsPassiveSpell(spellID))
                     {
                         // Toggle Cower off by default
                         const bool autocast = (cowerSpellIds.find(spellID) == cowerSpellIds.end());
@@ -1241,7 +1265,7 @@ void PlayerbotFactory::InitPetSpells()
         }
         if (growlSpellId && !pet->HasSpell(growlSpellId))
         {
-            pet->learnSpell(growlSpellId);
+            pet->LearnSpell(growlSpellId);
         }
 
         // Natural Armor
@@ -1264,7 +1288,7 @@ void PlayerbotFactory::InitPetSpells()
         }
         if (naturalArmorSpellId && !pet->HasSpell(naturalArmorSpellId))
         {
-            pet->learnSpell(naturalArmorSpellId);
+            pet->LearnSpell(naturalArmorSpellId);
         }
 
         // Great Stamina
@@ -1293,7 +1317,7 @@ void PlayerbotFactory::InitPetSpells()
         }
         if (greatStaminaSpellId && !pet->HasSpell(greatStaminaSpellId))
         {
-            pet->learnSpell(greatStaminaSpellId);
+            pet->LearnSpell(greatStaminaSpellId);
         }
 
         // Resistances
@@ -1313,7 +1337,7 @@ void PlayerbotFactory::InitPetSpells()
             for (const auto& res : resistances)
             {
                 if (!pet->HasSpell(res.spellId))
-                    pet->learnSpell(res.spellId);
+                    pet->LearnSpell(res.spellId);
             }
         }
     }
@@ -1928,7 +1952,7 @@ void PlayerbotFactory::InitPetSpells()
             if (!ci)
                 return PET_UNKNOWN;
 
-            switch (ci->Family)
+            switch (ci->beast_family)
             {
                 case 1: return PET_WOLF;
                 case 2: return PET_CAT;
@@ -1974,10 +1998,10 @@ void PlayerbotFactory::InitPetSpells()
                 {
                     if (!pet->HasSpell(spellID))
                     {
-                        pet->learnSpell(spellID);
+                        pet->LearnSpell(spellID);
                     }
 
-                    if (!IsPassiveSpell(spellID))
+                    if (!Spells::IsPassiveSpell(spellID))
                     {
                         // Toggle Cower off by default
                         const bool autocast = (cowerSpellIds.find(spellID) == cowerSpellIds.end());
@@ -2014,7 +2038,7 @@ void PlayerbotFactory::InitPetSpells()
         }
         if (growlSpellId && !pet->HasSpell(growlSpellId))
         {
-            pet->learnSpell(growlSpellId);
+            pet->LearnSpell(growlSpellId);
         }
 
         // Cower (all pets learn in tbc)
@@ -2040,7 +2064,7 @@ void PlayerbotFactory::InitPetSpells()
         }
         if (cowerSpellId && !pet->HasSpell(cowerSpellId))
         {
-            pet->learnSpell(cowerSpellId);
+            pet->LearnSpell(cowerSpellId);
         }
 
         // Avoidance (tbc)
@@ -2060,7 +2084,7 @@ void PlayerbotFactory::InitPetSpells()
         }
         if (avoidanceSpellId && !pet->HasSpell(avoidanceSpellId))
         {
-            pet->learnSpell(avoidanceSpellId);
+            pet->LearnSpell(avoidanceSpellId);
         }
 
         // Natural Armor
@@ -2090,7 +2114,7 @@ void PlayerbotFactory::InitPetSpells()
         }
         if (naturalArmorSpellId && !pet->HasSpell(naturalArmorSpellId))
         {
-            pet->learnSpell(naturalArmorSpellId);
+            pet->LearnSpell(naturalArmorSpellId);
         }
 
         // Great Stamina
@@ -2120,7 +2144,7 @@ void PlayerbotFactory::InitPetSpells()
         }
         if (greatStaminaSpellId && !pet->HasSpell(greatStaminaSpellId))
         {
-            pet->learnSpell(greatStaminaSpellId);
+            pet->LearnSpell(greatStaminaSpellId);
         }
 
         // Resistances
@@ -2140,7 +2164,7 @@ void PlayerbotFactory::InitPetSpells()
             for (const auto& res : resistances)
             {
                 if (!pet->HasSpell(res.spellId))
-                    pet->learnSpell(res.spellId);
+                    pet->LearnSpell(res.spellId);
             }
         }
     }
@@ -2331,7 +2355,7 @@ void PlayerbotFactory::InitPetSpells()
 
                 if (pet->GetLevel() >= levelRequired)
                 {
-                    pet->learnSpell(spellID);
+                    pet->LearnSpell(spellID);
                 }
             }
         }
@@ -2356,8 +2380,8 @@ void PlayerbotFactory::ClearSpells()
     for(PlayerSpellMap::iterator itr = bot->GetSpellMap().begin(); itr != bot->GetSpellMap().end(); ++itr)
     {
         uint32 spellId = itr->first;
-		if (itr->second.state == PLAYERSPELL_REMOVED || itr->second.disabled || IsPassiveSpell(spellId))
-			continue;
+        if (itr->second.state == PLAYERSPELL_REMOVED || itr->second.disabled || Spells::IsPassiveSpell(spellId))
+            continue;
 
         spells.push_back(spellId);
     }
@@ -2368,7 +2392,7 @@ void PlayerbotFactory::ClearSpells()
     }
 #endif
 #ifdef CMANGOS
-    bot->resetSpells();
+    bot->ResetSpells();
 #endif
 }
 
@@ -2380,17 +2404,9 @@ void PlayerbotFactory::ResetQuests()
         Quest const* quest = i->second.get();
         uint32 entry = quest->GetQuestId();
 
-        // remove all quest entries for 'entry' from quest log
-        for (uint8 slot = 0; slot < MAX_QUEST_LOG_SIZE; ++slot)
-        {
-            uint32 quest = bot->GetQuestSlotQuestId(slot);
-            if (quest == entry)
-            {
-                bot->SetQuestSlot(slot, 0);
-            }
-        }
-
-        // reset rewarded for restart repeatable quest
+        // Penqle's public removal path clears the quest-log slot, timed-quest
+        // bookkeeping and status without reaching into Player's private quest fields.
+        bot->RemoveQuest(entry);
         bot->getQuestStatusMap().erase(entry);
         //bot->getQuestStatusMap()[entry].m_rewarded = false;
         //bot->getQuestStatusMap()[entry].m_status = QUEST_STATUS_NONE;
@@ -2466,10 +2482,10 @@ void PlayerbotFactory::InitReputations()
 #ifdef MANGOSBOT_ONE
         FactionEntry const* factionEntry = sFactionStore.LookupEntry<FactionEntry>(faction);
 #else
-        FactionEntry const* factionEntry = sFactionStore.LookupEntry(faction);
+        FactionEntry const* factionEntry = sObjectMgr.GetFactionEntry(faction);
 #endif
 
-        if (!factionEntry || !factionEntry->HasReputation())
+        if (!factionEntry || !factionEntry->CanHaveReputation())
             continue;
 
         bot->GetReputationMgr().SetReputation(factionEntry, 42000);
@@ -3529,7 +3545,7 @@ void PlayerbotFactory::InitEquipment(bool incremental, bool syncWithMaster, bool
                                 // overwrite random generated property
                                 pItem->SetItemRandomProperties(randomEnchBestId);
                                 // update for inspect
-                                bot->SetVisibleItemSlot(pItem->GetSlot(), pItem);
+                                bot->TransmogSetVisibleItemSlot(pItem->GetSlot(), pItem);
                             }
                             pItem->SetOwnerGuid(bot->GetObjectGuid());
                             EnchantItem(pItem);
@@ -3958,12 +3974,12 @@ void PlayerbotFactory::InitTradeSkills()
 #ifdef MANGOSBOT_TWO
     case CLASS_DEATH_KNIGHT:
 #endif
-        bot->learnSpell(9788, false);  // armorsmith
-        bot->learnSpell(9788, false);  // armorsmith
-        bot->learnSpell(9787, false);  // weaponsmith
-        bot->learnSpell(17040, false); // hammersmith
-        bot->learnSpell(17039, false); // swordsmith
-        bot->learnSpell(17041, false); // axesmith
+        bot->LearnSpell(9788, false);  // armorsmith
+        bot->LearnSpell(9788, false);  // armorsmith
+        bot->LearnSpell(9787, false);  // weaponsmith
+        bot->LearnSpell(17040, false); // hammersmith
+        bot->LearnSpell(17039, false); // swordsmith
+        bot->LearnSpell(17041, false); // axesmith
         break;
     }
 #endif
@@ -3974,12 +3990,12 @@ void PlayerbotFactory::InitTradeSkills()
         uint32 id = creatureEntry.first;
         CreatureInfo const* co = creatureEntry.second.get();
 
-        if (co->TrainerType != TRAINER_TYPE_TRADESKILLS)
+        if (co->trainer_type != TRAINER_TYPE_TRADESKILLS)
             continue;
 
-        uint32 trainerId = co->TrainerTemplateId;
+        uint32 trainerId = co->trainer_id;
         if (!trainerId)
-            trainerId = co->Entry;
+            trainerId = co->entry;
 
         TrainerSpellData const* trainer_spells = sObjectMgr.GetNpcTrainerTemplateSpells(trainerId);
         if (!trainer_spells)
@@ -3995,9 +4011,7 @@ void PlayerbotFactory::InitTradeSkills()
             if (!tSpell)
                 continue;
 
-            uint32 reqLevel = 0;
-            reqLevel = tSpell->isProvidedReqLevel ? tSpell->reqLevel : std::max(reqLevel, tSpell->reqLevel);
-            TrainerSpellState state = bot->GetTrainerSpellState(tSpell, reqLevel);
+            TrainerSpellState state = bot->GetTrainerSpellState(tSpell);
             if (state != TRAINER_SPELL_GREEN)
                 continue;
 
@@ -4025,45 +4039,21 @@ void PlayerbotFactory::InitTradeSkills()
                 }
             }
 
-#ifdef MANGOSBOT_ZERO
-            if (tSpell->learnedSpell)
+            bool learned = false;
+            for (int j = 0; j < MAX_SPELL_EFFECTS; ++j)
             {
-                bool learned = false;
-                for (int j = 0; j < 3; ++j)
-                {
-                    if (proto->Effect[j] == SPELL_EFFECT_LEARN_SPELL)
-                    {
-                        uint32 learnedSpell = proto->EffectTriggerSpell[j];
-                        bot->learnSpell(learnedSpell, false);
-                        learned = true;
-                    }
-                }
-                if (!learned) bot->learnSpell(tSpell->learnedSpell, false);
+                if (proto->Effect[j] != SPELL_EFFECT_LEARN_SPELL || !proto->EffectTriggerSpell[j])
+                    continue;
+
+                bot->LearnSpell(proto->EffectTriggerSpell[j], false);
+                learned = true;
             }
-            else
+
+            // Penqle trainer rows store the cast spell only; there is no separate
+            // learnedSpell field. Preserve the historical behavior for wrappers
+            // without SPELL_EFFECT_LEARN_SPELL by executing the trainer spell.
+            if (!learned)
                 ai->CastSpell(tSpell->spell, bot);
-#else
-            if (!tSpell->learnedSpell.empty())
-            {
-                for (auto learnSpell : tSpell->learnedSpell)
-                {
-                    bool learned = false;
-                    for (int j = 0; j < 3; ++j)
-                    {
-                        if (proto->Effect[j] == SPELL_EFFECT_LEARN_SPELL)
-                        {
-                            uint32 learnedSpell = proto->EffectTriggerSpell[j];
-                            bot->learnSpell(learnedSpell, false);
-                            learned = true;
-                        }
-                    }
-                    if (!learned)
-                        bot->learnSpell(learnSpell, false);
-                }
-            }
-            else
-                ai->CastSpell(tSpell->spell, bot);
-#endif
         }
     }
 }
@@ -4080,7 +4070,7 @@ void PlayerbotFactory::UpdateTradeSkills()
 
 void PlayerbotFactory::InitSkills()
 {
-    bot->UpdateSkillsForLevel(true);
+    UpdatePlayerbotSkillsForLevel(bot);
 
 // Riding skills requirements are different
 #ifdef MANGOSBOT_ZERO
@@ -4249,7 +4239,7 @@ void PlayerbotFactory::SetRandomSkill(uint16 id)
 void PlayerbotFactory::InitAvailableSpells()
 {
     auto pmo = sPerformanceMonitor.start(PERF_MON_RNDBOT, "PlayerbotFactory_Spells1");
-    bot->learnDefaultSpells();
+    bot->LearnDefaultSpells();
     LearnPlayerbotClassLevelSpells(bot);
 
 #ifndef MANGOSBOT_TWO
@@ -4258,7 +4248,7 @@ void PlayerbotFactory::InitAvailableSpells()
         // judgement missing
         if(!bot->HasSpell(20271))
         {
-            bot->learnSpell(20271, false);
+            bot->LearnSpell(20271, false);
         }
     }
 #endif
@@ -4266,13 +4256,13 @@ void PlayerbotFactory::InitAvailableSpells()
     // add polymorph pig/turtle
     if (bot->GetClass() == CLASS_MAGE && bot->GetLevel() >= 60)
     {
-        bot->learnSpell(28271, false);
-        bot->learnSpell(28272, false);
+        bot->LearnSpell(28271, false);
+        bot->LearnSpell(28272, false);
     }
 
     // add inferno
     if (bot->GetClass() == CLASS_WARLOCK && !bot->HasSpell(1122) && bot->GetLevel() >= 50)
-        bot->learnSpell(1122, false);
+        bot->LearnSpell(1122, false);
 
 #ifdef MANGOSBOT_ZERO
     // add book spells
@@ -4339,7 +4329,7 @@ void PlayerbotFactory::InitAvailableSpells()
         for (auto spellId : bookSpells)
         {
             if (!bot->HasSpell(spellId))
-                bot->learnSpell(spellId, false);
+                bot->LearnSpell(spellId, false);
         }
     }
 #endif
@@ -4352,10 +4342,10 @@ void PlayerbotFactory::InitSpecialSpells()
     {
         uint32 spellId = *i;
 
-        SpellEntry const* spellInfo = sSpellTemplate.LookupEntry<SpellEntry>(spellId);
+        SpellEntry const* spellInfo = sSpellMgr.GetSpellEntry(spellId);
 
         if(spellInfo)
-            bot->learnSpell(spellId, false);
+            bot->LearnSpell(spellId, false);
     }
 }
 
@@ -4401,8 +4391,7 @@ void PlayerbotFactory::InitTalents(uint32 specNo)
                 if (!spellId)
                     continue;
 
-                bot->learnSpell(spellId, false);
-                bot->UpdateFreeTalentPoints(false);
+                bot->LearnTalent(talentInfo->TalentID, rank);
             }
             spells.erase(spells.begin() + index);
         }
@@ -4604,7 +4593,7 @@ void PlayerbotFactory::InitMounts()
 
     std::map<uint8, std::map<uint32, std::vector<uint32> > > mounts;
     std::vector<uint32> slow, fast, fslow, ffast;
-    switch (bot->getRace())
+    switch (bot->GetRace())
     {
     case RACE_HUMAN:
         slow = { 470, 6648, 458, 472 };
@@ -4661,10 +4650,10 @@ void PlayerbotFactory::InitMounts()
         break;
 #endif
     }
-    mounts[bot->getRace()][0] = slow;
-    mounts[bot->getRace()][1] = fast;
-    mounts[bot->getRace()][2] = fslow;
-    mounts[bot->getRace()][3] = ffast;
+    mounts[bot->GetRace()][0] = slow;
+    mounts[bot->GetRace()][1] = fast;
+    mounts[bot->GetRace()][2] = fslow;
+    mounts[bot->GetRace()][3] = ffast;
 
     for (uint32 type = 0; type < 4; type++)
     {
@@ -4677,11 +4666,11 @@ void PlayerbotFactory::InitMounts()
         if (bot->GetLevel() < fourthmount && type == 3)
             continue;
 
-        uint32 index = urand(0, mounts[bot->getRace()][type].size() - 1);
-        uint32 spell = mounts[bot->getRace()][type][index];
+        uint32 index = urand(0, mounts[bot->GetRace()][type].size() - 1);
+        uint32 spell = mounts[bot->GetRace()][type][index];
         if (spell)
         {
-            bot->learnSpell(spell, false);
+            bot->LearnSpell(spell, false);
             sLog.outDetail("Bot %d (%d) learned %s mount %d", bot->GetGUIDLow(), bot->GetLevel(), type == 0 ? "slow" : (type == 1 ? "fast" : "flying"), spell);
         }
     }
@@ -4695,7 +4684,7 @@ void PlayerbotFactory::InitPotions()
     {
         uint32 effect = effects[i];
 
-        if (effect == SPELL_EFFECT_ENERGIZE && !bot->HasMana()) //Do not give manapots to non-mana users.
+        if (effect == SPELL_EFFECT_ENERGIZE && bot->GetMaxPower(POWER_MANA) == 0) //Do not give manapots to non-mana users.
             continue;
 
         FindPotionVisitor visitor(bot, effect);
@@ -4725,7 +4714,7 @@ void PlayerbotFactory::InitFood()
     {
         uint32 category = categories[i];
 
-        if (category == 59 && !bot->HasMana()) //Do not give drinks to non-mana users.
+        if (category == 59 && bot->GetMaxPower(POWER_MANA) == 0) //Do not give drinks to non-mana users.
             continue;
 
         FindFoodVisitor visitor(bot, category);
@@ -4842,7 +4831,7 @@ void PlayerbotFactory::InitReagents()
     {
         uint32 spellId = itr->first;
 
-        if (itr->second.state == PLAYERSPELL_REMOVED || itr->second.disabled || IsPassiveSpell(spellId))
+        if (itr->second.state == PLAYERSPELL_REMOVED || itr->second.disabled || Spells::IsPassiveSpell(spellId))
             continue;
 
         const SpellEntry* pSpellInfo = sServerFacade.LookupSpellInfo(spellId);
@@ -5091,7 +5080,7 @@ void PlayerbotFactory::InitGuild()
         return;
     }
 
-    uint32 num = atoi(guild->GetGINFO().c_str());
+    uint32 num = atoi(guild->GetInfo().c_str());
     if ((num && guild->GetMemberSize() < num) || (!num && guild->GetMemberSize() < urand(10, 15)))
     {
         uint32 rankId = urand(GR_OFFICER, GR_INITIATE);
@@ -5614,6 +5603,6 @@ void PlayerbotFactory::InitTaxiNodes()
         if (taxiNodeLevel.MapId != startMap && taxiNodeLevel.Level + 20 > bot->GetLevel() && urand(0, 4)) //Limit nodes on other map.
             continue;
 
-        bot->m_taxi.SetTaximaskNode(taxiNodeLevel.Index);
+        bot->GetTaxi().SetTaximaskNode(taxiNodeLevel.Index);
     }
 }
