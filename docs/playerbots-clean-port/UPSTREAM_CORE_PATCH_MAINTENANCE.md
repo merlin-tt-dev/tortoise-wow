@@ -145,6 +145,47 @@ Regression checks:
 - interrupt/finalize clears roaming states;
 - existing Point/Waypoint/Patrol generators are unchanged.
 
+## core-0005: read-only homebind location
+
+Patch:
+
+- `patches/core-0005-player-homebind-location-accessor.patch`
+
+Files to watch:
+
+- `src/game/Objects/Player.h`
+
+Purpose:
+
+- expose the already-loaded character homebind coordinates as a read-only
+  `WorldLocation` so the historical travel/maintenance values can reason about the
+  exact bind point without querying `character_homebind` from every bot.
+
+Why this remains a core patch:
+
+Penqle exposes only `GetHomeBindMap()` and `GetHomeBindAreaId()`. The X/Y/Z values
+remain private. Approximating the bind position from area data would change runtime
+semantics, while synchronous module-side SQL polling would duplicate state that
+`Player` already owns and scale poorly with a large bot population. The accessor is
+read-only and does not alter ownership or login state.
+
+Upstream retirement condition:
+
+- Penqle exposes the full homebind `WorldLocation` (or equivalent X/Y/Z getters)
+  through a public API.
+
+Rebase-sensitive areas:
+
+- homebind storage/member names in `Player`;
+- `SetHomebindToLocation()` and character-homebind loading;
+- any upstream replacement of the individual map/X/Y/Z fields with a location object.
+
+Regression checks:
+
+- value equals the coordinates loaded from `character_homebind`;
+- binding at a different inn is reflected immediately in the getter;
+- `TeleportToHomebind()` and all existing bind behavior remain unchanged.
+
 ## Update workflow
 
 Before modifying the working branch, record the Penqle base commit. After applying
