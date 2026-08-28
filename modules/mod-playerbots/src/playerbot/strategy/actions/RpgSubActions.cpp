@@ -249,7 +249,7 @@ bool RpgHealAction::Execute(Event& event)
 
     rpg->BeforeExecute();
     
-    switch (bot->getClass())
+    switch (bot->GetClass())
     {
     case CLASS_PRIEST:
         retVal = ai->DoSpecificAction("lesser heal on party", Event(), true);

@@ -25,7 +25,7 @@ LfgRoles LfgJoinAction::GetRoles()
     }
 
     int spec = AiFactory::GetPlayerSpecTab(bot);
-    switch (bot->getClass())
+    switch (bot->GetClass())
     {
     case CLASS_DRUID:
         if (spec == 2)
@@ -1170,7 +1170,7 @@ bool LfgJoinAction::isUseful()
 
     LfgRoles botRoles = sLFGMgr.CalculateTalentRoles(bot);
 
-    LfgRolePriority prio = sLFGMgr.GetPriority((Classes)bot->getClass(), (LfgRoles)botRoles);
+    LfgRolePriority prio = sLFGMgr.GetPriority((Classes)bot->GetClass(), (LfgRoles)botRoles);
     if (prio < LFG_PRIORITY_NORMAL)
         return false;
 

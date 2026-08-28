@@ -371,7 +371,16 @@ int AhBot::Answer(int auction, Category* category, ItemBag* inAuctionItems)
                     bidder, item->GetProto()->Name1, item->GetCount(), auctionIds[auction], entry->buyout);
 
             entry->bid = entry->buyout;
-            entry->AuctionBidWinning(NULL);
+
+            // Penqle keeps auction item count/random-property state on the Item,
+            // and completes buyouts in AuctionHouseMgr rather than AuctionEntry.
+            AddToHistory(entry);
+            sAuctionMgr.SendAuctionSuccessfulMail(entry);
+            sAuctionMgr.SendAuctionWonMail(entry);
+            sAuctionMgr.RemoveAItem(entry->itemGuidLow);
+            auctionHouse->RemoveAuction(entry);
+            entry->DeleteFromDB();
+            delete entry;
         }
         else
         {
@@ -584,9 +593,10 @@ int AhBot::AddAuction(int auction, Category* category, ItemPrototype const* prot
     auctionEntry->Id = sObjectMgr.GenerateAuctionID();
     auctionEntry->itemGuidLow = item->GetObjectGuid().GetCounter();
     auctionEntry->itemTemplate = item->GetEntry();
-    auctionEntry->itemCount = item->GetCount();
-    auctionEntry->itemRandomPropertyId = item->GetItemRandomPropertyId();
     auctionEntry->owner = owner;
+    auctionEntry->ownerAccount = sObjectMgr.GetPlayerAccountIdByGUID(owner);
+    auctionEntry->lockedIpAddress.clear();
+    auctionEntry->depositTime = 0;
     auctionEntry->startbid = bidPrice;
     auctionEntry->bidder = 0;
     auctionEntry->bid = 0;
@@ -768,7 +778,8 @@ void AhBot::AddToHistory(AuctionEntry* entry, uint32 won)
     }
 
     sLog.outDetail( "AddToHistory: market price adjust");
-    int count = entry->itemCount ? entry->itemCount : 1;
+    Item* auctionItem = sAuctionMgr.GetAItem(entry->itemGuidLow);
+    uint32 count = auctionItem && auctionItem->GetCount() ? auctionItem->GetCount() : 1;
     updateMarketPrice(proto->ItemId, entry->buyout / count, entry->auctionHouseEntry->houseId);
 
     uint32 now = time(0);
@@ -1180,8 +1191,9 @@ void AhBot::CleanupPropositions()
         Field* fields = result->Fetch();
         uint32 id = fields[0].GetUInt32();
         uint32 receiver = fields[1].GetUInt32();
-        Player *player = sObjectMgr.GetPlayer(ObjectGuid(HIGHGUID_PLAYER, receiver));
-        if (player) player->RemoveMail(id);
+        Player* player = sObjectMgr.GetPlayer(ObjectGuid(HIGHGUID_PLAYER, receiver));
+        if (player && player->GetSession() && player->GetSession()->GetMasterPlayer())
+            player->GetSession()->GetMasterPlayer()->RemoveMail(id);
         count++;
     } while (result->NextRow());
 

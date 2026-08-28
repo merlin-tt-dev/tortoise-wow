@@ -280,7 +280,7 @@ bool BGJoinAction::gatherArenaTeam(ArenaType type)
         if (!member)
             continue;
 
-        if (member->GetLevel() < DEFAULT_MAX_LEVEL)
+        if (member->GetLevel() < PLAYER_MAX_LEVEL)
             continue;
 
         if (!member->GetPlayerbotAI())
@@ -559,7 +559,7 @@ bool BGJoinAction::isUseful()
         return false;
 
 #ifdef MANGOSBOT_TWO
-    if (bot->getClass() == CLASS_DEATH_KNIGHT && bot->GetLevel() < 60)
+    if (bot->GetClass() == CLASS_DEATH_KNIGHT && bot->GetLevel() < 60)
         return false;
 #endif
 

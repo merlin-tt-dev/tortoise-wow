@@ -17,7 +17,7 @@ std::list<CreatureDataPair const*> BgMastersValue::Calculate()
 
     std::vector<uint32> entries;
     std::map<Team, std::map<BattleGroundTypeId, std::list<uint32>>> battleMastersCache = sRandomPlayerbotMgr.getBattleMastersCache();
-    entries.insert(entries.end(), battleMastersCache[TEAM_BOTH_ALLOWED][bgTypeId].begin(), battleMastersCache[TEAM_BOTH_ALLOWED][bgTypeId].end());
+    entries.insert(entries.end(), battleMastersCache[TEAM_NONE][bgTypeId].begin(), battleMastersCache[TEAM_NONE][bgTypeId].end());
     entries.insert(entries.end(), battleMastersCache[ALLIANCE][bgTypeId].begin(), battleMastersCache[ALLIANCE][bgTypeId].end());
     entries.insert(entries.end(), battleMastersCache[HORDE][bgTypeId].begin(), battleMastersCache[HORDE][bgTypeId].end());
 
@@ -151,7 +151,7 @@ BattleGroundTypeId RpgBgTypeValue::Calculate()
 
             std::map<Team, std::map<BattleGroundTypeId, std::list<uint32>>> battleMastersCache = sRandomPlayerbotMgr.getBattleMastersCache();
 
-            for (auto& entry : battleMastersCache[TEAM_BOTH_ALLOWED][bgTypeId])
+            for (auto& entry : battleMastersCache[TEAM_NONE][bgTypeId])
                 if (entry == guidPosition.GetEntry())
                     return bgTypeId;
 

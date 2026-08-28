@@ -1,5 +1,6 @@
 #include "PlayerbotLoginMgr.h"
 #include "Database/DatabaseImpl.h"
+#include "Handlers/LoginQueryHolder.h"
 #include "PlayerbotMgr.h"
 #include "PlayerbotAIConfig.h"
 #include "RandomPlayerbotMgr.h"
@@ -8,20 +9,6 @@ using namespace ai;
 
 // Penqle's Singleton<> requires an explicit instantiation in a .cpp file.
 INSTANTIATE_SINGLETON_1(ai::PlayerBotLoginMgr);
-
-class LoginQueryHolder : public SqlQueryHolder
-{
-private:
-    uint32 m_accountId;
-    ObjectGuid m_guid;
-public:
-    LoginQueryHolder(uint32 accountId, ObjectGuid guid)
-        : m_accountId(accountId), m_guid(guid) {
-    }
-    ObjectGuid GetGuid() const { return m_guid; }
-    uint32 GetAccountId() const { return m_accountId; }
-    bool Initialize();
-};
 
 class PlayerbotLoginQueryHolder : public LoginQueryHolder
 {
@@ -41,7 +28,7 @@ public:
 
 PlayerLoginInfo::PlayerLoginInfo(const uint32 account, const uint32 guid, const uint8 race, const uint8 cls, const uint32 level, const bool isNew, const WorldPosition& position, const uint32 guildId) : account(account), guid(guid), race(race), cls(cls), level(level), isNew(isNew), position(position), guildId(guildId) {}
 
-PlayerLoginInfo::PlayerLoginInfo(Player* player) : PlayerLoginInfo(player->GetSession()->GetAccountId(), player->GetDbGuid(), player->getRace(), player->getClass(), player->GetLevel(), player->GetTotalPlayedTime() == 0, player, player->GetGuildId()) {};
+PlayerLoginInfo::PlayerLoginInfo(Player* player) : PlayerLoginInfo(player->GetSession()->GetAccountId(), player->GetDbGuid(), player->getRace(), player->GetClass(), player->GetLevel(), player->GetTotalPlayedTime() == 0, player, player->GetGuildId()) {};
 
 uint32 PlayerLoginInfo::GetLevel() const
 {
@@ -571,7 +558,7 @@ void PlayerBotLoginMgr::FillLoginSpace(BotPool* pool, LoginSpace& space, FillSte
     space.currentSpace = GetMaxOnlineBotCount();
     space.totalSpace = GetMaxOnlineBotCount();
 
-    for (uint32 level = 1; level < DEFAULT_MAX_LEVEL + 1; ++level)
+    for (uint32 level = 1; level < PLAYER_MAX_LEVEL + 1; ++level)
     {
         space.levelBucket[level] = GetLevelBucketSize(level);
     }

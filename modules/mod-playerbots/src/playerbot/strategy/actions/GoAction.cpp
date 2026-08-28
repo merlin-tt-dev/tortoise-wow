@@ -187,7 +187,7 @@ inline void TellPosition(PlayerbotAI* ai, Player* requester)
     }
     else if (bot->GetTransport())
     {
-        GenericTransport* transport = bot->GetTransport();
+        Transport* transport = bot->GetTransport();
 
         GameObjectInfo const* data = sGOStorage.LookupEntry<GameObjectInfo>(transport->GetEntry());
 

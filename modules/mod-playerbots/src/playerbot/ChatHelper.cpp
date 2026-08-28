@@ -970,12 +970,12 @@ std::string ChatHelper::formatRole(BotRoles role)
 
 std::string ChatHelper::specName(const Player* player)
 {
-    return specs[player->getClass()][AiFactory::GetPlayerSpecTab(player)];
+    return specs[player->GetClass()][AiFactory::GetPlayerSpecTab(player)];
 }
 
 std::string ChatHelper::formatClass(const Player* player, int spec)
 {
-    uint8 cls = player->getClass();
+    uint8 cls = player->GetClass();
 
     std::ostringstream out;
     out << specs[cls][spec] << " (";
@@ -1032,7 +1032,7 @@ Team ChatHelper::parseTeam(const std::string& text)
             return (Team)team;
     }
 
-    return TEAM_BOTH_ALLOWED;
+    return TEAM_NONE;
 }
 
 std::string ChatHelper::formatTeam(Team team)

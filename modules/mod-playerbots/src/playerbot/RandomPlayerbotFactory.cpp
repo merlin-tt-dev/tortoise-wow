@@ -115,7 +115,7 @@ uint8 RandomPlayerbotFactory::GetRandomClass(uint8 useRace, BotRoles role)
 
 bool RandomPlayerbotFactory::isRaceForTeam(uint8 race, Team team)
 {
-    return team == Team::TEAM_BOTH_ALLOWED || Player::TeamForRace(race) == team;
+    return team == Team::TEAM_NONE || Player::TeamForRace(race) == team;
 }
 
 uint8 RandomPlayerbotFactory::GetRandomRace(uint8 cls, Team team)
@@ -1012,7 +1012,7 @@ void RandomPlayerbotFactory::CreateRandomArenaTeams()
         Player* player = sObjectMgr.GetPlayer(captain);
         if (player)
         {
-            if (player->GetLevel() < DEFAULT_MAX_LEVEL)
+            if (player->GetLevel() < PLAYER_MAX_LEVEL)
                 continue;
 
             uint8 slot = ArenaTeam::GetSlotByType(ArenaType(ARENA_TYPE_2v2));
@@ -1070,9 +1070,9 @@ void RandomPlayerbotFactory::CreateRandomArenaTeams()
             continue;
         }
 
-        if (player->GetLevel() < DEFAULT_MAX_LEVEL)
+        if (player->GetLevel() < PLAYER_MAX_LEVEL)
         {
-            sLog.outError("Bot %d must be level %d to create an arena team", player->GetGUIDLow(), DEFAULT_MAX_LEVEL);
+            sLog.outError("Bot %d must be level %d to create an arena team", player->GetGUIDLow(), PLAYER_MAX_LEVEL);
             continue;
         }
 

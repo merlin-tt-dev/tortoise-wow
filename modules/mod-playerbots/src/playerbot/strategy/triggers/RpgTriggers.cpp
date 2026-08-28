@@ -262,13 +262,13 @@ bool RpgTrainTrigger::IsTrainerOf(CreatureInfo const* cInfo, Player* pPlayer)
     switch (cInfo->TrainerType)
     {
     case TRAINER_TYPE_CLASS:
-        if (pPlayer->getClass() != cInfo->TrainerClass)
+        if (pPlayer->GetClass() != cInfo->TrainerClass)
         {
             return false;
         }
         break;
     case TRAINER_TYPE_PETS:
-        if (pPlayer->getClass() != CLASS_HUNTER)
+        if (pPlayer->GetClass() != CLASS_HUNTER)
         {
             return false;
         }
@@ -480,7 +480,7 @@ bool RpgHomeBindTrigger::IsActive()
         return false;
 
     //Do not update for realplayers/always online when at max level.
-    if ((ai->IsRealPlayer() || sPlayerbotAIConfig.IsFreeAltBot(bot)) && bot->GetLevel() == DEFAULT_MAX_LEVEL)
+    if ((ai->IsRealPlayer() || sPlayerbotAIConfig.IsFreeAltBot(bot)) && bot->GetLevel() == PLAYER_MAX_LEVEL)
         return false;
 
     WorldPosition currentBind = AI_VALUE(WorldPosition, "home bind");

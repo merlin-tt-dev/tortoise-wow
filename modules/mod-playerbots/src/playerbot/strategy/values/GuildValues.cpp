@@ -58,14 +58,14 @@ uint32 GuildOrderValue::FindItemByName(const std::string& name)
             proto->Class == ITEM_CLASS_ARMOR)
             continue;
 
-        if (name.size() == proto->Name1.size() && strstri(proto->Name1, name.c_str()))
+        if (name.size() == proto->Name1.size() && strstri(proto->Name1.c_str(), name.c_str()))
         {
             if (!exactMatch || itemId < exactMatch)
                 exactMatch = itemId;
             continue;
         }
 
-        if (strstri(proto->Name1, name.c_str()) && (!substringMatch || itemId < substringMatch))
+        if (strstri(proto->Name1.c_str(), name.c_str()) && (!substringMatch || itemId < substringMatch))
             substringMatch = itemId;
     }
 
@@ -472,7 +472,7 @@ bool GuildShareItemEntry::MatchesPlayer(Player* player) const
     switch (filter)
     {
     case GuildShareFilter::FILTER_CLASS:
-        return player->getClass() == playerClass;
+        return player->GetClass() == playerClass;
 
     case GuildShareFilter::FILTER_ALL:
         return true;

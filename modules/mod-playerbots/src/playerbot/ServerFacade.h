@@ -27,194 +27,53 @@ class ServerFacade
         }
 
 	public:
-        bool UnitIsDead(Unit *unit)
-        {
-#ifdef MANGOS
-            return unit->IsDead();
-#endif
-#ifdef CMANGOS
-            return unit->IsDead();
-#endif
-        }
+        bool UnitIsDead(Unit* unit) { return unit->IsDead(); }
 
         float GetDistance2d(Unit *unit, WorldObject* wo);
 
         float GetDistance2d(Unit *unit, float x, float y);
 
-        DeathState GetDeathState(Unit *unit)
-        {
-#ifdef MANGOS
-#ifndef MANGOSBOT_TWO
-            return unit->GetDeathState();
-#else
-            return unit->getDeathState();
-#endif
-#endif
-#ifdef CMANGOS
-            return unit->GetDeathState();
-#endif
-        }
+        DeathState GetDeathState(Unit* unit) { return unit->GetDeathState(); }
 
-        bool isSpawned(GameObject *go)
-        {
-#ifdef MANGOS
-            return go->isSpawned();
-#endif
-#ifdef CMANGOS
-            return go->IsSpawned();
-#endif
-        }
+        bool isSpawned(GameObject* go) { return go->isSpawned(); }
 
-        bool IsAlive(Unit *unit)
-        {
-#ifdef MANGOS
-            return unit->IsAlive();
-#endif
-#ifdef CMANGOS
-            return unit->IsAlive();
-#endif
-        }
+        bool IsAlive(Unit* unit) { return unit->IsAlive(); }
 
         bool isMoving(Unit *unit);
 
-        bool IsInCombat(Unit *unit)
+        bool IsInCombat(Unit* unit) { return unit->IsInCombat(); }
+
+        bool IsFrozen(Unit* unit) { return unit->IsFrozen(); }
+
+        bool IsInRoots(Unit* unit) { return unit->IsInRoots(); }
+
+        bool IsCharmed(Unit* unit) { return unit->IsCharmed(); }
+
+        bool IsFeared(Unit* unit) { return unit->IsFeared(); }
+
+        bool IsInFront(Unit* unit, WorldObject const* target, float distance, float arc /*= M_PI_F*/)
         {
-#ifdef MANGOS
-            return unit->IsInCombat();
-#endif
-#ifdef CMANGOS
-            return unit->IsInCombat();
-#endif
+            return unit->IsWithinDistInMap(target, distance) && unit->HasInArc(target, arc);
         }
 
-        bool IsFrozen(Unit *unit)
-        {
-#ifdef MANGOS
-            return unit->IsFrozen();
-#endif
-#ifdef CMANGOS
-            return unit->isFrozen();
-#endif
-        }
+        HostileRefManager& GetHostileRefManager(Unit* unit) { return unit->GetHostileRefManager(); }
 
-        bool IsInRoots(Unit *unit)
-        {
-#ifdef MANGOS
-            return unit->IsInRoots();
-#endif
-#ifdef CMANGOS
-            return unit->isInRoots();
-#endif
-        }
+        ThreatManager& GetThreatManager(Unit* unit) { return unit->GetThreatManager(); }
 
-        bool IsCharmed(Unit *unit)
-        {
-#ifdef MANGOS
-            return unit->GetCharmerGuid() && unit->GetCharmerGuid().IsPlayer();
-#endif
-#ifdef CMANGOS
-            return unit->HasCharmer();
-#endif
-        }
+        void SendPacket(Player* player, WorldPacket& packet) { player->GetSession()->SendPacket(&packet); }
 
-        bool IsFeared(Unit *unit)
-        {
-#ifdef MANGOS
-#ifndef MANGOSBOT_TWO
-            return unit->IsFeared();
-#else
-            return unit->isFeared();
-#endif
-#endif
-#ifdef CMANGOS
-            return unit->isFeared();
-#endif
-        }
+        void SendMessageToSet(Player* player, WorldPacket& packet, bool self) { player->SendMessageToSet(&packet, self); }
 
-        bool IsInFront(Unit *unit, WorldObject const* target, float distance,  float arc /*= M_PI_F*/)
-        {
-#ifdef MANGOS
-            return unit->IsInFront(target, distance, arc);
-#endif
-#ifdef CMANGOS
-            return unit->isInFront(target, distance, arc);
-#endif
-        }
-
-        HostileRefManager& GetHostileRefManager(Unit *unit)
-        {
-#ifdef MANGOS
-            return unit->GetHostileRefManager();
-#endif
-#ifdef CMANGOS
-            return unit->getHostileRefManager();
-#endif
-        }
-
-        ThreatManager& GetThreatManager(Unit *unit)
-        {
-#ifdef MANGOS
-            return unit->GetThreatManager();
-#endif
-#ifdef CMANGOS
-            return unit->getThreatManager();
-#endif
-        }
-
-        void SendPacket(Player *player, WorldPacket &packet)
-        {
-#ifdef MANGOS
-            return player->GetSession()->SendPacket(&packet);
-#endif
-#ifdef CMANGOS
-            return player->GetSession()->SendPacket(packet);
-#endif
-        }
-
-        void SendMessageToSet(Player *player, WorldPacket &packet, bool self)
-        {
-#ifdef MANGOS
-            return player->SendMessageToSet(&packet, self);
-#endif
-#ifdef CMANGOS
-            return player->SendMessageToSet(packet, self);
-#endif
-        }
-
-        SpellEntry const* LookupSpellInfo(uint32 spellId)
-        {
-#ifdef MANGOS
-            return sSpellStore.LookupEntry(spellId);
-#endif
-#ifdef CMANGOS
-            return sSpellTemplate.LookupEntry<SpellEntry>(spellId);
-#endif
-        }
+        SpellEntry const* LookupSpellInfo(uint32 spellId) { return sSpellMgr.GetSpellEntry(spellId); }
 
         SpellRangeEntry const* LookupSpellRangeEntry(uint32 rangeIndex)
         {
             return sSpellRangeStore.LookupEntry(rangeIndex);
         }
 
-        uint32 GetSpellInfoRows()
-        {
-#ifdef MANGOS
-            return sSpellStore.GetNumRows();
-#endif
-#ifdef CMANGOS
-            return sSpellTemplate.GetMaxEntry();
-#endif
-        }
+        uint32 GetSpellInfoRows() { return sSpellMgr.GetMaxSpellId(); }
 
-        bool IsWithinLOSInMap(Player* bot, WorldObject *wo)
-        {
-#ifdef MANGOS
-            return bot->IsWithinLOSInMap(wo);
-#endif
-#ifdef CMANGOS
-            return bot->IsWithinLOSInMap(wo, true);
-#endif
-        }
+        bool IsWithinLOSInMap(Player* bot, WorldObject* wo) { return bot->IsWithinLOSInMap(wo, true); }
 
         bool IsWithinStaticLOSInMap(Player* bot, WorldObject* wo) const
         {
@@ -244,12 +103,7 @@ class ServerFacade
 
         BattleGroundTypeId BgTemplateId(BattleGroundQueueTypeId queueTypeId)
         {
-#ifdef MANGOS
             return sBattleGroundMgr.BGTemplateId(queueTypeId);
-#endif
-#ifdef CMANGOS
-            return sBattleGroundMgr.BgTemplateId(queueTypeId);
-#endif
         }
 #ifndef MANGOSBOT_ZERO
         ArenaType BgArenaType(BattleGroundQueueTypeId queueTypeId)

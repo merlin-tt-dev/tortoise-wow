@@ -368,7 +368,7 @@ inline void print_line(Unit* bot, const std::vector<std::pair<int, int>> line, b
     out << ")\",";
     out << bot->GetOrientation() << ",";
     out << std::to_string(bot->getRace()) << ",";
-    out << std::to_string(bot->getClass()) << ",";
+    out << std::to_string(bot->GetClass()) << ",";
     out << (is_sqDist_greater_200 ? "1" : "0");
     sPlayerbotAIConfig.log("player_paths.csv", out.str().c_str());
 }
@@ -447,7 +447,7 @@ void RandomPlayerbotMgr::LogPlayerLocation()
                     WorldPosition(bot).printWKT(out);
                     out << bot->GetOrientation() << ",";
                     out << std::to_string(bot->getRace()) << ",";
-                    out << std::to_string(bot->getClass()) << ",";
+                    out << std::to_string(bot->GetClass()) << ",";
                     out << bot->GetMapId() << ",";
                     out << bot->GetLevel() << ",";
                     out << bot->GetHealth() << ",";
@@ -513,7 +513,7 @@ void RandomPlayerbotMgr::LogPlayerLocation()
 
                                     out << bot->GetOrientation() << ",";
                                     out << std::to_string(bot->getRace()) << ",";
-                                    out << std::to_string(bot->getClass()) << ",";
+                                    out << std::to_string(bot->GetClass()) << ",";
                                     out << (walkable ? "1" : "0") << ",";
                                     out << lastMove.moveEvent.getSource();
                                     sPlayerbotAIConfig.log("player_route.csv", out.str().c_str());
@@ -566,7 +566,7 @@ void RandomPlayerbotMgr::LogPlayerLocation()
                 WorldPosition(bot).printWKT(out);
                 out << bot->GetOrientation() << ",";
                 out << std::to_string(bot->getRace()) << ",";
-                out << std::to_string(bot->getClass()) << ",";
+                out << std::to_string(bot->GetClass()) << ",";
                 out << bot->GetMapId() << ",";
                 out << bot->GetLevel() << ",";
                 out << bot->GetHealth() << ",";
@@ -653,7 +653,7 @@ void RandomPlayerbotMgr::UpdateAIInternal(uint32 elapsed, bool minimal)
 {
 #ifdef MEMORY_MONITOR
     sMemoryMonitor.Print();
-    sMemoryMonitor.LogCount(sConfig.GetStringDefault("LogsDir") + "/" + "memory.csv");
+    sMemoryMonitor.LogCount(sConfig.GetStringDefault("LogsDir", "") + "/" + "memory.csv");
 #endif
 
     // tick random bots' sessions so
@@ -900,7 +900,7 @@ void RandomPlayerbotMgr::UpdateLoadOptimization()
         out << std::fixed << std::setprecision(4);
         out << totalLevel << ",";
 
-        for (uint8 i = 0; i < (DEFAULT_MAX_LEVEL / 10) + 1; i++)
+        for (uint8 i = 0; i < (PLAYER_MAX_LEVEL / 10) + 1; i++)
         {
             out << GetMetricDelta(botPerformanceMetrics["level:" + std::to_string(i)]) * 12 * 60 << ",";
         }
@@ -1444,7 +1444,7 @@ void RandomPlayerbotMgr::LoadBattleMastersCache()
 #endif
 #endif
         uint32 bmParentTeam = bmParentFaction->team;
-        Team bmTeam = TEAM_BOTH_ALLOWED;
+        Team bmTeam = TEAM_NONE;
         if (bmParentTeam == 891)
             bmTeam = ALLIANCE;
         if (bmFactionId == 189)
@@ -3078,7 +3078,7 @@ void RandomPlayerbotMgr::Randomize(Player* bot)
     if (bot->GetLevel() <= sPlayerbotAIConfig.randombotStartingLevel)
         initialRandom = true;
 #ifdef MANGOSBOT_TWO
-    else if (bot->GetLevel() < 60 && bot->getClass() == CLASS_DEATH_KNIGHT)
+    else if (bot->GetLevel() < 60 && bot->GetClass() == CLASS_DEATH_KNIGHT)
         initialRandom = true;
 #endif
 
@@ -3159,7 +3159,7 @@ void RandomPlayerbotMgr::RandomizeFirst(Player* bot)
     uint32 level = urand(std::max(uint32(sWorld.getConfig(CONFIG_UINT32_START_PLAYER_LEVEL)), sPlayerbotAIConfig.randomBotMinLevel), maxLevel);
 
 #ifdef MANGOSBOT_TWO
-    if (bot->getClass() == CLASS_DEATH_KNIGHT)
+    if (bot->GetClass() == CLASS_DEATH_KNIGHT)
         level = urand(std::max(bot->GetLevel(), sWorld.getConfig(CONFIG_UINT32_START_HEROIC_PLAYER_LEVEL)), std::max(sWorld.getConfig(CONFIG_UINT32_START_HEROIC_PLAYER_LEVEL), maxLevel));
 #endif
 
@@ -3173,11 +3173,11 @@ void RandomPlayerbotMgr::RandomizeFirst(Player* bot)
 
 #ifdef MANGOSBOT_TWO
     // do not allow level down death knights
-    if (bot->getClass() == CLASS_DEATH_KNIGHT && level < sWorld.getConfig(CONFIG_UINT32_START_HEROIC_PLAYER_LEVEL))
+    if (bot->GetClass() == CLASS_DEATH_KNIGHT && level < sWorld.getConfig(CONFIG_UINT32_START_HEROIC_PLAYER_LEVEL))
         return;
 
     // only randomise death knights to min lvl 60
-    if (bot->getClass() == CLASS_DEATH_KNIGHT && level < 60)
+    if (bot->GetClass() == CLASS_DEATH_KNIGHT && level < 60)
         level = 60;
 #endif
 
@@ -3621,7 +3621,7 @@ void RandomPlayerbotMgr::HandleCommand(uint32 type, const std::string& text, Pla
             return;
         }
 
-        if (team != TEAM_BOTH_ALLOWED && bot->GetTeam() != team)
+        if (team != TEAM_NONE && bot->GetTeam() != team)
         {
             return;
         }
@@ -3849,7 +3849,7 @@ void RandomPlayerbotMgr::PrintStats(uint32 requesterGuid)
             horde[bot->GetLevel() / 10]++;
 
         perRace[bot->getRace()]++;
-        perClass[bot->getClass()]++;
+        perClass[bot->GetClass()]++;
 
         if (bot->GetPlayerbotAI()->AllowActivity())
             active++;
@@ -3890,7 +3890,7 @@ void RandomPlayerbotMgr::PrintStats(uint32 requesterGuid)
         }
 
         int spec = AiFactory::GetPlayerSpecTab(bot);
-        switch (bot->getClass())
+        switch (bot->GetClass())
         {
         case CLASS_DRUID:
             if (spec == 2)
@@ -4224,7 +4224,7 @@ uint32 RandomPlayerbotMgr::GetBattleMasterEntry(Player* bot, BattleGroundTypeId 
         Bms.insert(Bms.end(), *i);
     }
 
-    for (auto i = begin(BattleMastersCache[TEAM_BOTH_ALLOWED][bgTypeId]); i != end(BattleMastersCache[TEAM_BOTH_ALLOWED][bgTypeId]); ++i)
+    for (auto i = begin(BattleMastersCache[TEAM_NONE][bgTypeId]); i != end(BattleMastersCache[TEAM_NONE][bgTypeId]); ++i)
     {
         Bms.insert(Bms.end(), *i);
     }

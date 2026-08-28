@@ -227,7 +227,7 @@ void RandomItemMgr::BuildRandomItemCache()
             if (proto->Duration & 0x80000000)
                 continue;
 
-            if (strstri(proto->Name1, "qa") || strstri(proto->Name1, "test") || strstri(proto->Name1, "deprecated"))
+            if (strstri(proto->Name1.c_str(), "qa") || strstri(proto->Name1.c_str(), "test") || strstri(proto->Name1.c_str(), "deprecated"))
                 continue;
 
             if (!proto->ItemLevel)
@@ -1174,7 +1174,7 @@ void RandomItemMgr::BuildItemInfoCache()
                 if (!cacheInfo->team)
                 {
                     if (isAlly && isHorde)
-                        cacheInfo->team = TEAM_BOTH_ALLOWED;
+                        cacheInfo->team = TEAM_NONE;
                     else if (isAlly)
                         cacheInfo->team = ALLIANCE;
                     else if (isHorde)
@@ -1253,7 +1253,7 @@ void RandomItemMgr::BuildItemInfoCache()
             if (!cacheInfo->team)
             {
                 if (isAlly && isHorde)
-                    cacheInfo->team = TEAM_BOTH_ALLOWED;
+                    cacheInfo->team = TEAM_NONE;
                 else if (isAlly)
                     cacheInfo->team = ALLIANCE;
                 else if (isHorde)
@@ -2462,21 +2462,21 @@ uint32 RandomItemMgr::CalculateSocketWeight(uint8 playerclass, ItemQualifier& qu
 uint32 RandomItemMgr::ItemStatWeight(Player* player, ItemQualifier& qualifier)
 {
     ItemSpecType itSpec;
-    uint32 weight = CalculateStatWeight(player->getClass(), GetPlayerSpecId(player), qualifier.GetProto(), itSpec);
+    uint32 weight = CalculateStatWeight(player->GetClass(), GetPlayerSpecId(player), qualifier.GetProto(), itSpec);
     if(qualifier.GetEnchantId())
-        weight += CalculateEnchantWeight(player->getClass(), GetPlayerSpecId(player), qualifier.GetEnchantId());
+        weight += CalculateEnchantWeight(player->GetClass(), GetPlayerSpecId(player), qualifier.GetEnchantId());
     if (qualifier.GetRandomPropertyId())
-        weight += CalculateRandomPropertyWeight(player->getClass(), GetPlayerSpecId(player), qualifier.GetRandomPropertyId());
+        weight += CalculateRandomPropertyWeight(player->GetClass(), GetPlayerSpecId(player), qualifier.GetRandomPropertyId());
     if(qualifier.GetGem1())
-        weight += CalculateGemWeight(player->getClass(), GetPlayerSpecId(player), qualifier.GetGem1());
+        weight += CalculateGemWeight(player->GetClass(), GetPlayerSpecId(player), qualifier.GetGem1());
     if (qualifier.GetGem2())
-        weight += CalculateGemWeight(player->getClass(), GetPlayerSpecId(player), qualifier.GetGem2());
+        weight += CalculateGemWeight(player->GetClass(), GetPlayerSpecId(player), qualifier.GetGem2());
     if (qualifier.GetGem3())
-        weight += CalculateGemWeight(player->getClass(), GetPlayerSpecId(player), qualifier.GetGem3());
+        weight += CalculateGemWeight(player->GetClass(), GetPlayerSpecId(player), qualifier.GetGem3());
     if (qualifier.GetGem4())
-        weight += CalculateGemWeight(player->getClass(), GetPlayerSpecId(player), qualifier.GetGem4());
+        weight += CalculateGemWeight(player->GetClass(), GetPlayerSpecId(player), qualifier.GetGem4());
 
-    weight += CalculateSocketWeight(player->getClass(), qualifier, GetPlayerSpecId(player));
+    weight += CalculateSocketWeight(player->GetClass(), qualifier, GetPlayerSpecId(player));
 
     return weight;
 }
@@ -2592,7 +2592,7 @@ std::string RandomItemMgr::GetPlayerSpecName(Player* player)
 {
     std::string specName;
     int tab = AiFactory::GetPlayerSpecTab(player);
-    switch (player->getClass())
+    switch (player->GetClass())
     {
     case CLASS_PRIEST:
         if (tab == 2)
@@ -2698,7 +2698,7 @@ uint32 RandomItemMgr::GetPlayerSpecId(Player* player)
 
     for (auto itr : m_weightScales)
     {
-        if (itr.second.info.name == specName && itr.second.info.classId == player->getClass())
+        if (itr.second.info.name == specName && itr.second.info.classId == player->GetClass())
             return itr.second.info.id;
     }
     return 0;
@@ -3273,7 +3273,7 @@ uint32 RandomItemMgr::GetLiveStatWeight(Player* player, uint32 itemId, uint32 sp
         if (!m_weightScales[spec].info.id)
             continue;
 
-        if (m_weightScales[spec].info.classId != player->getClass())
+        if (m_weightScales[spec].info.classId != player->GetClass())
             continue;
 
         if (info->weights[spec] > bestSpecScore && info->weights[spec] > 1)
@@ -3298,7 +3298,7 @@ uint32 RandomItemMgr::GetLiveStatWeight(Player* player, uint32 itemId, uint32 sp
 
 void RandomItemMgr::BuildEquipCache()
 {
-    uint32 maxLevel = DEFAULT_MAX_LEVEL;
+    uint32 maxLevel = PLAYER_MAX_LEVEL;
 
     equipCache.clear();
 
@@ -3847,7 +3847,7 @@ void RandomItemMgr::BuildRarityCache()
             if (proto->Quality == ITEM_QUALITY_POOR)
                 continue;
 
-            if (strstri(proto->Name1, "qa") || strstri(proto->Name1, "test") || strstri(proto->Name1, "deprecated"))
+            if (strstri(proto->Name1.c_str(), "qa") || strstri(proto->Name1.c_str(), "test") || strstri(proto->Name1.c_str(), "deprecated"))
                 continue;
 
             if (!proto->ItemLevel)

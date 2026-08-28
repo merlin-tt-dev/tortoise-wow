@@ -8,7 +8,7 @@
 #include "Objects/ItemPrototype.h"
 #ifdef CMANGOS
 #include "ObjectMgr.h"
-#include "Spells/SpellEffectDefines.h"
+#include "Spells/SpellDefines.h"
 #endif
 #ifdef MANGOS
 #include "ObjectMgr.h"

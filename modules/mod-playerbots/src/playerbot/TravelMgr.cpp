@@ -543,7 +543,7 @@ bool ExploreTravelDestination::IsPossible(const PlayerTravelInfo& info) const
 {
     AreaEntry const* area = GetArea();
 
-    if (GetLevel() && (uint32)GetLevel() > info.GetLevel() && info.GetLevel() < DEFAULT_MAX_LEVEL)
+    if (GetLevel() && (uint32)GetLevel() > info.GetLevel() && info.GetLevel() < PLAYER_MAX_LEVEL)
         return false;
 
     return true;

@@ -523,7 +523,7 @@ void PlayerbotAI::UpdateAI(uint32 elapsed, bool minimal)
         {
             bot->SetWaterBreathingIntervalMultiplier(0);
         }
-        if (HasCheat(BotCheatMask::item) && (bot->getClass() == CLASS_HUNTER || bot->getClass() == CLASS_ROGUE || bot->getClass() == CLASS_WARRIOR))
+        if (HasCheat(BotCheatMask::item) && (bot->GetClass() == CLASS_HUNTER || bot->GetClass() == CLASS_ROGUE || bot->GetClass() == CLASS_WARRIOR))
         {
             uint32 itemId = bot->GetUInt32Value(PLAYER_AMMO_ID);
             if (itemId && bot->GetItemCount(itemId))
@@ -532,7 +532,7 @@ void PlayerbotAI::UpdateAI(uint32 elapsed, bool minimal)
 
                 for (auto item : items)
                 {
-                    if (bot->getClass() == CLASS_HUNTER && item->GetProto()->SubClass == ITEM_SUBCLASS_WEAPON_THROWN) //Do not replenish thrown weapons for hunters.
+                    if (bot->GetClass() == CLASS_HUNTER && item->GetProto()->SubClass == ITEM_SUBCLASS_WEAPON_THROWN) //Do not replenish thrown weapons for hunters.
                         break;
 
                     item->SetCount(item->GetProto()->GetMaxStackSize());
@@ -851,7 +851,7 @@ void PlayerbotAI::UpdateTalentSpec(PlayerTalentSpec spec)
         int talentsTab = 0;
         if(bot->GetLevel() < 10)
         {
-            switch (bot->getClass())
+            switch (bot->GetClass())
             {
                 case CLASS_MAGE:
                 {
@@ -877,7 +877,7 @@ void PlayerbotAI::UpdateTalentSpec(PlayerTalentSpec spec)
             talentsTab = AiFactory::GetPlayerSpecTab(bot);
         }
 
-        spec = PlayerTalentSpec(((bot->getClass() * 3) - 2) + talentsTab);
+        spec = PlayerTalentSpec(((bot->GetClass() * 3) - 2) + talentsTab);
     }
 
     aiObjectContext->GetValue<PlayerTalentSpec>("talent spec")->Set(spec);
@@ -1039,7 +1039,7 @@ void PlayerbotAI::OnDeath()
                 out << std::fixed << std::setprecision(2);
 
                 out << std::to_string(bot->getRace()) << ",";
-                out << std::to_string(bot->getClass()) << ",";
+                out << std::to_string(bot->GetClass()) << ",";
                 float subLevel = ((float)bot->GetLevel() + ((float)bot->GetUInt32Value(PLAYER_XP) / (float)bot->GetUInt32Value(PLAYER_NEXT_LEVEL_XP)));
 
                 out << subLevel << ",";
@@ -2572,7 +2572,7 @@ bool PlayerbotAI::IsRanged(Player* player, bool inGroup)
             return isRanged;
     }
 
-    switch (player->getClass())
+    switch (player->GetClass())
     {
     case CLASS_PALADIN:
     case CLASS_WARRIOR:
@@ -3573,7 +3573,7 @@ bool PlayerbotAI::TellPlayerNoFacing(Player* player, std::string text, Playerbot
             out << std::fixed << std::setprecision(2);
 
             out << std::to_string(bot->getRace()) << ",";
-            out << std::to_string(bot->getClass()) << ",";
+            out << std::to_string(bot->GetClass()) << ",";
             float subLevel = GetLevelFloat();
 
             out << subLevel << ",";
@@ -7378,7 +7378,7 @@ void PlayerbotAI::InventoryTellItems(Player* player, std::map<uint32, int> itemM
             case ITEM_CLASS_KEY:
                 TellPlayer(player, "--- keys ---");
                 break;
-            case ITEM_CLASS_MISC:
+            case ITEM_CLASS_JUNK:
                 TellPlayer(player, "--- other ---");
                 break;
             }

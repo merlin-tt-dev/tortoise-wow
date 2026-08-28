@@ -266,10 +266,10 @@ bool CheckMountStateAction::isUseful()
     if (bot->IsTaxiFlying())
         return false;
 
-    if (bot->getClass() == CLASS_ROGUE && bot->InBattleGround() && (ai->HasAura("stealth", bot) || ai->HasAura("sprint", bot)))
+    if (bot->GetClass() == CLASS_ROGUE && bot->InBattleGround() && (ai->HasAura("stealth", bot) || ai->HasAura("sprint", bot)))
         return false;
 
-    if (bot->getClass() == CLASS_DRUID && bot->InBattleGround() && (ai->HasAura("prowl", bot) || ai->HasAura("dash", bot)))
+    if (bot->GetClass() == CLASS_DRUID && bot->InBattleGround() && (ai->HasAura("prowl", bot) || ai->HasAura("dash", bot)))
         return false;
 
 #ifndef MANGOSBOT_ZERO
@@ -374,7 +374,7 @@ bool CheckMountStateAction::CanMountInBg() const
 
 float CheckMountStateAction::GetAttackDistance() const
 {
-    switch (bot->getClass())
+    switch (bot->GetClass())
     {
     case CLASS_WARRIOR:
     case CLASS_PALADIN:

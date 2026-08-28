@@ -337,7 +337,7 @@ bool MovementAction::UseTaxi(PlayerbotAI* ai, uint32 entry, bool needNpc)
     return goTaxi;
 }
 
-bool MovementAction::MoveOnTransport(PlayerbotAI* ai, GenericTransport* transport, bool doTeleport)
+bool MovementAction::MoveOnTransport(PlayerbotAI* ai, Transport* transport, bool doTeleport)
 {
     AiObjectContext* context = ai->GetAiObjectContext();
     Player* bot = ai->GetBot();
@@ -346,7 +346,7 @@ bool MovementAction::MoveOnTransport(PlayerbotAI* ai, GenericTransport* transpor
 
     uint32 radius = 20;
 
-    GenericTransport* botTrans = bot->GetTransport();
+    Transport* botTrans = bot->GetTransport();
 
     std::vector<WorldPosition> path;
 
@@ -423,7 +423,7 @@ bool MovementAction::MoveOffTransport(PlayerbotAI* ai, WorldPosition exitPos, bo
         return false;
     }
 
-    GenericTransport* transport = bot->GetTransport();
+    Transport* transport = bot->GetTransport();
 
     transport->RemovePassenger(bot);
 
@@ -460,7 +460,7 @@ bool MovementAction::UseTransport(PlayerbotAI* ai, uint32 entry, WorldPosition d
     Player* bot = ai->GetBot();
     WorldPosition botPos(bot);
 
-    GenericTransport* transport = bot->GetTransport();
+    Transport* transport = bot->GetTransport();
 
     if (transport)
     {
@@ -669,7 +669,7 @@ bool MovementAction::WaitForTransport()
     if (!lastMove.lastTransportEntry)
         return false;
 
-    GenericTransport* transport = bot->GetTransport();
+    Transport* transport = bot->GetTransport();
 
     if (!transport || transport->GetEntry() != lastMove.lastTransportEntry || lastMove.lastPath.getPath().front().type != PathNodeType::NODE_TRANSPORT || lastMove.lastPath.getPath().front().entry != lastMove.lastTransportEntry)
     {
@@ -1580,7 +1580,7 @@ bool MovementAction::MoveTo(uint32 mapId, float x, float y, float z, bool idle, 
                         startPosition.printWKT({startPosition, movePosition}, out, 1);
 
                     out << std::to_string(bot->getRace()) << ",";
-                    out << std::to_string(bot->getClass()) << ",";
+                    out << std::to_string(bot->GetClass()) << ",";
                     float subLevel = ai->GetLevelFloat();
                     out << subLevel << ",";
                     out << (entry ? entry : -1);
@@ -1655,7 +1655,7 @@ bool MovementAction::MoveTo(uint32 mapId, float x, float y, float z, bool idle, 
                         startPosition.printWKT({startPosition, movePosition}, out, 1);
 
                     out << std::to_string(bot->getRace()) << ",";
-                    out << std::to_string(bot->getClass()) << ",";
+                    out << std::to_string(bot->GetClass()) << ",";
                     float subLevel = ai->GetLevelFloat();
                     out << subLevel << ",";
                     out << (entry ? entry : -1);
@@ -1996,7 +1996,7 @@ bool MovementAction::MoveTo(uint32 mapId, float x, float y, float z, bool idle, 
         out << bot->GetName() << ",";
         startPosition.printWKT({startPosition, movePosition}, out, 1);
         out << std::to_string(bot->getRace()) << ",";
-        out << std::to_string(bot->getClass()) << ",";
+        out << std::to_string(bot->GetClass()) << ",";
         float subLevel = ai->GetLevelFloat();
         out << subLevel << ",";
         out << 0;
@@ -2704,14 +2704,14 @@ bool MovementAction::FollowOnTransport(Unit* target)
         ai->StopMoving();
         bool sendHeartbeat = false;
 
-        if (GenericTransport* pMyTransport = bot->GetTransport())
+        if (Transport* pMyTransport = bot->GetTransport())
         {
             sendHeartbeat = true;
             pMyTransport->RemovePassenger(bot);
             bot->Relocate(target->GetPositionX(), target->GetPositionY(), target->GetPositionZ());
         }
 
-        if (GenericTransport* pHisTransport = target->GetTransport())
+        if (Transport* pHisTransport = target->GetTransport())
         {
             sendHeartbeat = true;
             bot->Relocate(target->GetPositionX(), target->GetPositionY(), target->GetPositionZ());
@@ -2788,7 +2788,7 @@ bool MovementAction::Flee(Unit *target)
     uint32 fleeDelay = urand(2, sPlayerbotAIConfig.returnDelay / 1000);
 
     // let hunter kite mob
-    if (isTarget && bot->getClass() == CLASS_HUNTER)
+    if (isTarget && bot->GetClass() == CLASS_HUNTER)
     {
         fleeDelay = 1;
     }

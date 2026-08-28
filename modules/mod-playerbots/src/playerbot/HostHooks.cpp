@@ -1,19 +1,12 @@
-// Host-side glue for bot lifecycle and dispatch. Implements:
-//   - Player::{Create,Remove}Playerbot{AI,Mgr}, Player::isRealPlayer
-//   - Player::UpdatePlayerbotHooks (per-Player tick)
-//   - World::{Update,Init}Playerbots* (world-tick driver, startup init)
-//   - Player_DispatchBotOutgoing{Packet,ChatCommand} (free functions called
-//     from WorldSession; the bot-AI null-check happens here so the host
-//     call sites stay unconditional)
+// Playerbot host integration for Tortoise's native module/script framework.
 //
-// Lives in the bot module so it sees both the host headers and the bot
-// module's full PlayerbotAI / PlayerbotMgr types — the host declares the
-// methods, only the bot module satisfies the linker with real bodies. The
-// matching BUILD_PLAYERBOTS=OFF stubs live in src/game/PlayerbotStubs.cpp.
+// The core only exposes two opaque Player-owned pointers and tiny accessors.
+// All behavior (startup, ticking, login/logout, chat and outgoing packets)
+// is registered through Penqle's WorldScript/PlayerScript/ServerScript hooks.
 
 #include "playerbot/playerbot.h"
 #include "Objects/Player.h"
-#include "World.h"
+#include "ScriptObjects.h"
 #include "playerbot/RandomPlayerbotMgr.h"
 #include "playerbot/PlayerbotAIConfig.h"
 #include "BotDiagnostics.h"
@@ -43,8 +36,8 @@ void Player::RemovePlayerbotMgr()
 {
     if (m_playerbotMgr)
     {
-        // Log out the master's alt bots first; otherwise their PlayerbotAI
-        // outlives the mgr and they linger in-world with a dangling master.
+        // The manager owns the master's alt-bot membership. Log those bots out
+        // before releasing the manager so no bot retains a dangling master path.
         m_playerbotMgr->LogoutAllBots();
         delete m_playerbotMgr;
         m_playerbotMgr = nullptr;
@@ -53,73 +46,143 @@ void Player::RemovePlayerbotMgr()
 
 bool Player::isRealPlayer() const
 {
-    return !m_playerbotAI || m_playerbotAI->IsRealPlayer();
+    WorldSession* session = GetSession();
+    if (!session)
+        return false;
+
+    std::string const& address = session->GetRemoteAddress();
+    return address != "<BOT>" && address != "disconnected/bot";
 }
 
-// World-tick driver. RandomPlayerbotMgr ticks both the login queue and every
-// active bot's PlayerbotAI.
-void World::UpdatePlayerbotsTick(uint32 diff)
+namespace
 {
-    if (!sPlayerbotAIConfig.enabled)
-        return;
-    sRandomPlayerbotMgr.UpdateAI(diff);
-}
-
-// Per-Player bot tick:
-//  - if `this` is a bot (m_playerbotAI != null), tick the AI
-//  - if `this` is a real master driving bots (m_playerbotMgr != null), tick
-//    the mgr so its alt-bot squad responds to the master's actions
-//
-// SC_PHASE tags around each call site let the crash handler identify which
-// call faulted when bots self-destruct mid-tick (logout, far-teleport).
-void Player::UpdatePlayerbotHooks(uint32 diff)
+class PlayerbotWorldScript final : public WorldScript
 {
-    if (!sPlayerbotAIConfig.enabled)
-        return;
-    if (m_playerbotAI)
+public:
+    PlayerbotWorldScript()
+        : WorldScript("mod_playerbots_world", { WORLDHOOK_ON_STARTUP, WORLDHOOK_ON_UPDATE })
     {
-        SC_PHASE("Player::UpdatePlayerbotHooks/ai.UpdateAI", GetName());
-        m_playerbotAI->UpdateAI(diff);
     }
-    if (m_playerbotMgr)
+
+    void OnStartup() override
     {
-        SC_PHASE("Player::UpdatePlayerbotHooks/mgr.UpdateAI", GetName());
-        m_playerbotMgr->UpdateAI(diff);
+        sPlayerbotAIConfig.Initialize();
     }
-}
 
-// One-shot startup init. Singleton bot managers (RandomPlayerbotMgr,
-// PlayerBotLoginMgr, etc.) lazy-instantiate on first reference; we just
-// need the config file loaded here. No-op when AiPlayerbot.Enabled=0.
-void World::InitPlayerbotsAtStartup()
+    void OnUpdate(uint32 diff) override
+    {
+        if (sPlayerbotAIConfig.enabled)
+            sRandomPlayerbotMgr.UpdateAI(diff);
+    }
+};
+
+class PlayerbotPlayerScript final : public PlayerScript
 {
-    sPlayerbotAIConfig.Initialize();
-}
+public:
+    PlayerbotPlayerScript()
+        : PlayerScript("mod_playerbots_player",
+            { PLAYERHOOK_ON_UPDATE, PLAYERHOOK_ON_LOGIN, PLAYERHOOK_ON_LOGOUT,
+              PLAYERHOOK_ON_BEFORE_SEND_CHAT_MESSAGE })
+    {
+    }
 
-// Outgoing-packet interceptor (called from WorldSession::SendPacket). For a
-// real player returns false → packet goes to the network normally. For a
-// bot Player returns true after handing the packet to the AI to react to
-// (group invites → auto-accept, BG status, vendor errors, ...); the AI
-// suppresses the network send.
-bool Player_DispatchBotOutgoingPacket(Player* player, WorldPacket const& packet)
+    void OnUpdate(Player* player, uint32 diff) override
+    {
+        if (!player || !sPlayerbotAIConfig.enabled)
+            return;
+
+        if (PlayerbotAI* ai = player->GetPlayerbotAI())
+        {
+            SC_PHASE("PlayerbotPlayerScript/ai.UpdateAI", player->GetName());
+            ai->UpdateAI(diff);
+        }
+
+        if (PlayerbotMgr* mgr = player->GetPlayerbotMgr())
+        {
+            SC_PHASE("PlayerbotPlayerScript/mgr.UpdateAI", player->GetName());
+            mgr->UpdateAI(diff);
+        }
+    }
+
+    void OnLogin(Player* player) override
+    {
+        if (!player || !sPlayerbotAIConfig.enabled)
+            return;
+
+        if (!player->GetSession())
+            return;
+
+        // Penqle tags every null-socket WorldSession as <BOT>. Synthetic bot
+        // sessions must not receive a PlayerbotMgr of their own; OnBotLogin
+        // attaches AI after the standard player-login pipeline returns to the
+        // bot holder. Keep the historical disconnected/bot sentinel accepted
+        // in Player::isRealPlayer() for compatibility with older bot sessions.
+        if (!player->isRealPlayer())
+        {
+            sRandomPlayerbotMgr.OnPlayerLogin(player);
+            return;
+        }
+
+        player->CreatePlayerbotMgr();
+        player->GetPlayerbotMgr()->OnPlayerLogin(player);
+        sRandomPlayerbotMgr.OnPlayerLogin(player);
+    }
+
+    void OnLogout(Player* player) override
+    {
+        if (!player)
+            return;
+
+        // RandomPlayerbotMgr still needs the AI/master relationship while it
+        // detaches the player, so perform that notification before destruction.
+        if (sPlayerbotAIConfig.enabled)
+            sRandomPlayerbotMgr.OnPlayerLogout(player);
+
+        player->RemovePlayerbotMgr();
+        player->RemovePlayerbotAI();
+    }
+
+    void OnBeforeSendChatMessage(Player* player, uint32& type, uint32& language, std::string& message) override
+    {
+        if (!player || !sPlayerbotAIConfig.enabled)
+            return;
+
+        // Synthetic bot chat must not recursively become a master command.
+        if (PlayerbotAI* ai = player->GetPlayerbotAI())
+            if (!ai->IsRealPlayer())
+                return;
+
+        if (PlayerbotMgr* mgr = player->GetPlayerbotMgr())
+            mgr->HandleCommand(type, message, language);
+
+        sRandomPlayerbotMgr.HandleCommand(type, message, *player, "", player->GetTeam(), language);
+    }
+};
+
+class PlayerbotServerScript final : public ServerScript
 {
-    if (!player) return false;
-    PlayerbotAI* ai = player->GetPlayerbotAI();
-    if (!ai) return false;
-    ai->HandleBotOutgoingPacket(packet);
-    return true;
-}
+public:
+    PlayerbotServerScript()
+        : ServerScript("mod_playerbots_server", { SERVERHOOK_CAN_PACKET_SEND })
+    {
+    }
 
-// Chat dispatcher: feeds the master's chat to every bot that listens. Without
-// this, in-party "+heal" / "stay" / "co" commands don't reach any bot. Bots
-// owned by the master and matching random bots both get the message.
-void Player_DispatchBotChatCommand(Player* master, uint32 type, std::string const& msg, uint32 lang)
+    bool CanPacketSend(WorldSession* session, WorldPacket const& packet) override
+    {
+        Player* player = session ? session->GetPlayer() : nullptr;
+        PlayerbotAI* ai = player ? player->GetPlayerbotAI() : nullptr;
+        if (!ai || ai->IsRealPlayer())
+            return true;
+
+        ai->HandleBotOutgoingPacket(packet);
+        return false;
+    }
+};
+} // namespace
+
+void AddPlayerbotHostScripts()
 {
-    if (!master || !sPlayerbotAIConfig.enabled)
-        return;
-
-    if (PlayerbotMgr* mgr = master->GetPlayerbotMgr())
-        mgr->HandleCommand(type, msg, lang);
-
-    sRandomPlayerbotMgr.HandleCommand(type, msg, *master, "", master->GetTeam(), lang);
+    new PlayerbotWorldScript();
+    new PlayerbotPlayerScript();
+    new PlayerbotServerScript();
 }

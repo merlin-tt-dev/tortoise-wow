@@ -147,7 +147,7 @@ void ChatReplyAction::GetAIChatPlaceholders(std::map<std::string, std::string>& 
     placeholders["<" + preFix + " name>"] = unit->GetName();
     placeholders["<" + preFix + " gender>"] = unit->getGender() == GENDER_MALE ? "male" : "female";
     placeholders["<" + preFix + " level>"] = std::to_string(unit->GetLevel());
-    placeholders["<" + preFix + " class>"] = ChatHelper::formatClass(unit->getClass());
+    placeholders["<" + preFix + " class>"] = ChatHelper::formatClass(unit->GetClass());
     placeholders["<" + preFix + " race>"] = ChatHelper::formatRace(unit->getRace());
 
     FactionTemplateEntry const* factionTemplate = unit->GetFactionTemplateEntry();
@@ -244,7 +244,7 @@ void ChatReplyAction::GetAIChatPlaceholders(std::map<std::string, std::string>& 
         replace["$N"] = observer->GetName();
         replace["$B"] = "";
         replace["$c"] = ChatHelper::formatRace(observer->getRace());
-        replace["$r"] = ChatHelper::formatClass(unit->getClass());
+        replace["$r"] = ChatHelper::formatClass(unit->GetClass());
         replace["$g boy : girl;"] = unit->getGender() == GENDER_MALE ? "boy" : "girl"; //Todo replace with regexp
         replace["$g lad : lass;"] = unit->getGender() == GENDER_MALE ? "lass" : "lad";
 
@@ -747,7 +747,7 @@ bool ChatReplyAction::HandleToxicLinksReply(Player* bot, ChatChannelSource chatC
     AreaEntry const* current_zone = bot->GetPlayerbotAI()->GetCurrentZone();
     placeholders["%area_name"] = current_area ? bot->GetPlayerbotAI()->GetLocalizedAreaName(current_area) : BOT_TEXT("string_unknown_area");
     placeholders["%zone_name"] = current_zone ? bot->GetPlayerbotAI()->GetLocalizedAreaName(current_zone) : BOT_TEXT("string_unknown_area");
-    placeholders["%my_class"] = bot->GetPlayerbotAI()->GetChatHelper()->formatClass(bot->getClass());
+    placeholders["%my_class"] = bot->GetPlayerbotAI()->GetChatHelper()->formatClass(bot->GetClass());
     placeholders["%my_race"] = bot->GetPlayerbotAI()->GetChatHelper()->formatRace(bot->getRace());
     placeholders["%my_level"] = std::to_string(bot->GetLevel());
 
@@ -820,7 +820,7 @@ bool ChatReplyAction::HandleWTBItemsReply(Player* bot, ChatChannelSource chatCha
         AreaEntry const* current_zone = bot->GetPlayerbotAI()->GetCurrentZone();
         placeholders["%area_name"] = current_area ? bot->GetPlayerbotAI()->GetLocalizedAreaName(current_area) : BOT_TEXT("string_unknown_area");
         placeholders["%zone_name"] = current_zone ? bot->GetPlayerbotAI()->GetLocalizedAreaName(current_zone) : BOT_TEXT("string_unknown_area");
-        placeholders["%my_class"] = bot->GetPlayerbotAI()->GetChatHelper()->formatClass(bot->getClass());
+        placeholders["%my_class"] = bot->GetPlayerbotAI()->GetChatHelper()->formatClass(bot->GetClass());
         placeholders["%my_race"] = bot->GetPlayerbotAI()->GetChatHelper()->formatRace(bot->getRace());
         placeholders["%my_level"] = std::to_string(bot->GetLevel());
         placeholders["%my_role"] = bot->GetPlayerbotAI()->GetChatHelper()->formatClass(bot, AiFactory::GetPlayerSpecTab(bot));
@@ -918,7 +918,7 @@ bool ChatReplyAction::HandleLFGQuestsReply(Player* bot, ChatChannelSource chatCh
         AreaEntry const* current_zone = bot->GetPlayerbotAI()->GetCurrentZone();
         placeholders["%area_name"] = current_area ? bot->GetPlayerbotAI()->GetLocalizedAreaName(current_area) : BOT_TEXT("string_unknown_area");
         placeholders["%zone_name"] = current_zone ? bot->GetPlayerbotAI()->GetLocalizedAreaName(current_zone) : BOT_TEXT("string_unknown_area");
-        placeholders["%my_class"] = bot->GetPlayerbotAI()->GetChatHelper()->formatClass(bot->getClass());
+        placeholders["%my_class"] = bot->GetPlayerbotAI()->GetChatHelper()->formatClass(bot->GetClass());
         placeholders["%my_race"] = bot->GetPlayerbotAI()->GetChatHelper()->formatRace(bot->getRace());
         placeholders["%my_level"] = std::to_string(bot->GetLevel());
         placeholders["%my_role"] = bot->GetPlayerbotAI()->GetChatHelper()->formatClass(bot, AiFactory::GetPlayerSpecTab(bot));

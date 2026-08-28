@@ -314,14 +314,14 @@ void PlayerbotFactory::Randomize(bool incremental, bool syncWithMaster)
 #endif
     }
 
-    if (bot->GetLevel() >= 10 && bot->getClass() == CLASS_HUNTER)
+    if (bot->GetLevel() >= 10 && bot->GetClass() == CLASS_HUNTER)
     {
         auto pmo_pet = sPerformanceMonitor.start(PERF_MON_RNDBOT, "PlayerbotFactory_Pet");
         sLog.outDetail("Initializing pet...");
         InitPet();
         InitPetSpells();
     }
-    else if (bot->getClass() == CLASS_WARLOCK)
+    else if (bot->GetClass() == CLASS_WARLOCK)
     {
         auto pmo_pet = sPerformanceMonitor.start(PERF_MON_RNDBOT, "PlayerbotFactory_Pet");
         sLog.outDetail("Initializing pet...");
@@ -374,7 +374,7 @@ void PlayerbotFactory::Refresh()
 void PlayerbotFactory::AddConsumables()
 {
     auto pmo = sPerformanceMonitor.start(PERF_MON_RNDBOT, "PlayerbotFactory_Consumables");
-   switch (bot->getClass())
+   switch (bot->GetClass())
    {
       case CLASS_PRIEST:
       case CLASS_MAGE:
@@ -548,7 +548,7 @@ void PlayerbotFactory::AddConsumables()
 void PlayerbotFactory::InitPet()
 {
     // Randomize a new pet (only for hunters)
-    if (bot->getClass() != CLASS_HUNTER)
+    if (bot->GetClass() != CLASS_HUNTER)
         return;
 
     Pet* pet = bot->GetPet();
@@ -686,7 +686,7 @@ void PlayerbotFactory::InitPetSpells()
 
 #ifdef MANGOSBOT_ZERO
      // TODO: Proper Training Point calculation for build variety
-    if (bot->getClass() == CLASS_HUNTER)
+    if (bot->GetClass() == CLASS_HUNTER)
     {
         enum HunterPetType
         {
@@ -1321,7 +1321,7 @@ void PlayerbotFactory::InitPetSpells()
 
 #ifdef MANGOSBOT_ONE
      // TODO: Proper Training Point calculation for build variety
-    if (bot->getClass() == CLASS_HUNTER)
+    if (bot->GetClass() == CLASS_HUNTER)
     {
         // add tbc pet families
         enum HunterPetType
@@ -2148,7 +2148,7 @@ void PlayerbotFactory::InitPetSpells()
 
 // Warlock pets should auto learn spells in WOTLK
 #ifndef MANGOSBOT_TWO
-    if (bot->getClass() == CLASS_WARLOCK)
+    if (bot->GetClass() == CLASS_WARLOCK)
     {
         constexpr uint32 PET_IMP = 416;
         constexpr uint32 PET_FELHUNTER = 417;
@@ -2492,7 +2492,7 @@ void PlayerbotFactory::InitTalentsTree(bool incremental)
     else
     {
         uint32 point = urand(0, 100);
-        uint8 cls = bot->getClass();
+        uint8 cls = bot->GetClass();
         uint32 p1 = sPlayerbotAIConfig.specProbability[cls][0];
         uint32 p2 = p1 + sPlayerbotAIConfig.specProbability[cls][1];
 
@@ -2572,10 +2572,10 @@ bool PlayerbotFactory::CanEquipArmor(ItemPrototype const* proto)
        if (slot == EQUIPMENT_SLOT_TABARD || slot == EQUIPMENT_SLOT_BODY)
           continue;
 
-    if (slot == EQUIPMENT_SLOT_OFFHAND && bot->getClass() == CLASS_ROGUE && proto->Class != ITEM_CLASS_WEAPON)
+    if (slot == EQUIPMENT_SLOT_OFFHAND && bot->GetClass() == CLASS_ROGUE && proto->Class != ITEM_CLASS_WEAPON)
        continue;
 
-    if (slot == EQUIPMENT_SLOT_OFFHAND && bot->getClass() == CLASS_PALADIN && proto->SubClass != ITEM_SUBCLASS_ARMOR_SHIELD)
+    if (slot == EQUIPMENT_SLOT_OFFHAND && bot->GetClass() == CLASS_PALADIN && proto->SubClass != ITEM_SUBCLASS_ARMOR_SHIELD)
        continue;
     }
 
@@ -2594,7 +2594,7 @@ bool PlayerbotFactory::CanEquipArmor(ItemPrototype const* proto)
 
 bool PlayerbotFactory::CheckItemStats(uint8 sp, uint8 ap, uint8 tank)
 {
-    switch (bot->getClass())
+    switch (bot->GetClass())
     {
     case CLASS_PRIEST:
     case CLASS_MAGE:
@@ -2763,7 +2763,7 @@ bool PlayerbotFactory::CanEquipWeapon(ItemPrototype const* proto)
 {
    int tab = AiFactory::GetPlayerSpecTab(bot);
 
-   switch (bot->getClass())
+   switch (bot->GetClass())
    {
    case CLASS_PRIEST:
       if (proto->SubClass != ITEM_SUBCLASS_WEAPON_STAFF &&
@@ -2969,9 +2969,9 @@ void PlayerbotFactory::InitEquipment(bool incremental, bool syncWithMaster, bool
     // choose type of weapon
     uint32 weaponType = 0;
 #ifdef MANGOSBOT_ZERO
-    if (bot->GetLevel() > 40 && (bot->getClass() == CLASS_PRIEST || bot->getClass() == CLASS_MAGE || bot->getClass() == CLASS_WARLOCK || specId == 20 || specId == 22 || specId == 29 || specId == 31))
+    if (bot->GetLevel() > 40 && (bot->GetClass() == CLASS_PRIEST || bot->GetClass() == CLASS_MAGE || bot->GetClass() == CLASS_WARLOCK || specId == 20 || specId == 22 || specId == 29 || specId == 31))
 #else
-    if (bot->GetLevel() > 40 && (bot->getClass() == CLASS_PRIEST || bot->getClass() == CLASS_MAGE || bot->getClass() == CLASS_WARLOCK || specId == 20 || specId == 21 || specId == 22 || specId == 29 || specId == 31))
+    if (bot->GetLevel() > 40 && (bot->GetClass() == CLASS_PRIEST || bot->GetClass() == CLASS_MAGE || bot->GetClass() == CLASS_WARLOCK || specId == 20 || specId == 21 || specId == 22 || specId == 29 || specId == 31))
 #endif
     {
         weaponType = sRandomPlayerbotMgr.GetValue(bot, "weaponType");
@@ -3250,7 +3250,7 @@ void PlayerbotFactory::InitEquipment(bool incremental, bool syncWithMaster, bool
                     bool hasProperLevel = false;
                     while (!hasProperLevel && currSearchLevel > 0)
                     {
-                        std::vector<uint32> newItems = sRandomItemMgr.Query(currSearchLevel, bot->getClass(), uint8(specId), slot, q);
+                        std::vector<uint32> newItems = sRandomItemMgr.Query(currSearchLevel, bot->GetClass(), uint8(specId), slot, q);
                         if (newItems.size())
                             ids.insert(ids.begin(), newItems.begin(), newItems.end());
 
@@ -3277,27 +3277,27 @@ void PlayerbotFactory::InitEquipment(bool incremental, bool syncWithMaster, bool
                     // add one hand weapons for tanks
                     if ((specId == 3 || specId == 5) && slot == EQUIPMENT_SLOT_MAINHAND)
                     {
-                        std::vector<uint32> oneHanded = sRandomItemMgr.Query(level, bot->getClass(), uint8(specId), EQUIPMENT_SLOT_OFFHAND, q);
+                        std::vector<uint32> oneHanded = sRandomItemMgr.Query(level, bot->GetClass(), uint8(specId), EQUIPMENT_SLOT_OFFHAND, q);
                         if (oneHanded.size())
                             ids.insert(ids.begin(), oneHanded.begin(), oneHanded.end());
                     }
 
                     // add one hand weapons for casters
-                    if ((specId == 4 || (bot->getClass() == CLASS_DRUID || bot->getClass() == CLASS_PRIEST || bot->getClass() == CLASS_MAGE || bot->getClass() == CLASS_WARLOCK || (specId == 20 || specId == 22))) && slot == EQUIPMENT_SLOT_MAINHAND)
+                    if ((specId == 4 || (bot->GetClass() == CLASS_DRUID || bot->GetClass() == CLASS_PRIEST || bot->GetClass() == CLASS_MAGE || bot->GetClass() == CLASS_WARLOCK || (specId == 20 || specId == 22))) && slot == EQUIPMENT_SLOT_MAINHAND)
                     {
-                        std::vector<uint32> oneHanded = sRandomItemMgr.Query(level, bot->getClass(), uint8(specId), EQUIPMENT_SLOT_OFFHAND, q);
+                        std::vector<uint32> oneHanded = sRandomItemMgr.Query(level, bot->GetClass(), uint8(specId), EQUIPMENT_SLOT_OFFHAND, q);
                         if (oneHanded.size())
                             ids.insert(ids.begin(), oneHanded.begin(), oneHanded.end());
                     }
 
                     // add weapons for dual wield
 #ifdef MANGOSBOT_ZERO
-                    if (slot == EQUIPMENT_SLOT_MAINHAND && (bot->getClass() == CLASS_ROGUE || specId == 2))
+                    if (slot == EQUIPMENT_SLOT_MAINHAND && (bot->GetClass() == CLASS_ROGUE || specId == 2))
 #else
-                    if (slot == EQUIPMENT_SLOT_MAINHAND && (bot->getClass() == CLASS_ROGUE || specId == 2 || specId == 21))
+                    if (slot == EQUIPMENT_SLOT_MAINHAND && (bot->GetClass() == CLASS_ROGUE || specId == 2 || specId == 21))
 #endif
                     {
-                        std::vector<uint32> oneHanded = sRandomItemMgr.Query(level, bot->getClass(), uint8(specId), EQUIPMENT_SLOT_OFFHAND, q);
+                        std::vector<uint32> oneHanded = sRandomItemMgr.Query(level, bot->GetClass(), uint8(specId), EQUIPMENT_SLOT_OFFHAND, q);
                         if (oneHanded.size())
                             ids.insert(ids.begin(), oneHanded.begin(), oneHanded.end());
                     }
@@ -3411,9 +3411,9 @@ void PlayerbotFactory::InitEquipment(bool incremental, bool syncWithMaster, bool
                         }
                         if (slot == EQUIPMENT_SLOT_OFFHAND)
                         {
-                            if (weaponType != INVTYPE_2HWEAPON && (bot->getClass() == CLASS_PRIEST || bot->getClass() == CLASS_MAGE || bot->getClass() == CLASS_WARLOCK || (bot->getClass() == CLASS_DRUID && (specId == 29 || specId == 31))) && proto->InventoryType != INVTYPE_HOLDABLE)
+                            if (weaponType != INVTYPE_2HWEAPON && (bot->GetClass() == CLASS_PRIEST || bot->GetClass() == CLASS_MAGE || bot->GetClass() == CLASS_WARLOCK || (bot->GetClass() == CLASS_DRUID && (specId == 29 || specId == 31))) && proto->InventoryType != INVTYPE_HOLDABLE)
                                 continue;
-                            if (weaponType == INVTYPE_2HWEAPON && (bot->getClass() == CLASS_PRIEST || bot->getClass() == CLASS_MAGE || bot->getClass() == CLASS_WARLOCK || (bot->getClass() == CLASS_DRUID && (specId == 29 || specId == 31))))
+                            if (weaponType == INVTYPE_2HWEAPON && (bot->GetClass() == CLASS_PRIEST || bot->GetClass() == CLASS_MAGE || bot->GetClass() == CLASS_WARLOCK || (bot->GetClass() == CLASS_DRUID && (specId == 29 || specId == 31))))
                                 continue;
 
                             if (weaponType != INVTYPE_2HWEAPON && proto->Class == ITEM_CLASS_WEAPON && proto->InventoryType == INVTYPE_2HWEAPON)
@@ -3450,20 +3450,20 @@ void PlayerbotFactory::InitEquipment(bool incremental, bool syncWithMaster, bool
                     uint32 randomEnchBestValue = 0;
                     if (proto->RandomProperty)
                     {
-                        randomEnchBestId = sRandomItemMgr.CalculateBestRandomEnchantId(bot->getClass(), specId, newItemId);
-                        randomEnchBestValue = sRandomItemMgr.CalculateEnchantWeight(bot->getClass(), specId, randomEnchBestId);
+                        randomEnchBestId = sRandomItemMgr.CalculateBestRandomEnchantId(bot->GetClass(), specId, newItemId);
+                        randomEnchBestValue = sRandomItemMgr.CalculateEnchantWeight(bot->GetClass(), specId, randomEnchBestId);
                         newStatValue += randomEnchBestValue;
                     }
 
                     // skip off hand if main hand is worse
 #ifdef MANGOSBOT_ZERO
-                    if (proto->IsWeapon() && slot == EQUIPMENT_SLOT_OFFHAND && (bot->getClass() == CLASS_ROGUE || specId == 2))
+                    if (proto->IsWeapon() && slot == EQUIPMENT_SLOT_OFFHAND && (bot->GetClass() == CLASS_ROGUE || specId == 2))
 #endif
 #ifdef MANGOSBOT_ONE
-                    if (proto->IsWeapon() && slot == EQUIPMENT_SLOT_OFFHAND && (bot->getClass() == CLASS_ROGUE || specId == 2 || specId == 21))
+                    if (proto->IsWeapon() && slot == EQUIPMENT_SLOT_OFFHAND && (bot->GetClass() == CLASS_ROGUE || specId == 2 || specId == 21))
 #endif
 #ifdef MANGOSBOT_TWO
-                    if (proto->IsWeapon() && slot == EQUIPMENT_SLOT_OFFHAND && (bot->getClass() == CLASS_ROGUE || specId == 2 || specId == 21 || bot->getClass() == CLASS_DEATH_KNIGHT))
+                    if (proto->IsWeapon() && slot == EQUIPMENT_SLOT_OFFHAND && (bot->GetClass() == CLASS_ROGUE || specId == 2 || specId == 21 || bot->GetClass() == CLASS_DEATH_KNIGHT))
 #endif
                         {
                             bool betterValue = false;
@@ -3604,7 +3604,7 @@ bool PlayerbotFactory::IsDesiredReplacement(uint32 itemId)
 
 void PlayerbotFactory::InitSecondEquipmentSet()
 {
-    if (bot->getClass() == CLASS_MAGE || bot->getClass() == CLASS_WARLOCK || bot->getClass() == CLASS_PRIEST)
+    if (bot->GetClass() == CLASS_MAGE || bot->GetClass() == CLASS_WARLOCK || bot->GetClass() == CLASS_PRIEST)
         return;
 
     std::map<uint32, std::vector<uint32> > items;
@@ -3750,7 +3750,7 @@ void PlayerbotFactory::EnchantItem(Item* item)
         return;
 
     int tab = AiFactory::GetPlayerSpecTab(bot);
-    uint32 tempId = uint32((uint32)bot->getClass() * (uint32)10);
+    uint32 tempId = uint32((uint32)bot->GetClass() * (uint32)10);
     ApplyEnchantTemplate(tempId += (uint32)tab, item);
 }
 
@@ -3886,7 +3886,7 @@ void PlayerbotFactory::InitTradeSkills()
     {
         std::vector<uint32> firstSkills;
         std::vector<uint32> secondSkills;
-        switch (bot->getClass())
+        switch (bot->GetClass())
         {
         case CLASS_WARRIOR:
         case CLASS_PALADIN:
@@ -3951,7 +3951,7 @@ void PlayerbotFactory::InitTradeSkills()
 
 #ifndef MANGOSBOT_ZERO
     // skill proficiencies
-    switch (bot->getClass())
+    switch (bot->GetClass())
     {
     case CLASS_WARRIOR:
     case CLASS_PALADIN:
@@ -4113,7 +4113,7 @@ void PlayerbotFactory::InitSkills()
         bot->SetSkill(SKILL_RIDING, 0, 0);
 
     uint32 skillLevel = bot->GetLevel() < 40 ? 0 : 1;
-    switch (bot->getClass())
+    switch (bot->GetClass())
     {
     case CLASS_WARRIOR:
     case CLASS_PALADIN:
@@ -4124,7 +4124,7 @@ void PlayerbotFactory::InitSkills()
         bot->SetSkill(SKILL_MAIL, skillLevel, skillLevel);
     }
 
-    switch (bot->getClass())
+    switch (bot->GetClass())
     {
     case CLASS_DRUID:
         SetRandomSkill(SKILL_MACES);
@@ -4253,7 +4253,7 @@ void PlayerbotFactory::InitAvailableSpells()
     bot->learnClassLevelSpells(true);
 
 #ifndef MANGOSBOT_TWO
-    if (bot->getClass() == CLASS_PALADIN)
+    if (bot->GetClass() == CLASS_PALADIN)
     {
         // judgement missing
         if(!bot->HasSpell(20271))
@@ -4264,14 +4264,14 @@ void PlayerbotFactory::InitAvailableSpells()
 #endif
 
     // add polymorph pig/turtle
-    if (bot->getClass() == CLASS_MAGE && bot->GetLevel() >= 60)
+    if (bot->GetClass() == CLASS_MAGE && bot->GetLevel() >= 60)
     {
         bot->learnSpell(28271, false);
         bot->learnSpell(28272, false);
     }
 
     // add inferno
-    if (bot->getClass() == CLASS_WARLOCK && !bot->HasSpell(1122) && bot->GetLevel() >= 50)
+    if (bot->GetClass() == CLASS_WARLOCK && !bot->HasSpell(1122) && bot->GetLevel() >= 50)
         bot->learnSpell(1122, false);
 
 #ifdef MANGOSBOT_ZERO
@@ -4279,7 +4279,7 @@ void PlayerbotFactory::InitAvailableSpells()
     if (bot->GetLevel() == 60)
     {
         std::vector<uint32> bookSpells;
-        switch (bot->getClass())
+        switch (bot->GetClass())
         {
         case CLASS_WARRIOR:
             bookSpells.push_back(25289);
@@ -4361,7 +4361,7 @@ void PlayerbotFactory::InitSpecialSpells()
 
 void PlayerbotFactory::InitTalents(uint32 specNo)
 {
-    uint32 classMask = bot->getClassMask();
+    uint32 classMask = bot->GetClassMask();
 
     std::map<uint32, std::vector<TalentEntry const*> > spells;
     for (uint32 i = 0; i < sTalentStore.GetNumRows(); ++i)
@@ -4492,7 +4492,7 @@ void PlayerbotFactory::ClearAllItems()
 void PlayerbotFactory::InitAmmo()
 {
     auto pmo = sPerformanceMonitor.start(PERF_MON_RNDBOT, "PlayerbotFactory_Ammo");
-    if (bot->getClass() != CLASS_HUNTER && bot->getClass() != CLASS_ROGUE && bot->getClass() != CLASS_WARRIOR)
+    if (bot->GetClass() != CLASS_HUNTER && bot->GetClass() != CLASS_ROGUE && bot->GetClass() != CLASS_WARRIOR)
         return;
 
     Item* pItem = bot->GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_RANGED);
@@ -4510,7 +4510,7 @@ void PlayerbotFactory::InitAmmo()
         subClass = ITEM_SUBCLASS_ARROW;
         break;
     case ITEM_SUBCLASS_WEAPON_THROWN:
-        if (bot->getClass() != CLASS_HUNTER)
+        if (bot->GetClass() != CLASS_HUNTER)
         {
             subClass = ITEM_SUBCLASS_THROWN;
             break;
@@ -4751,7 +4751,7 @@ void PlayerbotFactory::InitReagents()
     auto pmo = sPerformanceMonitor.start(PERF_MON_RNDBOT, "PlayerbotFactory_Reagents");
     std::list<uint32> items;
     uint32 regCount = 1;
-    switch (bot->getClass())
+    switch (bot->GetClass())
     {
     case CLASS_MAGE:
         regCount = 2;
@@ -4821,7 +4821,7 @@ void PlayerbotFactory::InitReagents()
         ItemPrototype const* proto = sObjectMgr.GetItemPrototype(*i);
         if (!proto)
         {
-            sLog.outError("No reagent (ItemId %d) found for bot %d (Class:%d)", *i, bot->GetGUIDLow(), bot->getClass());
+            sLog.outError("No reagent (ItemId %d) found for bot %d (Class:%d)", *i, bot->GetGUIDLow(), bot->GetClass());
             continue;
         }
 
@@ -4859,7 +4859,7 @@ void PlayerbotFactory::InitReagents()
                 ItemPrototype const* proto = sObjectMgr.GetItemPrototype(totem);
                 if (!proto)
                 {
-                    sLog.outError("No totem (ItemId %d) found for bot %d (Class:%d)", totem, bot->GetGUIDLow(), bot->getClass());
+                    sLog.outError("No totem (ItemId %d) found for bot %d (Class:%d)", totem, bot->GetGUIDLow(), bot->GetClass());
                     continue;
                 }
 
@@ -4888,7 +4888,7 @@ void PlayerbotFactory::InitReagents()
                     ItemPrototype const* proto = sObjectMgr.GetItemPrototype(itemId);
                     if (!proto)
                     {
-                        sLog.outError("No totem (ItemId %d) found for bot %d (Class:%d)", itemId, bot->GetGUIDLow(), bot->getClass());
+                        sLog.outError("No totem (ItemId %d) found for bot %d (Class:%d)", itemId, bot->GetGUIDLow(), bot->GetClass());
                         continue;
                     }
 
@@ -5121,7 +5121,7 @@ void PlayerbotFactory::InitImmersive()
 
     if (!initialized)
     {
-        switch (bot->getClass())
+        switch (bot->GetClass())
         {
         case CLASS_DRUID:
         case CLASS_SHAMAN:
@@ -5226,7 +5226,7 @@ void PlayerbotFactory::ApplyEnchantTemplate()
 {
    int tab = AiFactory::GetPlayerSpecTab(bot);
 
-   switch (bot->getClass())
+   switch (bot->GetClass())
    {
    case CLASS_WARRIOR:
       if (tab == 2)
@@ -5281,7 +5281,7 @@ void PlayerbotFactory::ApplyEnchantTemplate()
 void PlayerbotFactory::ApplyEnchantTemplate(uint8 spec, Item* item)
 {
    for (EnchantContainer::const_iterator itr = GetEnchantContainerBegin(); itr != GetEnchantContainerEnd(); ++itr)
-      if ((*itr)->ClassId == bot->getClass() && (*itr)->SpecId == spec)
+      if ((*itr)->ClassId == bot->GetClass() && (*itr)->SpecId == spec)
          ai->EnchantItemT((*itr)->SpellId, (*itr)->SlotId, item);
 }
 

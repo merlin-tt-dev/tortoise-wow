@@ -49,7 +49,7 @@ void AutoLearnSpellAction::LearnSpells(std::ostringstream* out)
 
     if (!ai->HasActivePlayerMaster()) //Hunter spells for pets.
     {
-        if (bot->getClass() == CLASS_HUNTER && bot->GetLevel() >= 10)
+        if (bot->GetClass() == CLASS_HUNTER && bot->GetLevel() >= 10)
         {
 #if !defined(MANGOSBOT_TWO) // Beast training not available in WotLK 
             bot->learnSpell(5149, false); //Beast training
@@ -76,10 +76,10 @@ void AutoLearnSpellAction::LearnTrainerSpells(std::ostringstream* out)
             co->TrainerType != TRAINER_TYPE_PETS)
             continue;
 
-        if (co->TrainerType == TRAINER_TYPE_PETS && bot->getClass() == CLASS_HUNTER)
+        if (co->TrainerType == TRAINER_TYPE_PETS && bot->GetClass() == CLASS_HUNTER)
             continue;
 
-        if ((co->TrainerType == TRAINER_TYPE_CLASS || co->TrainerType == TRAINER_TYPE_PETS) && co->TrainerClass != bot->getClass())
+        if ((co->TrainerType == TRAINER_TYPE_CLASS || co->TrainerType == TRAINER_TYPE_PETS) && co->TrainerClass != bot->GetClass())
             continue;
 
         uint32 trainerId = co->TrainerTemplateId;
@@ -233,7 +233,7 @@ void AutoLearnSpellAction::LearnDroppedSpells(std::ostringstream* out)
     spellList[CLASS_DRUID][50] = { 21849 };
     spellList[CLASS_DRUID][60] = { 31018, 25297, 25299, 25298, 21850 };
     
-    for (const auto& levelSpells : spellList[bot->getClass()])
+    for (const auto& levelSpells : spellList[bot->GetClass()])
     {
         if (bot->GetLevel() >= levelSpells.first)
         {

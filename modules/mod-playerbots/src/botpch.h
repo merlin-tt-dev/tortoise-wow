@@ -38,7 +38,7 @@
 // cmangos -> Penqle compatibility shim. Must come AFTER Penqle's core headers
 // (so the shim's proxy methods can inline-call sSpellMgr.GetSpellEntry(...) etc.)
 // and BEFORE the bot module's own headers (which reference the shim's typedefs
-// like GuidSet and GenericTransport).
+// like ObjectGuidSet and Transport).
 #include "cmangos-compat-shim.h"
 
 // Boost headers (used across multiple files)

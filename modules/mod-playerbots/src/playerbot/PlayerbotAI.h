@@ -1,5 +1,6 @@
 #pragma once
 #include "PlayerbotMgr.h"
+#include "Chat/Chat.h"
 #include "PlayerbotAIBase.h"
 #include "strategy/AiObjectContext.h"
 #include "strategy/ReactionEngine.h"
@@ -10,12 +11,12 @@
 #include "BotState.h"
 #include "PlayerTalentSpec.h"
 #include <stack>
+#include <future>
 #include "strategy/IterateItemsMask.h"
 #include "RandomPlayerbotMgr.h"
 
 class Player;
 class PlayerbotMgr;
-class ChatHandler;
 
 using namespace ai;
 
@@ -50,7 +51,7 @@ public:
     std::string                 m_password;
     ObjectGuid                  m_ownerGuid;
     PlayerList                  m_players;
-    GuidSet                     m_banned;
+    ObjectGuidSet                     m_banned;
     const ChatChannelsEntry* m_entry = nullptr;
     bool                        m_announcements = false;
     bool                        m_moderation = false;

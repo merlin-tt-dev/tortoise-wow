@@ -39,11 +39,11 @@ typedef Transport GenericTransport;
 typedef ObjectGuidSet GuidSet;
 
 // === Define mappings ===
-// cmangos's ItemClass enum has ITEM_CLASS_MISC at value 15. Penqle renamed
+// cmangos's ItemClass enum has ITEM_CLASS_JUNK at value 15. Penqle renamed
 // this to ITEM_CLASS_JUNK (also at 15). The bot module's ahbot/Category.h
 // uses the cmangos name.
-#ifndef ITEM_CLASS_MISC
-#define ITEM_CLASS_MISC ITEM_CLASS_JUNK
+#ifndef ITEM_CLASS_JUNK
+#define ITEM_CLASS_JUNK ITEM_CLASS_JUNK
 #endif
 
 // cmangos defines DEFAULT_MAX_LEVEL per-expansion (60 for Classic). The bot
@@ -60,17 +60,7 @@ typedef ObjectGuidSet GuidSet;
 #define TEAM_BOTH_ALLOWED TEAM_NONE
 #endif
 
-// cmangos has BarGoLink (console progress bar). Penqle has no equivalent.
-// Define as a complete stub class so the bot's BarGoLink pointer dereferences
-// and method calls compile (no-op at runtime).
-class BarGoLink {
-public:
-    BarGoLink() {}
-    template<typename T> BarGoLink(T /*total*/) {}
-    void step() {}
-    void Step() {}
-    static void SetOutputState(bool /*state*/) {}
-};
+// Progress reporting is implemented by playerbot/ProgressBar.h, not by a compatibility shim.
 
 // === DBC store aliases ===
 // cmangos accesses spell DBC via `sSpellTemplate.LookupEntry<SpellEntry>(id)`.

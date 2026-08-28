@@ -16,6 +16,7 @@
 #include "Guild/Guild.h"
 
 #include "playerbotDefs.h"
+#include "playerbot/ProgressBar.h"
 #include "playerbot/PlayerbotAIAware.h"
 #include "PlayerbotMgr.h"
 #include "playerbot/RandomPlayerbotMgr.h"

@@ -15,7 +15,7 @@ namespace ai
 		int32 currentSpace;
 		int32 totalSpace;
 		int32 classRaceBucket[MAX_CLASSES][MAX_RACES];
-		int32 levelBucket[DEFAULT_MAX_LEVEL + 1];
+        int32 levelBucket[PLAYER_MAX_LEVEL + 1];
 		RealPlayerInfos realPlayerInfos;
 	};
 

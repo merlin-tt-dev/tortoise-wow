@@ -16,25 +16,13 @@ float ServerFacade::GetDistance2d(Unit *unit, WorldObject* wo)
     if (!unit || !wo)
         return false;
 
-    float dist =
-#ifdef MANGOS
-    unit->GetDistance2d(wo);
-#endif
-#ifdef CMANGOS
-    unit->GetDistance2d(wo, SizeFactor::None);
-#endif
+    float dist = unit->GetDistance2d(wo, SizeFactor::None);
     return round(dist * 10.0f) / 10.0f;
 }
 
 float ServerFacade::GetDistance2d(Unit *unit, float x, float y)
 {
-    float dist =
-#ifdef MANGOS
-    unit->GetDistance2d(x, y);
-#endif
-#ifdef CMANGOS
-    unit->GetDistance2d(x, y, SizeFactor::None);
-#endif
+    float dist = unit->GetDistance2d(x, y, SizeFactor::None);
     return round(dist * 10.0f) / 10.0f;
 }
 
@@ -72,81 +60,41 @@ void ServerFacade::SetFacingTo(Unit* unit, float angle, bool force)
 
 bool ServerFacade::IsFriendlyTo(Unit* bot, Unit* to)
 {
-#ifdef MANGOS
     return bot->IsFriendlyTo(to);
-#endif
-#ifdef CMANGOS
-    return bot->IsFriend(to);
-#endif
 }
 
 bool ServerFacade::IsHostileTo(Unit* bot, Unit* to)
 {
-#ifdef MANGOS
     return bot->IsHostileTo(to);
-#endif
-#ifdef CMANGOS
-    return bot->IsEnemy(to);
-#endif
 }
 
 bool ServerFacade::IsFriendlyTo(WorldObject* bot, Unit* to)
 {
-#ifdef MANGOS
     return bot->IsFriendlyTo(to);
-#endif
-#ifdef CMANGOS
-    return bot->IsFriend(to);
-#endif
 }
 
 bool ServerFacade::IsHostileTo(WorldObject* bot, Unit* to)
 {
-#ifdef MANGOS
     return bot->IsHostileTo(to);
-#endif
-#ifdef CMANGOS
-    return bot->IsEnemy(to);
-#endif
 }
 
 
-bool ServerFacade::IsSpellReady(Player* bot, uint32 spell, uint32 itemId)
+bool ServerFacade::IsSpellReady(Player* bot, uint32 spell, uint32 /*itemId*/)
 {
-#ifdef MANGOS
-    return !bot->HasSpellCooldown(spell);
-#endif
-#ifdef CMANGOS
-    if (itemId)
-    {
-        const ItemPrototype* proto = sObjectMgr.GetItemPrototype(itemId);
-        return bot->IsSpellReady(spell, proto);
-    }
-    else
-        return bot->IsSpellReady(spell);
-#endif
+    SpellEntry const* spellInfo = sSpellMgr.GetSpellEntry(spell);
+    return spellInfo && !bot->HasSpellCooldown(spell) && !bot->HasSpellCategoryCooldown(spellInfo->Category);
 }
 
 
 
-bool ServerFacade::IsUnderwater(Unit *unit)
+bool ServerFacade::IsUnderwater(Unit* unit)
 {
-#ifdef MANGOS
-    return unit->IsUnderWater();
-#endif
-#ifdef CMANGOS
     return unit->IsUnderwater();
-#endif
 }
 
-FactionTemplateEntry const* ServerFacade::GetFactionTemplateEntry(Unit *unit)
+FactionTemplateEntry const* ServerFacade::GetFactionTemplateEntry(Unit* unit)
 {
-#ifdef MANGOS
-    return unit->getFactionTemplateEntry();
-#endif
-#ifdef CMANGOS
     return unit->GetFactionTemplateEntry();
-#endif
 }
 
 // Penqle's ChaseMovementGenerator is a template. The static_cast dance the
@@ -160,16 +108,8 @@ Unit* ServerFacade::GetChaseTarget(Unit* target) {
 float ServerFacade::GetChaseAngle(Unit* /*target*/) { return 0.0f; }
 float ServerFacade::GetChaseOffset(Unit* /*target*/) { return 0.0f; }
 
-bool ServerFacade::isMoving(Unit *unit)
+bool ServerFacade::isMoving(Unit* unit)
 {
-#ifdef MANGOS
-    return unit->m_movementInfo.HasMovementFlag(MOVEFLAG_MASK_MOVING);
-#endif
-#ifdef CMANGOS
-#ifdef MANGOSBOT_ONE
-    return !unit->IsStopped() || unit->IsFalling() || unit->IsJumping();
-#else
-    return !unit->IsStopped() || unit->IsFalling();
-#endif
-#endif
+    return !unit->IsStopped() ||
+        unit->m_movementInfo.HasMovementFlag(MovementFlags(MOVEFLAG_JUMPING | MOVEFLAG_FALLINGFAR));
 }

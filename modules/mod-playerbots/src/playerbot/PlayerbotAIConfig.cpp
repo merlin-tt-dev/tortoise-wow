@@ -121,111 +121,105 @@ bool PlayerbotAIConfig::Initialize()
 {
     sLog.outString("Initializing AI Playerbot by ike3, based on the original Playerbot by blueboy");
 
-    if (!config.SetSource(_D_AIPLAYERBOT_CONFIG.c_str()))
-    {
-        sLog.outString("AI Playerbot is Disabled. Unable to open configuration file aiplayerbot.conf");
-        return false;
-    }
-
-    enabled = config.GetBoolDefault("AiPlayerbot.Enabled", false);
+    enabled = sConfig.GetBoolDefault("AiPlayerbot.Enabled", false);
     if (!enabled)
     {
         sLog.outString("AI Playerbot is Disabled in aiplayerbot.conf");
         return false;
     }
 
-    BarGoLink::SetOutputState(config.GetBoolDefault("AiPlayerbot.ShowProgressBars", false));
-    globalCoolDown = (uint32)config.GetIntDefault("AiPlayerbot.GlobalCooldown", 500);
-    maxWaitForMove = config.GetIntDefault("AiPlayerbot.MaxWaitForMove", 3000);
-    expireActionTime = config.GetIntDefault("AiPlayerbot.ExpireActionTime", 5000);
-    dispelAuraDuration = config.GetIntDefault("AiPlayerbot.DispelAuraDuration", 2000);
-    reactDelay = (uint32)config.GetIntDefault("AiPlayerbot.ReactDelay", 100);
-    passiveDelay = (uint32)config.GetIntDefault("AiPlayerbot.PassiveDelay", 4000);
-    repeatDelay = (uint32)config.GetIntDefault("AiPlayerbot.RepeatDelay", 5000);
-    errorDelay = (uint32)config.GetIntDefault("AiPlayerbot.ErrorDelay", 5000);
-    rpgDelay = (uint32)config.GetIntDefault("AiPlayerbot.RpgDelay", 3000);
-    sitDelay = (uint32)config.GetIntDefault("AiPlayerbot.SitDelay", 30000);
-    returnDelay = (uint32)config.GetIntDefault("AiPlayerbot.ReturnDelay", 7000);
-    lootDelay = (uint32)config.GetIntDefault("AiPlayerbot.LootDelayDelay", 750);
+    BarGoLink::SetOutputState(sConfig.GetBoolDefault("AiPlayerbot.ShowProgressBars", false));
+    globalCoolDown = (uint32)sConfig.GetIntDefault("AiPlayerbot.GlobalCooldown", 500);
+    maxWaitForMove = sConfig.GetIntDefault("AiPlayerbot.MaxWaitForMove", 3000);
+    expireActionTime = sConfig.GetIntDefault("AiPlayerbot.ExpireActionTime", 5000);
+    dispelAuraDuration = sConfig.GetIntDefault("AiPlayerbot.DispelAuraDuration", 2000);
+    reactDelay = (uint32)sConfig.GetIntDefault("AiPlayerbot.ReactDelay", 100);
+    passiveDelay = (uint32)sConfig.GetIntDefault("AiPlayerbot.PassiveDelay", 4000);
+    repeatDelay = (uint32)sConfig.GetIntDefault("AiPlayerbot.RepeatDelay", 5000);
+    errorDelay = (uint32)sConfig.GetIntDefault("AiPlayerbot.ErrorDelay", 5000);
+    rpgDelay = (uint32)sConfig.GetIntDefault("AiPlayerbot.RpgDelay", 3000);
+    sitDelay = (uint32)sConfig.GetIntDefault("AiPlayerbot.SitDelay", 30000);
+    returnDelay = (uint32)sConfig.GetIntDefault("AiPlayerbot.ReturnDelay", 7000);
+    lootDelay = (uint32)sConfig.GetIntDefault("AiPlayerbot.LootDelayDelay", 750);
 
-    farDistance = config.GetFloatDefault("AiPlayerbot.FarDistance", 20.0f);
-    sightDistance = config.GetFloatDefault("AiPlayerbot.SightDistance", 75.0f);
-    spellDistance = config.GetFloatDefault("AiPlayerbot.SpellDistance", 25.0f);
-    shootDistance = config.GetFloatDefault("AiPlayerbot.ShootDistance", 25.0f);
-    healDistance = config.GetFloatDefault("AiPlayerbot.HealDistance", 125.0f);
-    reactDistance = config.GetFloatDefault("AiPlayerbot.ReactDistance", 150.0f);
-    maxFreeMoveDistance = config.GetFloatDefault("AiPlayerbot.MaxFreeMoveDistance", 150.0f);
-    freeMoveDelay = config.GetFloatDefault("AiPlayerbot.FreeMoveDelay", 30.0f);
-    grindDistance = config.GetFloatDefault("AiPlayerbot.GrindDistance", 75.0f);
-    aggroDistance = config.GetFloatDefault("AiPlayerbot.AggroDistance", 22.0f);
-    lootDistance = config.GetFloatDefault("AiPlayerbot.LootDistance", 25.0f);
-    groupMemberLootDistance = config.GetFloatDefault("AiPlayerbot.GroupMemberLootDistance", 15.0f);
-    groupMemberLootDistanceWithActiveMaster = config.GetFloatDefault("AiPlayerbot.GroupMemberLootDistanceWithActiveMaster", 10.0f);
-    gatheringDistance = config.GetFloatDefault("AiPlayerbot.GatheringDistance", 15.0f);
-    groupMemberGatheringDistance = config.GetFloatDefault("AiPlayerbot.GroupMemberGatheringDistance", 10.0f);
-    groupMemberGatheringDistanceWithActiveMaster = config.GetFloatDefault("AiPlayerbot.GroupMemberGatheringDistanceWithActiveMaster", 5.0f);
-    fleeDistance = config.GetFloatDefault("AiPlayerbot.FleeDistance", 8.0f);
-    tooCloseDistance = config.GetFloatDefault("AiPlayerbot.TooCloseDistance", 5.0f);
-    meleeDistance = config.GetFloatDefault("AiPlayerbot.MeleeDistance", 1.5f);
-    followDistance = config.GetFloatDefault("AiPlayerbot.FollowDistance", 1.5f);
-    raidFollowDistance = config.GetFloatDefault("AiPlayerbot.RaidFollowDistance", 5.0f);
-    wanderMinDistance = config.GetFloatDefault("AiPlayerbot.WanderMinDistance", 5.0f);
-    wanderMaxDistance = config.GetFloatDefault("AiPlayerbot.WanderMaxDistance", 50.0f);
-    whisperDistance = config.GetFloatDefault("AiPlayerbot.WhisperDistance", 6000.0f);
-    contactDistance = config.GetFloatDefault("AiPlayerbot.ContactDistance", 0.5f);
-    aoeRadius = config.GetFloatDefault("AiPlayerbot.AoeRadius", 5.0f);
-    rpgDistance = config.GetFloatDefault("AiPlayerbot.RpgDistance", 80.0f);
-    proximityDistance = config.GetFloatDefault("AiPlayerbot.ProximityDistance", 20.0f);
-    walkDistance = config.GetFloatDefault("AiPlayerbot.WalkDistance", 5.0f);
+    farDistance = sConfig.GetFloatDefault("AiPlayerbot.FarDistance", 20.0f);
+    sightDistance = sConfig.GetFloatDefault("AiPlayerbot.SightDistance", 75.0f);
+    spellDistance = sConfig.GetFloatDefault("AiPlayerbot.SpellDistance", 25.0f);
+    shootDistance = sConfig.GetFloatDefault("AiPlayerbot.ShootDistance", 25.0f);
+    healDistance = sConfig.GetFloatDefault("AiPlayerbot.HealDistance", 125.0f);
+    reactDistance = sConfig.GetFloatDefault("AiPlayerbot.ReactDistance", 150.0f);
+    maxFreeMoveDistance = sConfig.GetFloatDefault("AiPlayerbot.MaxFreeMoveDistance", 150.0f);
+    freeMoveDelay = sConfig.GetFloatDefault("AiPlayerbot.FreeMoveDelay", 30.0f);
+    grindDistance = sConfig.GetFloatDefault("AiPlayerbot.GrindDistance", 75.0f);
+    aggroDistance = sConfig.GetFloatDefault("AiPlayerbot.AggroDistance", 22.0f);
+    lootDistance = sConfig.GetFloatDefault("AiPlayerbot.LootDistance", 25.0f);
+    groupMemberLootDistance = sConfig.GetFloatDefault("AiPlayerbot.GroupMemberLootDistance", 15.0f);
+    groupMemberLootDistanceWithActiveMaster = sConfig.GetFloatDefault("AiPlayerbot.GroupMemberLootDistanceWithActiveMaster", 10.0f);
+    gatheringDistance = sConfig.GetFloatDefault("AiPlayerbot.GatheringDistance", 15.0f);
+    groupMemberGatheringDistance = sConfig.GetFloatDefault("AiPlayerbot.GroupMemberGatheringDistance", 10.0f);
+    groupMemberGatheringDistanceWithActiveMaster = sConfig.GetFloatDefault("AiPlayerbot.GroupMemberGatheringDistanceWithActiveMaster", 5.0f);
+    fleeDistance = sConfig.GetFloatDefault("AiPlayerbot.FleeDistance", 8.0f);
+    tooCloseDistance = sConfig.GetFloatDefault("AiPlayerbot.TooCloseDistance", 5.0f);
+    meleeDistance = sConfig.GetFloatDefault("AiPlayerbot.MeleeDistance", 1.5f);
+    followDistance = sConfig.GetFloatDefault("AiPlayerbot.FollowDistance", 1.5f);
+    raidFollowDistance = sConfig.GetFloatDefault("AiPlayerbot.RaidFollowDistance", 5.0f);
+    wanderMinDistance = sConfig.GetFloatDefault("AiPlayerbot.WanderMinDistance", 5.0f);
+    wanderMaxDistance = sConfig.GetFloatDefault("AiPlayerbot.WanderMaxDistance", 50.0f);
+    whisperDistance = sConfig.GetFloatDefault("AiPlayerbot.WhisperDistance", 6000.0f);
+    contactDistance = sConfig.GetFloatDefault("AiPlayerbot.ContactDistance", 0.5f);
+    aoeRadius = sConfig.GetFloatDefault("AiPlayerbot.AoeRadius", 5.0f);
+    rpgDistance = sConfig.GetFloatDefault("AiPlayerbot.RpgDistance", 80.0f);
+    proximityDistance = sConfig.GetFloatDefault("AiPlayerbot.ProximityDistance", 20.0f);
+    walkDistance = sConfig.GetFloatDefault("AiPlayerbot.WalkDistance", 5.0f);
 
-    criticalHealth = config.GetIntDefault("AiPlayerbot.CriticalHealth", 20);
-    lowHealth = config.GetIntDefault("AiPlayerbot.LowHealth", 50);
-    mediumHealth = config.GetIntDefault("AiPlayerbot.MediumHealth", 70);
-    almostFullHealth = config.GetIntDefault("AiPlayerbot.AlmostFullHealth", 90);
-    lowMana = config.GetIntDefault("AiPlayerbot.LowMana", 15);
-    mediumMana = config.GetIntDefault("AiPlayerbot.MediumMana", 40);
+    criticalHealth = sConfig.GetIntDefault("AiPlayerbot.CriticalHealth", 20);
+    lowHealth = sConfig.GetIntDefault("AiPlayerbot.LowHealth", 50);
+    mediumHealth = sConfig.GetIntDefault("AiPlayerbot.MediumHealth", 70);
+    almostFullHealth = sConfig.GetIntDefault("AiPlayerbot.AlmostFullHealth", 90);
+    lowMana = sConfig.GetIntDefault("AiPlayerbot.LowMana", 15);
+    mediumMana = sConfig.GetIntDefault("AiPlayerbot.MediumMana", 40);
 
-    randomGearMaxLevel = config.GetIntDefault("AiPlayerbot.RandomGearMaxLevel", 500);
-    randomGearMaxDiff = config.GetIntDefault("AiPlayerbot.RandomGearMaxDiff", 9);
-    randomGearUpgradeEnabled = config.GetBoolDefault("AiPlayerbot.RandomGearUpgradeEnabled", false);
-    randomGearTabards = config.GetBoolDefault("AiPlayerbot.RandomGearTabards", false);
-    randomGearTabardsChance = config.GetFloatDefault("AiPlayerbot.RandomGearTabardsChance", 0.1f);
-    randomGearTabardsReplaceGuild = config.GetBoolDefault("AiPlayerbot.RandomGearTabardsReplaceGuild", false);
-    randomGearTabardsUnobtainable = config.GetBoolDefault("AiPlayerbot.RandomGearTabardsUnobtainable", false);
-    LoadList<std::list<uint32>>(config.GetStringDefault("AiPlayerbot.RandomGearBlacklist", ""), randomGearBlacklist);
-    LoadList<std::list<uint32>>(config.GetStringDefault("AiPlayerbot.RandomGearWhitelist", ""), randomGearWhitelist);
-    randomGearProgression = config.GetBoolDefault("AiPlayerbot.RandomGearProgression", true);
-    randomGearLoweringChance = config.GetFloatDefault("AiPlayerbot.RandomGearLoweringChance", 0.15f);
-    randomBotMaxLevelChance = config.GetFloatDefault("AiPlayerbot.RandomBotMaxLevelChance", 0.15f);
-    rollBadItemsWithPlayer = config.GetBoolDefault("AiPlayerbot.RollBadItemsWithPlayer", false);
-    randomBotRpgChance = config.GetFloatDefault("AiPlayerbot.RandomBotRpgChance", 0.35f);
-    usePotionChance = config.GetFloatDefault("AiPlayerbot.UsePotionChance", 1.0f);
-    attackEmoteChance = config.GetFloatDefault("AiPlayerbot.AttackEmoteChance", 0.0f);
+    randomGearMaxLevel = sConfig.GetIntDefault("AiPlayerbot.RandomGearMaxLevel", 500);
+    randomGearMaxDiff = sConfig.GetIntDefault("AiPlayerbot.RandomGearMaxDiff", 9);
+    randomGearUpgradeEnabled = sConfig.GetBoolDefault("AiPlayerbot.RandomGearUpgradeEnabled", false);
+    randomGearTabards = sConfig.GetBoolDefault("AiPlayerbot.RandomGearTabards", false);
+    randomGearTabardsChance = sConfig.GetFloatDefault("AiPlayerbot.RandomGearTabardsChance", 0.1f);
+    randomGearTabardsReplaceGuild = sConfig.GetBoolDefault("AiPlayerbot.RandomGearTabardsReplaceGuild", false);
+    randomGearTabardsUnobtainable = sConfig.GetBoolDefault("AiPlayerbot.RandomGearTabardsUnobtainable", false);
+    LoadList<std::list<uint32>>(sConfig.GetStringDefault("AiPlayerbot.RandomGearBlacklist", ""), randomGearBlacklist);
+    LoadList<std::list<uint32>>(sConfig.GetStringDefault("AiPlayerbot.RandomGearWhitelist", ""), randomGearWhitelist);
+    randomGearProgression = sConfig.GetBoolDefault("AiPlayerbot.RandomGearProgression", true);
+    randomGearLoweringChance = sConfig.GetFloatDefault("AiPlayerbot.RandomGearLoweringChance", 0.15f);
+    randomBotMaxLevelChance = sConfig.GetFloatDefault("AiPlayerbot.RandomBotMaxLevelChance", 0.15f);
+    rollBadItemsWithPlayer = sConfig.GetBoolDefault("AiPlayerbot.RollBadItemsWithPlayer", false);
+    randomBotRpgChance = sConfig.GetFloatDefault("AiPlayerbot.RandomBotRpgChance", 0.35f);
+    usePotionChance = sConfig.GetFloatDefault("AiPlayerbot.UsePotionChance", 1.0f);
+    attackEmoteChance = sConfig.GetFloatDefault("AiPlayerbot.AttackEmoteChance", 0.0f);
 
-    jumpNoCombatChance = config.GetFloatDefault("AiPlayerbot.JumpNoCombatChance", 0.5f);
-    jumpMeleeInCombatChance = config.GetFloatDefault("AiPlayerbot.JumpMeleeInCombatChance", 0.5f);
-    jumpRandomChance = config.GetFloatDefault("AiPlayerbot.JumpRandomChance", 0.20f);
-    jumpInPlaceChance = config.GetFloatDefault("AiPlayerbot.JumpInPlaceChance", 0.50f);
-    jumpBackwardChance = config.GetFloatDefault("AiPlayerbot.JumpBackwardChance", 0.10f);
-    jumpHeightLimit = config.GetFloatDefault("AiPlayerbot.JumpHeightLimit", 60.f);
-    jumpVSpeed = config.GetFloatDefault("AiPlayerbot.JumpVSpeed", 7.96f);
-    jumpHSpeed = config.GetFloatDefault("AiPlayerbot.JumpHSpeed", 7.0f);
-    jumpInBg = config.GetBoolDefault("AiPlayerbot.JumpInBg", false);
-    jumpWithPlayer = config.GetBoolDefault("AiPlayerbot.JumpWithPlayer", false);
-    jumpFollow = config.GetBoolDefault("AiPlayerbot.JumpFollow", true);
-    jumpChase = config.GetBoolDefault("AiPlayerbot.JumpChase", true);
-    useKnockback = config.GetBoolDefault("AiPlayerbot.UseKnockback", true);
+    jumpNoCombatChance = sConfig.GetFloatDefault("AiPlayerbot.JumpNoCombatChance", 0.5f);
+    jumpMeleeInCombatChance = sConfig.GetFloatDefault("AiPlayerbot.JumpMeleeInCombatChance", 0.5f);
+    jumpRandomChance = sConfig.GetFloatDefault("AiPlayerbot.JumpRandomChance", 0.20f);
+    jumpInPlaceChance = sConfig.GetFloatDefault("AiPlayerbot.JumpInPlaceChance", 0.50f);
+    jumpBackwardChance = sConfig.GetFloatDefault("AiPlayerbot.JumpBackwardChance", 0.10f);
+    jumpHeightLimit = sConfig.GetFloatDefault("AiPlayerbot.JumpHeightLimit", 60.f);
+    jumpVSpeed = sConfig.GetFloatDefault("AiPlayerbot.JumpVSpeed", 7.96f);
+    jumpHSpeed = sConfig.GetFloatDefault("AiPlayerbot.JumpHSpeed", 7.0f);
+    jumpInBg = sConfig.GetBoolDefault("AiPlayerbot.JumpInBg", false);
+    jumpWithPlayer = sConfig.GetBoolDefault("AiPlayerbot.JumpWithPlayer", false);
+    jumpFollow = sConfig.GetBoolDefault("AiPlayerbot.JumpFollow", true);
+    jumpChase = sConfig.GetBoolDefault("AiPlayerbot.JumpChase", true);
+    useKnockback = sConfig.GetBoolDefault("AiPlayerbot.UseKnockback", true);
 
-    iterationsPerTick = config.GetIntDefault("AiPlayerbot.IterationsPerTick", 100);
+    iterationsPerTick = sConfig.GetIntDefault("AiPlayerbot.IterationsPerTick", 100);
 
-    allowGuildBots = config.GetBoolDefault("AiPlayerbot.AllowGuildBots", true);
-    allowMultiAccountAltBots = config.GetBoolDefault("AiPlayerbot.AllowMultiAccountAltBots", true);
+    allowGuildBots = sConfig.GetBoolDefault("AiPlayerbot.AllowGuildBots", true);
+    allowMultiAccountAltBots = sConfig.GetBoolDefault("AiPlayerbot.AllowMultiAccountAltBots", true);
 
-    randomBotMapsAsString = config.GetStringDefault("AiPlayerbot.RandomBotMaps", "0,1,530,571");
+    randomBotMapsAsString = sConfig.GetStringDefault("AiPlayerbot.RandomBotMaps", "0,1,530,571");
     LoadList<std::vector<uint32>>(randomBotMapsAsString, randomBotMaps);
-    LoadList<std::list<uint32>>(config.GetStringDefault("AiPlayerbot.RandomBotQuestItems", "6948,5175,5176,5177,5178,16309,12382,13704,11000,22754"), randomBotQuestItems);
-    LoadList<std::list<uint32>>(config.GetStringDefault("AiPlayerbot.RandomBotSpellIds", "54197"), randomBotSpellIds);
-    LoadList<std::list<uint32>>(config.GetStringDefault("AiPlayerbot.PvpProhibitedZoneIds", "2255,656,2361,2362,2363,976,35,2268,3425,392,541,1446,3828,3712,3738,3565,3539,3623,4152,3988,4658,4284,4418,4436,4275,4323"), pvpProhibitedZoneIds);
+    LoadList<std::list<uint32>>(sConfig.GetStringDefault("AiPlayerbot.RandomBotQuestItems", "6948,5175,5176,5177,5178,16309,12382,13704,11000,22754"), randomBotQuestItems);
+    LoadList<std::list<uint32>>(sConfig.GetStringDefault("AiPlayerbot.RandomBotSpellIds", "54197"), randomBotSpellIds);
+    LoadList<std::list<uint32>>(sConfig.GetStringDefault("AiPlayerbot.PvpProhibitedZoneIds", "2255,656,2361,2362,2363,976,35,2268,3425,392,541,1446,3828,3712,3738,3565,3539,3623,4152,3988,4658,4284,4418,4436,4275,4323"), pvpProhibitedZoneIds);
 
 #ifndef MANGOSBOT_ZERO
     // disable pvp near dark portal if event is active
@@ -233,90 +227,90 @@ bool PlayerbotAIConfig::Initialize()
         pvpProhibitedZoneIds.insert(pvpProhibitedZoneIds.begin(), 72);
 #endif
 
-    LoadList<std::list<uint32>>(config.GetStringDefault("AiPlayerbot.RandomBotQuestIds", "7848,3802,5505,6502,7761,9378"), randomBotQuestIds);
-    LoadList<std::list<uint32>>(config.GetStringDefault("AiPlayerbot.ImmuneSpellIds", ""), immuneSpellIds);
+    LoadList<std::list<uint32>>(sConfig.GetStringDefault("AiPlayerbot.RandomBotQuestIds", "7848,3802,5505,6502,7761,9378"), randomBotQuestIds);
+    LoadList<std::list<uint32>>(sConfig.GetStringDefault("AiPlayerbot.ImmuneSpellIds", ""), immuneSpellIds);
 
-    botAutologin = BotAutoLogin(config.GetIntDefault("AiPlayerbot.BotAutologin", 0));
-    randomBotAutologin = config.GetBoolDefault("AiPlayerbot.RandomBotAutologin", true);
-    randomBotAutoCreate = config.GetBoolDefault("AiPlayerbot.RandomBotAutoCreate", true);
-    minRandomBots = config.GetIntDefault("AiPlayerbot.MinRandomBots", 50);
-    maxRandomBots = config.GetIntDefault("AiPlayerbot.MaxRandomBots", 200);
-    randomBotUpdateInterval = config.GetIntDefault("AiPlayerbot.RandomBotUpdateInterval", 1 * 1000);
-    randomBotCountChangeMinInterval = config.GetIntDefault("AiPlayerbot.RandomBotCountChangeMinInterval", 1 * 1800);
-    randomBotCountChangeMaxInterval = config.GetIntDefault("AiPlayerbot.RandomBotCountChangeMaxInterval", 2 * 3600);
-    randomBotTimedLogout = config.GetBoolDefault("AiPlayerbot.RandomBotTimedLogout", true);
-    randomBotTimedOffline = config.GetBoolDefault("AiPlayerbot.RandomBotTimedOffline", false);
-    minRandomBotInWorldTime = config.GetIntDefault("AiPlayerbot.MinRandomBotInWorldTime", 1 * 1800);
-    maxRandomBotInWorldTime = config.GetIntDefault("AiPlayerbot.MaxRandomBotInWorldTime", 6 * 3600);
-    minRandomBotRandomizeTime = config.GetIntDefault("AiPlayerbot.MinRandomBotRandomizeTime", 6 * 3600);
-    maxRandomBotRandomizeTime = config.GetIntDefault("AiPlayerbot.MaxRandomRandomizeTime", 24 * 3600);
-    minRandomBotChangeStrategyTime = config.GetIntDefault("AiPlayerbot.MinRandomBotChangeStrategyTime", 1800);
-    maxRandomBotChangeStrategyTime = config.GetIntDefault("AiPlayerbot.MaxRandomBotChangeStrategyTime", 2 * 3600);
-    minRandomBotReviveTime = config.GetIntDefault("AiPlayerbot.MinRandomBotReviveTime", 60);
-    maxRandomBotReviveTime = config.GetIntDefault("AiPlayerbot.MaxRandomReviveTime", 300);
-    enableRandomTeleports = config.GetBoolDefault("AiPlayerbot.EnableRandomTeleports", true);
-    enableMinimalMove = config.GetBoolDefault("AiPlayerbot.EnableMinimalMove", true);
+    botAutologin = BotAutoLogin(sConfig.GetIntDefault("AiPlayerbot.BotAutologin", 0));
+    randomBotAutologin = sConfig.GetBoolDefault("AiPlayerbot.RandomBotAutologin", true);
+    randomBotAutoCreate = sConfig.GetBoolDefault("AiPlayerbot.RandomBotAutoCreate", true);
+    minRandomBots = sConfig.GetIntDefault("AiPlayerbot.MinRandomBots", 50);
+    maxRandomBots = sConfig.GetIntDefault("AiPlayerbot.MaxRandomBots", 200);
+    randomBotUpdateInterval = sConfig.GetIntDefault("AiPlayerbot.RandomBotUpdateInterval", 1 * 1000);
+    randomBotCountChangeMinInterval = sConfig.GetIntDefault("AiPlayerbot.RandomBotCountChangeMinInterval", 1 * 1800);
+    randomBotCountChangeMaxInterval = sConfig.GetIntDefault("AiPlayerbot.RandomBotCountChangeMaxInterval", 2 * 3600);
+    randomBotTimedLogout = sConfig.GetBoolDefault("AiPlayerbot.RandomBotTimedLogout", true);
+    randomBotTimedOffline = sConfig.GetBoolDefault("AiPlayerbot.RandomBotTimedOffline", false);
+    minRandomBotInWorldTime = sConfig.GetIntDefault("AiPlayerbot.MinRandomBotInWorldTime", 1 * 1800);
+    maxRandomBotInWorldTime = sConfig.GetIntDefault("AiPlayerbot.MaxRandomBotInWorldTime", 6 * 3600);
+    minRandomBotRandomizeTime = sConfig.GetIntDefault("AiPlayerbot.MinRandomBotRandomizeTime", 6 * 3600);
+    maxRandomBotRandomizeTime = sConfig.GetIntDefault("AiPlayerbot.MaxRandomRandomizeTime", 24 * 3600);
+    minRandomBotChangeStrategyTime = sConfig.GetIntDefault("AiPlayerbot.MinRandomBotChangeStrategyTime", 1800);
+    maxRandomBotChangeStrategyTime = sConfig.GetIntDefault("AiPlayerbot.MaxRandomBotChangeStrategyTime", 2 * 3600);
+    minRandomBotReviveTime = sConfig.GetIntDefault("AiPlayerbot.MinRandomBotReviveTime", 60);
+    maxRandomBotReviveTime = sConfig.GetIntDefault("AiPlayerbot.MaxRandomReviveTime", 300);
+    enableRandomTeleports = sConfig.GetBoolDefault("AiPlayerbot.EnableRandomTeleports", true);
+    enableMinimalMove = sConfig.GetBoolDefault("AiPlayerbot.EnableMinimalMove", true);
 
-    randomBotTeleportDistance = config.GetIntDefault("AiPlayerbot.RandomBotTeleportDistance", 1000);
-    transportTeleportType = config.GetIntDefault("AiPlayerbot.TransportTeleportType", 2);
-    randomBotTeleportNearPlayer = config.GetBoolDefault("AiPlayerbot.RandomBotTeleportNearPlayer", false);
-    randomBotTeleportNearPlayerMaxAmount = config.GetIntDefault("AiPlayerbot.RandomBotTeleportNearPlayerMaxAmount", 0);
-    randomBotTeleportNearPlayerMaxAmountRadius = config.GetFloatDefault("AiPlayerbot.RandomBotTeleportNearPlayerMaxAmountRadius", 0.0f);
-    randomBotTeleportMinInterval = config.GetIntDefault("AiPlayerbot.RandomBotTeleportTeleportMinInterval", 2 * 3600);
-    randomBotTeleportMaxInterval = config.GetIntDefault("AiPlayerbot.RandomBotTeleportTeleportMaxInterval", 48 * 3600);
-    randomBotsMaxLoginsPerInterval = config.GetIntDefault("AiPlayerbot.RandomBotsMaxLoginsPerInterval", 10);
-    randomBotsPerInterval = config.GetIntDefault("AiPlayerbot.RandomBotsPerInterval", 0);
-    minRandomBotsPriceChangeInterval = config.GetIntDefault("AiPlayerbot.MinRandomBotsPriceChangeInterval", 2 * 3600);
-    maxRandomBotsPriceChangeInterval = config.GetIntDefault("AiPlayerbot.MaxRandomBotsPriceChangeInterval", 48 * 3600);
+    randomBotTeleportDistance = sConfig.GetIntDefault("AiPlayerbot.RandomBotTeleportDistance", 1000);
+    transportTeleportType = sConfig.GetIntDefault("AiPlayerbot.TransportTeleportType", 2);
+    randomBotTeleportNearPlayer = sConfig.GetBoolDefault("AiPlayerbot.RandomBotTeleportNearPlayer", false);
+    randomBotTeleportNearPlayerMaxAmount = sConfig.GetIntDefault("AiPlayerbot.RandomBotTeleportNearPlayerMaxAmount", 0);
+    randomBotTeleportNearPlayerMaxAmountRadius = sConfig.GetFloatDefault("AiPlayerbot.RandomBotTeleportNearPlayerMaxAmountRadius", 0.0f);
+    randomBotTeleportMinInterval = sConfig.GetIntDefault("AiPlayerbot.RandomBotTeleportTeleportMinInterval", 2 * 3600);
+    randomBotTeleportMaxInterval = sConfig.GetIntDefault("AiPlayerbot.RandomBotTeleportTeleportMaxInterval", 48 * 3600);
+    randomBotsMaxLoginsPerInterval = sConfig.GetIntDefault("AiPlayerbot.RandomBotsMaxLoginsPerInterval", 10);
+    randomBotsPerInterval = sConfig.GetIntDefault("AiPlayerbot.RandomBotsPerInterval", 0);
+    minRandomBotsPriceChangeInterval = sConfig.GetIntDefault("AiPlayerbot.MinRandomBotsPriceChangeInterval", 2 * 3600);
+    maxRandomBotsPriceChangeInterval = sConfig.GetIntDefault("AiPlayerbot.MaxRandomBotsPriceChangeInterval", 48 * 3600);
     //Auction house settings
-    shouldQueryAHListingsOutsideOfAH = config.GetBoolDefault("AiPlayerbot.ShouldQueryAHListingsOutsideOfAH", true);
-    LoadList<std::list<uint32>>(config.GetStringDefault("AiPlayerbot.AhOverVendorItemIds", ""), ahOverVendorItemIds);
-    LoadList<std::list<uint32>>(config.GetStringDefault("AiPlayerbot.VendorOverAHItemIds", ""), vendorOverAHItemIds);
-    botCheckAllAuctionListings = config.GetBoolDefault("AiPlayerbot.BotCheckAllAuctionListings", false);
-    botsSaveEpics = config.GetBoolDefault("AiPlayerbot.BotsSaveEpics", true);
+    shouldQueryAHListingsOutsideOfAH = sConfig.GetBoolDefault("AiPlayerbot.ShouldQueryAHListingsOutsideOfAH", true);
+    LoadList<std::list<uint32>>(sConfig.GetStringDefault("AiPlayerbot.AhOverVendorItemIds", ""), ahOverVendorItemIds);
+    LoadList<std::list<uint32>>(sConfig.GetStringDefault("AiPlayerbot.VendorOverAHItemIds", ""), vendorOverAHItemIds);
+    botCheckAllAuctionListings = sConfig.GetBoolDefault("AiPlayerbot.BotCheckAllAuctionListings", false);
+    botsSaveEpics = sConfig.GetBoolDefault("AiPlayerbot.BotsSaveEpics", true);
     //
-    randomBotJoinLfg = config.GetBoolDefault("AiPlayerbot.RandomBotJoinLfg", true);
-    logRandomBotJoinLfg = config.GetBoolDefault("AiPlayerbot.LogRandomBotJoinLfg", false);
-    randomBotJoinBG = config.GetBoolDefault("AiPlayerbot.RandomBotJoinBG", true);
-    randomBotAutoJoinBG = config.GetBoolDefault("AiPlayerbot.RandomBotAutoJoinBG", false);
-    randomBotBracketCount = config.GetIntDefault("AiPlayerbot.RandomBotBracketCount", 3);
-    logInGroupOnly = config.GetBoolDefault("AiPlayerbot.LogInGroupOnly", true);
-    logValuesPerTick = config.GetBoolDefault("AiPlayerbot.LogValuesPerTick", false);
-    fleeingEnabled = config.GetBoolDefault("AiPlayerbot.FleeingEnabled", true);
-    summonAtInnkeepersEnabled = config.GetBoolDefault("AiPlayerbot.SummonAtInnkeepersEnabled", true);
-    randomBotMinLevel = config.GetIntDefault("AiPlayerbot.RandomBotMinLevel", 1);
-    randomBotMaxLevel = config.GetIntDefault("AiPlayerbot.RandomBotMaxLevel", 255);
-    randomBotLoginAtStartup = config.GetBoolDefault("AiPlayerbot.RandomBotLoginAtStartup", true);
-    randomBotTeleLevel = config.GetIntDefault("AiPlayerbot.RandomBotTeleLevel", 5);
-    openGoSpell = config.GetIntDefault("AiPlayerbot.OpenGoSpell", 6477);
+    randomBotJoinLfg = sConfig.GetBoolDefault("AiPlayerbot.RandomBotJoinLfg", true);
+    logRandomBotJoinLfg = sConfig.GetBoolDefault("AiPlayerbot.LogRandomBotJoinLfg", false);
+    randomBotJoinBG = sConfig.GetBoolDefault("AiPlayerbot.RandomBotJoinBG", true);
+    randomBotAutoJoinBG = sConfig.GetBoolDefault("AiPlayerbot.RandomBotAutoJoinBG", false);
+    randomBotBracketCount = sConfig.GetIntDefault("AiPlayerbot.RandomBotBracketCount", 3);
+    logInGroupOnly = sConfig.GetBoolDefault("AiPlayerbot.LogInGroupOnly", true);
+    logValuesPerTick = sConfig.GetBoolDefault("AiPlayerbot.LogValuesPerTick", false);
+    fleeingEnabled = sConfig.GetBoolDefault("AiPlayerbot.FleeingEnabled", true);
+    summonAtInnkeepersEnabled = sConfig.GetBoolDefault("AiPlayerbot.SummonAtInnkeepersEnabled", true);
+    randomBotMinLevel = sConfig.GetIntDefault("AiPlayerbot.RandomBotMinLevel", 1);
+    randomBotMaxLevel = sConfig.GetIntDefault("AiPlayerbot.RandomBotMaxLevel", 255);
+    randomBotLoginAtStartup = sConfig.GetBoolDefault("AiPlayerbot.RandomBotLoginAtStartup", true);
+    randomBotTeleLevel = sConfig.GetIntDefault("AiPlayerbot.RandomBotTeleLevel", 5);
+    openGoSpell = sConfig.GetIntDefault("AiPlayerbot.OpenGoSpell", 6477);
 
-    randomChangeMultiplier = config.GetFloatDefault("AiPlayerbot.RandomChangeMultiplier", 1.0);
+    randomChangeMultiplier = sConfig.GetFloatDefault("AiPlayerbot.RandomChangeMultiplier", 1.0);
 
-    randomBotCombatStrategies = config.GetStringDefault("AiPlayerbot.RandomBotCombatStrategies", "-threat,+custom::say");
-    randomBotNonCombatStrategies = config.GetStringDefault("AiPlayerbot.RandomBotNonCombatStrategies", "+custom::say");
-    randomBotReactStrategies = config.GetStringDefault("AiPlayerbot.RandomBotReactStrategies", "");
-    randomBotDeadStrategies = config.GetStringDefault("AiPlayerbot.RandomBotDeadStrategies", "");
-    combatStrategies = config.GetStringDefault("AiPlayerbot.CombatStrategies", "");
-    nonCombatStrategies = config.GetStringDefault("AiPlayerbot.NonCombatStrategies", "+return,+delayed roll");
-    reactStrategies = config.GetStringDefault("AiPlayerbot.ReactStrategies", "");
-    deadStrategies = config.GetStringDefault("AiPlayerbot.DeadStrategies", "");
+    randomBotCombatStrategies = sConfig.GetStringDefault("AiPlayerbot.RandomBotCombatStrategies", "-threat,+custom::say");
+    randomBotNonCombatStrategies = sConfig.GetStringDefault("AiPlayerbot.RandomBotNonCombatStrategies", "+custom::say");
+    randomBotReactStrategies = sConfig.GetStringDefault("AiPlayerbot.RandomBotReactStrategies", "");
+    randomBotDeadStrategies = sConfig.GetStringDefault("AiPlayerbot.RandomBotDeadStrategies", "");
+    combatStrategies = sConfig.GetStringDefault("AiPlayerbot.CombatStrategies", "");
+    nonCombatStrategies = sConfig.GetStringDefault("AiPlayerbot.NonCombatStrategies", "+return,+delayed roll");
+    reactStrategies = sConfig.GetStringDefault("AiPlayerbot.ReactStrategies", "");
+    deadStrategies = sConfig.GetStringDefault("AiPlayerbot.DeadStrategies", "");
 
-    commandPrefix = config.GetStringDefault("AiPlayerbot.CommandPrefix", "");
-    commandSeparator = config.GetStringDefault("AiPlayerbot.CommandSeparator", "\\\\");
+    commandPrefix = sConfig.GetStringDefault("AiPlayerbot.CommandPrefix", "");
+    commandSeparator = sConfig.GetStringDefault("AiPlayerbot.CommandSeparator", "\\\\");
 
-    commandServerPort = config.GetIntDefault("AiPlayerbot.CommandServerPort", 0);
-    perfMonEnabled = config.GetBoolDefault("AiPlayerbot.PerfMonEnabled", false);
-    bExplicitDbStoreSave = config.GetBoolDefault("AiPlayerbot.ExplicitDbStoreSave", false);
+    commandServerPort = sConfig.GetIntDefault("AiPlayerbot.CommandServerPort", 0);
+    perfMonEnabled = sConfig.GetBoolDefault("AiPlayerbot.PerfMonEnabled", false);
+    bExplicitDbStoreSave = sConfig.GetBoolDefault("AiPlayerbot.ExplicitDbStoreSave", false);
 
-    randomBotLoginWithPlayer = config.GetBoolDefault("AiPlayerbot.RandomBotLoginWithPlayer", false);
-    asyncBotLogin = config.GetBoolDefault("AiPlayerbot.AsyncBotLogin", false);
-    preloadHolders = config.GetBoolDefault("AiPlayerbot.PreloadHolders", false);
+    randomBotLoginWithPlayer = sConfig.GetBoolDefault("AiPlayerbot.RandomBotLoginWithPlayer", false);
+    asyncBotLogin = sConfig.GetBoolDefault("AiPlayerbot.AsyncBotLogin", false);
+    preloadHolders = sConfig.GetBoolDefault("AiPlayerbot.PreloadHolders", false);
 
-    freeRoomForNonSpareBots = config.GetIntDefault("AiPlayerbot.FreeRoomForNonSpareBots", 1);
+    freeRoomForNonSpareBots = sConfig.GetIntDefault("AiPlayerbot.FreeRoomForNonSpareBots", 1);
 
-    loginBotsNearPlayerRange = config.GetIntDefault("AiPlayerbot.LoginBotsNearPlayerRange", 1000);
+    loginBotsNearPlayerRange = sConfig.GetIntDefault("AiPlayerbot.LoginBotsNearPlayerRange", 1000);
 
-    LoadListString<std::vector<std::string>>(config.GetStringDefault("AiPlayerbot.DefaultLoginCriteria", "maxbots,spareroom,offline"), defaultLoginCriteria);
+    LoadListString<std::vector<std::string>>(sConfig.GetStringDefault("AiPlayerbot.DefaultLoginCriteria", "maxbots,spareroom,offline"), defaultLoginCriteria);
 
     std::vector<std::string> criteriaValues = GetConfigKeysContaining(config, "AiPlayerbot.LoginCriteria");
     std::sort(criteriaValues.begin(), criteriaValues.end());
@@ -324,7 +318,7 @@ bool PlayerbotAIConfig::Initialize()
     for (auto& value : criteriaValues)
     {
         loginCriteria.push_back({});
-        LoadListString<std::vector<std::string>>(config.GetStringDefault(value.c_str(), ""), loginCriteria.back());
+        LoadListString<std::vector<std::string>>(sConfig.GetStringDefault(value.c_str(), ""), loginCriteria.back());
     }
 
     if (criteriaValues.empty())
@@ -338,17 +332,17 @@ bool PlayerbotAIConfig::Initialize()
         loginCriteria.push_back({"logoff,classrace"});
     }
 
-    for (uint32 level = 1; level <= DEFAULT_MAX_LEVEL; ++level)
+    for (uint32 level = 1; level <= PLAYER_MAX_LEVEL; ++level)
     {
         std::string key = "AiPlayerbot.LevelProbability." + std::to_string(level);
-        levelProbability[level] = config.GetIntDefault(key.c_str(), 100);
+        levelProbability[level] = sConfig.GetIntDefault(key.c_str(), 100);
     }
 
     sLog.outString("Loading Race/Class probabilities");
 
     classRaceProbabilityTotal = 0;
 
-    useFixedClassRaceCounts = config.GetBoolDefault("AiPlayerbot.ClassRace.UseFixedClassRaceCounts", false);
+    useFixedClassRaceCounts = sConfig.GetBoolDefault("AiPlayerbot.ClassRace.UseFixedClassRaceCounts", false);
     fixedClassRaceCounts.clear();
     RandomPlayerbotFactory factory(0);
 
@@ -358,7 +352,7 @@ bool PlayerbotAIConfig::Initialize()
         if (race > 0)
         {
             std::string key = "AiPlayerbot.ClassRaceProb.0." + std::to_string(race);
-            int rProb = config.GetIntDefault(key.c_str(), 100);
+            int rProb = sConfig.GetIntDefault(key.c_str(), 100);
 
             for (uint32 cls = 1; cls < MAX_CLASSES; ++cls)
             {
@@ -371,7 +365,7 @@ bool PlayerbotAIConfig::Initialize()
     for (uint32 cls = 1; cls < MAX_CLASSES; ++cls)
     {
         std::string key = "AiPlayerbot.ClassRaceProb." + std::to_string(cls);
-        int cProb = config.GetIntDefault(key.c_str(), -1);
+        int cProb = sConfig.GetIntDefault(key.c_str(), -1);
 
         if (cProb >= 0)
         {
@@ -388,7 +382,7 @@ bool PlayerbotAIConfig::Initialize()
         for (uint32 cls = 1; cls < MAX_CLASSES; ++cls)
         {
             std::string key = "AiPlayerbot.ClassRaceProb." + std::to_string(cls) + "." + std::to_string(race);
-            int rcProb = config.GetIntDefault(key.c_str(), -1);
+            int rcProb = sConfig.GetIntDefault(key.c_str(), -1);
             if (rcProb >= 0)
                 classRaceProbability[cls][race] = rcProb;
 
@@ -406,7 +400,7 @@ bool PlayerbotAIConfig::Initialize()
         for (uint32 race = 1; race < MAX_RACES; ++race)
         {
             std::string raceKey = "AiPlayerbot.ClassRaceProb.0." + std::to_string(race);
-            int val = config.GetIntDefault(raceKey.c_str(), -1);
+            int val = sConfig.GetIntDefault(raceKey.c_str(), -1);
             if (val >= 0)
                 sLog.outError("Fixed class/race counts does not yet support '%s' (race-only). This config entry will be ignored.", raceKey.c_str());
         }
@@ -414,7 +408,7 @@ bool PlayerbotAIConfig::Initialize()
         for (uint32 cls = 1; cls < MAX_CLASSES; ++cls)
         {
             std::string classKey = "AiPlayerbot.ClassRaceProb." + std::to_string(cls);
-            int val = config.GetIntDefault(classKey.c_str(), -1);
+            int val = sConfig.GetIntDefault(classKey.c_str(), -1);
             if (val >= 0)
                 sLog.outError("Fixed class/race counts does not yet support '%s' (class-only). This config entry will be ignored.", classKey.c_str());
         }
@@ -426,7 +420,7 @@ bool PlayerbotAIConfig::Initialize()
                 for (uint32 race = 1; race < MAX_RACES; ++race)
                 {
                     std::string key = "AiPlayerbot.ClassRaceProb." + std::to_string(cls) + "." + std::to_string(race);
-                    int count = config.GetIntDefault(key.c_str(), -1);
+                    int count = sConfig.GetIntDefault(key.c_str(), -1);
 
                     if (count >= 0 && factory.isAvailableRace(cls, race))
                     {
@@ -437,12 +431,12 @@ bool PlayerbotAIConfig::Initialize()
         }
     }
 
-    botCheatMask = uint32(CheatAction::GetCheatMask(config.GetStringDefault("AiPlayerbot.BotCheats", "taxi,item,breath")));
+    botCheatMask = uint32(CheatAction::GetCheatMask(sConfig.GetStringDefault("AiPlayerbot.BotCheats", "taxi,item,breath")));
 
-    rndBotCheatMask = uint32(CheatAction::GetCheatMask(config.GetStringDefault("AiPlayerbot.RndBotCheats", "taxi,item,breath")));
+    rndBotCheatMask = uint32(CheatAction::GetCheatMask(sConfig.GetStringDefault("AiPlayerbot.RndBotCheats", "taxi,item,breath")));
 
-    LoadListString<std::list<std::string>>(config.GetStringDefault("AiPlayerbot.AllowedLogFiles", ""), allowedLogFiles);
-    LoadListString<std::list<std::string>>(config.GetStringDefault("AiPlayerbot.DebugFilter", "add gathering loot,check values,emote,check mount state,jump"), debugFilter);
+    LoadListString<std::list<std::string>>(sConfig.GetStringDefault("AiPlayerbot.AllowedLogFiles", ""), allowedLogFiles);
+    LoadListString<std::list<std::string>>(sConfig.GetStringDefault("AiPlayerbot.DebugFilter", "add gathering loot,check values,emote,check mount state,jump"), debugFilter);
 
     worldBuffs.clear();
 
@@ -466,7 +460,7 @@ bool PlayerbotAIConfig::Initialize()
 
             //Get list of buffs for this combination.
             std::list<uint32> buffs;
-            LoadList<std::list<uint32>>(config.GetStringDefault(value.c_str(), ""), buffs);
+            LoadList<std::list<uint32>>(sConfig.GetStringDefault(value.c_str(), ""), buffs);
 
             //Store buffs for later application.
             for (auto buff : buffs)
@@ -479,61 +473,61 @@ bool PlayerbotAIConfig::Initialize()
         }
     }
 
-    randomBotAccountPrefix = config.GetStringDefault("AiPlayerbot.RandomBotAccountPrefix", "rndbot");
-    randomBotAccountCount = config.GetIntDefault("AiPlayerbot.RandomBotAccountCount", 50);
-    deleteRandomBotAccounts = config.GetBoolDefault("AiPlayerbot.DeleteRandomBotAccounts", false);
-    randomBotGuildCount = config.GetIntDefault("AiPlayerbot.RandomBotGuildCount", 20);
-    deleteRandomBotGuilds = config.GetBoolDefault("AiPlayerbot.DeleteRandomBotGuilds", false);
+    randomBotAccountPrefix = sConfig.GetStringDefault("AiPlayerbot.RandomBotAccountPrefix", "rndbot");
+    randomBotAccountCount = sConfig.GetIntDefault("AiPlayerbot.RandomBotAccountCount", 50);
+    deleteRandomBotAccounts = sConfig.GetBoolDefault("AiPlayerbot.DeleteRandomBotAccounts", false);
+    randomBotGuildCount = sConfig.GetIntDefault("AiPlayerbot.RandomBotGuildCount", 20);
+    deleteRandomBotGuilds = sConfig.GetBoolDefault("AiPlayerbot.DeleteRandomBotGuilds", false);
 
     //arena
-    randomBotArenaTeamCount = config.GetIntDefault("AiPlayerbot.RandomBotArenaTeamCount", 20);
-    deleteRandomBotArenaTeams = config.GetBoolDefault("AiPlayerbot.DeleteRandomBotArenaTeams", false);
+    randomBotArenaTeamCount = sConfig.GetIntDefault("AiPlayerbot.RandomBotArenaTeamCount", 20);
+    deleteRandomBotArenaTeams = sConfig.GetBoolDefault("AiPlayerbot.DeleteRandomBotArenaTeams", false);
 
     //cosmetics (by lidocain)
-    randomBotShowCloak = config.GetBoolDefault("AiPlayerbot.RandomBotShowCloak", false);
-    randomBotShowHelmet = config.GetBoolDefault("AiPlayerbot.RandomBotShowHelmet", false);
+    randomBotShowCloak = sConfig.GetBoolDefault("AiPlayerbot.RandomBotShowCloak", false);
+    randomBotShowHelmet = sConfig.GetBoolDefault("AiPlayerbot.RandomBotShowHelmet", false);
 
     //SPP switches
-    enableGreet = config.GetBoolDefault("AiPlayerbot.EnableGreet", false);
-    disableRandomLevels = config.GetBoolDefault("AiPlayerbot.DisableRandomLevels", false);
-    instantRandomize = config.GetBoolDefault("AiPlayerbot.InstantRandomize", true);
-    randomBotRandomPassword = config.GetBoolDefault("AiPlayerbot.RandomBotRandomPassword", true);
-    playerbotsXPrate = config.GetFloatDefault("AiPlayerbot.XPRate", 1.0f);
+    enableGreet = sConfig.GetBoolDefault("AiPlayerbot.EnableGreet", false);
+    disableRandomLevels = sConfig.GetBoolDefault("AiPlayerbot.DisableRandomLevels", false);
+    instantRandomize = sConfig.GetBoolDefault("AiPlayerbot.InstantRandomize", true);
+    randomBotRandomPassword = sConfig.GetBoolDefault("AiPlayerbot.RandomBotRandomPassword", true);
+    playerbotsXPrate = sConfig.GetFloatDefault("AiPlayerbot.XPRate", 1.0f);
     // Native-map, opt-in bot AI load controller. Core Player/Map/session updates are never skipped.
     // Legacy negative switches are retained as hard kill-switches for existing configurations.
-    disableBotOptimizations = config.GetBoolDefault("AiPlayerbot.DisableBotOptimizations", false);
-    disableActivityPriorities = config.GetBoolDefault("AiPlayerbot.DisableActivityPriorities", false);
-    forceActiveWhenNearPlayer = config.GetBoolDefault("AiPlayerbot.ForceActiveWhenNearPlayer", false);
-    limitCombatActivity = config.GetBoolDefault("AiPlayerbot.LimitCombatActivity", false);
-    guildOrderAlwaysActive = config.GetBoolDefault("AiPlayerbot.GuildOrderAlwaysActive", true);
-    diffWithPlayer = config.GetIntDefault("AiPlayerbot.DiffWithPlayer", 100);
-    diffEmpty = config.GetIntDefault("AiPlayerbot.DiffEmpty", 200);
+    disableBotOptimizations = sConfig.GetBoolDefault("AiPlayerbot.DisableBotOptimizations", false);
+    disableActivityPriorities = sConfig.GetBoolDefault("AiPlayerbot.DisableActivityPriorities", false);
+    forceActiveWhenNearPlayer = sConfig.GetBoolDefault("AiPlayerbot.ForceActiveWhenNearPlayer", false);
+    limitCombatActivity = sConfig.GetBoolDefault("AiPlayerbot.LimitCombatActivity", false);
+    guildOrderAlwaysActive = sConfig.GetBoolDefault("AiPlayerbot.GuildOrderAlwaysActive", true);
+    diffWithPlayer = sConfig.GetIntDefault("AiPlayerbot.DiffWithPlayer", 100);
+    diffEmpty = sConfig.GetIntDefault("AiPlayerbot.DiffEmpty", 200);
 
     auto loadUInt = [&](const char* key, int32 defaultValue, int32 minValue, int32 maxValue) -> uint32
     {
-        int32 value = config.GetIntDefault(key, defaultValue);
+        int32 value = sConfig.GetIntDefault(key, defaultValue);
         value = std::max(minValue, std::min(maxValue, value));
         return uint32(value);
     };
 
-    loadOptimizationEnabled = config.GetBoolDefault("AiPlayerbot.LoadOptimization.Enabled", false);
+    loadOptimizationEnabled = sConfig.GetBoolDefault("AiPlayerbot.LoadOptimization.Enabled", false);
     loadOptimizationSampleIntervalMs = loadUInt("AiPlayerbot.LoadOptimization.SampleIntervalMs", 1000, 100, 60000);
     loadOptimizationDecisionCacheMs = loadUInt("AiPlayerbot.LoadOptimization.DecisionCacheMs", 5000, 0, 600000);
     loadOptimizationRotationIntervalSec = loadUInt("AiPlayerbot.LoadOptimization.RotationIntervalSec", 60, 1, 86400);
-    loadOptimizationBaseActivity = config.GetFloatDefault("AiPlayerbot.LoadOptimization.BaseActivity", 100.0f);
-    loadOptimizationMinActivity = config.GetFloatDefault("AiPlayerbot.LoadOptimization.MinActivity", 10.0f);
-    loadOptimizationMaxActivity = config.GetFloatDefault("AiPlayerbot.LoadOptimization.MaxActivity", 100.0f);
+    loadOptimizationBaseActivity = sConfig.GetFloatDefault("AiPlayerbot.LoadOptimization.BaseActivity", 100.0f);
+    loadOptimizationMinActivity = sConfig.GetFloatDefault("AiPlayerbot.LoadOptimization.MinActivity", 10.0f);
+    loadOptimizationMaxActivity = sConfig.GetFloatDefault("AiPlayerbot.LoadOptimization.MaxActivity", 100.0f);
     loadOptimizationTargetDiffWithPlayers = loadUInt("AiPlayerbot.LoadOptimization.TargetDiffWithPlayers", int32(diffWithPlayer), 1, 10000);
     loadOptimizationTargetDiffEmpty = loadUInt("AiPlayerbot.LoadOptimization.TargetDiffEmpty", int32(diffEmpty), 1, 10000);
-    loadOptimizationPidKp = std::max(0.0f, config.GetFloatDefault("AiPlayerbot.LoadOptimization.PID.Kp", 0.05f));
-    loadOptimizationPidKi = std::max(0.0f, config.GetFloatDefault("AiPlayerbot.LoadOptimization.PID.Ki", 0.001f));
-    loadOptimizationPidKd = std::max(0.0f, config.GetFloatDefault("AiPlayerbot.LoadOptimization.PID.Kd", 0.05f));
+    loadOptimizationPidKp = std::max(0.0f, sConfig.GetFloatDefault("AiPlayerbot.LoadOptimization.PID.Kp", 0.05f));
+    loadOptimizationPidKi = std::max(0.0f, sConfig.GetFloatDefault("AiPlayerbot.LoadOptimization.PID.Ki", 0.001f));
+    loadOptimizationPidKd = std::max(0.0f, sConfig.GetFloatDefault("AiPlayerbot.LoadOptimization.PID.Kd", 0.05f));
     loadOptimizationMinimalReactionMultiplier = loadUInt("AiPlayerbot.LoadOptimization.MinimalReactionMultiplier", 10, 1, 1000);
     loadOptimizationInactiveActionDelayMs = loadUInt("AiPlayerbot.LoadOptimization.InactiveActionDelayMs", 0, 0, 600000);
-    loadOptimizationProtectPlayerInteraction = config.GetBoolDefault("AiPlayerbot.LoadOptimization.Protect.PlayerInteraction", true);
-    loadOptimizationProtectCombat = config.GetBoolDefault("AiPlayerbot.LoadOptimization.Protect.Combat", true);
-    loadOptimizationProtectBattleground = config.GetBoolDefault("AiPlayerbot.LoadOptimization.Protect.Battleground", true);
-    loadOptimizationProtectInstances = config.GetBoolDefault("AiPlayerbot.LoadOptimization.Protect.Instance", true);
+    loadOptimizationProtectPlayerInteraction = sConfig.GetBoolDefault("AiPlayerbot.LoadOptimization.Protect.PlayerInteraction", true);
+    loadOptimizationProtectCombat = sConfig.GetBoolDefault("AiPlayerbot.LoadOptimization.Protect.Combat", true);
+    loadOptimizationProtectBattleground = sConfig.GetBoolDefault("AiPlayerbot.LoadOptimization.Protect.Battleground", true);
+    loadOptimizationProtectInstances = sConfig.GetBoolDefault("AiPlayerbot.LoadOptimization.Protect.Instance", true);
 
     auto loadBracket = [&](const char* name, uint32 defaultMin, uint32 defaultFull)
     {
@@ -563,29 +557,29 @@ bool PlayerbotAIConfig::Initialize()
     loadOptimizationMinActivity = std::max(0.0f, std::min(100.0f, loadOptimizationMinActivity));
     loadOptimizationMaxActivity = std::max(loadOptimizationMinActivity, std::min(100.0f, loadOptimizationMaxActivity));
     loadOptimizationBaseActivity = std::max(loadOptimizationMinActivity, std::min(loadOptimizationMaxActivity, loadOptimizationBaseActivity));
-    RandombotsWalkingRPG = config.GetBoolDefault("AiPlayerbot.RandombotsWalkingRPG", false);
-    RandombotsWalkingRPGInDoors = config.GetBoolDefault("AiPlayerbot.RandombotsWalkingRPG.InDoors", false);
-    minEnchantingBotLevel = config.GetIntDefault("AiPlayerbot.minEnchantingBotLevel", 60);
-    randombotStartingLevel = config.GetIntDefault("AiPlayerbot.randombotStartingLevel", 5);
-    gearscorecheck = config.GetBoolDefault("AiPlayerbot.GearScoreCheck", false);
-    levelCheck = config.GetIntDefault("AiPlayerbot.LevelCheck", 30);
-    randomBotPreQuests = config.GetBoolDefault("AiPlayerbot.PreQuests", true);
-    randomBotSayWithoutMaster = config.GetBoolDefault("AiPlayerbot.RandomBotSayWithoutMaster", false);
-    randomBotInvitePlayer = config.GetBoolDefault("AiPlayerbot.RandomBotInvitePlayer", true);
-    randomBotGroupNearby = config.GetBoolDefault("AiPlayerbot.RandomBotGroupNearby", true);
-    randomBotRaidNearby = config.GetBoolDefault("AiPlayerbot.RandomBotRaidNearby", true);
-    randomBotGuildNearby = config.GetBoolDefault("AiPlayerbot.RandomBotGuildNearby", true);
-    inviteChat = config.GetBoolDefault("AiPlayerbot.InviteChat", true);
-    botsSilent = config.GetBoolDefault("AiPlayerbot.BotsSilent", false);
-    enableActionLog = config.GetBoolDefault("AiPlayerbot.EnableActionLog", false);
-    enableOffSpecStrategies = config.GetBoolDefault("AiPlayerbot.EnableOffSpecStrategies", true);
-    useWanderAsDefaultFollowStrategy = config.GetBoolDefault("AiPlayerbot.UseWanderAsDefaultFollowStrategy", true);
-    defaultFormation = config.GetStringDefault("AiPlayerbot.DefaultFormation", "near");
+    RandombotsWalkingRPG = sConfig.GetBoolDefault("AiPlayerbot.RandombotsWalkingRPG", false);
+    RandombotsWalkingRPGInDoors = sConfig.GetBoolDefault("AiPlayerbot.RandombotsWalkingRPG.InDoors", false);
+    minEnchantingBotLevel = sConfig.GetIntDefault("AiPlayerbot.minEnchantingBotLevel", 60);
+    randombotStartingLevel = sConfig.GetIntDefault("AiPlayerbot.randombotStartingLevel", 5);
+    gearscorecheck = sConfig.GetBoolDefault("AiPlayerbot.GearScoreCheck", false);
+    levelCheck = sConfig.GetIntDefault("AiPlayerbot.LevelCheck", 30);
+    randomBotPreQuests = sConfig.GetBoolDefault("AiPlayerbot.PreQuests", true);
+    randomBotSayWithoutMaster = sConfig.GetBoolDefault("AiPlayerbot.RandomBotSayWithoutMaster", false);
+    randomBotInvitePlayer = sConfig.GetBoolDefault("AiPlayerbot.RandomBotInvitePlayer", true);
+    randomBotGroupNearby = sConfig.GetBoolDefault("AiPlayerbot.RandomBotGroupNearby", true);
+    randomBotRaidNearby = sConfig.GetBoolDefault("AiPlayerbot.RandomBotRaidNearby", true);
+    randomBotGuildNearby = sConfig.GetBoolDefault("AiPlayerbot.RandomBotGuildNearby", true);
+    inviteChat = sConfig.GetBoolDefault("AiPlayerbot.InviteChat", true);
+    botsSilent = sConfig.GetBoolDefault("AiPlayerbot.BotsSilent", false);
+    enableActionLog = sConfig.GetBoolDefault("AiPlayerbot.EnableActionLog", false);
+    enableOffSpecStrategies = sConfig.GetBoolDefault("AiPlayerbot.EnableOffSpecStrategies", true);
+    useWanderAsDefaultFollowStrategy = sConfig.GetBoolDefault("AiPlayerbot.UseWanderAsDefaultFollowStrategy", true);
+    defaultFormation = sConfig.GetStringDefault("AiPlayerbot.DefaultFormation", "near");
 
-    guildMaxBotLimit = config.GetIntDefault("AiPlayerbot.GuildMaxBotLimit", 1000);
+    guildMaxBotLimit = sConfig.GetIntDefault("AiPlayerbot.GuildMaxBotLimit", 1000);
 
     ////////////////////////////
-    enableBroadcasts = config.GetBoolDefault("AiPlayerbot.EnableBroadcasts", true);
+    enableBroadcasts = sConfig.GetBoolDefault("AiPlayerbot.EnableBroadcasts", true);
 
     //broadcastChanceMaxValue is used in urand(1, broadcastChanceMaxValue) for broadcasts,
     //lowering it will increase the chance, setting it to 0 will disable broadcasts
@@ -594,104 +588,104 @@ bool PlayerbotAIConfig::Initialize()
 
     //all broadcast chances should be in range 1-broadcastChanceMaxValue, value of 0 will disable this particular broadcast
     //setting value to max does not guarantee the broadcast, as there are some internal randoms as well
-    broadcastToGuildGlobalChance = config.GetIntDefault("AiPlayerbot.BroadcastToGuildGlobalChance", 30000);
-    broadcastToWorldGlobalChance = config.GetIntDefault("AiPlayerbot.BroadcastToWorldGlobalChance", 30000);
-    broadcastToGeneralGlobalChance = config.GetIntDefault("AiPlayerbot.BroadcastToGeneralGlobalChance", 30000);
-    broadcastToTradeGlobalChance = config.GetIntDefault("AiPlayerbot.BroadcastToTradeGlobalChance", 30000);
-    broadcastToLFGGlobalChance = config.GetIntDefault("AiPlayerbot.BroadcastToLFGGlobalChance", 30000);
-    broadcastToLocalDefenseGlobalChance = config.GetIntDefault("AiPlayerbot.BroadcastToLocalDefenseGlobalChance", 30000);
-    broadcastToWorldDefenseGlobalChance = config.GetIntDefault("AiPlayerbot.BroadcastToWorldDefenseGlobalChance", 30000);
-    broadcastToGuildRecruitmentGlobalChance = config.GetIntDefault("AiPlayerbot.BroadcastToGuildRecruitmentGlobalChance", 30000);
-    broadcastToSayGlobalChance = config.GetIntDefault("AiPlayerbot.BroadcastToSayGlobalChance", 30000);
-    broadcastToYellGlobalChance = config.GetIntDefault("AiPlayerbot.BroadcastToYellGlobalChance", 30000);
+    broadcastToGuildGlobalChance = sConfig.GetIntDefault("AiPlayerbot.BroadcastToGuildGlobalChance", 30000);
+    broadcastToWorldGlobalChance = sConfig.GetIntDefault("AiPlayerbot.BroadcastToWorldGlobalChance", 30000);
+    broadcastToGeneralGlobalChance = sConfig.GetIntDefault("AiPlayerbot.BroadcastToGeneralGlobalChance", 30000);
+    broadcastToTradeGlobalChance = sConfig.GetIntDefault("AiPlayerbot.BroadcastToTradeGlobalChance", 30000);
+    broadcastToLFGGlobalChance = sConfig.GetIntDefault("AiPlayerbot.BroadcastToLFGGlobalChance", 30000);
+    broadcastToLocalDefenseGlobalChance = sConfig.GetIntDefault("AiPlayerbot.BroadcastToLocalDefenseGlobalChance", 30000);
+    broadcastToWorldDefenseGlobalChance = sConfig.GetIntDefault("AiPlayerbot.BroadcastToWorldDefenseGlobalChance", 30000);
+    broadcastToGuildRecruitmentGlobalChance = sConfig.GetIntDefault("AiPlayerbot.BroadcastToGuildRecruitmentGlobalChance", 30000);
+    broadcastToSayGlobalChance = sConfig.GetIntDefault("AiPlayerbot.BroadcastToSayGlobalChance", 30000);
+    broadcastToYellGlobalChance = sConfig.GetIntDefault("AiPlayerbot.BroadcastToYellGlobalChance", 30000);
 
-    broadcastChanceLootingItemPoor = config.GetIntDefault("AiPlayerbot.BroadcastChanceLootingItemPoor", 30);
-    broadcastChanceLootingItemNormal = config.GetIntDefault("AiPlayerbot.BroadcastChanceLootingItemNormal", 300);
-    broadcastChanceLootingItemUncommon = config.GetIntDefault("AiPlayerbot.BroadcastChanceLootingItemUncommon", 10000);
-    broadcastChanceLootingItemRare = config.GetIntDefault("AiPlayerbot.BroadcastChanceLootingItemRare", 20000);
-    broadcastChanceLootingItemEpic = config.GetIntDefault("AiPlayerbot.BroadcastChanceLootingItemEpic", 30000);
-    broadcastChanceLootingItemLegendary = config.GetIntDefault("AiPlayerbot.BroadcastChanceLootingItemLegendary", 30000);
-    broadcastChanceLootingItemArtifact = config.GetIntDefault("AiPlayerbot.BroadcastChanceLootingItemArtifact", 30000);
+    broadcastChanceLootingItemPoor = sConfig.GetIntDefault("AiPlayerbot.BroadcastChanceLootingItemPoor", 30);
+    broadcastChanceLootingItemNormal = sConfig.GetIntDefault("AiPlayerbot.BroadcastChanceLootingItemNormal", 300);
+    broadcastChanceLootingItemUncommon = sConfig.GetIntDefault("AiPlayerbot.BroadcastChanceLootingItemUncommon", 10000);
+    broadcastChanceLootingItemRare = sConfig.GetIntDefault("AiPlayerbot.BroadcastChanceLootingItemRare", 20000);
+    broadcastChanceLootingItemEpic = sConfig.GetIntDefault("AiPlayerbot.BroadcastChanceLootingItemEpic", 30000);
+    broadcastChanceLootingItemLegendary = sConfig.GetIntDefault("AiPlayerbot.BroadcastChanceLootingItemLegendary", 30000);
+    broadcastChanceLootingItemArtifact = sConfig.GetIntDefault("AiPlayerbot.BroadcastChanceLootingItemArtifact", 30000);
 
-    broadcastChanceQuestAccepted = config.GetIntDefault("AiPlayerbot.BroadcastChanceQuestAccepted", 6000);
-    broadcastChanceQuestUpdateObjectiveCompleted = config.GetIntDefault("AiPlayerbot.BroadcastChanceQuestUpdateObjectiveCompleted", 300);
-    broadcastChanceQuestUpdateObjectiveProgress = config.GetIntDefault("AiPlayerbot.BroadcastChanceQuestUpdateObjectiveProgress", 300);
-    broadcastChanceQuestUpdateFailedTimer = config.GetIntDefault("AiPlayerbot.BroadcastChanceQuestUpdateFailedTimer", 300);
-    broadcastChanceQuestUpdateComplete = config.GetIntDefault("AiPlayerbot.BroadcastChanceQuestUpdateComplete", 1000);
-    broadcastChanceQuestTurnedIn = config.GetIntDefault("AiPlayerbot.BroadcastChanceQuestTurnedIn", 10000);
+    broadcastChanceQuestAccepted = sConfig.GetIntDefault("AiPlayerbot.BroadcastChanceQuestAccepted", 6000);
+    broadcastChanceQuestUpdateObjectiveCompleted = sConfig.GetIntDefault("AiPlayerbot.BroadcastChanceQuestUpdateObjectiveCompleted", 300);
+    broadcastChanceQuestUpdateObjectiveProgress = sConfig.GetIntDefault("AiPlayerbot.BroadcastChanceQuestUpdateObjectiveProgress", 300);
+    broadcastChanceQuestUpdateFailedTimer = sConfig.GetIntDefault("AiPlayerbot.BroadcastChanceQuestUpdateFailedTimer", 300);
+    broadcastChanceQuestUpdateComplete = sConfig.GetIntDefault("AiPlayerbot.BroadcastChanceQuestUpdateComplete", 1000);
+    broadcastChanceQuestTurnedIn = sConfig.GetIntDefault("AiPlayerbot.BroadcastChanceQuestTurnedIn", 10000);
 
-    broadcastChanceKillNormal = config.GetIntDefault("AiPlayerbot.BroadcastChanceKillNormal", 30);
-    broadcastChanceKillElite = config.GetIntDefault("AiPlayerbot.BroadcastChanceKillElite", 300);
-    broadcastChanceKillRareelite = config.GetIntDefault("AiPlayerbot.BroadcastChanceKillRareelite", 3000);
-    broadcastChanceKillWorldboss = config.GetIntDefault("AiPlayerbot.BroadcastChanceKillWorldboss", 20000);
-    broadcastChanceKillRare = config.GetIntDefault("AiPlayerbot.BroadcastChanceKillRare", 10000);
-    broadcastChanceKillUnknown = config.GetIntDefault("AiPlayerbot.BroadcastChanceKillUnknown", 100);
-    broadcastChanceKillPet = config.GetIntDefault("AiPlayerbot.BroadcastChanceKillPet", 10);
-    broadcastChanceKillPlayer = config.GetIntDefault("AiPlayerbot.BroadcastChanceKillPlayer", 30);
+    broadcastChanceKillNormal = sConfig.GetIntDefault("AiPlayerbot.BroadcastChanceKillNormal", 30);
+    broadcastChanceKillElite = sConfig.GetIntDefault("AiPlayerbot.BroadcastChanceKillElite", 300);
+    broadcastChanceKillRareelite = sConfig.GetIntDefault("AiPlayerbot.BroadcastChanceKillRareelite", 3000);
+    broadcastChanceKillWorldboss = sConfig.GetIntDefault("AiPlayerbot.BroadcastChanceKillWorldboss", 20000);
+    broadcastChanceKillRare = sConfig.GetIntDefault("AiPlayerbot.BroadcastChanceKillRare", 10000);
+    broadcastChanceKillUnknown = sConfig.GetIntDefault("AiPlayerbot.BroadcastChanceKillUnknown", 100);
+    broadcastChanceKillPet = sConfig.GetIntDefault("AiPlayerbot.BroadcastChanceKillPet", 10);
+    broadcastChanceKillPlayer = sConfig.GetIntDefault("AiPlayerbot.BroadcastChanceKillPlayer", 30);
 
-    broadcastChanceLevelupGeneric = config.GetIntDefault("AiPlayerbot.BroadcastChanceLevelupGeneric", 20000);
-    broadcastChanceLevelupTenX = config.GetIntDefault("AiPlayerbot.BroadcastChanceLevelupTenX", 30000);
-    broadcastChanceLevelupMaxLevel = config.GetIntDefault("AiPlayerbot.BroadcastChanceLevelupMaxLevel", 30000);
+    broadcastChanceLevelupGeneric = sConfig.GetIntDefault("AiPlayerbot.BroadcastChanceLevelupGeneric", 20000);
+    broadcastChanceLevelupTenX = sConfig.GetIntDefault("AiPlayerbot.BroadcastChanceLevelupTenX", 30000);
+    broadcastChanceLevelupMaxLevel = sConfig.GetIntDefault("AiPlayerbot.BroadcastChanceLevelupMaxLevel", 30000);
 
-    broadcastChanceSuggestInstance = config.GetIntDefault("AiPlayerbot.BroadcastChanceSuggestInstance", 5000);
-    broadcastChanceSuggestQuest = config.GetIntDefault("AiPlayerbot.BroadcastChanceSuggestQuest", 10000);
-    broadcastChanceSuggestGrindMaterials = config.GetIntDefault("AiPlayerbot.BroadcastChanceSuggestGrindMaterials", 5000);
-    broadcastChanceSuggestGrindReputation = config.GetIntDefault("AiPlayerbot.BroadcastChanceSuggestGrindReputation", 5000);
-    broadcastChanceSuggestSell = config.GetIntDefault("AiPlayerbot.BroadcastChanceSuggestSell", 300);
-    broadcastChanceSuggestSomething = config.GetIntDefault("AiPlayerbot.BroadcastChanceSuggestSomething", 30000);
+    broadcastChanceSuggestInstance = sConfig.GetIntDefault("AiPlayerbot.BroadcastChanceSuggestInstance", 5000);
+    broadcastChanceSuggestQuest = sConfig.GetIntDefault("AiPlayerbot.BroadcastChanceSuggestQuest", 10000);
+    broadcastChanceSuggestGrindMaterials = sConfig.GetIntDefault("AiPlayerbot.BroadcastChanceSuggestGrindMaterials", 5000);
+    broadcastChanceSuggestGrindReputation = sConfig.GetIntDefault("AiPlayerbot.BroadcastChanceSuggestGrindReputation", 5000);
+    broadcastChanceSuggestSell = sConfig.GetIntDefault("AiPlayerbot.BroadcastChanceSuggestSell", 300);
+    broadcastChanceSuggestSomething = sConfig.GetIntDefault("AiPlayerbot.BroadcastChanceSuggestSomething", 30000);
 
-    broadcastChanceSuggestSomethingToxic = config.GetIntDefault("AiPlayerbot.BroadcastChanceSuggestSomethingToxic", 0);
+    broadcastChanceSuggestSomethingToxic = sConfig.GetIntDefault("AiPlayerbot.BroadcastChanceSuggestSomethingToxic", 0);
 
-    broadcastChanceSuggestToxicLinks = config.GetIntDefault("AiPlayerbot.BroadcastChanceSuggestToxicLinks", 0);
-    toxicLinksPrefix = config.GetStringDefault("AiPlayerbot.ToxicLinksPrefix", "gnomes");
+    broadcastChanceSuggestToxicLinks = sConfig.GetIntDefault("AiPlayerbot.BroadcastChanceSuggestToxicLinks", 0);
+    toxicLinksPrefix = sConfig.GetStringDefault("AiPlayerbot.ToxicLinksPrefix", "gnomes");
 
-    broadcastChanceSuggestThunderfury = config.GetIntDefault("AiPlayerbot.BroadcastChanceSuggestThunderfury", 1);
+    broadcastChanceSuggestThunderfury = sConfig.GetIntDefault("AiPlayerbot.BroadcastChanceSuggestThunderfury", 1);
 
     //does not depend on global chance
-    broadcastChanceGuildManagement = config.GetIntDefault("AiPlayerbot.BroadcastChanceGuildManagement", 30000);
+    broadcastChanceGuildManagement = sConfig.GetIntDefault("AiPlayerbot.BroadcastChanceGuildManagement", 30000);
     ////////////////////////////
 
-    toxicLinksRepliesChance = config.GetIntDefault("AiPlayerbot.ToxicLinksRepliesChance", 30);   //0-100
-    thunderfuryRepliesChance = config.GetIntDefault("AiPlayerbot.ThunderfuryRepliesChance", 40); //0-100
-    guildRepliesRate = config.GetIntDefault("AiPlayerbot.GuildRepliesRate", 100);                //0-100
+    toxicLinksRepliesChance = sConfig.GetIntDefault("AiPlayerbot.ToxicLinksRepliesChance", 30);   //0-100
+    thunderfuryRepliesChance = sConfig.GetIntDefault("AiPlayerbot.ThunderfuryRepliesChance", 40); //0-100
+    guildRepliesRate = sConfig.GetIntDefault("AiPlayerbot.GuildRepliesRate", 100);                //0-100
 
-    botAcceptDuelMinimumLevel = config.GetIntDefault("AiPlayerbot.BotAcceptDuelMinimumLevel", 10);
+    botAcceptDuelMinimumLevel = sConfig.GetIntDefault("AiPlayerbot.BotAcceptDuelMinimumLevel", 10);
 
-    randomBotFormGuild = config.GetBoolDefault("AiPlayerbot.RandomBotFormGuild", true);
+    randomBotFormGuild = sConfig.GetBoolDefault("AiPlayerbot.RandomBotFormGuild", true);
 
-    boostFollow = config.GetBoolDefault("AiPlayerbot.BoostFollow", false);
-    turnInRpg = config.GetBoolDefault("AiPlayerbot.TurnInRpg", false);
-    shareTargets = config.GetBoolDefault("AiPlayerbot.ShareTargets", true);
-    globalSoundEffects = config.GetBoolDefault("AiPlayerbot.GlobalSoundEffects", false);
-    nonGmFreeSummon = config.GetBoolDefault("AiPlayerbot.NonGmFreeSummon", false);
+    boostFollow = sConfig.GetBoolDefault("AiPlayerbot.BoostFollow", false);
+    turnInRpg = sConfig.GetBoolDefault("AiPlayerbot.TurnInRpg", false);
+    shareTargets = sConfig.GetBoolDefault("AiPlayerbot.ShareTargets", true);
+    globalSoundEffects = sConfig.GetBoolDefault("AiPlayerbot.GlobalSoundEffects", false);
+    nonGmFreeSummon = sConfig.GetBoolDefault("AiPlayerbot.NonGmFreeSummon", false);
 
     //SPP automation
-    autoPickReward = config.GetStringDefault("AiPlayerbot.AutoPickReward", "no");
-    autoEquipUpgradeLoot = config.GetBoolDefault("AiPlayerbot.AutoEquipUpgradeLoot", false);
-    syncQuestWithPlayer = config.GetBoolDefault("AiPlayerbot.SyncQuestWithPlayer", false);
-    syncQuestForPlayer = config.GetBoolDefault("AiPlayerbot.SyncQuestForPlayer", false);
-    autoTrainSpells = config.GetStringDefault("AiPlayerbot.AutoTrainSpells", "no");
-    autoPickTalents = config.GetStringDefault("AiPlayerbot.AutoPickTalents", "no");
-    autoLearnTrainerSpells = config.GetBoolDefault("AiPlayerbot.AutoLearnTrainerSpells", false);
-    autoLearnQuestSpells = config.GetBoolDefault("AiPlayerbot.AutoLearnQuestSpells", false);
-    autoLearnDroppedSpells = config.GetBoolDefault("AiPlayerbot.AutoLearnDroppedSpells", false);
-    autoDoQuests = config.GetBoolDefault("AiPlayerbot.AutoDoQuests", true);
-    syncLevelWithPlayers = config.GetBoolDefault("AiPlayerbot.SyncLevelWithPlayers", false);
-    syncLevelMaxAbove = config.GetIntDefault("AiPlayerbot.SyncLevelMaxAbove", 5);
-    syncLevelNoPlayer = config.GetIntDefault("AiPlayerbot.SyncLevelNoPlayer", randombotStartingLevel);
-    syncAltLevelToMaster = config.GetBoolDefault("AiPlayerbot.SyncAltLevelToMaster", false);
-    tweakValue = config.GetIntDefault("AiPlayerbot.TweakValue", 0);
-    talentsInPublicNote = config.GetBoolDefault("AiPlayerbot.TalentsInPublicNote", false);
-    respawnModNeutral = config.GetFloatDefault("AiPlayerbot.RespawnModNeutral", 10.0f);
-    respawnModHostile = config.GetFloatDefault("AiPlayerbot.RespawnModHostile", 5.0f);
-    respawnModThreshold = config.GetIntDefault("AiPlayerbot.RespawnModThreshold", 10);
-    respawnModMax = config.GetIntDefault("AiPlayerbot.RespawnModMax", 18);
-    respawnModForPlayerBots = config.GetBoolDefault("AiPlayerbot.RespawnModForPlayerBots", false);
-    respawnModForInstances = config.GetBoolDefault("AiPlayerbot.RespawnModForInstances", false);
+    autoPickReward = sConfig.GetStringDefault("AiPlayerbot.AutoPickReward", "no");
+    autoEquipUpgradeLoot = sConfig.GetBoolDefault("AiPlayerbot.AutoEquipUpgradeLoot", false);
+    syncQuestWithPlayer = sConfig.GetBoolDefault("AiPlayerbot.SyncQuestWithPlayer", false);
+    syncQuestForPlayer = sConfig.GetBoolDefault("AiPlayerbot.SyncQuestForPlayer", false);
+    autoTrainSpells = sConfig.GetStringDefault("AiPlayerbot.AutoTrainSpells", "no");
+    autoPickTalents = sConfig.GetStringDefault("AiPlayerbot.AutoPickTalents", "no");
+    autoLearnTrainerSpells = sConfig.GetBoolDefault("AiPlayerbot.AutoLearnTrainerSpells", false);
+    autoLearnQuestSpells = sConfig.GetBoolDefault("AiPlayerbot.AutoLearnQuestSpells", false);
+    autoLearnDroppedSpells = sConfig.GetBoolDefault("AiPlayerbot.AutoLearnDroppedSpells", false);
+    autoDoQuests = sConfig.GetBoolDefault("AiPlayerbot.AutoDoQuests", true);
+    syncLevelWithPlayers = sConfig.GetBoolDefault("AiPlayerbot.SyncLevelWithPlayers", false);
+    syncLevelMaxAbove = sConfig.GetIntDefault("AiPlayerbot.SyncLevelMaxAbove", 5);
+    syncLevelNoPlayer = sConfig.GetIntDefault("AiPlayerbot.SyncLevelNoPlayer", randombotStartingLevel);
+    syncAltLevelToMaster = sConfig.GetBoolDefault("AiPlayerbot.SyncAltLevelToMaster", false);
+    tweakValue = sConfig.GetIntDefault("AiPlayerbot.TweakValue", 0);
+    talentsInPublicNote = sConfig.GetBoolDefault("AiPlayerbot.TalentsInPublicNote", false);
+    respawnModNeutral = sConfig.GetFloatDefault("AiPlayerbot.RespawnModNeutral", 10.0f);
+    respawnModHostile = sConfig.GetFloatDefault("AiPlayerbot.RespawnModHostile", 5.0f);
+    respawnModThreshold = sConfig.GetIntDefault("AiPlayerbot.RespawnModThreshold", 10);
+    respawnModMax = sConfig.GetIntDefault("AiPlayerbot.RespawnModMax", 18);
+    respawnModForPlayerBots = sConfig.GetBoolDefault("AiPlayerbot.RespawnModForPlayerBots", false);
+    respawnModForInstances = sConfig.GetBoolDefault("AiPlayerbot.RespawnModForInstances", false);
 
     //LLM START
-    llmEnabled = config.GetIntDefault("AiPlayerbot.LLMEnabled", 1);
-    llmApiEndpoint = config.GetStringDefault("AiPlayerbot.LLMApiEndpoint", "http://127.0.0.1:5001/api/v1/generate");
+    llmEnabled = sConfig.GetIntDefault("AiPlayerbot.LLMEnabled", 1);
+    llmApiEndpoint = sConfig.GetStringDefault("AiPlayerbot.LLMApiEndpoint", "http://127.0.0.1:5001/api/v1/generate");
     try
     {
         llmEndPointUrl = parseUrl(llmApiEndpoint);
@@ -700,24 +694,24 @@ bool PlayerbotAIConfig::Initialize()
     {
         sLog.outError("Unable to parse LLMApiEndpoint url: %s", e.what());
     }
-    llmApiKey = config.GetStringDefault("AiPlayerbot.LLMApiKey", "");
-    llmApiJson = config.GetStringDefault("AiPlayerbot.LLMApiJson", "{ \"max_length\": 100, \"prompt\": \"[<pre prompt>]<context> <prompt> <post prompt>\"}");
-    llmContextLength = config.GetIntDefault("AiPlayerbot.LLMContextLength", 4096);
-    llmGenerationTimeout = config.GetIntDefault("AiPlayerbot.LLMGenerationTimeout", 600);
-    llmMaxSimultaniousGenerations = config.GetIntDefault("AiPlayerbot.LLMMaxSimultaniousGenerations", 100);
+    llmApiKey = sConfig.GetStringDefault("AiPlayerbot.LLMApiKey", "");
+    llmApiJson = sConfig.GetStringDefault("AiPlayerbot.LLMApiJson", "{ \"max_length\": 100, \"prompt\": \"[<pre prompt>]<context> <prompt> <post prompt>\"}");
+    llmContextLength = sConfig.GetIntDefault("AiPlayerbot.LLMContextLength", 4096);
+    llmGenerationTimeout = sConfig.GetIntDefault("AiPlayerbot.LLMGenerationTimeout", 600);
+    llmMaxSimultaniousGenerations = sConfig.GetIntDefault("AiPlayerbot.LLMMaxSimultaniousGenerations", 100);
 
-    llmPrePrompt = config.GetStringDefault("AiPlayerbot.LLMPrePrompt", "You are a roleplaying character in World of Warcraft: <expansion name>. Your name is <bot name>. The <other type> <other name> is speaking to you <channel name> and is an <other gender> <other race> <other class> of level <other level>. You are level <bot level> and play as a <bot gender> <bot race> <bot class> that is currently in <bot subzone> <bot zone>. Answer as a roleplaying character. Limit responses to 100 characters.");
+    llmPrePrompt = sConfig.GetStringDefault("AiPlayerbot.LLMPrePrompt", "You are a roleplaying character in World of Warcraft: <expansion name>. Your name is <bot name>. The <other type> <other name> is speaking to you <channel name> and is an <other gender> <other race> <other class> of level <other level>. You are level <bot level> and play as a <bot gender> <bot race> <bot class> that is currently in <bot subzone> <bot zone>. Answer as a roleplaying character. Limit responses to 100 characters.");
 
-    llmPreRpgPrompt = config.GetStringDefault("AiPlayerbot.LLMRpgPrompt", "In World of Warcraft: <expansion name> in <bot zone> <bot subzone> stands <bot type> <bot name> a level <bot level> <bot gender> <bot race> <bot class>."
+    llmPreRpgPrompt = sConfig.GetStringDefault("AiPlayerbot.LLMRpgPrompt", "In World of Warcraft: <expansion name> in <bot zone> <bot subzone> stands <bot type> <bot name> a level <bot level> <bot gender> <bot race> <bot class>."
                                                                           " Standing nearby is <unit type> <unit name> <unit subname> a level <unit level> <unit gender> <unit race> <unit faction> <unit class>. Answer as a roleplaying character. Limit responses to 100 characters.");
 
-    llmPrompt = config.GetStringDefault("AiPlayerbot.LLMPrompt", "<receiver name>:<initial message>");
-    llmPostPrompt = config.GetStringDefault("AiPlayerbot.LLMPostPrompt", "<sender name>:");
+    llmPrompt = sConfig.GetStringDefault("AiPlayerbot.LLMPrompt", "<receiver name>:<initial message>");
+    llmPostPrompt = sConfig.GetStringDefault("AiPlayerbot.LLMPostPrompt", "<sender name>:");
 
-    llmResponseStartPattern = config.GetStringDefault("AiPlayerbot.LLMResponseStartPattern", R"(("text":\s*"))");
-    llmResponseEndPattern = config.GetStringDefault("AiPlayerbot.LLMResponseEndPattern", R"(("|\b(?!<sender name>\b)(\w+):))");
-    llmResponseDeletePattern = config.GetStringDefault("AiPlayerbot.LLMResponseDeletePattern", R"((\\n|<sender name>:|\\[^ ]+))");
-    llmResponseSplitPattern = config.GetStringDefault("AiPlayerbot.LLMResponseSplitPattern", R"((\*.*?\*)|(\[.*?\])|(\'.*\')|([^\*\[\] ][^\*\[\]]+?[.?!]))");
+    llmResponseStartPattern = sConfig.GetStringDefault("AiPlayerbot.LLMResponseStartPattern", R"(("text":\s*"))");
+    llmResponseEndPattern = sConfig.GetStringDefault("AiPlayerbot.LLMResponseEndPattern", R"(("|\b(?!<sender name>\b)(\w+):))");
+    llmResponseDeletePattern = sConfig.GetStringDefault("AiPlayerbot.LLMResponseDeletePattern", R"((\\n|<sender name>:|\\[^ ]+))");
+    llmResponseSplitPattern = sConfig.GetStringDefault("AiPlayerbot.LLMResponseSplitPattern", R"((\*.*?\*)|(\[.*?\])|(\'.*\')|([^\*\[\] ][^\*\[\]]+?[.?!]))");
 
     if (false) //Disable for release
     {
@@ -763,12 +757,12 @@ bool PlayerbotAIConfig::Initialize()
         sLog.outError("Regex error in %s: %s", llmResponseSplitPattern.c_str(), e.what());
     }
 
-    llmGlobalContext = config.GetBoolDefault("AiPlayerbot.LLMGlobalContext", false);
-    llmBotToBotChatChance = config.GetIntDefault("AiPlayerbot.LLMBotToBotChatChance", 0);
-    llmRpgAIChatChance = config.GetIntDefault("AiPlayerbot.LLMRpgAIChatChance", 100);
+    llmGlobalContext = sConfig.GetBoolDefault("AiPlayerbot.LLMGlobalContext", false);
+    llmBotToBotChatChance = sConfig.GetIntDefault("AiPlayerbot.LLMBotToBotChatChance", 0);
+    llmRpgAIChatChance = sConfig.GetIntDefault("AiPlayerbot.LLMRpgAIChatChance", 100);
 
     std::list<std::string> blockedChannels;
-    LoadListString<std::list<std::string>>(config.GetStringDefault("AiPlayerbot.LLMBlockedReplyChannels", ""), blockedChannels);
+    LoadListString<std::list<std::string>>(sConfig.GetStringDefault("AiPlayerbot.LLMBlockedReplyChannels", ""), blockedChannels);
     std::map<std::string, ChatChannelSource> sourceName;
     sourceName["guild"] = ChatChannelSource::SRC_GUILD;
     sourceName["world"] = ChatChannelSource::SRC_WORLD;
@@ -790,22 +784,22 @@ bool PlayerbotAIConfig::Initialize()
         llmBlockedReplyChannels.insert(sourceName[channelName]);
 
     {
-        std::string promptsFile = config.GetStringDefault("AiPlayerbot.LLMDefaultPromptsFile", "llm_character_card");
+        std::string promptsFile = sConfig.GetStringDefault("AiPlayerbot.LLMDefaultPromptsFile", "llm_character_card");
         LoadLLMDefaultPrompts(promptsFile);
     }
 
     // Gear progression system
-    gearProgressionSystemEnabled = config.GetBoolDefault("AiPlayerbot.GearProgressionSystem.Enable", false);
+    gearProgressionSystemEnabled = sConfig.GetBoolDefault("AiPlayerbot.GearProgressionSystem.Enable", false);
 
     // Gear progression phase
     for (uint8 phase = 0; phase < MAX_GEAR_PROGRESSION_LEVEL; phase++)
     {
         std::ostringstream os;
         os << "AiPlayerbot.GearProgressionSystem." << std::to_string(phase) << ".MinItemLevel";
-        gearProgressionSystemItemLevels[phase][0] = config.GetIntDefault(os.str().c_str(), 9999999);
+        gearProgressionSystemItemLevels[phase][0] = sConfig.GetIntDefault(os.str().c_str(), 9999999);
         os.str("");
         os << "AiPlayerbot.GearProgressionSystem." << std::to_string(phase) << ".MaxItemLevel";
-        gearProgressionSystemItemLevels[phase][1] = config.GetIntDefault(os.str().c_str(), 9999999);
+        gearProgressionSystemItemLevels[phase][1] = sConfig.GetIntDefault(os.str().c_str(), 9999999);
 
         // Gear progression class
         for (uint8 cls = 1; cls < MAX_CLASSES; cls++)
@@ -818,16 +812,16 @@ bool PlayerbotAIConfig::Initialize()
                 {
                     std::ostringstream os;
                     os << "AiPlayerbot.GearProgressionSystem." << std::to_string(phase) << "." << std::to_string(cls) << "." << std::to_string(spec) << "." << std::to_string(slot);
-                    gearProgressionSystemItems[phase][cls][spec][slot] = config.GetIntDefault(os.str().c_str(), -1);
+                    gearProgressionSystemItems[phase][cls][spec][slot] = sConfig.GetIntDefault(os.str().c_str(), -1);
                 }
             }
         }
     }
 
     sLog.outString("Loading free bots.");
-    selfBotLevel = BotSelfBotLevel(config.GetIntDefault("AiPlayerbot.SelfBotLevel", uint32(BotSelfBotLevel::GM_ONLY)));
-    LoadListString<std::list<std::string>>(config.GetStringDefault("AiPlayerbot.ToggleAlwaysOnlineAccounts", ""), toggleAlwaysOnlineAccounts);
-    LoadListString<std::list<std::string>>(config.GetStringDefault("AiPlayerbot.ToggleAlwaysOnlineChars", ""), toggleAlwaysOnlineChars);
+    selfBotLevel = BotSelfBotLevel(sConfig.GetIntDefault("AiPlayerbot.SelfBotLevel", uint32(BotSelfBotLevel::GM_ONLY)));
+    LoadListString<std::list<std::string>>(sConfig.GetStringDefault("AiPlayerbot.ToggleAlwaysOnlineAccounts", ""), toggleAlwaysOnlineAccounts);
+    LoadListString<std::list<std::string>>(sConfig.GetStringDefault("AiPlayerbot.ToggleAlwaysOnlineChars", ""), toggleAlwaysOnlineChars);
 
     for (std::string& nm : toggleAlwaysOnlineAccounts)
         std::transform(nm.begin(), nm.end(), nm.begin(), toupper);
@@ -840,7 +834,7 @@ bool PlayerbotAIConfig::Initialize()
 
     loadFreeAltBotAccounts();
 
-    targetPosRecalcDistance = config.GetFloatDefault("AiPlayerbot.TargetPosRecalcDistance", 0.1f),
+    targetPosRecalcDistance = sConfig.GetFloatDefault("AiPlayerbot.TargetPosRecalcDistance", 0.1f),
 
     sLog.outString("Loading area levels.");
     sTravelMgr.LoadAreaLevels();
@@ -1096,7 +1090,7 @@ bool PlayerbotAIConfig::openLog(std::string fileName, char const* mode, bool has
     if (fileOpen) //close log file
         fclose(file);
 
-    std::string m_logsDir = sConfig.GetStringDefault("LogsDir");
+    std::string m_logsDir = sConfig.GetStringDefault("LogsDir", "");
     if (!m_logsDir.empty())
     {
         if ((m_logsDir.at(m_logsDir.length() - 1) != '/') && (m_logsDir.at(m_logsDir.length() - 1) != '\\'))
@@ -1149,7 +1143,7 @@ void PlayerbotAIConfig::logEvent(PlayerbotAI* ai, std::string eventName, std::st
         WorldPosition(bot).printWKT(out);
 
         out << std::to_string(bot->getRace()) << ",";
-        out << std::to_string(bot->getClass()) << ",";
+        out << std::to_string(bot->GetClass()) << ",";
         float subLevel = ai->GetLevelFloat();
 
         out << subLevel << ",";
@@ -1210,12 +1204,12 @@ void PlayerbotAIConfig::LoadTalentSpecs()
         {
             std::ostringstream os;
             os << "AiPlayerbot.PremadeSpecName." << cls << "." << spec;
-            std::string specName = config.GetStringDefault(os.str().c_str(), "");
+            std::string specName = sConfig.GetStringDefault(os.str().c_str(), "");
             if (!specName.empty())
             {
                 std::ostringstream os;
                 os << "AiPlayerbot.PremadeSpecProb." << cls << "." << spec;
-                int probability = config.GetIntDefault(os.str().c_str(), 100);
+                int probability = sConfig.GetIntDefault(os.str().c_str(), 100);
 
                 TalentPath talentPath(spec, specName, probability);
 
@@ -1223,7 +1217,7 @@ void PlayerbotAIConfig::LoadTalentSpecs()
                 {
                     std::ostringstream os;
                     os << "AiPlayerbot.PremadeSpecLink." << cls << "." << spec << "." << level;
-                    std::string specLink = config.GetStringDefault(os.str().c_str(), "");
+                    std::string specLink = sConfig.GetStringDefault(os.str().c_str(), "");
                     specLink = specLink.substr(0, specLink.find("#", 0));
                     specLink = specLink.substr(0, specLink.find(" ", 0));
 
@@ -1265,7 +1259,7 @@ void PlayerbotAIConfig::LoadTalentSpecs()
                         std::ostringstream os;
                         os << "AiPlayerbot.PremadeSpecGlyp." << cls << "." << spec << "." << level;
 
-                        std::string glyphList = config.GetStringDefault(os.str().c_str(), "");
+                        std::string glyphList = sConfig.GetStringDefault(os.str().c_str(), "");
                         glyphList = glyphList.substr(0, glyphList.find("#", 0));
                         boost::trim_right(glyphList);
 
@@ -1315,7 +1309,7 @@ void PlayerbotAIConfig::LoadTalentSpecs()
         sLog.outErrorDb("No premade specs found!!");
     else
     {
-        if (maxSpecLevel < DEFAULT_MAX_LEVEL && randomBotMaxLevel < DEFAULT_MAX_LEVEL)
+        if (maxSpecLevel < PLAYER_MAX_LEVEL && randomBotMaxLevel < PLAYER_MAX_LEVEL)
             sLog.outErrorDb("!!!!!!!!!!! randomBotMaxLevel and the talentspec levels are below this expansions max level. Please check if you have the correct config file!!!!!!");
     }
 }

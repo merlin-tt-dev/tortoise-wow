@@ -50,7 +50,7 @@ bool XpGainAction::Execute(Event& event)
 
     Creature* creature = ai->GetCreature(guid);
 
-    //if (creature && ((creature->IsElite() && !creature->GetMap()->IsDungeon()) || creature->IsWorldBoss() || creature->GetLevel() > DEFAULT_MAX_LEVEL + 1 || creature->GetLevel() > bot->GetLevel() + 4))
+    //if (creature && ((creature->IsElite() && !creature->GetMap()->IsDungeon()) || creature->IsWorldBoss() || creature->GetLevel() > PLAYER_MAX_LEVEL + 1 || creature->GetLevel() > bot->GetLevel() + 4))
     if (creature && !creature->GetMap()->IsDungeon())
     {
         BroadcastHelper::BroadcastCreatureKill(ai, bot, creature);

@@ -1599,7 +1599,7 @@ bool DebugAction::HandleMotion(Event& event, Player* requester, const std::strin
 
 bool DebugAction::HandleTransport(Event& event, Player* requester, const std::string& text)
 {
-    std::vector<GenericTransport*> transports;
+    std::vector<Transport*> transports;
 
     for (auto trans : WorldPosition(bot).getTransports())
         transports.push_back(trans);
@@ -1607,7 +1607,7 @@ bool DebugAction::HandleTransport(Event& event, Player* requester, const std::st
     WorldPosition botPos(bot);
 
     //Closest transport last = below in chat.
-    std::sort(transports.begin(), transports.end(), [botPos](GenericTransport* i, GenericTransport* j) { return botPos.distance(i) > botPos.distance(j); });
+    std::sort(transports.begin(), transports.end(), [botPos](Transport* i, Transport* j) { return botPos.distance(i) > botPos.distance(j); });
 
     for (auto trans : transports)
     {
@@ -1649,16 +1649,16 @@ bool DebugAction::HandlePointOnTrans(Event& event, Player* requester, const std:
     }
 
     //Get transport
-    std::vector<GenericTransport*> transports;
+    std::vector<Transport*> transports;
 
     for (auto trans : WorldPosition(bot).getTransports())
         transports.push_back(trans);
 
     WorldPosition botPos(bot);
 
-    std::sort(transports.begin(), transports.end(), [botPos](GenericTransport* i, GenericTransport* j) { return botPos.distance(i) > botPos.distance(j); });
+    std::sort(transports.begin(), transports.end(), [botPos](Transport* i, Transport* j) { return botPos.distance(i) > botPos.distance(j); });
 
-    GenericTransport* transport = transports.back();
+    Transport* transport = transports.back();
 
     GameObjectInfo const* data = sGOStorage.LookupEntry<GameObjectInfo>(transport->GetEntry());
     std::string transportName = transport->GetName();
@@ -1687,7 +1687,7 @@ bool DebugAction::HandlePointOnTrans(Event& event, Player* requester, const std:
     out << " path size: " << path.size();
 
     //Place WP at point.
-    GenericTransport* botTrans = bot->GetTransport();
+    Transport* botTrans = bot->GetTransport();
     bot->SetTransport(nullptr);
 
     Creature* wpCreature = bot->SummonCreature(2334, pointOnTrans.getX(), pointOnTrans.getY(), pointOnTrans.getZ(), 0, TEMPSPAWN_TIMED_DESPAWN, 10000.0f);
@@ -1735,7 +1735,7 @@ bool DebugAction::HandlePointOnTrans(Event& event, Player* requester, const std:
                 continue;
 
             Player* pathBot = bot;
-            GenericTransport* botTrans = bot->GetTransport();
+            Transport* botTrans = bot->GetTransport();
 
             bot->SetTransport(nullptr);
 
@@ -1817,7 +1817,7 @@ bool DebugAction::HandleOnTrans(Event& event, Player* requester, const std::stri
 
     float distance = FLT_MAX;
 
-    GenericTransport* transport = nullptr;
+    Transport* transport = nullptr;
     for (auto trans : botPos.getTransports())
     {
         float dist = botPos.distance(trans);
@@ -1833,7 +1833,7 @@ bool DebugAction::HandleOnTrans(Event& event, Player* requester, const std::stri
         return false;
     }
 
-    GenericTransport* botTrans = bot->GetTransport();
+    Transport* botTrans = bot->GetTransport();
 
     std::vector<WorldPosition> path;
 
@@ -1907,7 +1907,7 @@ bool DebugAction::HandleOffTrans(Event& event, Player* requester, const std::str
         return false;
     }
 
-    GenericTransport* transport = bot->GetTransport();
+    Transport* transport = bot->GetTransport();
 
     WorldPosition exitPos(requester);
 
@@ -1949,7 +1949,7 @@ bool DebugAction::HandlePathable(Event& event, Player* requester, const std::str
     if (text.length() > std::string("pathable").size())
         radius = stoi(text.substr(std::string("pathable").size() + 1));
 
-    GenericTransport* transport = nullptr;
+    Transport* transport = nullptr;
     for (auto trans : WorldPosition(bot).getTransports(bot->GetInstanceId()))
         if (!transport || WorldPosition(bot).distance(trans) < WorldPosition(bot).distance(transport))
             transport = trans;
@@ -1965,8 +1965,8 @@ bool DebugAction::HandlePathable(Event& event, Player* requester, const std::str
             WorldPosition pos = botPos + WorldPosition(0, x, y, 3.0f);
 
             Player* pathBot = bot;
-            GenericTransport* botTrans = bot->GetTransport();
-            GenericTransport* trans = botTrans ? botTrans : transport;
+            Transport* botTrans = bot->GetTransport();
+            Transport* trans = botTrans ? botTrans : transport;
 
             if (!pos.isOnTransport(trans)) //When trying to calculate a position off the transport, act like the bot is off the transport.
                 pathBot = nullptr;
@@ -3644,7 +3644,7 @@ bool DebugAction::HandleItem(Event& event, Player* requester, const std::string&
         { ITEM_CLASS_QUEST, "Quest" },
         { ITEM_CLASS_KEY, "Key" },
         { ITEM_CLASS_PERMANENT, "Permanent" },
-        { ITEM_CLASS_MISC, "Miscellaneous" },
+        { ITEM_CLASS_JUNK, "Miscellaneous" },
 #ifdef MANGOSBOT_TWO
         { ITEM_CLASS_GLYPH, "Glyph" }
 #endif
@@ -3709,7 +3709,7 @@ bool DebugAction::HandleItem(Event& event, Player* requester, const std::string&
         { ITEM_CLASS_PERMANENT, {
             { 0, "Permanent" }
         }},
-        { ITEM_CLASS_MISC, {
+        { ITEM_CLASS_JUNK, {
             { 0, "Junk" }, { 1, "Reagent" }, { 2, "Pet" }, { 3, "Holiday" }, { 4, "Other" }, { 5, "Mount" }
         }},
 #ifdef MANGOSBOT_TWO

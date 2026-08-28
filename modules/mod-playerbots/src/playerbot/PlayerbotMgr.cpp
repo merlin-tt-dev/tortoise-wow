@@ -211,8 +211,9 @@ void PlayerbotHolder::HandlePlayerBotLoginCallback(QueryResult* /*dummy*/, SqlQu
     {
         sLog.outError("[PlayerBots] HandlePlayerBotLoginCallback: bot %u failed to enter world",
                       info.botGuid.GetCounter());
-        // botSession leaks here — but only on failure; LogoutPlayerBot would do the cleanup
-        // in the success path normally. Acceptable for smoke testing; fix if needed.
+        if (botSession->GetPlayer())
+            botSession->LogoutPlayer(false);
+        delete botSession;
         return;
     }
 
@@ -788,7 +789,7 @@ void PlayerbotHolder::OnBotLogin(Player * const bot)
         )
     {
 #ifdef MANGOSBOT_TWO
-        if (bot->getClass() == CLASS_DEATH_KNIGHT && bot->GetMapId() == 609)
+        if (bot->GetClass() == CLASS_DEATH_KNIGHT && bot->GetMapId() == 609)
             bot->StoreNewItemInBestSlots(40582, 1);
         else
 #endif
@@ -1120,7 +1121,7 @@ std::string PlayerbotHolder::ListBots(Player* master, const std::string param)
         bots.insert(name);
         names.push_back(name);
         online[name] = "+";
-        classes[name] = classNames[bot->getClass()];
+        classes[name] = classNames[bot->GetClass()];
     }
 
     if (master)
@@ -1169,7 +1170,7 @@ std::string PlayerbotHolder::ListBots(Player* master, const std::string param)
 
                     names.push_back(name);
                     online[name] = "+";
-                    classes[name] = classNames[member->getClass()];
+                    classes[name] = classNames[member->GetClass()];
                 }
             }
         }
@@ -1715,7 +1716,7 @@ std::string PlayerbotHolder::HandleConsoleWhisper(Player* bot, Player* master, c
         out << reciever->GetName();
         out << " level " << std::to_string(reciever->GetLevel());
         out << " " << ChatHelper::formatRace(reciever->getRace());
-        out << " " << ChatHelper::formatClass(reciever->getClass());
+        out << " " << ChatHelper::formatClass(reciever->GetClass());
 
         if (sender->GetPlayerbotAI() && sender->GetPlayerbotAI()->GetMaster())
             out << " (master " << sender->GetPlayerbotAI()->GetMaster()->GetName() << ")";
@@ -2251,7 +2252,7 @@ void PlayerbotHolder::CreateBot(Player* master, const std::string param, std::li
     bool autoAdd = master;
     bool temporary = false;
     uint8 gender = GENDER_NONE;
-    Team team = Team::TEAM_BOTH_ALLOWED;
+    Team team = Team::TEAM_NONE;
     BotRoles role = BotRoles::BOT_ROLE_NONE;
     std::string groupWith = master ? master->GetName() : "";
     std::string gear = "default";
@@ -2326,7 +2327,7 @@ void PlayerbotHolder::CreateBot(Player* master, const std::string param, std::li
         }
     }
 
-    if (team == TEAM_BOTH_ALLOWED && master)
+    if (team == TEAM_NONE && master)
         team = master->GetTeam();
 
     if (gender == GENDER_NONE)
@@ -2469,7 +2470,7 @@ std::list<std::string> PlayerbotHolder::HandleGroup(Player* master, const std::s
     }
 
     uint32 masterLevel = master->GetLevel();
-    uint8 masterClass = master->getClass();
+    uint8 masterClass = master->GetClass();
     Team team = master->GetTeam();
     BotRoles masterRole = AiFactory::GetPlayerRoles(master);
     uint8 groupSize = 5;

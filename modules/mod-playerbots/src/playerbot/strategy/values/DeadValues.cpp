@@ -79,7 +79,7 @@ WorldSafeLocsEntry const* GraveyardValue::GetAnotherAppropriateClosestGraveyard(
         GraveYardData const& graveyardData = mapValues.second;
 
         //skip non-neutral or hostile graveyards
-        if (graveyardData.team != bot->GetTeam() && graveyardData.team != TEAM_BOTH_ALLOWED)
+        if (graveyardData.team != bot->GetTeam() && graveyardData.team != TEAM_NONE)
             continue;
 
         WorldSafeLocsEntry const* graveyardCoreEntry = sWorldSafeLocsStore.LookupEntry(graveyardData.safeLocId);

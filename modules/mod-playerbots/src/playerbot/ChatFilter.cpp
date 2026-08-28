@@ -369,7 +369,7 @@ public:
         if (!melee && !ranged)
             return message;
 
-        switch (bot->getClass())
+        switch (bot->GetClass())
         {
             case CLASS_WARRIOR:
             case CLASS_PALADIN:
@@ -524,7 +524,7 @@ public:
         for (std::map<std::string, uint8>::iterator i = classNames.begin(); i != classNames.end(); i++)
         {
             bool isClass = message.find(i->first) == 0;
-            if (isClass && bot->getClass() != i->second)
+            if (isClass && bot->GetClass() != i->second)
                 return "";
 
             found |= isClass;

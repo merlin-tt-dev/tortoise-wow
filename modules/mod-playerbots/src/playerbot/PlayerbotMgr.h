@@ -1,5 +1,5 @@
-#ifndef _PLAYERBOTMGR_H
-#define _PLAYERBOTMGR_H
+#ifndef MOD_PLAYERBOTS_PLAYERBOTMGR_H
+#define MOD_PLAYERBOTS_PLAYERBOTMGR_H
 
 #include "Common.h"
 #include "PlayerbotAIBase.h"

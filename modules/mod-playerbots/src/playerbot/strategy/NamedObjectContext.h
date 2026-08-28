@@ -6,6 +6,8 @@
 #include <list>
 #include <map>
 
+class PlayerbotAI;
+
 namespace ai
 {
     class Qualified

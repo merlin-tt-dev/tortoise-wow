@@ -365,7 +365,7 @@ bool AhBidAction::ExecuteCommand(Player* requester, std::string text, Unit* auct
         if(proto->Name1.empty())
             continue;
 
-        if (!strstri(proto->Name1, text.c_str()))
+        if (!strstri(proto->Name1.c_str(), text.c_str()))
             continue;
 
         if (price && auction->bid + 5 > price)

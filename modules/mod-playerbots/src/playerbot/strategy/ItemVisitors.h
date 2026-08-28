@@ -417,7 +417,7 @@ namespace ai
 
         virtual bool Accept(const ItemPrototype* proto) override
         {
-            if (proto->Class == ITEM_CLASS_MISC)
+            if (proto->Class == ITEM_CLASS_JUNK)
             {
                 for (int j = 0; j < MAX_ITEM_PROTO_SPELLS; j++)
                 {

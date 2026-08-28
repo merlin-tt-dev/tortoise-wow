@@ -220,7 +220,7 @@ bool RTSCAction::Execute(Event& event)
 					PlayerbotTextMgr::ReplaceAll(fileName, "BOTNAME", playerName);
 				}
 
-				std::string m_logsDir = sConfig.GetStringDefault("LogsDir");
+                std::string m_logsDir = sConfig.GetStringDefault("LogsDir", "");
 				if (!m_logsDir.empty())
 				{
 					if ((m_logsDir.at(m_logsDir.length() - 1) != '/') && (m_logsDir.at(m_logsDir.length() - 1) != '\\'))

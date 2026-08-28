@@ -1,6 +1,7 @@
 #pragma once
 #include "playerbot/strategy/Value.h"
 #include "playerbot/strategy/AiObjectContext.h"
+#include <future>
 
 namespace ai
 {

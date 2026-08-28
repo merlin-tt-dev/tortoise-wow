@@ -7,13 +7,9 @@
 
 class Player;
 class PlayerbotMgr;
+class PlayerbotAI;
 class ChatHandler;
 
-#if PLATFORM == PLATFORM_WINDOWS
-inline std::string _D_AIPLAYERBOT_CONFIG = "aiplayerbot.conf";
-#else
-inline std::string _D_AIPLAYERBOT_CONFIG = SYSCONFDIR "aiplayerbot.conf";
-#endif
 
 enum class BotCheatMask : uint32
 {
@@ -206,7 +202,7 @@ public:
     bool useFixedClassRaceCounts;
     using ClassRacePair = std::pair<uint8, uint8>;
     std::map<ClassRacePair, uint32> fixedClassRaceCounts;
-    uint32 levelProbability[DEFAULT_MAX_LEVEL + 1];
+    uint32 levelProbability[PLAYER_MAX_LEVEL + 1];
     ClassSpecs classSpecs[MAX_CLASSES];
     GlyphPrioritySpecMap glyphPriorityMap[MAX_CLASSES];
     bool gearProgressionSystemEnabled;
@@ -474,7 +470,6 @@ private:
     void LoadTalentSpecs();
     void LoadLLMDefaultPrompts(const std::string& fileName);
 
-    Config config;
 };
 
 #define sPlayerbotAIConfig MaNGOS::Singleton<PlayerbotAIConfig>::Instance()

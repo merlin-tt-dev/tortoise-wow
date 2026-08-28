@@ -1,4 +1,5 @@
 #pragma once
+#include "playerbot/ProgressBar.h"
 
 #include <shared_mutex>
 #include "WorldPosition.h"

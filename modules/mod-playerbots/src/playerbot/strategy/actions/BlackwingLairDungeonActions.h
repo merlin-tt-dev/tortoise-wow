@@ -29,7 +29,7 @@ namespace ai
         bool Execute(Event& event) override
         {
             std::list<GuidPosition> gos = AI_VALUE(std::list<GuidPosition>, "go usable filter::go trapped filter::entry filter::{gos in sight,suppression devices}");
-            
+
             if (gos.empty())
                 return false;
 
@@ -49,7 +49,7 @@ namespace ai
 
             if (!closest)
                 return false;
-            
+
             if (ai->HasStrategy("debug move", BotState::BOT_STATE_NON_COMBAT))
             {
                 ai->TellPlayerNoFacing(GetMaster(), "Moving to Suppression Device at " + std::to_string((int)closestDist) + " yards");
@@ -77,7 +77,7 @@ namespace ai
 
         bool Execute(Event& event) override
         {
-            if (bot->getClass() != CLASS_ROGUE)
+            if (bot->GetClass() != CLASS_ROGUE)
                 return false;
 
             if (ai->HasAura("stealth", bot))
@@ -96,7 +96,7 @@ namespace ai
 
         bool isPossible() override
         {
-            return bot->getClass() == CLASS_ROGUE && !ai->HasAura("stealth", bot);
+            return bot->GetClass() == CLASS_ROGUE && !ai->HasAura("stealth", bot);
         }
 
         bool isUseful() override
@@ -117,7 +117,7 @@ namespace ai
         bool Execute(Event& event) override
         {
             std::list<GuidPosition> gos = AI_VALUE(std::list<GuidPosition>, "entry filter::{gos close,suppression devices}");
-            
+
             if (gos.empty())
                 return false;
 
@@ -161,14 +161,14 @@ namespace ai
 
         bool Execute(Event& event) override
         {
-            if (bot->getClass() != CLASS_ROGUE)
+            if (bot->GetClass() != CLASS_ROGUE)
                 return false;
 
             if (!bot->HasSpell(SPELL_DISARM_TRAP))
                 return false;
 
             std::list<GuidPosition> gos = AI_VALUE(std::list<GuidPosition>, "go usable filter::go trapped filter::entry filter::{gos close,suppression devices}");
-            
+
             if (gos.empty())
                 return false;
 
@@ -206,8 +206,8 @@ namespace ai
 
         bool isPossible() override
         {
-            return bot->getClass() == CLASS_ROGUE && 
-                   bot->HasSpell(SPELL_DISARM_TRAP) && 
+            return bot->GetClass() == CLASS_ROGUE &&
+                   bot->HasSpell(SPELL_DISARM_TRAP) &&
                    ai->CanMove();
         }
 

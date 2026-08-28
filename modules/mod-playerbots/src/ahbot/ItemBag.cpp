@@ -14,6 +14,7 @@
 #include "AuctionHouse/AuctionHouseMgr.h"
 #include "ObjectMgr.h"
 
+#include "playerbot/ProgressBar.h"
 using namespace ahbot;
 char * strstri (const char* str1, const char* str2);
 
@@ -146,7 +147,7 @@ bool ItemBag::Add(ItemPrototype const* proto)
     if (sAhBotConfig.ignoreItemIds.find(proto->ItemId) != sAhBotConfig.ignoreItemIds.end())
         return false;
 
-    if (strstri(proto->Name1, "qa") || strstri(proto->Name1, "test") || strstri(proto->Name1, "deprecated"))
+    if (strstri(proto->Name1.c_str(), "qa") || strstri(proto->Name1.c_str(), "test") || strstri(proto->Name1.c_str(), "deprecated"))
         return false;
 
     bool contains = false;

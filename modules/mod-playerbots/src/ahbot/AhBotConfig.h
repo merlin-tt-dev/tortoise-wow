@@ -57,22 +57,22 @@ public:
 
     std::string GetStringDefault(const char* name, const char* def)
     {
-        return config.GetStringDefault(name, def);
+        return sConfig.GetStringDefault(name, def);
     }
 
     bool GetBoolDefault(const char* name, const bool def = false)
     {
-        return config.GetBoolDefault(name, def);
+        return sConfig.GetBoolDefault(name, def);
     }
 
     int32 GetIntDefault(const char* name, const int32 def)
     {
-        return config.GetIntDefault(name, def);
+        return sConfig.GetIntDefault(name, def);
     }
 
     float GetFloatDefault(const char* name, const float def)
     {
-        return config.GetFloatDefault(name, def);
+        return sConfig.GetFloatDefault(name, def);
     }
 
 private:
@@ -81,14 +81,13 @@ private:
         if (cache.find(category) == cache.end())
         {
             std::ostringstream out; out << "AhBot."<< type << "." << category;
-            cache[category] = config.GetFloatDefault(out.str().c_str(), defaultValue);
+            cache[category] = sConfig.GetFloatDefault(out.str().c_str(), defaultValue);
         }
 
         return cache[category];
     }
 
 private:
-    Config config;
     std::map<std::string, float> sellPriceMultipliers;
     std::map<std::string, float> buyPriceMultipliers;
     std::map<std::string, float> itemPriceMultipliers;
