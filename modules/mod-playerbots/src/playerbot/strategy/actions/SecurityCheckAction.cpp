@@ -7,7 +7,7 @@ using namespace ai;
 
 bool SecurityCheckAction::isUseful()
 {
-    return sRandomPlayerbotMgr.IsRandomBot(bot) && ai->GetMaster() && ai->GetMaster()->GetSession()->GetSecurity() < SEC_GAMEMASTER && !ai->GetMaster()->GetPlayerbotAI();
+    return sRandomPlayerbotMgr.IsRandomBot(bot) && ai->GetMaster() && ai->GetMaster()->GetSession()->GetSecurity() < SEC_DEVELOPER && !ai->GetMaster()->GetPlayerbotAI();
 }
 
 bool SecurityCheckAction::Execute(Event& event)
@@ -20,7 +20,7 @@ bool SecurityCheckAction::Execute(Event& event)
         ItemQualities threshold = group->GetLootThreshold();
         if (method == MASTER_LOOT || method == FREE_FOR_ALL || threshold > ITEM_QUALITY_UNCOMMON)
         {
-            if ((ai->GetGroupMaster()->GetSession()->GetSecurity() == SEC_PLAYER) && (!bot->GetGuildId() || bot->GetGuildId() != ai->GetGroupMaster()->GetGuildId()))
+            if ((ai->GetGroupMaster()->GetSession()->GetSecurity() < SEC_MODERATOR) && (!bot->GetGuildId() || bot->GetGuildId() != ai->GetGroupMaster()->GetGuildId()))
             {
                 ai->TellError(requester, "I will play with this loot type only if I'm in your guild :/");
                 ai->ChangeStrategy("+passive,+stay", BotState::BOT_STATE_NON_COMBAT);

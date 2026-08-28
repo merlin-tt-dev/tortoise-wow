@@ -18,7 +18,7 @@ PlayerbotSecurityLevel PlayerbotSecurity::LevelFor(Player* from, DenyReason* rea
 {
 
     // Allow everything if request is from gm account
-    if (from->GetSession()->GetSecurity() >= SEC_GAMEMASTER)
+    if (from->GetSession()->GetSecurity() >= SEC_DEVELOPER)
     {
         return PlayerbotSecurityLevel::PLAYERBOT_SECURITY_ALLOW_ALL;
     }
@@ -160,7 +160,7 @@ bool PlayerbotSecurity::CheckLevelFor(PlayerbotSecurityLevel level, bool silent,
         return false;
 
     Player* master = bot->GetPlayerbotAI()->GetMaster();
-    if (master && bot->GetPlayerbotAI() && bot->GetPlayerbotAI()->IsOpposing(master) && master->GetSession()->GetSecurity() < SEC_GAMEMASTER)
+    if (master && bot->GetPlayerbotAI() && bot->GetPlayerbotAI()->IsOpposing(master) && master->GetSession()->GetSecurity() < SEC_DEVELOPER)
         return false;
 
     std::ostringstream out;

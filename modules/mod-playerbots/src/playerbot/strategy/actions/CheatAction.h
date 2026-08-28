@@ -12,7 +12,7 @@ namespace ai
         virtual std::string GetHelpName() { return "cheat"; }
         virtual std::string GetHelpDescription()
         {
-            return "This command enables/disables various cheats for testing (GM only).\n"
+            return "This command enables/disables various cheats for testing (developer rank and above).\n"
                    "Usage: cheat [+/-][cheatname]\n"
                    "+ to enable, - to disable\n"
                    "Example: cheat +attackspeed (enables attack speed cheat)\n"

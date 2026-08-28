@@ -37,7 +37,8 @@ using namespace MaNGOS;
 bool DebugAction::Execute(Event& event)
 {
     Player* requester = event.getOwner() ? event.getOwner() : GetMaster();
-    bool isMod = event.getSource() == ".bot" || (event.getOwner() && event.getOwner()->GetSession() && event.getOwner()->GetSession()->GetSecurity() >= SEC_MODERATOR);
+    bool isMod = event.getSource() == ".bot privileged" ||
+        (requester && requester->GetSession() && requester->GetSession()->GetSecurity() >= SEC_MODERATOR);
 
     if (!requester)
     {

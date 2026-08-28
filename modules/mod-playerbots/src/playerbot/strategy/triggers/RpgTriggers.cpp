@@ -7,7 +7,7 @@
 #include "playerbot/ServerFacade.h"
 #include "playerbot/strategy/values/ItemUsageValue.h"
 #include "playerbot/TravelMgr.h"
-#include "AI/ScriptDevAI/ScriptDevAIMgr.h"
+#include "ScriptMgr.h"
 
 using namespace ai;
 

@@ -22,7 +22,12 @@
 | core-0004 Native Fixed-Path Motion | eingebaut | ausstehend |
 | 0020 Native Movement / MMap / Triggered Semantics | eingebaut | ausstehend |
 | 0021 Native Loot / Group Roll Semantics | eingebaut | ausstehend |
-| 0022 Native BG / Visible Players / Opt-in Load Optimization | mit diesem Patch | ausstehend |
+| 0022 Native BG / Visible Players / Opt-in Load Optimization | eingebaut | ausstehend |
+| 0023 Native Item / Random-Name Semantics | eingebaut | ausstehend |
+| 0024 Native UnitAI / Distance Semantics | eingebaut | ausstehend |
+| 0025 Native Taxi Flight Path | eingebaut | ausstehend |
+| 0026 Native Metadata / Diagnostics Shim Cleanup | eingebaut | ausstehend |
+| 0027 Native Security / Script Dispatch Semantics | mit diesem Patch | ausstehend |
 
 **Wichtig:** „eingebaut“ bedeutet nur statisch/source-seitig portiert. Kein Punkt gilt dadurch als getestet.
 
@@ -89,6 +94,11 @@
 - [ ] 0022: Schutzschalter und alle Activity-Brackets reagieren entsprechend der Config und widersprechen sich nicht zwischen ALL/REACT/DETAILED_MOVE.
 - [ ] 0022: Async-LoginSpace/Population berücksichtigt nur sichtbare echte Spieler; ein invisible GM löst keine Player-nearby/Login-Priorisierung aus.
 - [ ] 0022: Console-`diff` aktualisiert die laufenden `LoadOptimization.TargetDiff*`-Werte und resetet den PID; Console-`pid` aktualisiert die laufenden Kp/Ki/Kd-Werte.
+- [ ] 0027: kein `SEC_GAMEMASTER`-Alias verbleibt; historische GM-only Playerbot-Rechte verwenden Penqles `SEC_DEVELOPER`, während admin-only `!` weiterhin nur `> SEC_DEVELOPER` erlaubt.
+- [ ] 0027: Penqle `SEC_OBSERVER` erhält keine Gameplay-Cheat-Rechte durch alte `> SEC_PLAYER`-Checks; freie Summon-/vergleichbare Staff-Bypässe beginnen bei `SEC_MODERATOR`.
+- [ ] 0027: Console/RA-Dispatch verwendet ausschließlich virtuelle `ChatHandler::GetAccessLevel()` / `GetAccountId()`; kein unchecked `CliHandler*`-Downcast.
+- [ ] 0027: `.bot debug` verlangt `SEC_DEVELOPER`, `.bot c` verlangt `SEC_MODERATOR`, und ein generisches `.bot do ... cdebug` wird nicht allein durch den `.bot`-Event-Source zum Moderatorpfad.
+- [ ] 0027: kein fake `sScriptDevAIMgr` / `ScriptDevAIMgr`-Stub verbleibt; aktives Gossip/RPG-Scripting läuft über Penqles natives `sScriptMgr`.
 - [ ] Rest-Shim-Audit (MMap/BG/Loot/LFG/InstanceTemplate/etc.) vollständig abgeschlossen.
 
 ## A1. Clean Build

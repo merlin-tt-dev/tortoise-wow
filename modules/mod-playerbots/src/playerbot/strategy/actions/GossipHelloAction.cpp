@@ -3,7 +3,7 @@
 #include "GossipHelloAction.h"
 
 #include "playerbot/ServerFacade.h"
-#include "AI/ScriptDevAI/ScriptDevAIMgr.h"
+#include "ScriptMgr.h"
 
 
 using namespace ai;

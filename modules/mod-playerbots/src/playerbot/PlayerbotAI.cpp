@@ -54,7 +54,6 @@
 #ifdef BUILD_ELUNA
 #include "LuaEngine/LuaEngine.h"
 #endif
-#include "AI/ScriptDevAI/ScriptDevAIMgr.h"
 #include "strategy/values/GuildValues.h"
 
 using namespace ai;
@@ -3678,7 +3677,7 @@ bool PlayerbotAI::IsTellAllowed(Player* player, PlayerbotSecurityLevel securityL
         return false;
 
     if (sPlayerbotAIConfig.whisperDistance && !bot->GetGroup() && sRandomPlayerbotMgr.IsFreeBot(bot) &&
-            player->GetSession()->GetSecurity() < SEC_GAMEMASTER &&
+            player->GetSession()->GetSecurity() < SEC_DEVELOPER &&
             (bot->GetMapId() != player->GetMapId() || sServerFacade.GetDistance2d(bot, player) > sPlayerbotAIConfig.whisperDistance))
         return false;
 
@@ -8658,9 +8657,6 @@ bool PlayerbotAI::HandleSpellClick(ObjectGuid guid)
     {
         if (itr->second.IsFitToRequirements(bot, creature))
         {
-            if (sScriptDevAIMgr.OnNpcSpellClick(bot, creature, itr->second.spellId))
-                return true;
-
             Unit* caster = (itr->second.castFlags & 0x1) ? (Unit*)bot : (Unit*)creature;
             Unit* target = (itr->second.castFlags & 0x2) ? (Unit*)bot : (Unit*)creature;
 

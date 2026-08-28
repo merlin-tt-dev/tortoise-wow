@@ -3457,12 +3457,7 @@ bool RandomPlayerbotMgr::HandlePlayerbotConsoleCommand(ChatHandler* handler, cha
         return false;
     }
 
-    bool isRA = false;
-    
-    if (handler->GetSession()) //Client command
-        isRA = true;
-    else if (static_cast<CliHandler*>(handler) && static_cast<CliHandler*>(handler)->GetAccountId()) //RA call with account.
-        isRA = true;
+    bool isRA = handler->GetSession() || handler->GetAccountId();
 
     if (!args || !*args)
     {
@@ -3580,7 +3575,10 @@ bool RandomPlayerbotMgr::HandlePlayerbotConsoleCommand(ChatHandler* handler, cha
             return true;
     }
 
-    std::list<std::string> messages = sRandomPlayerbotMgr.HandlePlayerbotCommand(args, handler->GetSession() ? handler->GetSession()->GetPlayer():nullptr, static_cast<CliHandler*>(handler) ? static_cast<CliHandler*>(handler)->GetAccessLevel() : SEC_PLAYER);
+    std::list<std::string> messages = sRandomPlayerbotMgr.HandlePlayerbotCommand(
+        args,
+        handler->GetSession() ? handler->GetSession()->GetPlayer() : nullptr,
+        handler->GetAccessLevel());
     for (std::list<std::string>::iterator i = messages.begin(); i != messages.end(); ++i)
     {
         sLog.outString("%s", i->c_str());

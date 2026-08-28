@@ -279,16 +279,6 @@ typedef RolesPriority LfgRolePriority;
 #ifndef ROLL_DISENCHANT
 #define ROLL_DISENCHANT 4
 #endif
-// === Remaining ScriptDevAI compatibility ===
-// Penqle has native sScriptMgr.OnGossipHello(), used directly by the bot now.
-// OnNpcSpellClick has no verified Penqle equivalent yet, so keep only this
-// legacy hook as an explicit no-op until the remaining shim audit resolves it.
-struct CmangosScriptDevAIMgrStub {
-    template<typename... Args>
-    bool OnNpcSpellClick(Args... /*args*/) { return false; }
-};
-inline CmangosScriptDevAIMgrStub sScriptDevAIMgr;
-
 #ifndef SPELL_STATE_TARGETING
 #define SPELL_STATE_TARGETING 0
 #endif
@@ -296,11 +286,6 @@ inline CmangosScriptDevAIMgrStub sScriptDevAIMgr;
 // === MAX_GOSSIP_TEXT_OPTIONS ===
 #ifndef MAX_GOSSIP_TEXT_OPTIONS
 #define MAX_GOSSIP_TEXT_OPTIONS 8
-#endif
-
-// === SEC_GAMEMASTER alias (cmangos has it; Penqle goes SEC_PLAYER → SEC_ADMINISTRATOR) ===
-#ifndef SEC_GAMEMASTER
-#define SEC_GAMEMASTER SEC_ADMINISTRATOR
 #endif
 
 // === SkillLineAbility store proxy ===

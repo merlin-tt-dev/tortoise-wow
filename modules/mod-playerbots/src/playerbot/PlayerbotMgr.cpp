@@ -917,6 +917,18 @@ std::list<std::string> PlayerbotHolder::HandlePlayerbotCommand(const std::string
         return messages;
     }
 
+    std::string securityCommand = command.substr(0, command.find('='));
+    if (securityCommand == "debug" && useSecurity < SEC_DEVELOPER)
+    {
+        messages.push_back("You do not have permission to use this command.");
+        return messages;
+    }
+    if (securityCommand == "c" && useSecurity < SEC_MODERATOR)
+    {
+        messages.push_back("You do not have permission to use this command.");
+        return messages;
+    }
+
     std::set<std::string> bots;
 
     if (charname.empty())
@@ -985,7 +997,7 @@ std::list<std::string> PlayerbotHolder::HandlePlayerbotCommand(const std::string
         } while (result->NextRow());
     }
 
-    if (charname == "!" && useSecurity > SEC_GAMEMASTER)
+    if (charname == "!" && useSecurity > SEC_DEVELOPER)
     {
         for (auto& itr : playerBots)
         {
@@ -1042,11 +1054,11 @@ std::list<std::string> PlayerbotHolder::HandlePlayerbotCommand(const std::string
         }
         else if (master)
         {
-            out << ProcessBotCommand(command, member, master->GetObjectGuid(), useSecurity >= SEC_GAMEMASTER, master->GetSession()->GetAccountId(), master->GetGuildId(), param);
+            out << ProcessBotCommand(command, member, master->GetObjectGuid(), useSecurity >= SEC_DEVELOPER, master->GetSession()->GetAccountId(), master->GetGuildId(), param);
         }
         else
         {
-            out << ProcessBotCommand(command, member, ObjectGuid(), useSecurity >= SEC_GAMEMASTER, -1, -1, param);
+            out << ProcessBotCommand(command, member, ObjectGuid(), useSecurity >= SEC_DEVELOPER, -1, -1, param);
         }
 
         messages.push_back(out.str());
@@ -1474,7 +1486,7 @@ std::list<std::string> PlayerbotHolder::HandleHelp(Player* master, const std::st
 std::list<std::string> PlayerbotHolder::HandleReload(Player* master, const std::string param, AccountTypes security)
 {
     std::list<std::string> messages;
-    if (security < SEC_GAMEMASTER)
+    if (security < SEC_DEVELOPER)
     {
         messages.push_back("You do not have permission to use this command.");
         return messages;
@@ -1487,7 +1499,7 @@ std::list<std::string> PlayerbotHolder::HandleReload(Player* master, const std::
 std::list<std::string> PlayerbotHolder::HandleTweak(Player* master, const std::string param, AccountTypes security)
 {
     std::list<std::string> messages;
-    if (security < SEC_GAMEMASTER)
+    if (security < SEC_DEVELOPER)
     {
         messages.push_back("You do not have permission to use this command.");
         return messages;
@@ -1588,7 +1600,7 @@ std::list<std::string> PlayerbotHolder::HandleSelf(Player* master, const std::st
     }
     else if (sPlayerbotAIConfig.selfBotLevel == BotSelfBotLevel::DISABLED)
         messages.push_back("Self-bot is disabled");
-    else if (sPlayerbotAIConfig.selfBotLevel == BotSelfBotLevel::GM_ONLY && security < SEC_GAMEMASTER)
+    else if (sPlayerbotAIConfig.selfBotLevel == BotSelfBotLevel::GM_ONLY && security < SEC_DEVELOPER)
         messages.push_back("You do not have permission to enable player ai");
     else
     {
@@ -1618,7 +1630,7 @@ std::string PlayerbotHolder::HandleBotDebug(Player* bot, Player* master, const s
 
     std::string command = param;
 
-    if(!ai->DoSpecificAction("cdebug", Event(".bot", command, master ? master : bot), true))
+    if(!ai->DoSpecificAction("cdebug", Event(".bot privileged", command, master ? master : bot), true))
     {
         return "debug failed";
     }
@@ -1644,7 +1656,7 @@ std::string PlayerbotHolder::HandleBotC(Player* bot, Player* master, const std::
     if (!ai)
         return "Bot has no AI";
 
-    ai->DoSpecificAction("cdebug", Event(".bot", "monstertalk " + param, master ? master : bot), true);
+    ai->DoSpecificAction("cdebug", Event(".bot privileged", "monstertalk " + param, master ? master : bot), true);
     return "ok";
 }
 
@@ -3038,8 +3050,8 @@ std::unordered_map<std::string, std::string> PlayerbotHolder::GetCommandTexts()
         // Holder commands (used with .(rnd)bot)
         {"list", "List all active player bots.\nUsage: .(rnd)bot list"},
         {"help", "Show help for commands.\nUsage: .(rnd)bot help <command>"},
-        {"reload", "Reload the playerbot config (GM only).\nUsage: .(rnd)bot reload"},
-        {"tweak", "Adjust the tweak value for testing (GM only).\nUsage: .(rnd)bot tweak"},
+        {"reload", "Reload the playerbot config (developer rank and above).\nUsage: .(rnd)bot reload"},
+        {"tweak", "Adjust the tweak value for testing (developer rank and above).\nUsage: .(rnd)bot tweak"},
         {"self", "Enable self-bot mode for a player.\nUsage: .(rnd)bot self <playername>"},
         {"group", "Create 4 bots with complementary classes at master's level.\nUsage: .(rnd)bot group"},
         {"create", "Create a new bot character.\nUsage: .(rnd)bot create level=<n> class=<class> race=<race>"},
@@ -3092,9 +3104,9 @@ std::unordered_map<std::string, std::string> PlayerbotHolder::GetCommandTexts()
         
         {"always", "Enable offline AI for a player.\nUsage: .(rnd)bot always <playername>"},
         
-        {"debug", "Run debug commands on the bot (GM only).\nUsage: .(rnd)bot debug <bot> <command>"},
+        {"debug", "Run debug commands on the bot (developer rank and above).\nUsage: .(rnd)bot debug <bot> <command>"},
         
-        {"c", "Execute a chat command on the bot.\nUsage: .(rnd)bot c <bot> <command>"},
+        {"c", "Execute a privileged chat command on the bot (moderator rank and above).\nUsage: .(rnd)bot c <bot> <command>"},
         
         {"w", "Send a whisper.\nUsage: .(rnd)bot w <bot> <message> (while spoofing as sender)\nUsage: .(rnd)bot <sender> <reciever> "},
         

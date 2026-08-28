@@ -78,7 +78,7 @@ bool SummonAction::Execute(Event& event)
     if (!requester || requester->IsBeingTeleported())
         return false;
 
-    if (requester->GetSession()->GetSecurity() > SEC_PLAYER || sPlayerbotAIConfig.nonGmFreeSummon)
+    if (requester->GetSession()->GetSecurity() >= SEC_MODERATOR || sPlayerbotAIConfig.nonGmFreeSummon)
         return Teleport(requester, requester, bot);
 
     if(bot->GetMapId() == requester->GetMapId() && !WorldPosition(bot).canPathTo(requester, bot) && bot->GetDistance(requester) < sPlayerbotAIConfig.sightDistance) //We can't walk to requester so fine to short-range teleport.
