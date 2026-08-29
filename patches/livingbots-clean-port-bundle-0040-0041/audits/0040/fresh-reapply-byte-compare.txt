@@ -1,0 +1,12 @@
+PASS modules/mod-playerbots/src/cmangos-compat-shim.h
+PASS modules/mod-playerbots/src/playerbot/WorldSquare.cpp
+PASS modules/mod-playerbots/src/playerbot/strategy/actions/ChatShortcutActions.cpp
+PASS modules/mod-playerbots/src/playerbot/strategy/actions/GossipHelloAction.cpp
+PASS modules/mod-playerbots/src/playerbot/strategy/actions/GossipHelloAction.h
+PASS modules/mod-playerbots/src/playerbot/strategy/actions/QuestAction.cpp
+PASS modules/mod-playerbots/src/playerbot/strategy/actions/RewardAction.cpp
+PASS modules/mod-playerbots/src/playerbot/strategy/actions/SayAction.cpp
+PASS modules/mod-playerbots/src/playerbot/strategy/actions/WorldBuffTravelActions.cpp
+PASS modules/mod-playerbots/src/playerbot/strategy/values/CcTargetValue.cpp
+PASS modules/mod-playerbots/src/playerbot/strategy/values/FreeMoveValues.cpp
+PASS modules/mod-playerbots/src/playerbot/strategy/values/Stances.cpp

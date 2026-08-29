@@ -1,0 +1,1 @@
+796142eb648a9f8e1471eaf8ec55aec0225345e9c93f6b857306491f9162333a  /mnt/data/livingbots-clean-port-patches-0041/0041-build-compatibility-pass-12-native-trainer-rpg.patch

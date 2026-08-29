@@ -1,0 +1,50 @@
+=== modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/WorldSquare.cpp.o ===
+[0/2] Re-checking globbed directories...
+[1/2] Building CXX object modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/WorldSquare.cpp.o
+PASS modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/WorldSquare.cpp.o
+=== modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/strategy/actions/ChatShortcutActions.cpp.o ===
+[0/2] Re-checking globbed directories...
+[1/2] Building CXX object modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/strategy/actions/ChatShortcutActions.cpp.o
+PASS modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/strategy/actions/ChatShortcutActions.cpp.o
+=== modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/strategy/actions/GossipHelloAction.cpp.o ===
+[0/2] Re-checking globbed directories...
+[1/2] Building CXX object modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/strategy/actions/GossipHelloAction.cpp.o
+PASS modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/strategy/actions/GossipHelloAction.cpp.o
+=== modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/strategy/actions/QuestAction.cpp.o ===
+[0/2] Re-checking globbed directories...
+ninja: build stopped: interrupted by user.
+=== modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/strategy/actions/QuestAction.cpp.o ===
+[0/2] Re-checking globbed directories...
+[1/2] Building CXX object modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/strategy/actions/QuestAction.cpp.o
+PASS modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/strategy/actions/QuestAction.cpp.o
+=== modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/strategy/actions/RewardAction.cpp.o ===
+[0/2] Re-checking globbed directories...
+[1/2] Building CXX object modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/strategy/actions/RewardAction.cpp.o
+PASS modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/strategy/actions/RewardAction.cpp.o
+=== modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/strategy/actions/SayAction.cpp.o ===
+[0/2] Re-checking globbed directories...
+ninja: build stopped: interrupted by user.
+=== modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/strategy/actions/SayAction.cpp.o ===
+[0/2] Re-checking globbed directories...
+[1/2] Building CXX object modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/strategy/actions/SayAction.cpp.o
+PASS modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/strategy/actions/SayAction.cpp.o
+=== modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/strategy/actions/WorldBuffTravelActions.cpp.o ===
+[0/2] Re-checking globbed directories...
+[1/2] Building CXX object modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/strategy/actions/WorldBuffTravelActions.cpp.o
+PASS modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/strategy/actions/WorldBuffTravelActions.cpp.o
+=== modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/strategy/values/CcTargetValue.cpp.o ===
+[0/2] Re-checking globbed directories...
+ninja: build stopped: interrupted by user.
+=== modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/strategy/values/CcTargetValue.cpp.o ===
+[0/2] Re-checking globbed directories...
+[1/2] Building CXX object modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/strategy/values/CcTargetValue.cpp.o
+PASS modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/strategy/values/CcTargetValue.cpp.o
+=== modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/strategy/values/FreeMoveValues.cpp.o ===
+[0/2] Re-checking globbed directories...
+[1/2] Building CXX object modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/strategy/values/FreeMoveValues.cpp.o
+PASS modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/strategy/values/FreeMoveValues.cpp.o
+=== modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/strategy/values/Stances.cpp.o ===
+[0/2] Re-checking globbed directories...
+[1/2] Building CXX object modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/strategy/values/Stances.cpp.o
+PASS modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/strategy/values/Stances.cpp.o
+ALL_FRESH_CHANGED_TUS_PASS

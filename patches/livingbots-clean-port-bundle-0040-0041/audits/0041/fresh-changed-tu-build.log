@@ -1,0 +1,18 @@
+=== modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/strategy/actions/TrainerAction.cpp.o ===
+[0/2] Re-checking globbed directories...
+[1/2] Building CXX object modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/strategy/actions/TrainerAction.cpp.o
+PASS modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/strategy/actions/TrainerAction.cpp.o
+=== modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/strategy/triggers/RpgTriggers.cpp.o ===
+[0/2] Re-checking globbed directories...
+[1/2] Building CXX object modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/strategy/triggers/RpgTriggers.cpp.o
+PASS modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/strategy/triggers/RpgTriggers.cpp.o
+=== modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/strategy/values/TrainerValues.cpp.o ===
+[0/2] Re-checking globbed directories...
+[1/2] Building CXX object modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/strategy/values/TrainerValues.cpp.o
+PASS modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/strategy/values/TrainerValues.cpp.o
+=== modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/strategy/actions/AutoLearnSpellAction.cpp.o ===
+[0/2] Re-checking globbed directories...
+ninja: build stopped: interrupted by user.
+[0/2] Re-checking globbed directories...
+[1/2] Building CXX object modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/strategy/actions/AutoLearnSpellAction.cpp.o
+PASS modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/strategy/actions/AutoLearnSpellAction.cpp.o

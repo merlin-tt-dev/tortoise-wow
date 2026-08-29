@@ -1,0 +1,5 @@
+reverse-clean: PASS
+original_patch_sha256 f61d333f50dd7e60d2ebbaeafa2a0cee90146bfa0529e01ae302a0de1a537193
+regenerated_diff_sha256 f61d333f50dd7e60d2ebbaeafa2a0cee90146bfa0529e01ae302a0de1a537193
+diff-byte-identical: PASS
+byte-compare: PASS

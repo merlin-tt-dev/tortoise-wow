@@ -1,0 +1,23 @@
+0041 changed files:
+  modules/mod-playerbots/src/playerbot/strategy/actions/AutoLearnSpellAction.cpp
+  modules/mod-playerbots/src/playerbot/strategy/actions/TrainerAction.cpp
+  modules/mod-playerbots/src/playerbot/strategy/triggers/RpgTriggers.cpp
+  modules/mod-playerbots/src/playerbot/strategy/triggers/RpgTriggers.h
+  modules/mod-playerbots/src/playerbot/strategy/values/TrainerValues.cpp
+
+0040 changed files:
+  modules/mod-playerbots/src/cmangos-compat-shim.h
+  modules/mod-playerbots/src/playerbot/WorldSquare.cpp
+  modules/mod-playerbots/src/playerbot/strategy/actions/ChatShortcutActions.cpp
+  modules/mod-playerbots/src/playerbot/strategy/actions/GossipHelloAction.cpp
+  modules/mod-playerbots/src/playerbot/strategy/actions/GossipHelloAction.h
+  modules/mod-playerbots/src/playerbot/strategy/actions/QuestAction.cpp
+  modules/mod-playerbots/src/playerbot/strategy/actions/RewardAction.cpp
+  modules/mod-playerbots/src/playerbot/strategy/actions/SayAction.cpp
+  modules/mod-playerbots/src/playerbot/strategy/actions/WorldBuffTravelActions.cpp
+  modules/mod-playerbots/src/playerbot/strategy/values/CcTargetValue.cpp
+  modules/mod-playerbots/src/playerbot/strategy/values/FreeMoveValues.cpp
+  modules/mod-playerbots/src/playerbot/strategy/values/Stances.cpp
+
+Intersection: empty
+Result: PASS — 0040 and 0041 are file-disjoint.

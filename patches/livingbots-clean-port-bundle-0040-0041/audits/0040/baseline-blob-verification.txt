@@ -1,0 +1,17 @@
+Remote branch: livingbots/playerbots-clean-base
+Verified remote HEAD: 769a18d3a2b57a67a15ebc2bf31d1c7631d7a519
+Verified remote tree: 0dd03c389a34cec9aca2c729c04df96774da5dc9
+
+Baseline Git blobs (git show HEAD:<path> | git hash-object --stdin), individually matched to remote:
+59fa7a1744172565c382a39234a2d3cc7837b849  modules/mod-playerbots/src/cmangos-compat-shim.h
+cf141121c8aafa77afb1e35553e60eec37d8dead  modules/mod-playerbots/src/playerbot/WorldSquare.cpp
+1634b7dc1b5d342784a600a01bc15ba317119176  modules/mod-playerbots/src/playerbot/strategy/actions/ChatShortcutActions.cpp
+d81b7fa1e5c9508e8c918d661fff6b40ea0fc29e  modules/mod-playerbots/src/playerbot/strategy/actions/GossipHelloAction.cpp
+b0bcb27a51b1291bb5df427f26b828c6101d70e5  modules/mod-playerbots/src/playerbot/strategy/actions/GossipHelloAction.h
+19162eedf41985af886123d6be51d5ae77f679d2  modules/mod-playerbots/src/playerbot/strategy/actions/QuestAction.cpp
+742077ec80af3488dec700f4044b2e4a46ea53ac  modules/mod-playerbots/src/playerbot/strategy/actions/RewardAction.cpp
+ec76fc22efd0854f26a5b90446b6960ced8f1527  modules/mod-playerbots/src/playerbot/strategy/actions/SayAction.cpp
+f6ffdf11a9b8ed5753e308b2d609bf347123094e  modules/mod-playerbots/src/playerbot/strategy/actions/WorldBuffTravelActions.cpp
+377380b177c7ff8e0c6d67895669247f1955456a  modules/mod-playerbots/src/playerbot/strategy/values/CcTargetValue.cpp
+ece01c0e44a8bd289e963d07e1bb6165b2b31e15  modules/mod-playerbots/src/playerbot/strategy/values/FreeMoveValues.cpp
+dc33ca25098dd6fc3baf64cd8bb80aaf36c4f8e7  modules/mod-playerbots/src/playerbot/strategy/values/Stances.cpp

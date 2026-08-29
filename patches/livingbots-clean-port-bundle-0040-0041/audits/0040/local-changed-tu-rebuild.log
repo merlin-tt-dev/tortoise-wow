@@ -1,0 +1,41 @@
+=== modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/WorldSquare.cpp.o ===
+[0/2] Re-checking globbed directories...
+ninja: no work to do.
+PASS modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/WorldSquare.cpp.o
+=== modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/strategy/actions/ChatShortcutActions.cpp.o ===
+[0/2] Re-checking globbed directories...
+ninja: no work to do.
+PASS modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/strategy/actions/ChatShortcutActions.cpp.o
+=== modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/strategy/actions/GossipHelloAction.cpp.o ===
+[0/2] Re-checking globbed directories...
+ninja: no work to do.
+PASS modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/strategy/actions/GossipHelloAction.cpp.o
+=== modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/strategy/actions/QuestAction.cpp.o ===
+[0/2] Re-checking globbed directories...
+ninja: no work to do.
+PASS modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/strategy/actions/QuestAction.cpp.o
+=== modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/strategy/actions/RewardAction.cpp.o ===
+[0/2] Re-checking globbed directories...
+ninja: no work to do.
+PASS modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/strategy/actions/RewardAction.cpp.o
+=== modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/strategy/actions/SayAction.cpp.o ===
+[0/2] Re-checking globbed directories...
+ninja: no work to do.
+PASS modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/strategy/actions/SayAction.cpp.o
+=== modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/strategy/actions/WorldBuffTravelActions.cpp.o ===
+[0/2] Re-checking globbed directories...
+ninja: no work to do.
+PASS modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/strategy/actions/WorldBuffTravelActions.cpp.o
+=== modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/strategy/values/CcTargetValue.cpp.o ===
+[0/2] Re-checking globbed directories...
+ninja: no work to do.
+PASS modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/strategy/values/CcTargetValue.cpp.o
+=== modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/strategy/values/FreeMoveValues.cpp.o ===
+[0/2] Re-checking globbed directories...
+ninja: no work to do.
+PASS modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/strategy/values/FreeMoveValues.cpp.o
+=== modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/strategy/values/Stances.cpp.o ===
+[0/2] Re-checking globbed directories...
+ninja: no work to do.
+PASS modules/CMakeFiles/modules.dir/mod-playerbots/src/playerbot/strategy/values/Stances.cpp.o
+ALL_CHANGED_TUS_PASS

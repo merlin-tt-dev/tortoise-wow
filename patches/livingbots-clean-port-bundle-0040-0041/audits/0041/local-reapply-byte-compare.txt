@@ -1,0 +1,5 @@
+modules/mod-playerbots/src/playerbot/strategy/actions/AutoLearnSpellAction.cpp: OK
+modules/mod-playerbots/src/playerbot/strategy/actions/TrainerAction.cpp: OK
+modules/mod-playerbots/src/playerbot/strategy/triggers/RpgTriggers.cpp: OK
+modules/mod-playerbots/src/playerbot/strategy/triggers/RpgTriggers.h: OK
+modules/mod-playerbots/src/playerbot/strategy/values/TrainerValues.cpp: OK

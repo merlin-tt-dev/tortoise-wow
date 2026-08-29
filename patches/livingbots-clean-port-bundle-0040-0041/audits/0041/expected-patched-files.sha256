@@ -1,0 +1,5 @@
+2461034da395baf00b9a8e54cfd0900aaf4cb3cfc0a0b60c8a6bd679b677d0c7  modules/mod-playerbots/src/playerbot/strategy/actions/AutoLearnSpellAction.cpp
+1d36f9061df35589b0b996cc093e70887bb3473489f9d0df82c7ca967099a0fe  modules/mod-playerbots/src/playerbot/strategy/actions/TrainerAction.cpp
+0669c3bf7e0e284a719bc0b22ad50c4c461f3ec008d5820af4bc6a7a5724b8d8  modules/mod-playerbots/src/playerbot/strategy/triggers/RpgTriggers.cpp
+011063b2ac0774cb192eddb7abd7e262af0cb46697f1b3b86ae04fa81cffbc27  modules/mod-playerbots/src/playerbot/strategy/triggers/RpgTriggers.h
+ae02f46bea22c5d83e9fa509268a96168a7cdfe7675dc98ed4ba1fced6ffc648  modules/mod-playerbots/src/playerbot/strategy/values/TrainerValues.cpp

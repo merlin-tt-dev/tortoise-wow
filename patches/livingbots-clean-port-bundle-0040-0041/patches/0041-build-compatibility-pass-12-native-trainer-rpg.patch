@@ -1,0 +1,542 @@
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/AutoLearnSpellAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/AutoLearnSpellAction.cpp
+index 595a7ddd0daec6b3dd56f94438550d10b8c4d643..0f4d6e06d72514a3e8c64702d34c626a4e31077a 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/AutoLearnSpellAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/AutoLearnSpellAction.cpp
+@@ -52,39 +52,39 @@ void AutoLearnSpellAction::LearnSpells(std::ostringstream* out)
+         if (bot->GetClass() == CLASS_HUNTER && bot->GetLevel() >= 10)
+         {
+ #if !defined(MANGOSBOT_TWO) // Beast training not available in WotLK 
+-            bot->learnSpell(5149, false); //Beast training
++            bot->LearnSpell(5149, false); //Beast training
+ #endif
+-            bot->learnSpell(883, false); //Call pet
+-            bot->learnSpell(982, false); //Revive pet
+-            bot->learnSpell(6991, false); //Feed pet
+-            bot->learnSpell(1515, false); //Tame beast
++            bot->LearnSpell(883, false); //Call pet
++            bot->LearnSpell(982, false); //Revive pet
++            bot->LearnSpell(6991, false); //Feed pet
++            bot->LearnSpell(1515, false); //Tame beast
+         }
+     }
+ }
+ 
+ void AutoLearnSpellAction::LearnTrainerSpells(std::ostringstream* out)
+ {
+-    bot->learnDefaultSpells();
++    bot->LearnDefaultSpells();
+ 
+     for (auto const& creatureEntry : sObjectMgr.GetCreatureInfoMap())
+     {
+         uint32 id = creatureEntry.first;
+         CreatureInfo const* co = creatureEntry.second.get();
+ 
+-        if (co->TrainerType != TRAINER_TYPE_CLASS && 
+-            co->TrainerType != TRAINER_TYPE_TRADESKILLS &&
+-            co->TrainerType != TRAINER_TYPE_PETS)
++        if (co->trainer_type != TRAINER_TYPE_CLASS &&
++            co->trainer_type != TRAINER_TYPE_TRADESKILLS &&
++            co->trainer_type != TRAINER_TYPE_PETS)
+             continue;
+ 
+-        if (co->TrainerType == TRAINER_TYPE_PETS && bot->GetClass() == CLASS_HUNTER)
++        if (co->trainer_type == TRAINER_TYPE_PETS && bot->GetClass() == CLASS_HUNTER)
+             continue;
+ 
+-        if ((co->TrainerType == TRAINER_TYPE_CLASS || co->TrainerType == TRAINER_TYPE_PETS) && co->TrainerClass != bot->GetClass())
++        if ((co->trainer_type == TRAINER_TYPE_CLASS || co->trainer_type == TRAINER_TYPE_PETS) && co->trainer_class != bot->GetClass())
+             continue;
+ 
+-        uint32 trainerId = co->TrainerTemplateId;
++        uint32 trainerId = co->trainer_id;
+         if (!trainerId)
+-            trainerId = co->Entry;
++            trainerId = co->entry;
+ 
+         TrainerSpellData const* trainer_spells = sObjectMgr.GetNpcTrainerTemplateSpells(trainerId);
+         if (!trainer_spells)
+@@ -100,14 +100,11 @@ void AutoLearnSpellAction::LearnTrainerSpells(std::ostringstream* out)
+             if (!tSpell)
+                 continue;
+ 
+-            uint32 reqLevel = 0;
+-
+-            reqLevel = tSpell->isProvidedReqLevel ? tSpell->reqLevel : std::max(reqLevel, tSpell->reqLevel);
+-            TrainerSpellState state = bot->GetTrainerSpellState(tSpell, reqLevel);
++            TrainerSpellState state = bot->GetTrainerSpellState(tSpell);
+             if (state != TRAINER_SPELL_GREEN)
+                 continue;
+ 
+-            if (co->TrainerType == TRAINER_TYPE_TRADESKILLS)
++            if (co->trainer_type == TRAINER_TYPE_TRADESKILLS)
+             {
+                 SpellEntry const* spell = sServerFacade.LookupSpellInfo(tSpell->spell);
+                 if (spell)
+@@ -241,7 +238,7 @@ void AutoLearnSpellAction::LearnDroppedSpells(std::ostringstream* out)
+             {
+                 if (!bot->HasSpell(spellId))
+                 {
+-                    bot->learnSpell(spellId, false);
++                    bot->LearnSpell(spellId, false);
+                 }
+             }
+         }
+@@ -310,7 +307,7 @@ bool AutoLearnSpellAction::LearnSpell(uint32 spellId, std::ostringstream* out)
+         if (!proto)
+             return false;
+         if (!learned && !bot->HasSpell(spellId)) {
+-            bot->learnSpell(spellId, false);
++            bot->LearnSpell(spellId, false);
+             *out << formatSpell(proto) << ", ";
+ 
+             learned = bot->HasSpell(spellId);
+@@ -337,7 +334,7 @@ bool AutoLearnSpellAction::LearnSpellFromSpell(uint32 spellId, std::ostringstrea
+             {
+                 if (!bot->HasSpell(learnedSpell))
+                 {
+-                    bot->learnSpell(learnedSpell, false);
++                    bot->LearnSpell(learnedSpell, false);
+                     SpellEntry const* spellInfo = sServerFacade.LookupSpellInfo(learnedSpell);
+                     *out << formatSpell(spellInfo) << ", ";
+                     learned = true;
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/TrainerAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/TrainerAction.cpp
+index 82b9f9b00593b44d71d195286bf21bc5a3d58764..8f0436f3a59999a56584cde5424b576eacd24bf6 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/TrainerAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/TrainerAction.cpp
+@@ -24,23 +24,20 @@ void TrainerAction::Learn(uint32 cost, ObjectGuid trainerGuid, uint32 spellId, T
+         return;
+ 
+ #ifdef MANGOSBOT_ZERO
+-    if (tSpell->learnedSpell)
++    bool learned = false;
++    for (int j = 0; j < MAX_SPELL_EFFECTS; ++j)
+     {
+-        // old code
+-        // bot->learnSpell(tSpell->learnedSpell, false);
+-        bool learned = false;
+-        for (int j = 0; j < 3; ++j)
+-        {
+-            if (proto->Effect[j] == SPELL_EFFECT_LEARN_SPELL)
+-            {
+-                uint32 learnedSpell = proto->EffectTriggerSpell[j];
+-                bot->learnSpell(learnedSpell, false);
+-                learned = true;
+-            }
+-        }
+-        if (!learned) bot->learnSpell(tSpell->learnedSpell, false);
++        if (proto->Effect[j] != SPELL_EFFECT_LEARN_SPELL || !proto->EffectTriggerSpell[j])
++            continue;
++
++        bot->LearnSpell(proto->EffectTriggerSpell[j], false);
++        learned = true;
+     }
+-    else
++
++    // Penqle stores the trainer's learning spell in TrainerSpell::spell and
++    // has no separate learnedSpell field. Execute the wrapper only if it did
++    // not expose a SPELL_EFFECT_LEARN_SPELL target directly.
++    if (!learned)
+         ai->CastSpell(tSpell->spell, bot);
+ #else
+     // From NPCHandler
+@@ -85,10 +82,7 @@ bool TrainerAction::Iterate(Player* requester, Creature* creature, TrainerSpellA
+         if (!tSpell)
+             continue;
+ 
+-        uint32 reqLevel = 0;
+-
+-        reqLevel = tSpell->isProvidedReqLevel ? tSpell->reqLevel : std::max(reqLevel, tSpell->reqLevel);
+-        TrainerSpellState state = bot->GetTrainerSpellState(tSpell, reqLevel);
++        TrainerSpellState state = bot->GetTrainerSpellState(tSpell);
+         if (state != TRAINER_SPELL_GREEN)
+             continue;
+ 
+@@ -97,37 +91,7 @@ bool TrainerAction::Iterate(Player* requester, Creature* creature, TrainerSpellA
+         if (!pSpellInfo)
+             continue;
+ 
+-#ifdef MANGOSBOT_ZERO
+-        if (tSpell->learnedSpell)
+-        {
+-            bool learned = true;
+-            if (bot->HasSpell(tSpell->learnedSpell))
+-            {
+-                learned = false;
+-            }
+-            else
+-            {
+-                for (int j = 0; j < 3; ++j)
+-                {
+-                    if (pSpellInfo->Effect[j] == SPELL_EFFECT_LEARN_SPELL)
+-                    {
+-                        learned = false;
+-                        uint32 learnedSpell = pSpellInfo->EffectTriggerSpell[j];
+-
+-                        if (!bot->HasSpell(learnedSpell))
+-                        {
+-                            learned = true;
+-                            hasTrainable = true;
+-                            break;
+-                        }
+-                    }
+-                }
+-            }
+-
+-            if (!learned)
+-                continue;
+-        }
+-#else
++#ifndef MANGOSBOT_ZERO
+         if (!tSpell->learnedSpell.empty())
+         {
+             bool anySpellLearned = false;
+@@ -167,6 +131,8 @@ bool TrainerAction::Iterate(Player* requester, Creature* creature, TrainerSpellA
+         if (!spells.empty() && spells.find(tSpell->spell) == spells.end())
+             continue;
+ 
++        hasTrainable = true;
++
+         uint32 cost = uint32(floor(tSpell->spellCost *  fDiscountMod));
+         totalCost += cost;
+ 
+@@ -211,12 +177,7 @@ bool TrainerAction::Execute(Event& event)
+             return false;
+     }
+ 
+-#ifdef MANGOS
+     if (!creature || !creature->IsTrainer())
+-#endif
+-#ifdef CMANGOS
+-    if (!creature || !creature->isTrainer())
+-#endif
+         return false;       
+             
+     if (!creature->IsTrainerOf(bot, false))
+@@ -241,7 +202,7 @@ bool TrainerAction::Execute(Event& event)
+     if (spell)
+         spells.insert(spell);
+ 
+-    if (text.find("learn") != std::string::npos || sRandomPlayerbotMgr.IsFreeBot(bot) || (sPlayerbotAIConfig.autoTrainSpells != "no" && (creature->GetCreatureInfo()->TrainerType != TRAINER_TYPE_TRADESKILLS || !ai->HasActivePlayerMaster()))) //Todo rewrite to only exclude start primary profession skills and make config dependent.
++    if (text.find("learn") != std::string::npos || sRandomPlayerbotMgr.IsFreeBot(bot) || (sPlayerbotAIConfig.autoTrainSpells != "no" && (creature->GetCreatureInfo()->trainer_type != TRAINER_TYPE_TRADESKILLS || !ai->HasActivePlayerMaster()))) //Todo rewrite to only exclude start primary profession skills and make config dependent.
+     {
+         if(Iterate(requester, creature, &TrainerAction::Learn, spells))
+             context->ClearValues("item usage"); //Bot might be able to use new items.
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/triggers/RpgTriggers.cpp b/modules/mod-playerbots/src/playerbot/strategy/triggers/RpgTriggers.cpp
+index f424376682a31b2282579c07c1944ee862f99c58..82246cd5c3ec23f8fa1eeec5c28dd3bdf8e518e2 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/triggers/RpgTriggers.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/triggers/RpgTriggers.cpp
+@@ -256,47 +256,6 @@ bool RpgRepairTrigger::IsActive()
+     return false;
+ }
+ 
+-bool RpgTrainTrigger::IsTrainerOf(CreatureInfo const* cInfo, Player* pPlayer)
+-{
+-
+-    switch (cInfo->TrainerType)
+-    {
+-    case TRAINER_TYPE_CLASS:
+-        if (pPlayer->GetClass() != cInfo->TrainerClass)
+-        {
+-            return false;
+-        }
+-        break;
+-    case TRAINER_TYPE_PETS:
+-        if (pPlayer->GetClass() != CLASS_HUNTER)
+-        {
+-            return false;
+-        }
+-        break;
+-    case TRAINER_TYPE_MOUNTS:
+-        if (cInfo->TrainerRace && pPlayer->GetRace() != cInfo->TrainerRace)
+-        {
+-            // Allowed to train if exalted
+-            if (FactionTemplateEntry const* faction_template = sObjectMgr.GetFactionTemplateEntry(cInfo->faction))
+-            {
+-                if (pPlayer->GetReputationRank(faction_template->faction) == REP_EXALTED)
+-                    return true;
+-            }
+-            return false;
+-        }
+-        break;
+-    case TRAINER_TYPE_TRADESKILLS:
+-        if (cInfo->TrainerSpell && !pPlayer->HasSpell(cInfo->TrainerSpell))
+-        {
+-            return false;
+-        }
+-        break;
+-    default:
+-        return false;                                   // checked and error output at creature_template loading
+-    }
+-    return true;
+-}
+-
+ bool RpgTrainTrigger::IsActive()
+ {
+     GuidPosition guidP(getGuidP());
+@@ -307,24 +266,23 @@ bool RpgTrainTrigger::IsActive()
+     if (guidP.IsHostileTo(bot))
+         return false;
+ 
+-    CreatureInfo const* cInfo = guidP.GetCreatureTemplate();
+-
+-    if (!IsTrainerOf(cInfo, bot))
++    Creature* creature = guidP.GetCreature(bot->GetInstanceId());
++    if (!creature)
+         return false;
+ 
+-    // check present spell in trainer spell list
+-    TrainerSpellData const* cSpells = sObjectMgr.GetNpcTrainerSpells(guidP.GetEntry());
++    if (!creature->IsTrainerOf(bot, false))
++        return false;
+ 
+-    uint32 trainerId = cInfo->TrainerTemplateId;
+-    TrainerSpellData const* tSpells = trainerId ? sObjectMgr.GetNpcTrainerTemplateSpells(trainerId) : nullptr;
++    CreatureInfo const* cInfo = creature->GetCreatureInfo();
++    TrainerSpellData const* cSpells = creature->GetTrainerSpells();
++    TrainerSpellData const* tSpells = creature->GetTrainerTemplateSpells();
+ 
+     if (!cSpells && !tSpells)
+     {
+         return false;
+     }
+ 
+-    FactionTemplateEntry const* factionTemplate = sObjectMgr.GetFactionTemplateEntry(cInfo->faction);
+-    float fDiscountMod = bot->GetReputationPriceDiscount(factionTemplate);
++    float fDiscountMod = bot->GetReputationPriceDiscount(creature);
+ 
+     TrainerSpellMap trainer_spells;
+     if (cSpells)
+@@ -339,47 +297,11 @@ bool RpgTrainTrigger::IsActive()
+         if (!tSpell)
+             continue;
+ 
+-        uint32 reqLevel = 0;
+-
+-        reqLevel = tSpell->isProvidedReqLevel ? tSpell->reqLevel : std::max(reqLevel, tSpell->reqLevel);
+-        TrainerSpellState state = bot->GetTrainerSpellState(tSpell, reqLevel);
++        TrainerSpellState state = bot->GetTrainerSpellState(tSpell);
+         if (state != TRAINER_SPELL_GREEN)
+             continue;
+ 
+-        uint32 spellId = tSpell->spell;
+-        const SpellEntry* const pSpellInfo = sServerFacade.LookupSpellInfo(spellId);
+-        if (!pSpellInfo)
+-            continue;
+-
+-#ifdef MANGOSBOT_ZERO
+-        if (tSpell->learnedSpell)
+-        {
+-            bool learned = true;
+-            if (bot->HasSpell(tSpell->learnedSpell))
+-            {
+-                learned = false;
+-            }
+-            else
+-            {
+-                for (int j = 0; j < 3; ++j)
+-                {
+-                    if (pSpellInfo->Effect[j] == SPELL_EFFECT_LEARN_SPELL)
+-                    {
+-                        learned = false;
+-                        uint32 learnedSpell = pSpellInfo->EffectTriggerSpell[j];
+-
+-                        if (!bot->HasSpell(learnedSpell))
+-                        {
+-                            learned = true;
+-                            break;
+-                        }
+-                    }
+-                }
+-            }
+-            if (!learned)
+-                continue;
+-        }
+-#else
++#ifndef MANGOSBOT_ZERO
+         if (!tSpell->learnedSpell.empty())
+         {
+             bool anySpellLearned = false;
+@@ -417,7 +339,7 @@ bool RpgTrainTrigger::IsActive()
+ 
+         NeedMoneyFor budgetType = NeedMoneyFor::spells;
+ 
+-        switch (cInfo->TrainerType)
++        switch (cInfo->trainer_type)
+         {
+         case TRAINER_TYPE_CLASS:
+             budgetType = NeedMoneyFor::spells;
+@@ -460,7 +382,7 @@ bool RpgHealTrigger::IsActive()
+     if (!unit)
+         return false;
+ 
+-    if (!unit->IsFriend(bot))
++    if (!unit->IsFriendlyTo(bot))
+         return false;
+ 
+     if (unit->IsDead() || unit->GetHealthPercent() >= 100)
+@@ -794,7 +716,7 @@ bool RpgDuelTrigger::IsActive()
+     if (ai->HasRealPlayerMaster())
+     {
+         // do not auto duel if master is not afk
+-        if (ai->GetMaster() && !ai->GetMaster()->isAFK())
++        if (ai->GetMaster() && !ai->GetMaster()->IsAFK())
+             return false;
+     }
+ 
+@@ -890,7 +812,7 @@ bool RpgGossipTalkTrigger::IsActive()
+     if (!guidP.IsCreature())
+         return false;
+ 
+-    GossipMenuItemsMapBounds pMenuItemBounds = sObjectMgr.GetGossipMenuItemsMapBounds(guidP.GetCreatureTemplate()->GossipMenuId);
++    GossipMenuItemsMapBounds pMenuItemBounds = sObjectMgr.GetGossipMenuItemsMapBounds(guidP.GetCreatureTemplate()->gossip_menu_id);
+     if (pMenuItemBounds.first == pMenuItemBounds.second)
+         return false;
+ 
+@@ -899,7 +821,7 @@ bool RpgGossipTalkTrigger::IsActive()
+     if (!creature)
+         return false;
+ 
+-    if (!creature->isGossip())
++    if (!creature->IsGossip())
+         return false;
+ 
+ #ifdef MANGOSBOT_TWO
+@@ -918,10 +840,10 @@ bool RpgGossipTalkTrigger::IsActive()
+         bot->PrepareGossipMenu(creature, creature->GetDefaultGossipMenuId());
+     }
+ 
+-    if (!bot->GetPlayerMenu())
++    if (!bot->PlayerTalkClass)
+         return false;
+ 
+-    GossipMenu& menu = bot->GetPlayerMenu()->GetGossipMenu();
++    GossipMenu& menu = bot->PlayerTalkClass->GetGossipMenu();
+ 
+     if (!menu.MenuItemCount())
+         return false;
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/triggers/RpgTriggers.h b/modules/mod-playerbots/src/playerbot/strategy/triggers/RpgTriggers.h
+index 13900419a9ea4a35b4e8b632c92bb38f608ae82b..6071035acc3f4d37d8ebaef3bbd16d6da2835a43 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/triggers/RpgTriggers.h
++++ b/modules/mod-playerbots/src/playerbot/strategy/triggers/RpgTriggers.h
+@@ -146,8 +146,6 @@ namespace ai
+     public:
+         RpgTrainTrigger(PlayerbotAI* ai, std::string name = "rpg train") : RpgTrigger(ai, name) {}
+ 
+-        static bool IsTrainerOf(CreatureInfo const* cInfo, Player* pPlayer);
+-
+         virtual bool IsActive() override;
+     };
+ 
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/TrainerValues.cpp b/modules/mod-playerbots/src/playerbot/strategy/values/TrainerValues.cpp
+index dd2022a6326cb2cccef46d029ff8bbb447ef18b0..8b5f0cd70c3b7edcb195a29e9ec615a5fc995176 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/TrainerValues.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/TrainerValues.cpp
+@@ -20,11 +20,11 @@ trainableSpellMap* TrainableSpellMapValue::Calculate()
+         uint32 id = creatureEntry.first;
+         CreatureInfo const* creatureInfo = creatureEntry.second.get();
+ 
+-        if (!creatureInfo->TrainerType && !creatureInfo->TrainerClass)
++        if (!creatureInfo->trainer_type && !creatureInfo->trainer_class)
+             continue;
+ 
+-        if(creatureInfo->TrainerTemplateId)
+-            trainerTemplateIds[creatureInfo->TrainerTemplateId].push_back(creatureInfo);
++        if(creatureInfo->trainer_id)
++            trainerTemplateIds[creatureInfo->trainer_id].push_back(creatureInfo);
+         else
+             trainerTemplateIds[id].push_back(creatureInfo);
+     }
+@@ -40,13 +40,13 @@ trainableSpellMap* TrainableSpellMapValue::Calculate()
+ 
+         CreatureInfo const* firstTrainer = trainers.front();
+ 
+-        TrainerType trainerType = (TrainerType)firstTrainer->TrainerType;
++        TrainerType trainerType = (TrainerType)firstTrainer->trainer_type;
+ 
+-        uint32 spellRequirement;
++        uint32 spellRequirement = 0;
+         if (trainerType == TRAINER_TYPE_CLASS || trainerType == TRAINER_TYPE_PETS)
+-            spellRequirement = firstTrainer->TrainerClass;
++            spellRequirement = firstTrainer->trainer_class;
+         else if (trainerType == TRAINER_TYPE_MOUNTS)
+-            spellRequirement = firstTrainer->TrainerRace;
++            spellRequirement = firstTrainer->trainer_race;
+ 
+         for (auto& [id, trainerSpell] : trainer_spells->spellList)
+         {
+@@ -68,16 +68,6 @@ trainableSpellMap* TrainableSpellMapValue::Calculate()
+                 if (otherTrainerSpell->reqLevel != trainerSpell.reqLevel)
+                     continue;
+ 
+-#ifndef MANGOSBOT_TWO
+-                if (otherTrainerSpell->learnedSpell != trainerSpell.learnedSpell)
+-#else
+-                if (otherTrainerSpell->learnedSpell[0] != trainerSpell.learnedSpell[0])
+-#endif
+-                    continue;
+-
+-                if (otherTrainerSpell->conditionId != trainerSpell.conditionId)
+-                    continue;
+-
+                 sameTrainerSpell = otherTrainerSpell;
+                 break;
+             }
+@@ -88,19 +78,20 @@ trainableSpellMap* TrainableSpellMapValue::Calculate()
+                     spellRequirement = trainerSpell.reqSkill;
+                 else
+                 {
+-                    // exist, already checked at loading
+-#ifdef MANGOSBOT_ZERO
+-                    SpellEntry const* spell = sSpellMgr.GetSpellEntry(trainerSpell.learnedSpell);
+-#else
+-                    SpellEntry const* spell = sSpellMgr.GetSpellEntry(trainerSpell.learnedSpell[0]);
+-#endif
+-
+-                    spellRequirement = spell->EffectMiscValue[1];
++                    // Penqle stores the learning wrapper in TrainerSpell::spell.
++                    // The learned spell is the wrapper's LEARN_SPELL trigger.
++                    SpellEntry const* trainerSpellInfo = sSpellMgr.GetSpellEntry(trainerSpell.spell);
++                    uint32 learnedSpellId = trainerSpellInfo ? trainerSpellInfo->EffectTriggerSpell[EFFECT_INDEX_0] : 0;
++                    SpellEntry const* spell = learnedSpellId ? sSpellMgr.GetSpellEntry(learnedSpellId) : nullptr;
++                    if (!spell)
++                        continue;
++
++                    spellRequirement = spell->EffectMiscValue[EFFECT_INDEX_1];
+                 }
+             }
+ 
+             for (auto& trainer : trainers)
+-                (*spellMap)[trainerType][spellRequirement][sameTrainerSpell].push_back(trainer->Entry);
++                (*spellMap)[trainerType][spellRequirement][sameTrainerSpell].push_back(trainer->entry);
+         }
+     }
+ 
+@@ -129,20 +120,18 @@ std::vector<TrainerSpell const*> TrainableSpellsValue::Calculate()
+ 
+             for (auto& [trainerSpell, trainers] : trainerSpellList)
+             {
+-                uint32 reqLevel = 0;
+-
+-                reqLevel = trainerSpell->isProvidedReqLevel ? trainerSpell->reqLevel : std::max(reqLevel, trainerSpell->reqLevel);
+-                TrainerSpellState state = bot->GetTrainerSpellState(trainerSpell, reqLevel);
++                TrainerSpellState state = bot->GetTrainerSpellState(trainerSpell);
+                 if (state != TRAINER_SPELL_GREEN)
+                     continue;
+ 
+                 //Skip initial profession training.
+-#ifdef MANGOSBOT_ZERO
+-                if (bot->GetLevel() < 10 && sSpellMgr.IsProfessionSpell(trainerSpell->learnedSpell) && sSpellMgr.GetSpellRank(trainerSpell->learnedSpell) == 1)
+-#else
+-                if (bot->GetLevel() < 10 && sSpellMgr.IsProfessionSpell(trainerSpell->learnedSpell[0]) && sSpellMgr.GetSpellRank(trainerSpell->learnedSpell[0]) == 1)
+-#endif
+-                    continue;
++                if (bot->GetLevel() < 10)
++                {
++                    SpellEntry const* trainerSpellInfo = sSpellMgr.GetSpellEntry(trainerSpell->spell);
++                    uint32 learnedSpellId = trainerSpellInfo ? trainerSpellInfo->EffectTriggerSpell[EFFECT_INDEX_0] : 0;
++                    if (learnedSpellId && sSpellMgr.IsProfessionSpell(learnedSpellId) && sSpellMgr.GetSpellRank(learnedSpellId) == 1)
++                        continue;
++                }
+ 
+                 trainableSpells.push_back(trainerSpell);
+             }

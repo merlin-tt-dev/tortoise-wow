@@ -1,0 +1,12 @@
+modules/mod-playerbots/src/cmangos-compat-shim.h: OK
+modules/mod-playerbots/src/playerbot/WorldSquare.cpp: OK
+modules/mod-playerbots/src/playerbot/strategy/actions/ChatShortcutActions.cpp: OK
+modules/mod-playerbots/src/playerbot/strategy/actions/GossipHelloAction.cpp: OK
+modules/mod-playerbots/src/playerbot/strategy/actions/GossipHelloAction.h: OK
+modules/mod-playerbots/src/playerbot/strategy/actions/QuestAction.cpp: OK
+modules/mod-playerbots/src/playerbot/strategy/actions/RewardAction.cpp: OK
+modules/mod-playerbots/src/playerbot/strategy/actions/SayAction.cpp: OK
+modules/mod-playerbots/src/playerbot/strategy/actions/WorldBuffTravelActions.cpp: OK
+modules/mod-playerbots/src/playerbot/strategy/values/CcTargetValue.cpp: OK
+modules/mod-playerbots/src/playerbot/strategy/values/FreeMoveValues.cpp: OK
+modules/mod-playerbots/src/playerbot/strategy/values/Stances.cpp: OK

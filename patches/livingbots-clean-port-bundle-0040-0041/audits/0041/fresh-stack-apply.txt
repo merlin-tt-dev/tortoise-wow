@@ -1,0 +1,23 @@
+CHECK core-0009-native-targeted-follow-catchup.patch
+APPLY core-0009-native-targeted-follow-catchup.patch
+CHECK 0038-build-compatibility-pass-9-native-movement-follow.patch
+APPLY 0038-build-compatibility-pass-9-native-movement-follow.patch
+CHECK 0039-build-compatibility-pass-10-native-rpg-quest-mount-spell.patch
+APPLY 0039-build-compatibility-pass-10-native-rpg-quest-mount-spell.patch
+CHECK 0041-0040.patch
+APPLY 0041-0040.patch
+CHECK 0041-build-compatibility-pass-12-native-trainer-rpg.patch
+APPLY 0041-build-compatibility-pass-12-native-trainer-rpg.patch
+STACK_0038_CORE_0038_MOD_0039_0040_0041=PASS
+0041_REVERSE_CHECK_ON_FULL_STACK=PASS
+0040_REVERSE_CHECK_WITH_0041_PRESENT=PASS
+/mnt/data/livingbots-clean-port-patches-0041/0041-build-compatibility-pass-12-native-trainer-rpg.patch:34: trailing whitespace.
+        if (co->TrainerType != TRAINER_TYPE_CLASS && 
+warning: 1 line adds whitespace errors.
+0041_REVERSE_REAPPLY_ON_0040_STACK=PASS
+BYTE_MATCH modules/mod-playerbots/src/playerbot/strategy/actions/AutoLearnSpellAction.cpp
+BYTE_MATCH modules/mod-playerbots/src/playerbot/strategy/actions/TrainerAction.cpp
+BYTE_MATCH modules/mod-playerbots/src/playerbot/strategy/triggers/RpgTriggers.cpp
+BYTE_MATCH modules/mod-playerbots/src/playerbot/strategy/triggers/RpgTriggers.h
+BYTE_MATCH modules/mod-playerbots/src/playerbot/strategy/values/TrainerValues.cpp
+0041_FILES_BYTE_IDENTICAL_TO_WIP=PASS

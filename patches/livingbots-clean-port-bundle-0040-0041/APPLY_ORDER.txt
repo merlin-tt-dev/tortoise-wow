@@ -1,0 +1,2 @@
+0040-build-compatibility-pass-11-native-gossip-chat-worldlocation.patch
+0041-build-compatibility-pass-12-native-trainer-rpg.patch

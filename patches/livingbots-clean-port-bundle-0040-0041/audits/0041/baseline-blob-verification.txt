@@ -1,0 +1,11 @@
+Remote baseline: merlin-tt-dev/tortoise-wow
+Branch: livingbots/playerbots-clean-base
+Commit: 769a18d3a2b57a67a15ebc2bf31d1c7631d7a519
+
+PASS 595a7ddd0daec6b3dd56f94438550d10b8c4d643 modules/mod-playerbots/src/playerbot/strategy/actions/AutoLearnSpellAction.cpp
+PASS 82b9f9b00593b44d71d195286bf21bc5a3d58764 modules/mod-playerbots/src/playerbot/strategy/actions/TrainerAction.cpp
+PASS f424376682a31b2282579c07c1944ee862f99c58 modules/mod-playerbots/src/playerbot/strategy/triggers/RpgTriggers.cpp
+PASS 13900419a9ea4a35b4e8b632c92bb38f608ae82b modules/mod-playerbots/src/playerbot/strategy/triggers/RpgTriggers.h
+PASS dd2022a6326cb2cccef46d029ff8bbb447ef18b0 modules/mod-playerbots/src/playerbot/strategy/values/TrainerValues.cpp
+
+Result: 5/5 local baseline Git blob IDs exactly equal the corresponding remote blob SHAs.

@@ -1,0 +1,397 @@
+diff --git a/modules/mod-playerbots/src/cmangos-compat-shim.h b/modules/mod-playerbots/src/cmangos-compat-shim.h
+index 59fa7a1744172565c382a39234a2d3cc7837b849..ca822ddb8e67b55d413f90928af9c9194a0f1585 100644
+--- a/modules/mod-playerbots/src/cmangos-compat-shim.h
++++ b/modules/mod-playerbots/src/cmangos-compat-shim.h
+@@ -268,11 +268,6 @@ typedef RolesPriority LfgRolePriority;
+ #define SPELL_STATE_TARGETING 0
+ #endif
+ 
+-// === MAX_GOSSIP_TEXT_OPTIONS ===
+-#ifndef MAX_GOSSIP_TEXT_OPTIONS
+-#define MAX_GOSSIP_TEXT_OPTIONS 8
+-#endif
+-
+ // === SkillLineAbility store proxy ===
+ // cmangos exposes sSkillLineAbilityStore (DBCStorage<SkillLineAbilityEntry>);
+ // Penqle exposes sObjectMgr.GetSkillLineAbility(id).
+diff --git a/modules/mod-playerbots/src/playerbot/WorldSquare.cpp b/modules/mod-playerbots/src/playerbot/WorldSquare.cpp
+index cf141121c8aafa77afb1e35553e60eec37d8dead..77f008705f7be737a43c3c2f1c27c9332b5ed41a 100644
+--- a/modules/mod-playerbots/src/playerbot/WorldSquare.cpp
++++ b/modules/mod-playerbots/src/playerbot/WorldSquare.cpp
+@@ -18,7 +18,7 @@ void WorldPointContainer::printWKT(std::ostringstream& out, bool squares) const
+ 
+ float MapWpSquare::sqOutDistance(const WorldPosition& point) const
+ {
+-    if (point.mapid != mapId)
++    if (point.mapId != mapId)
+     {
+         float minSqDist = FLT_MAX;
+         //distance = point -> portal (on map of square)
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/ChatShortcutActions.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/ChatShortcutActions.cpp
+index 1634b7dc1b5d342784a600a01bc15ba317119176..874d4c43d004014d0b0d31964a73e683b42d57f3 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/ChatShortcutActions.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/ChatShortcutActions.cpp
+@@ -78,10 +78,10 @@ bool FollowChatShortcutAction::Execute(Event& event)
+     if (sServerFacade.IsInCombat(bot))
+     {     
+         WorldLocation loc = formation->GetLocation();
+-        if (Formation::IsNullLocation(loc) || loc.mapid == -1)
++        if (Formation::IsNullLocation(loc) || loc.mapId == -1)
+             return false;
+ 
+-        if (MoveTo(loc.mapid, loc.coord_x, loc.coord_y, loc.coord_z, false, false))
++        if (MoveTo(loc.mapId, loc.x, loc.y, loc.z, false, false))
+         {
+             ai->TellPlayerNoFacing(requester, BOT_TEXT("following"));
+             return true;
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/GossipHelloAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/GossipHelloAction.cpp
+index d81b7fa1e5c9508e8c918d661fff6b40ea0fc29e..c445443899da0782e290522fc61ac02d48798206 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/GossipHelloAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/GossipHelloAction.cpp
+@@ -35,7 +35,7 @@ bool GossipHelloAction::Execute(Event& event)
+ 		return false;
+ 	}
+ 
+-	GossipMenuItemsMapBounds pMenuItemBounds = sObjectMgr.GetGossipMenuItemsMapBounds(pCreature->GetCreatureInfo()->GossipMenuId);
++    GossipMenuItemsMapBounds pMenuItemBounds = sObjectMgr.GetGossipMenuItemsMapBounds(pCreature->GetCreatureInfo()->gossip_menu_id);
+ 	if (pMenuItemBounds.first == pMenuItemBounds.second)
+ 		return false;
+ 
+@@ -67,7 +67,7 @@ bool GossipHelloAction::Execute(Event& event)
+ 
+         TellGossipMenus(requester);
+ 	}
+-	else if (!bot->GetPlayerMenu())
++    else if (!bot->PlayerTalkClass)
+ 	{
+ 	    ai->TellPlayerNoFacing(requester, "I need to talk first");
+ 	    return false;
+@@ -83,30 +83,39 @@ bool GossipHelloAction::Execute(Event& event)
+ 	return true;
+ }
+ 
+-void GossipHelloAction::TellGossipText(Player* requester, uint32 textId)
++void GossipHelloAction::TellGossipText(Player* requester, uint32 textId, Creature const* creature)
+ {
+     if (!textId)
+         return;
+ 
+-    GossipText const* text = sObjectMgr.GetGossipText(textId);
+-    if (text)
++    NpcText const* text = sObjectMgr.GetNpcText(textId);
++    if (!text)
++        return;
++
++    int locale = requester && requester->GetSession() ? requester->GetSession()->GetSessionDbLocaleIndex() : DB_LOCALE_enUS;
++    uint8 gender = creature ? creature->GetGender() : GENDER_MALE;
++
++    for (int i = 0; i < MAX_NPC_TEXT_OPTIONS; ++i)
+     {
+-        for (int i = 0; i < MAX_GOSSIP_TEXT_OPTIONS; i++)
++        uint32 broadcastTextId = text->Options[i].BroadcastTextID;
++        if (!broadcastTextId)
++            continue;
++
++        if (BroadcastText const* broadcastText = sObjectMgr.GetBroadcastTextLocale(broadcastTextId))
+         {
+-            std::string text0 = text->Options[i].Text_0;
+-            if (!text0.empty()) ai->TellPlayerNoFacing(requester, text0);
+-            std::string text1 = text->Options[i].Text_1;
+-            if (!text1.empty()) ai->TellPlayerNoFacing(requester, text1);
++            std::string const& gossipText = broadcastText->GetText(locale, gender, false);
++            if (!gossipText.empty())
++                ai->TellPlayerNoFacing(requester, gossipText);
+         }
+     }
+ }
+ 
+ void GossipHelloAction::TellGossipMenus(Player* requester)
+ {
+-    if (!bot->GetPlayerMenu())
++    if (!bot->PlayerTalkClass)
+         return;
+ 
+-     GossipMenu& menu = bot->GetPlayerMenu()->GetGossipMenu();
++     GossipMenu& menu = bot->PlayerTalkClass->GetGossipMenu();
+ 
+      if (requester)
+      {
+@@ -115,7 +124,7 @@ void GossipHelloAction::TellGossipMenus(Player* requester)
+          if (pCreature)
+          {
+              uint32 textId = bot->GetGossipTextId(menu.GetMenuId(), pCreature);
+-             TellGossipText(requester, textId);
++             TellGossipText(requester, textId, pCreature);
+          }
+      }
+ 
+@@ -129,7 +138,7 @@ void GossipHelloAction::TellGossipMenus(Player* requester)
+ 
+ bool GossipHelloAction::ProcessGossip(Player* requester, ObjectGuid creatureGuid, int menuToSelect)
+ {
+-    GossipMenu& menu = bot->GetPlayerMenu()->GetGossipMenu();
++    GossipMenu& menu = bot->PlayerTalkClass->GetGossipMenu();
+ 
+     bool noFeedback = (menuToSelect == -1);
+ 
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/GossipHelloAction.h b/modules/mod-playerbots/src/playerbot/strategy/actions/GossipHelloAction.h
+index b0bcb27a51b1291bb5df427f26b828c6101d70e5..20c9ec2395c7d76d44119523eb2f2d77d89f1af9 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/GossipHelloAction.h
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/GossipHelloAction.h
+@@ -12,6 +12,6 @@ namespace ai
+     private:
+         void TellGossipMenus(Player* requester);
+         bool ProcessGossip(Player* requester, ObjectGuid creatureGuid, int menuToSelect);
+-        void TellGossipText(Player* requester, uint32 textId);
++        void TellGossipText(Player* requester, uint32 textId, Creature const* creature);
+     };
+ }
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/QuestAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/QuestAction.cpp
+index 19162eedf41985af886123d6be51d5ae77f679d2..a3f9ba758098b7e1a19e4a19024dd0dd015d5b17 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/QuestAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/QuestAction.cpp
+@@ -175,7 +175,7 @@ bool QuestAction::ProcessQuests(WorldObject* questGiver)
+ 
+     bot->SetSelectionGuid(guid);
+     bot->PrepareQuestMenu(guid);
+-    QuestMenu& questMenu = bot->GetPlayerMenu()->GetQuestMenu();
++    QuestMenu& questMenu = bot->PlayerTalkClass->GetQuestMenu();
+ 
+     bool hasAccept = false;
+     for (uint32 i = 0; i < questMenu.MenuItemCount(); ++i)
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/RewardAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/RewardAction.cpp
+index 742077ec80af3488dec700f4044b2e4a46ea53ac..6ce2a04485e81596d036bcd735473c5f1b26ec28 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/RewardAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/RewardAction.cpp
+@@ -51,7 +51,7 @@ bool RewardAction::Execute(Event& event)
+ 
+ bool RewardAction::Reward(Player* requester, uint32 itemId, Object* questGiver)
+ {
+-    QuestMenu& questMenu = bot->GetPlayerMenu()->GetQuestMenu();
++    QuestMenu& questMenu = bot->PlayerTalkClass->GetQuestMenu();
+     for (uint32 iI = 0; iI < questMenu.MenuItemCount(); ++iI)
+     {
+         QuestMenuItem const& qItem = questMenu.GetItem(iI);
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/SayAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/SayAction.cpp
+index ec76fc22efd0854f26a5b90446b6960ced8f1527..918e1babea71d3fccf2520c92e23c81c6305c2c5 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/SayAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/SayAction.cpp
+@@ -218,20 +218,27 @@ void ChatReplyAction::GetAIChatPlaceholders(std::map<std::string, std::string>&
+         GossipMenusMapBounds pMenuBounds = sObjectMgr.GetGossipMenusMapBounds(creature->GetDefaultGossipMenuId());
+         GossipMenuItemsMapBounds pMenuItemBounds = sObjectMgr.GetGossipMenuItemsMapBounds(creature->GetDefaultGossipMenuId());
+ 
+-        for (auto& gossip = pMenuBounds.first; gossip != pMenuBounds.second; gossip++)
++        auto appendNpcText = [&](uint32 textId)
+         {
+-            const GossipText* gos = sObjectMgr.GetGossipText(gossip->second.text_id);
+-            gossipText += " " + gos->Options->Text_0;
+-        }
++            NpcText const* npcText = sObjectMgr.GetNpcText(textId);
++            if (!npcText || !npcText->Options[0].BroadcastTextID)
++                return;
+ 
+-        uint32 textId = observer->GetGossipTextId(creature);
++            if (BroadcastText const* broadcastText = sObjectMgr.GetBroadcastTextLocale(npcText->Options[0].BroadcastTextID))
++            {
++                int locale = observer->GetSession() ? observer->GetSession()->GetSessionDbLocaleIndex() : DB_LOCALE_enUS;
++                std::string const& text = broadcastText->GetText(locale, creature->GetGender(), false);
++                if (!text.empty())
++                    gossipText += " " + text;
++            }
++        };
++
++        for (auto& gossip = pMenuBounds.first; gossip != pMenuBounds.second; gossip++)
++            appendNpcText(gossip->second.text_id);
+ 
++        uint32 textId = observer->GetGossipTextId(creature);
+         if (textId)
+-        {
+-            const GossipText* gos = sObjectMgr.GetGossipText(textId);
+-            if (gos)
+-                gossipText += " " + gos->Options->Text_0;
+-        }
++            appendNpcText(textId);
+ 
+         for (auto& gossip = pMenuItemBounds.first; gossip != pMenuItemBounds.second; gossip++)
+         {
+@@ -445,7 +452,10 @@ delayedPackets ChatReplyAction::GenerateResponsePackets(const std::string json
+     if (!debugLines.empty())
+     {
+         debugPackets = LinesToPackets(debugLines, systemTemplate, true, 1);
+-        packets.insert(packets.begin(), debugPackets.begin(), debugPackets.end());
++        debugPackets.reserve(debugPackets.size() + packets.size());
++        for (auto& packet : packets)
++            debugPackets.emplace_back(std::move(packet.first), packet.second);
++        packets.swap(debugPackets);
+     }
+ 
+     return packets;
+@@ -709,17 +719,8 @@ bool ChatReplyAction::HandleThunderfuryReply(Player* bot, ChatChannelSource chat
+ bool ChatReplyAction::HandleToxicLinksReply(Player* bot, ChatChannelSource chatChannelSource, std::string msg, std::string name)
+ {
+     //quests
+-    std::vector<uint32> incompleteQuests;
+-    for (uint16 slot = 0; slot < MAX_QUEST_LOG_SIZE; ++slot)
+-    {
+-        uint32 questId = bot->GetQuestSlotQuestId(slot);
+-        if (!questId)
+-            continue;
+-
+-        QuestStatus status = bot->GetQuestStatus(questId);
+-        if (status == QUEST_STATUS_INCOMPLETE || status == QUEST_STATUS_NONE)
+-            incompleteQuests.push_back(questId);
+-    }
++    std::set<uint32> incompleteQuestIds = GetPlayerbotAI(bot)->GetCurrentIncompleteQuestIds();
++    std::vector<uint32> incompleteQuests(incompleteQuestIds.begin(), incompleteQuestIds.end());
+ 
+     //items
+     std::vector<Item*> botItems = GetPlayerbotAI(bot)->GetInventoryAndEquippedItems();
+@@ -1096,7 +1097,7 @@ std::string ChatReplyAction::GenerateReplyMessage(Player* bot, std::string incom
+         // blame gm with chat tag
+         if (Player* plr = sObjectMgr.GetPlayer(ObjectGuid(HIGHGUID_PLAYER, guid1)))
+         {
+-            if (plr->isGMChat())
++            if (plr->IsGMChat())
+             {
+                 replyType = REPLY_ADMIN_ABUSE;
+                 found = true;
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/WorldBuffTravelActions.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/WorldBuffTravelActions.cpp
+index f6ffdf11a9b8ed5753e308b2d609bf347123094e..fe1c3c33f050309b4552e7e4cd8bbfb30d8d6a96 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/WorldBuffTravelActions.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/WorldBuffTravelActions.cpp
+@@ -82,12 +82,12 @@ static const GameObjectData* FindClosestSongflowerSpawn(Player* bot)
+             if (!IsSongflowerEntry(data.id))
+                 return false;
+ 
+-            if (data.position.mapid != mapId)
++            if (data.position.mapId != mapId)
+                 return false;
+ 
+-            float dx = data.position.coord_x - x;
+-            float dy = data.position.coord_y - y;
+-            float dz = data.position.coord_z - z;
++            float dx = data.position.x - x;
++            float dy = data.position.y - y;
++            float dz = data.position.z - z;
+             float distSq = dx * dx + dy * dy + dz * dz;
+ 
+             if (distSq < bestDistSq)
+@@ -158,7 +158,7 @@ static bool SummonPlayerToSummoner(Player* summoner, Player* target, PlayerbotAI
+         data << summoner->GetObjectGuid();
+         data << uint32(summoner->GetZoneId());
+         data << uint32(MAX_PLAYER_SUMMON_DELAY * IN_MILLISECONDS);
+-        target->GetSession()->SendPacket(data);
++        target->GetSession()->SendPacket(&data);
+     }
+     else
+     {
+@@ -534,7 +534,7 @@ bool WorldBuffTravelSetTargetAction::Execute(Event& event)
+             }
+ 
+             ai->TellPlayer(GetMaster(), "Regrouping at Dire Maul North for portal...");
+-            return MoveTo(goData->position.mapid, goData->position.coord_x, goData->position.coord_y, goData->position.coord_z);
++            return MoveTo(goData->position.mapId, goData->position.x, goData->position.y, goData->position.z);
+         }
+ 
+         // PORTAL_HOME: regroup at the nearest Songflower
+@@ -553,7 +553,7 @@ bool WorldBuffTravelSetTargetAction::Execute(Event& event)
+ 
+             const char* portalName = GetHomePortalKeyword(bot);
+             ai->TellPlayer(GetMaster(), std::string("Regrouping at Songflower waiting for Portal: ") + portalName + "...");
+-            return MoveTo(goData->position.mapid, goData->position.coord_x, goData->position.coord_y, goData->position.coord_z);
++            return MoveTo(goData->position.mapId, goData->position.x, goData->position.y, goData->position.z);
+         }
+ 
+         return false;
+@@ -576,7 +576,7 @@ bool WorldBuffTravelSetTargetAction::Execute(Event& event)
+         }
+ 
+         ai->TellPlayer(GetMaster(), "Traveling to Dire Maul North for world buffs");
+-        return MoveTo(goData->position.mapid, goData->position.coord_x, goData->position.coord_y, goData->position.coord_z);
++        return MoveTo(goData->position.mapId, goData->position.x, goData->position.y, goData->position.z);
+     }
+ 
+     if (step == WorldBuffTravelStep::STEP_SONGFLOWER)
+@@ -589,7 +589,7 @@ bool WorldBuffTravelSetTargetAction::Execute(Event& event)
+         }
+ 
+         ai->TellPlayer(GetMaster(), "Traveling to nearest Songflower for world buffs");
+-        return MoveTo(goData->position.mapid, goData->position.coord_x, goData->position.coord_y, goData->position.coord_z);
++        return MoveTo(goData->position.mapId, goData->position.x, goData->position.y, goData->position.z);
+     }
+ 
+     if (step == WorldBuffTravelStep::STEP_FORGOTTEN_COAST && horde)
+@@ -610,12 +610,12 @@ bool WorldBuffTravelSetTargetAction::Execute(Event& event)
+                 if (data.id != GO_BONFIRE_FERALAS)
+                     return false;
+ 
+-                if (data.position.mapid != mapId)
++                if (data.position.mapId != mapId)
+                     return false;
+ 
+-                float dx = data.position.coord_x - x;
+-                float dy = data.position.coord_y - y;
+-                float dz = data.position.coord_z - z;
++                float dx = data.position.x - x;
++                float dy = data.position.y - y;
++                float dz = data.position.z - z;
+                 float distSq = dx * dx + dy * dy + dz * dz;
+ 
+                 if (distSq < bestDistSq)
+@@ -638,7 +638,7 @@ bool WorldBuffTravelSetTargetAction::Execute(Event& event)
+         }
+ 
+         ai->TellPlayer(GetMaster(), "Traveling to the Dire Maul in Feralas");
+-        return MoveTo(finder.best->position.mapid, finder.best->position.coord_x, finder.best->position.coord_y, finder.best->position.coord_z);
++        return MoveTo(finder.best->position.mapId, finder.best->position.x, finder.best->position.y, finder.best->position.z);
+     }
+ 
+     if (step == WorldBuffTravelStep::STEP_FELWOOD)
+@@ -660,7 +660,7 @@ bool WorldBuffTravelSetTargetAction::Execute(Event& event)
+ 
+             const char* portalName = horde ? "Orgrimmar" : "Darnassus";
+             ai->TellPlayer(GetMaster(), std::string("Regrouping at Dire Maul North before portal to ") + portalName + "...");
+-            return MoveTo(goData->position.mapid, goData->position.coord_x, goData->position.coord_y, goData->position.coord_z);
++            return MoveTo(goData->position.mapId, goData->position.x, goData->position.y, goData->position.z);
+         }
+     }
+ 
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/CcTargetValue.cpp b/modules/mod-playerbots/src/playerbot/strategy/values/CcTargetValue.cpp
+index 377380b177c7ff8e0c6d67895669247f1955456a..bfeb6faf02d5577028b3363354029be64b40d160 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/CcTargetValue.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/CcTargetValue.cpp
+@@ -50,7 +50,7 @@ public:
+         if (AI_VALUE(uint8,"aoe count") > 2)
+         {
+             WorldLocation aoe = AI_VALUE(WorldLocation,"aoe position");
+-            if (sServerFacade.IsDistanceLessOrEqualThan(sServerFacade.GetDistance2d(creature, aoe.coord_x, aoe.coord_y), sPlayerbotAIConfig.aoeRadius))
++            if (sServerFacade.IsDistanceLessOrEqualThan(sServerFacade.GetDistance2d(creature, aoe.x, aoe.y), sPlayerbotAIConfig.aoeRadius))
+                 return;
+         }
+ 
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/FreeMoveValues.cpp b/modules/mod-playerbots/src/playerbot/strategy/values/FreeMoveValues.cpp
+index ece01c0e44a8bd289e963d07e1bb6165b2b31e15..014c779e44c14a4dd29949a7fc044ad17d30159d 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/FreeMoveValues.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/FreeMoveValues.cpp
+@@ -31,7 +31,7 @@ GuidPosition FreeMoveCenterValue::Calculate()
+         Formation* formation = AI_VALUE(Formation*, "formation");
+         GuidPosition loc(followTarget->GetObjectGuid(),formation->GetLocation());
+ 
+-        if (Formation::IsNullLocation(loc) || loc.mapid == -1)
++        if (Formation::IsNullLocation(loc) || loc.mapId == -1)
+             return followTarget;
+ 
+         //Move the location to a location around follow targets destination.
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/Stances.cpp b/modules/mod-playerbots/src/playerbot/strategy/values/Stances.cpp
+index dc33ca25098dd6fc3baf64cd8bb80aaf36c4f8e7..1e91f6b208c0c08a93849cc94d04ed170c14cf7e 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/Stances.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/Stances.cpp
+@@ -236,7 +236,7 @@ bool SetStanceAction::Execute(Event& event)
+     {
+         WorldLocation loc = value->Get()->GetLocation();
+         if (!Formation::IsNullLocation(loc))
+-            ai->Ping(loc.coord_x, loc.coord_y);
++            ai->Ping(loc.x, loc.y);
+ 
+         return true;
+     }
