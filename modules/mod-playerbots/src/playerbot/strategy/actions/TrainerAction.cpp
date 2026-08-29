@@ -24,23 +24,20 @@ void TrainerAction::Learn(uint32 cost, ObjectGuid trainerGuid, uint32 spellId, T
         return;
 
 #ifdef MANGOSBOT_ZERO
-    if (tSpell->learnedSpell)
+    bool learned = false;
+    for (int j = 0; j < MAX_SPELL_EFFECTS; ++j)
     {
-        // old code
-        // bot->learnSpell(tSpell->learnedSpell, false);
-        bool learned = false;
-        for (int j = 0; j < 3; ++j)
-        {
-            if (proto->Effect[j] == SPELL_EFFECT_LEARN_SPELL)
-            {
-                uint32 learnedSpell = proto->EffectTriggerSpell[j];
-                bot->learnSpell(learnedSpell, false);
-                learned = true;
-            }
-        }
-        if (!learned) bot->learnSpell(tSpell->learnedSpell, false);
+        if (proto->Effect[j] != SPELL_EFFECT_LEARN_SPELL || !proto->EffectTriggerSpell[j])
+            continue;
+
+        bot->LearnSpell(proto->EffectTriggerSpell[j], false);
+        learned = true;
     }
-    else
+
+    // Penqle stores the trainer's learning spell in TrainerSpell::spell and
+    // has no separate learnedSpell field. Execute the wrapper only if it did
+    // not expose a SPELL_EFFECT_LEARN_SPELL target directly.
+    if (!learned)
         ai->CastSpell(tSpell->spell, bot);
 #else
     // From NPCHandler
@@ -85,10 +82,7 @@ bool TrainerAction::Iterate(Player* requester, Creature* creature, TrainerSpellA
         if (!tSpell)
             continue;
 
-        uint32 reqLevel = 0;
-
-        reqLevel = tSpell->isProvidedReqLevel ? tSpell->reqLevel : std::max(reqLevel, tSpell->reqLevel);
-        TrainerSpellState state = bot->GetTrainerSpellState(tSpell, reqLevel);
+        TrainerSpellState state = bot->GetTrainerSpellState(tSpell);
         if (state != TRAINER_SPELL_GREEN)
             continue;
 
@@ -97,37 +91,7 @@ bool TrainerAction::Iterate(Player* requester, Creature* creature, TrainerSpellA
         if (!pSpellInfo)
             continue;
 
-#ifdef MANGOSBOT_ZERO
-        if (tSpell->learnedSpell)
-        {
-            bool learned = true;
-            if (bot->HasSpell(tSpell->learnedSpell))
-            {
-                learned = false;
-            }
-            else
-            {
-                for (int j = 0; j < 3; ++j)
-                {
-                    if (pSpellInfo->Effect[j] == SPELL_EFFECT_LEARN_SPELL)
-                    {
-                        learned = false;
-                        uint32 learnedSpell = pSpellInfo->EffectTriggerSpell[j];
-
-                        if (!bot->HasSpell(learnedSpell))
-                        {
-                            learned = true;
-                            hasTrainable = true;
-                            break;
-                        }
-                    }
-                }
-            }
-
-            if (!learned)
-                continue;
-        }
-#else
+#ifndef MANGOSBOT_ZERO
         if (!tSpell->learnedSpell.empty())
         {
             bool anySpellLearned = false;
@@ -166,6 +130,8 @@ bool TrainerAction::Iterate(Player* requester, Creature* creature, TrainerSpellA
 
         if (!spells.empty() && spells.find(tSpell->spell) == spells.end())
             continue;
+
+        hasTrainable = true;
 
         uint32 cost = uint32(floor(tSpell->spellCost *  fDiscountMod));
         totalCost += cost;
@@ -211,12 +177,7 @@ bool TrainerAction::Execute(Event& event)
             return false;
     }
 
-#ifdef MANGOS
     if (!creature || !creature->IsTrainer())
-#endif
-#ifdef CMANGOS
-    if (!creature || !creature->isTrainer())
-#endif
         return false;       
             
     if (!creature->IsTrainerOf(bot, false))
@@ -241,7 +202,7 @@ bool TrainerAction::Execute(Event& event)
     if (spell)
         spells.insert(spell);
 
-    if (text.find("learn") != std::string::npos || sRandomPlayerbotMgr.IsFreeBot(bot) || (sPlayerbotAIConfig.autoTrainSpells != "no" && (creature->GetCreatureInfo()->TrainerType != TRAINER_TYPE_TRADESKILLS || !ai->HasActivePlayerMaster()))) //Todo rewrite to only exclude start primary profession skills and make config dependent.
+    if (text.find("learn") != std::string::npos || sRandomPlayerbotMgr.IsFreeBot(bot) || (sPlayerbotAIConfig.autoTrainSpells != "no" && (creature->GetCreatureInfo()->trainer_type != TRAINER_TYPE_TRADESKILLS || !ai->HasActivePlayerMaster()))) //Todo rewrite to only exclude start primary profession skills and make config dependent.
     {
         if(Iterate(requester, creature, &TrainerAction::Learn, spells))
             context->ClearValues("item usage"); //Bot might be able to use new items.

@@ -146,8 +146,6 @@ namespace ai
     public:
         RpgTrainTrigger(PlayerbotAI* ai, std::string name = "rpg train") : RpgTrigger(ai, name) {}
 
-        static bool IsTrainerOf(CreatureInfo const* cInfo, Player* pPlayer);
-
         virtual bool IsActive() override;
     };
 

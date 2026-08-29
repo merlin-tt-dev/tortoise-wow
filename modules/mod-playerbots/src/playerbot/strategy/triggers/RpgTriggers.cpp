@@ -256,47 +256,6 @@ bool RpgRepairTrigger::IsActive()
     return false;
 }
 
-bool RpgTrainTrigger::IsTrainerOf(CreatureInfo const* cInfo, Player* pPlayer)
-{
-
-    switch (cInfo->TrainerType)
-    {
-    case TRAINER_TYPE_CLASS:
-        if (pPlayer->GetClass() != cInfo->TrainerClass)
-        {
-            return false;
-        }
-        break;
-    case TRAINER_TYPE_PETS:
-        if (pPlayer->GetClass() != CLASS_HUNTER)
-        {
-            return false;
-        }
-        break;
-    case TRAINER_TYPE_MOUNTS:
-        if (cInfo->TrainerRace && pPlayer->GetRace() != cInfo->TrainerRace)
-        {
-            // Allowed to train if exalted
-            if (FactionTemplateEntry const* faction_template = sObjectMgr.GetFactionTemplateEntry(cInfo->faction))
-            {
-                if (pPlayer->GetReputationRank(faction_template->faction) == REP_EXALTED)
-                    return true;
-            }
-            return false;
-        }
-        break;
-    case TRAINER_TYPE_TRADESKILLS:
-        if (cInfo->TrainerSpell && !pPlayer->HasSpell(cInfo->TrainerSpell))
-        {
-            return false;
-        }
-        break;
-    default:
-        return false;                                   // checked and error output at creature_template loading
-    }
-    return true;
-}
-
 bool RpgTrainTrigger::IsActive()
 {
     GuidPosition guidP(getGuidP());
@@ -307,24 +266,23 @@ bool RpgTrainTrigger::IsActive()
     if (guidP.IsHostileTo(bot))
         return false;
 
-    CreatureInfo const* cInfo = guidP.GetCreatureTemplate();
-
-    if (!IsTrainerOf(cInfo, bot))
+    Creature* creature = guidP.GetCreature(bot->GetInstanceId());
+    if (!creature)
         return false;
 
-    // check present spell in trainer spell list
-    TrainerSpellData const* cSpells = sObjectMgr.GetNpcTrainerSpells(guidP.GetEntry());
+    if (!creature->IsTrainerOf(bot, false))
+        return false;
 
-    uint32 trainerId = cInfo->TrainerTemplateId;
-    TrainerSpellData const* tSpells = trainerId ? sObjectMgr.GetNpcTrainerTemplateSpells(trainerId) : nullptr;
+    CreatureInfo const* cInfo = creature->GetCreatureInfo();
+    TrainerSpellData const* cSpells = creature->GetTrainerSpells();
+    TrainerSpellData const* tSpells = creature->GetTrainerTemplateSpells();
 
     if (!cSpells && !tSpells)
     {
         return false;
     }
 
-    FactionTemplateEntry const* factionTemplate = sObjectMgr.GetFactionTemplateEntry(cInfo->faction);
-    float fDiscountMod = bot->GetReputationPriceDiscount(factionTemplate);
+    float fDiscountMod = bot->GetReputationPriceDiscount(creature);
 
     TrainerSpellMap trainer_spells;
     if (cSpells)
@@ -339,47 +297,11 @@ bool RpgTrainTrigger::IsActive()
         if (!tSpell)
             continue;
 
-        uint32 reqLevel = 0;
-
-        reqLevel = tSpell->isProvidedReqLevel ? tSpell->reqLevel : std::max(reqLevel, tSpell->reqLevel);
-        TrainerSpellState state = bot->GetTrainerSpellState(tSpell, reqLevel);
+        TrainerSpellState state = bot->GetTrainerSpellState(tSpell);
         if (state != TRAINER_SPELL_GREEN)
             continue;
 
-        uint32 spellId = tSpell->spell;
-        const SpellEntry* const pSpellInfo = sServerFacade.LookupSpellInfo(spellId);
-        if (!pSpellInfo)
-            continue;
-
-#ifdef MANGOSBOT_ZERO
-        if (tSpell->learnedSpell)
-        {
-            bool learned = true;
-            if (bot->HasSpell(tSpell->learnedSpell))
-            {
-                learned = false;
-            }
-            else
-            {
-                for (int j = 0; j < 3; ++j)
-                {
-                    if (pSpellInfo->Effect[j] == SPELL_EFFECT_LEARN_SPELL)
-                    {
-                        learned = false;
-                        uint32 learnedSpell = pSpellInfo->EffectTriggerSpell[j];
-
-                        if (!bot->HasSpell(learnedSpell))
-                        {
-                            learned = true;
-                            break;
-                        }
-                    }
-                }
-            }
-            if (!learned)
-                continue;
-        }
-#else
+#ifndef MANGOSBOT_ZERO
         if (!tSpell->learnedSpell.empty())
         {
             bool anySpellLearned = false;
@@ -417,7 +339,7 @@ bool RpgTrainTrigger::IsActive()
 
         NeedMoneyFor budgetType = NeedMoneyFor::spells;
 
-        switch (cInfo->TrainerType)
+        switch (cInfo->trainer_type)
         {
         case TRAINER_TYPE_CLASS:
             budgetType = NeedMoneyFor::spells;
@@ -460,7 +382,7 @@ bool RpgHealTrigger::IsActive()
     if (!unit)
         return false;
 
-    if (!unit->IsFriend(bot))
+    if (!unit->IsFriendlyTo(bot))
         return false;
 
     if (unit->IsDead() || unit->GetHealthPercent() >= 100)
@@ -794,7 +716,7 @@ bool RpgDuelTrigger::IsActive()
     if (ai->HasRealPlayerMaster())
     {
         // do not auto duel if master is not afk
-        if (ai->GetMaster() && !ai->GetMaster()->isAFK())
+        if (ai->GetMaster() && !ai->GetMaster()->IsAFK())
             return false;
     }
 
@@ -890,7 +812,7 @@ bool RpgGossipTalkTrigger::IsActive()
     if (!guidP.IsCreature())
         return false;
 
-    GossipMenuItemsMapBounds pMenuItemBounds = sObjectMgr.GetGossipMenuItemsMapBounds(guidP.GetCreatureTemplate()->GossipMenuId);
+    GossipMenuItemsMapBounds pMenuItemBounds = sObjectMgr.GetGossipMenuItemsMapBounds(guidP.GetCreatureTemplate()->gossip_menu_id);
     if (pMenuItemBounds.first == pMenuItemBounds.second)
         return false;
 
@@ -899,7 +821,7 @@ bool RpgGossipTalkTrigger::IsActive()
     if (!creature)
         return false;
 
-    if (!creature->isGossip())
+    if (!creature->IsGossip())
         return false;
 
 #ifdef MANGOSBOT_TWO
@@ -918,10 +840,10 @@ bool RpgGossipTalkTrigger::IsActive()
         bot->PrepareGossipMenu(creature, creature->GetDefaultGossipMenuId());
     }
 
-    if (!bot->GetPlayerMenu())
+    if (!bot->PlayerTalkClass)
         return false;
 
-    GossipMenu& menu = bot->GetPlayerMenu()->GetGossipMenu();
+    GossipMenu& menu = bot->PlayerTalkClass->GetGossipMenu();
 
     if (!menu.MenuItemCount())
         return false;
