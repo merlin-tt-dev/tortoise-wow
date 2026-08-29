@@ -31,6 +31,14 @@ public:
     std::string data;
 };
 
+struct AuctionPriceEntry
+{
+    uint32 Id = 0;
+    uint32 owner = 0;
+    uint32 buyout = 0;
+    uint32 itemCount = 0;
+};
+
 class PerformanceMonitorOperation;
 
 //https://gist.github.com/bradley219/5373998
@@ -170,8 +178,8 @@ public:
 
         std::mutex m_ahActionMutex;
 
-        const std::vector<AuctionEntry>& GetAhPrices(uint32 itemId) {
-            static const std::vector<AuctionEntry> emptyVector; // Avoid returning dangling refs
+        const std::vector<AuctionPriceEntry>& GetAhPrices(uint32 itemId) {
+            static const std::vector<AuctionPriceEntry> emptyVector; // Avoid returning dangling refs
             auto it = ahMirror.find(itemId);
             return (it != ahMirror.end()) ? it->second : emptyVector;}
         uint32 GetPlayersLevel() { return playersLevel; }
@@ -265,8 +273,8 @@ public:
         bool showLoginWarning;
         std::unordered_map<uint32, std::unordered_map<uint32, std::vector<std::pair<ObjectGuid, time_t>>>> facingFix;
 
-        //                   itemId,             buyout, count
-        std::unordered_map < uint32, std::vector<AuctionEntry>> ahMirror;
+        // Snapshot the auction fields used by pricing, including the native Item stack count.
+        std::unordered_map<uint32, std::vector<AuctionPriceEntry>> ahMirror;
 };
 
 #define sRandomPlayerbotMgr RandomPlayerbotMgr::instance()

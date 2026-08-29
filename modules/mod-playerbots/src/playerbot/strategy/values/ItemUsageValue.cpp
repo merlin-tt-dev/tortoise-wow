@@ -239,7 +239,7 @@ ItemUsage ItemUsageValue::Calculate()
             && (proto->ItemLevel == 1 || proto->ItemLevel >= bot->GetLevel());
 
         bool isAppropriateConsumable = isAppropriateConsumableLevel
-            && (IsHpFoodOrDrink(proto) || IsHealingPotion(proto) || (IsBandage(proto) && !botHasHealingSpells) || (bot->HasMana() && (IsManaFoodOrDrink(proto) || IsManaPotion(proto))));
+            && (IsHpFoodOrDrink(proto) || IsHealingPotion(proto) || (IsBandage(proto) && !botHasHealingSpells) || (bot->GetPowerType() == POWER_MANA && (IsManaFoodOrDrink(proto) || IsManaPotion(proto))));
 
         if (isAppropriateConsumable && bot->CanUseItem(proto) == EQUIP_ERR_OK)
         {
@@ -875,15 +875,13 @@ bool ItemUsageValue::IsNeededForQuest(Player* player, uint32 itemId, bool ignore
     if (!itemId)
         return false;
 
-    for (uint8 slot = 0; slot < MAX_QUEST_LOG_SIZE; ++slot)
+    for (auto const& [entry, qData] : player->getQuestStatusMap())
     {
-        uint32 entry = player->GetQuestSlotQuestId(slot);
-        Quest const* quest = sObjectMgr.GetQuestTemplate(entry);
-        if (!quest)
+        if (!player->IsCurrentQuest(entry, 1))
             continue;
 
-        QuestStatusData& qData = player->getQuestStatusMap()[quest->GetQuestId()];
-        if (qData.m_status != QUEST_STATUS_INCOMPLETE)
+        Quest const* quest = sObjectMgr.GetQuestTemplate(entry);
+        if (!quest)
             continue;
 
         for (int i = 0; i < 4; i++)
@@ -1153,7 +1151,7 @@ std::vector<uint32> ItemUsageValue::SpellsUsingItem(uint32 itemId, Player* bot)
     {
         uint32 spellId = spell.first;
 
-        if (spell.second.state == PLAYERSPELL_REMOVED || spell.second.disabled || IsPassiveSpell(spellId))
+        if (spell.second.state == PLAYERSPELL_REMOVED || spell.second.disabled || Spells::IsPassiveSpell(spellId))
             continue;
 
         const SpellEntry* pSpellInfo = sServerFacade.LookupSpellInfo(spellId);
@@ -1869,11 +1867,7 @@ uint32 ItemUsageValue::GetCraftingFee(ItemPrototype const* proto)
 
 uint32 ItemUsageValue::DesiredPricePerItem(Player* bot, const ItemPrototype* proto, uint32 count, uint32 priceModifier)
 {
-    AuctionEntry lowestPrice;
-
-    lowestPrice.Id = 0;
-
-    std::vector<AuctionEntry> auctions;
+    AuctionPriceEntry lowestPrice;
 
     for (auto& auction : sRandomPlayerbotMgr.GetAhPrices(proto->ItemId))
     {
@@ -1886,7 +1880,9 @@ uint32 ItemUsageValue::DesiredPricePerItem(Player* bot, const ItemPrototype* pro
             lowestPrice = auction;
     }
 
-    uint32 lowestBuyoutItemPricePerItem = float(lowestPrice.buyout) / float(lowestPrice.itemCount);
+    uint32 lowestBuyoutItemPricePerItem = lowestPrice.itemCount
+        ? uint32(float(lowestPrice.buyout) / float(lowestPrice.itemCount))
+        : 0;
 
     uint32 maxAhPrice = GetBotAHSellMaxPrice(proto);
     uint32 minAhPrice = GetBotAHSellMinPrice(proto);
@@ -1901,7 +1897,7 @@ uint32 ItemUsageValue::DesiredPricePerItem(Player* bot, const ItemPrototype* pro
 
     uint32 desiredPricePerItem = minAhPrice + static_cast<uint32>((maxAhPrice - minAhPrice) * priceModifier / 100);
 
-    if (lowestBuyoutItemPricePerItem > 0 && lowestPrice.owner != bot->GetDbGuid())
+    if (lowestBuyoutItemPricePerItem > 0 && lowestPrice.owner != bot->GetGUIDLow())
     {
         uint32 undercutByMoney = std::max(static_cast<uint32>(1), static_cast<uint32>(lowestBuyoutItemPricePerItem * frand(0.0f, 0.1f)));
 

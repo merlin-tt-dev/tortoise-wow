@@ -4379,7 +4379,8 @@ void RandomPlayerbotMgr::MirrorAh()
             if (!auctionItem || !auctionItem->GetCount())
                 continue;
 
-            ahMirror[auctionEntry.itemTemplate].push_back(auctionEntry);
+            ahMirror[auctionEntry.itemTemplate].push_back(
+                { auctionEntry.Id, auctionEntry.owner, auctionEntry.buyout, auctionItem->GetCount() });
         }
     }
 }
