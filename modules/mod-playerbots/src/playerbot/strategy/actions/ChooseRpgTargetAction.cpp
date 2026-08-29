@@ -132,7 +132,8 @@ std::unordered_map<ObjectGuid, float> ChooseRpgTargetAction::GetTargets(Player* 
     for (auto& target : targets)
         targetList.push_back(target.first);
 
-    std::shuffle(targetList.begin(), targetList.end(), *GetRandomGenerator());
+    std::mt19937 shuffleRng(urand(0, std::numeric_limits<uint32>::max()));
+    std::shuffle(targetList.begin(), targetList.end(), shuffleRng);
 
     //Only check up to 50 targets. Selfbots and bots with a real master can check more.
     uint16 checked = 0, sametarget = 0, maxCheck = 50;

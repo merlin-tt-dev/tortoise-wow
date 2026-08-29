@@ -75,7 +75,8 @@ Item* ItemForSpellValue::Calculate()
         slots.push_back(slot);
     }
 
-    std::shuffle(slots.begin(), slots.end(), *GetRandomGenerator());
+    std::mt19937 slotShuffleRng(urand(0, std::numeric_limits<uint32>::max()));
+    std::shuffle(slots.begin(), slots.end(), slotShuffleRng);
 
     for( auto& slot : slots ) 
     {
@@ -89,7 +90,8 @@ Item* ItemForSpellValue::Calculate()
     for (auto& item : AI_VALUE2(std::list<Item*>, "inventory items", "all"))
         items.push_back(item);
 
-    std::shuffle(items.begin(), items.end(), *GetRandomGenerator());
+    std::mt19937 itemShuffleRng(urand(0, std::numeric_limits<uint32>::max()));
+    std::shuffle(items.begin(), items.end(), itemShuffleRng);
 
     for(auto& item: items)
     {

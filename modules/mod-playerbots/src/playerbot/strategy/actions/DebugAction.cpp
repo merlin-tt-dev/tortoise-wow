@@ -1270,7 +1270,7 @@ bool DebugAction::HandleMonsterTalk(Event& event, Player* requester, const std::
     if (!rpgAction)
         return false;
     std::string line = text.substr(12);
-    rpgAction->ManualChat(guidP, line);
+    rpgAction->ManualChat(guidP, line, requester);
     return true;
 }
 

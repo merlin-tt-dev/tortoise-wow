@@ -47,7 +47,7 @@ namespace ai
 
             bool hasCost = pSpellInfo->manaCost > 0;
 
-            return hasCost && !isTradeSkill && (GetSpellRecoveryTime(pSpellInfo) < MINUTE * IN_MILLISECONDS || !ai->HasActivePlayerMaster());
+            return hasCost && !isTradeSkill && (pSpellInfo->GetRecoveryTime() < MINUTE * IN_MILLISECONDS || !ai->HasActivePlayerMaster());
         }
 
         virtual uint32 GetSpellPriority(const SpellEntry* pSpellInfo) { return 1; }

@@ -355,9 +355,6 @@ inline uint32 GetSpellCastTime(SpellEntry const* spellInfo, WorldObject* caster,
 inline bool IsNextMeleeSwingSpell(SpellEntry const* spellInfo) {
     return spellInfo && (spellInfo->Attributes & (SPELL_ATTR_ON_NEXT_SWING_1 | SPELL_ATTR_ON_NEXT_SWING_2));
 }
-inline uint32 GetSpellRecoveryTime(SpellEntry const* spellInfo) {
-    return spellInfo ? spellInfo->GetRecoveryTime() : 0;
-}
 inline int32 GetSpellDuration(SpellEntry const* spellInfo) {
     return spellInfo ? spellInfo->GetDuration() : 0;
 }
@@ -402,14 +399,6 @@ inline std::chrono::system_clock::time_point GetApplicationStartTime() {
 // Provide free-function forwarder. (BattleGround.h has it as a static.)
 inline BattleGroundTeamIndex GetTeamIndexByTeamId(Team team) {
     return team == ALLIANCE ? BG_TEAM_ALLIANCE : BG_TEAM_HORDE;
-}
-
-// === GetRandomGenerator (cmangos) === stub: cmangos has its own thread-local PRNG;
-// Penqle uses urand/frand. Bot module's TravelMgr seeds a default_random_engine via this.
-// Returns pointer-style — bot does *GetRandomGenerator() in some sites.
-inline std::mt19937* GetRandomGenerator() {
-    thread_local std::mt19937 s_rng(static_cast<unsigned>(std::chrono::steady_clock::now().time_since_epoch().count()));
-    return &s_rng;
 }
 
 // === Loot status flags (cmangos LootMgr.h) ===

@@ -302,7 +302,7 @@ bool CheckMountStateAction::isUseful()
         }
     }
 
-    if (!bot->GetMap()->IsMountAllowed() && bot->GetMapId() != 531)
+    if (!bot->GetMap()->GetMapEntry()->IsMountAllowed() && bot->GetMapId() != 531)
         return false;
 
     if (AI_VALUE(std::vector<MountValue>, "mount list").empty())
@@ -431,7 +431,8 @@ bool CheckMountStateAction::Mount(Player* requester, bool limitSpeedToGroup)
 
     std::vector<MountValue> mountList = AI_VALUE(std::vector<MountValue>, "mount list");
 
-    std::shuffle(mountList.begin(), mountList.end(), *GetRandomGenerator());
+    std::mt19937 shuffleRng(urand(0, std::numeric_limits<uint32>::max()));
+    std::shuffle(mountList.begin(), mountList.end(), shuffleRng);
     std::sort(mountList.begin(), mountList.end(), [canFly](MountValue i, MountValue j) {return i.GetSpeed(canFly) > j.GetSpeed(canFly); });
 
     for (auto& mount : mountList)
@@ -484,7 +485,7 @@ bool CheckMountStateAction::Mount(Player* requester, bool limitSpeedToGroup)
 
         if (mount.IsItem())
         {
-            if (!bot->GetItemByEntry(mount.GetItemProto()->ItemId))
+            if (!bot->HasItemCount(mount.GetItemProto()->ItemId, 1))
             {
                 if (ai->HasStrategy("debug mount", BotState::BOT_STATE_NON_COMBAT))
                     ai->TellPlayerNoFacing(requester, "Bot does not have this mount.", PlayerbotSecurityLevel::PLAYERBOT_SECURITY_ALLOW_ALL, true, false);

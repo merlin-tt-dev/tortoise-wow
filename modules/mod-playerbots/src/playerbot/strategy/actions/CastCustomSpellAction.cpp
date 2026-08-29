@@ -375,7 +375,7 @@ bool CastCustomSpellAction::CastSummonPlayer(Player* requester, std::string comm
                             data << bot->GetObjectGuid();
                             data << uint32(bot->GetZoneId());
                             data << uint32(MAX_PLAYER_SUMMON_DELAY * IN_MILLISECONDS);
-                            target->GetSession()->SendPacket(data);
+                            target->GetSession()->SendPacket(&data);
                         }
                         else
                         {
@@ -628,7 +628,8 @@ bool CastRandomSpellAction::castSpell(uint32 spellId, WorldObject* wo, Player* r
 bool CraftRandomItemAction::Execute(Event& event)
 {
     std::vector<uint32> spellIds = AI_VALUE(std::vector<uint32>, "craft spells");
-    std::shuffle(spellIds.begin(), spellIds.end(),*GetRandomGenerator());
+    std::mt19937 shuffleRng(urand(0, std::numeric_limits<uint32>::max()));
+    std::shuffle(spellIds.begin(), spellIds.end(), shuffleRng);
 
     std::list<ObjectGuid> wos = chat->parseGameobjects(event.getParam());
     WorldObject* wot = nullptr;

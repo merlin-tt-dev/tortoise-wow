@@ -91,7 +91,7 @@ void RpgHelper::resetFacing(GuidPosition guidPosition)
 
     if (data)
     {
-        unit->SetFacingTo(data->position.orientation);
+        unit->SetFacingTo(data->position.o);
         sRandomPlayerbotMgr.AddFacingFix(bot->GetMapId(),bot->GetInstanceId(), guidPosition);
     }
 }
@@ -282,7 +282,7 @@ bool RpgUseAction::isUseful()
 
             //Do not get in cart if miner is moving some other bot. (This is a core bug, minecart will head to other more distant miner if it exists).
             Creature* creature = nullptr;
-            MaNGOS::NearestCreatureEntryWithLiveStateInObjectRangeCheck creature_check(*bot, 28841, true, false, 500.0f, true);
+            MaNGOS::NearestCreatureEntryWithLiveStateInObjectRangeCheck creature_check(*bot, 28841, true, 500.0f);
             MaNGOS::CreatureLastSearcher<MaNGOS::NearestCreatureEntryWithLiveStateInObjectRangeCheck> searcher(creature, creature_check);
             Cell::VisitGridObjects(bot, searcher, 500.0f);
 
@@ -576,7 +576,7 @@ bool RpgAIChatAction::Execute(Event& event)
     return false;
 }
 
-void RpgAIChatAction::ManualChat(GuidPosition target, const std::string& line)
+void RpgAIChatAction::ManualChat(GuidPosition target, const std::string& line, Player* requester)
 {  
     SET_AI_VALUE(GuidPosition, "rpg target", target);
 
@@ -586,7 +586,7 @@ void RpgAIChatAction::ManualChat(GuidPosition target, const std::string& line)
     {
         llmContext.clear();
         SET_GAI_VALUE2(std::string, "global string", "llmcontext manual" + std::to_string(target.GetCounter()), llmContext);
-        bot->SendMessageToPlayer("<conversation restarted>");
+        ai->TellPlayerNoFacing(requester, "<conversation restarted>", PlayerbotSecurityLevel::PLAYERBOT_SECURITY_ALLOW_ALL, true, false);
         return;
     }
     else if (line == "undo")
@@ -597,7 +597,7 @@ void RpgAIChatAction::ManualChat(GuidPosition target, const std::string& line)
 
         llmContext = llmContext.substr(0, std::max(lastBot,lastUnit));
         SET_GAI_VALUE2(std::string, "global string", "llmcontext manual" + std::to_string(target.GetCounter()), llmContext);
-        bot->SendMessageToPlayer("<last message remove>");
+        ai->TellPlayerNoFacing(requester, "<last message removed>", PlayerbotSecurityLevel::PLAYERBOT_SECURITY_ALLOW_ALL, true, false);
         return;
     }
     else if (line == "impersonate")
@@ -769,7 +769,8 @@ bool RpgEnchantAction::Execute(Event& event)
     std::vector<uint32> enchantSpells = AI_VALUE(std::vector<uint32>, "enchant spells");
 
     //Needs more logic to pick best enchant to apply instead of a random one that's bette than current.
-    std::shuffle(enchantSpells.begin(), enchantSpells.end(), *GetRandomGenerator());
+    std::mt19937 randomGenerator(urand(0, std::numeric_limits<uint32>::max()));
+    std::shuffle(enchantSpells.begin(), enchantSpells.end(), randomGenerator);
 
     for (auto& spellId : enchantSpells)
     {

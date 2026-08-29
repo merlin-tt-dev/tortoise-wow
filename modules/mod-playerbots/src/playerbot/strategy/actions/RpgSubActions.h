@@ -64,7 +64,7 @@ namespace ai
 
         virtual std::string GetRpgActionName() const override { return "idling near"; };
 
-        virtual bool Execute(Event& event) override { rpg->BeforeExecute(); if (bot->GetPlayerMenu()) bot->GetPlayerMenu()->CloseGossip(); rpg->AfterExecute(); DoDelay(); return true; };
+        virtual bool Execute(Event& event) override { rpg->BeforeExecute(); if (bot->PlayerTalkClass) bot->PlayerTalkClass->CloseGossip(); rpg->AfterExecute(); DoDelay(); return true; };
     };   
 
     class RpgWorkAction : public RpgSubAction
@@ -295,7 +295,7 @@ namespace ai
     public:
         RpgAIChatAction(PlayerbotAI* ai, std::string name = "rpg ai chat") : RpgSubAction(ai, name) {}
 
-        void ManualChat(GuidPosition target, const std::string& line);
+        void ManualChat(GuidPosition target, const std::string& line, Player* requester);
 
         virtual std::string GetRpgActionName() const override { return "ai talking with"; };
     private:

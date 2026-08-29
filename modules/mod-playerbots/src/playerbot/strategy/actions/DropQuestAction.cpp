@@ -15,25 +15,16 @@ bool DropQuestAction::Execute(Event& event)
     uint32 entry = handler.extractQuestId(link);
     bool dropped = false;
 
-    // remove all quest entries for 'entry' from quest log
-    for (uint8 slot = 0; slot < MAX_QUEST_LOG_SIZE; ++slot)
+    // Operate through PlayerbotAI::DropQuest/Player::RemoveQuest so Penqle owns
+    // quest-log cleanup, source items, timed-quest state, and quest item teardown.
+    std::vector<const Quest*> quests = ai->GetAllCurrentQuests();
+    for (Quest const* quest : quests)
     {
-        uint32 logQuest = bot->GetQuestSlotQuestId(slot);
-        Quest const* quest = sObjectMgr.GetQuestTemplate(logQuest);
-        if (!quest)
-            continue;
-
+        uint32 logQuest = quest->GetQuestId();
         if (logQuest == entry || link.find(quest->GetTitle()) != std::string::npos || link == "all")
         {
-            bot->SetQuestSlot(slot, 0);
-
-            // we ignore unequippable quest items in this case, its' still be equipped
-            bot->TakeQuestSourceItem(logQuest, false);
+            ai->DropQuest(logQuest);
             entry = logQuest;
-
-            bot->SetQuestStatus(entry, QUEST_STATUS_NONE);
-            bot->getQuestStatusMap()[entry].m_rewarded = false;
-
             dropped = true;
 
             if (link != "all")
@@ -94,27 +85,17 @@ bool CleanQuestLogAction::Execute(Event& event)
 
 void CleanQuestLogAction::DropQuestType(Player* requester, uint8 &numQuest, uint8 wantNum, bool isGreen, bool hasProgress, bool isComplete)
 {
-    std::vector<uint8> slots;
-
-    for (uint8 slot = 0; slot < MAX_QUEST_LOG_SIZE; ++slot)
-        slots.push_back(slot);
-
+    std::vector<const Quest*> quests = ai->GetAllCurrentQuests();
 
     if (wantNum < 100)
     {
-        std::shuffle(slots.begin(), slots.end(), *GetRandomGenerator());
+        std::mt19937 shuffleRng(urand(0, std::numeric_limits<uint32>::max()));
+        std::shuffle(quests.begin(), quests.end(), shuffleRng);
     }
 
-    for (uint8 slot : slots)
+    for (Quest const* quest : quests)
     {
-        uint32 questId = bot->GetQuestSlotQuestId(slot);
-
-        if (!questId)
-            continue;
-
-        Quest const* quest = sObjectMgr.GetQuestTemplate(questId);
-        if (!quest)
-            continue;
+        uint32 questId = quest->GetQuestId();
 
         if (bot->GetQuestStatus(questId) != QUEST_STATUS_FAILED)
         {
