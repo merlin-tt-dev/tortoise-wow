@@ -199,7 +199,29 @@ void TargetedMovementGeneratorMedium<T, D>::_setTargetLocation(T &owner)
         init.SetFacing(facing);
     }
     else
+    {
         init.SetWalk(((D*)this)->EnableWalking());
+
+        // Playerbots may explicitly request the same spline-local catch-up
+        // curve Penqle already uses for pet followers. Keep the boost local
+        // to this movement spline; never mutate the unit's persistent speed.
+        if (((D*)this)->UseCatchupBoost() && !owner.IsInCombat())
+        {
+            float dist = path.Length();
+            float speedupDistance = m_fOffset * 2.0f + owner.GetObjectBoundingRadius() + i_target->GetObjectBoundingRadius();
+            if (dist > speedupDistance)
+            {
+                float distFactor = 1.0f + 0.04f * (dist - speedupDistance);
+                if (distFactor < 1.0f)
+                    distFactor = 1.0f;
+                if (distFactor > 2.1f)
+                    distFactor = 2.1f;
+
+                init.SetWalk(false);
+                init.SetVelocity(distFactor * owner.GetSpeed(MOVE_RUN));
+            }
+        }
+    }
     init.Launch();
     m_checkDistanceTimer.Reset(500);
     // Fly-hack

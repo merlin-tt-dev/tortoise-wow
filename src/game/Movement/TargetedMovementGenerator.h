@@ -55,6 +55,8 @@ class TargetedMovementGeneratorMedium : public MovementGeneratorMedium< T, D >, 
         }
 
         Unit* GetTarget() const { return i_target.getTarget(); }
+        float GetOffset() const { return m_fOffset; }
+        float GetAngle() const { return m_fAngle; }
 
         void UnitSpeedChanged() { m_bRecalculateTravel=true; }
         void UpdateFinalDistance(float fDistance);
@@ -98,6 +100,7 @@ class ChaseMovementGenerator : public TargetedMovementGeneratorMedium<T, ChaseMo
         static void _clearUnitStateMove(T &u) { u.ClearUnitState(UNIT_STAT_CHASE_MOVE); }
         static void _addUnitStateMove(T &u)  { u.AddUnitState(UNIT_STAT_CHASE_MOVE); }
         bool EnableWalking() const { return false;}
+        bool UseCatchupBoost() const { return false; }
         bool _lostTarget(T &u) const { return u.GetVictim() != this->GetTarget(); }
         void _reachTarget(T &);
     private:
@@ -130,9 +133,9 @@ class FollowMovementGenerator : public TargetedMovementGeneratorMedium<T, Follow
 {
     public:
         explicit FollowMovementGenerator(Unit &target)
-            : TargetedMovementGeneratorMedium<T, FollowMovementGenerator<T> >(target){}
-        FollowMovementGenerator(Unit &target, float offset, float angle)
-            : TargetedMovementGeneratorMedium<T, FollowMovementGenerator<T> >(target, offset, angle) {}
+            : TargetedMovementGeneratorMedium<T, FollowMovementGenerator<T> >(target), m_alwaysBoost(false) {}
+        FollowMovementGenerator(Unit &target, float offset, float angle, bool alwaysBoost = false)
+            : TargetedMovementGeneratorMedium<T, FollowMovementGenerator<T> >(target, offset, angle), m_alwaysBoost(alwaysBoost) {}
         ~FollowMovementGenerator() {}
 
         MovementGeneratorType GetMovementGeneratorType() const { return FOLLOW_MOTION_TYPE; }
@@ -147,10 +150,12 @@ class FollowMovementGenerator : public TargetedMovementGeneratorMedium<T, Follow
         static void _clearUnitStateMove(T &u) { u.ClearUnitState(UNIT_STAT_FOLLOW_MOVE); }
         static void _addUnitStateMove(T &u)  { u.AddUnitState(UNIT_STAT_FOLLOW_MOVE); }
         bool EnableWalking() const;
+        bool UseCatchupBoost() const { return m_alwaysBoost; }
         bool _lostTarget(T &) const { return false; }
         void _reachTarget(T &) {}
     private:
         void _updateSpeed(T &u);
+        bool m_alwaysBoost;
 
         // Needed to compile with gcc for some reason.
         using TargetedMovementGeneratorMedium<T, FollowMovementGenerator<T> >::i_target;
