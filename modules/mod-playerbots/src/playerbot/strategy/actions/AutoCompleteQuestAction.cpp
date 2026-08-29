@@ -29,12 +29,9 @@ bool AutoCompleteQuestAction::Execute(Event& event)
     bool isAutoCompleteQuest = false;
     bool isAutoCompleteObjective = false;
 
-    // Check the bot's quest log for any active quests from the list
-    for (uint8 slot = 0; slot < MAX_QUEST_LOG_SIZE; ++slot)
+    // Check the bot's active incomplete quests against the auto-complete list.
+    for (uint32 questId : ai->GetCurrentIncompleteQuestIds())
     {
-        uint32 questId = bot->GetQuestSlotQuestId(slot);
-        if (!questId)
-            continue;
 
         if (!ai->HasCheat(BotCheatMask::quest))
         {
@@ -45,9 +42,6 @@ bool AutoCompleteQuestAction::Execute(Event& event)
 
         Quest const* pQuest = sObjectMgr.GetQuestTemplate(questId);
         if (!pQuest)
-            continue;
-
-        if (bot->GetQuestStatus(questId) == QUEST_STATUS_COMPLETE)
             continue;
 
         // Add quest items for quests that require items

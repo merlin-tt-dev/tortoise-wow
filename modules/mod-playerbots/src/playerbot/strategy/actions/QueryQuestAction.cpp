@@ -16,10 +16,8 @@ bool QueryQuestAction::Execute(Event& event)
     uint32 questId = ch.extractQuestId(text);
     if (!questId)
     {
-        for (uint8 slot = 0; slot < MAX_QUEST_LOG_SIZE; ++slot)
+        for (uint32 logQuest : ai->GetAllCurrentQuestIds())
         {
-            uint32 logQuest = bot->GetQuestSlotQuestId(slot);
-
             Quest const* quest = sObjectMgr.GetQuestTemplate(logQuest);
             if (!quest)
                 continue;
@@ -35,29 +33,24 @@ bool QueryQuestAction::Execute(Event& event)
     if (!questId)
         return false;
 
-    for (uint16 slot = 0; slot < MAX_QUEST_LOG_SIZE; ++slot)
+    if (!bot->IsCurrentQuest(questId))
+        return false;
+
+    std::ostringstream out;
+    out << "--- " << chat->formatQuest(sObjectMgr.GetQuestTemplate(questId)) << " ";
+    if (bot->GetQuestStatus(questId) == QUEST_STATUS_COMPLETE)
     {
-        if (questId != bot->GetQuestSlotQuestId(slot))
-            continue;
-
-        std::ostringstream out;
-        out << "--- " << chat->formatQuest(sObjectMgr.GetQuestTemplate(questId)) << " ";
-        if (bot->GetQuestStatus(questId) == QUEST_STATUS_COMPLETE)
-        {
-            out << "|c0000FF00completed|r ---";
-            ai->TellPlayer(requester, out, PlayerbotSecurityLevel::PLAYERBOT_SECURITY_ALLOW_ALL, false);
-        }
-        else
-        {
-            out << "|c00FF0000not completed|r ---";
-            ai->TellPlayer(requester, out, PlayerbotSecurityLevel::PLAYERBOT_SECURITY_ALLOW_ALL, false);
-            TellObjectives(requester, questId);
-        }      
-
-        return true;
+        out << "|c0000FF00completed|r ---";
+        ai->TellPlayer(requester, out, PlayerbotSecurityLevel::PLAYERBOT_SECURITY_ALLOW_ALL, false);
+    }
+    else
+    {
+        out << "|c00FF0000not completed|r ---";
+        ai->TellPlayer(requester, out, PlayerbotSecurityLevel::PLAYERBOT_SECURITY_ALLOW_ALL, false);
+        TellObjectives(requester, questId);
     }
 
-    return false;
+    return true;
 }
 
 void QueryQuestAction::TellObjectives(Player* requester, uint32 questId)

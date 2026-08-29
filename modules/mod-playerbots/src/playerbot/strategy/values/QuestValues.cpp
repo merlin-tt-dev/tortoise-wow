@@ -421,22 +421,8 @@ bool NeedForQuestValue::Calculate()
 
 uint8 FreeQuestLogSlotValue::Calculate()
 {
-	uint8 numQuest = 0;
-	for (uint8 slot = 0; slot < MAX_QUEST_LOG_SIZE; ++slot)
-	{
-		uint32 questId = bot->GetQuestSlotQuestId(slot);
-
-		if (!questId)
-			continue;
-
-		Quest const* quest = sObjectMgr.GetQuestTemplate(questId);
-		if (!quest)
-			continue;
-
-		numQuest++;
-	}
-
-	return MAX_QUEST_LOG_SIZE - numQuest;
+    size_t const numQuest = ai->GetAllCurrentQuestIds().size();
+    return numQuest >= MAX_QUEST_LOG_SIZE ? 0 : uint8(MAX_QUEST_LOG_SIZE - numQuest);
 }
 
 uint32 DialogStatusValue::getDialogStatus(Player* bot, int32 questgiver, uint32 questId)

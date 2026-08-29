@@ -113,20 +113,8 @@ void SuggestWhatToDoAction::instance()
 
 std::vector<uint32> SuggestWhatToDoAction::GetIncompletedQuests()
 {
-    std::vector<uint32> result;
-
-    for (uint16 slot = 0; slot < MAX_QUEST_LOG_SIZE; ++slot)
-    {
-        uint32 questId = bot->GetQuestSlotQuestId(slot);
-        if (!questId)
-            continue;
-
-        QuestStatus status = bot->GetQuestStatus(questId);
-        if (status == QUEST_STATUS_INCOMPLETE || status == QUEST_STATUS_NONE)
-            result.push_back(questId);
-    }
-
-    return result;
+    std::set<uint32> questIds = ai->GetCurrentIncompleteQuestIds();
+    return std::vector<uint32>(questIds.begin(), questIds.end());
 }
 
 void SuggestWhatToDoAction::specificQuest()

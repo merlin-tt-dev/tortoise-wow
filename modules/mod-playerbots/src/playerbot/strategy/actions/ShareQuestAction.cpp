@@ -21,21 +21,14 @@ bool ShareQuestAction::Execute(Event& event)
     if (!quest)
         return false;
 
-    // remove all quest entries for 'entry' from quest log
-    for (uint8 slot = 0; slot < MAX_QUEST_LOG_SIZE; ++slot)
-    {
-        uint32 logQuest = bot->GetQuestSlotQuestId(slot);
-        if (logQuest == entry)
-        {
-            WorldPacket p;
-            p << entry;
-            bot->GetSession()->HandlePushQuestToParty(p);
-            ai->TellPlayer(requester, "Quest shared", PlayerbotSecurityLevel::PLAYERBOT_SECURITY_ALLOW_ALL, false);
-            return true;
-        }
-    }
+    if (!bot->IsCurrentQuest(entry))
+        return false;
 
-    return false;
+    WorldPacket p;
+    p << entry;
+    bot->GetSession()->HandlePushQuestToParty(p);
+    ai->TellPlayer(requester, "Quest shared", PlayerbotSecurityLevel::PLAYERBOT_SECURITY_ALLOW_ALL, false);
+    return true;
 }
 
 bool AutoShareQuestAction::Execute(Event& event)
@@ -43,9 +36,8 @@ bool AutoShareQuestAction::Execute(Event& event)
     Player* requester = event.getOwner() ? event.getOwner() : GetMaster();
     bool shared = false;
 
-    for (uint8 slot = 0; slot < MAX_QUEST_LOG_SIZE; ++slot)
+    for (uint32 logQuest : ai->GetAllCurrentQuestIds())
     {
-        uint32 logQuest = bot->GetQuestSlotQuestId(slot);
         Quest const* quest = sObjectMgr.GetQuestTemplate(logQuest);
 
         if (!quest)

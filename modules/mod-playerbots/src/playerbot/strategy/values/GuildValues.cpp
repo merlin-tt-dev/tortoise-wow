@@ -236,7 +236,7 @@ static std::unordered_map<uint32, uint32> BuildCraftSpellMap(Player* bot, const 
         if (remaining.empty())
             break;
 
-        if (spellState.state == PLAYERSPELL_REMOVED || spellState.disabled || IsPassiveSpell(spellId))
+        if (spellState.state == PLAYERSPELL_REMOVED || spellState.disabled || Spells::IsPassiveSpell(spellId))
             continue;
 
         const SpellEntry* pSpellInfo = sServerFacade.LookupSpellInfo(spellId);
@@ -537,7 +537,7 @@ std::vector<GuildShareItemEntry> GuildShareListValue::Calculate()
     if (!guild)
         return result;
 
-    std::string ginfo = guild->GetGINFO();
+    std::string ginfo = guild->GetInfo();
     if (ginfo.empty())
         return result;
 
@@ -980,12 +980,8 @@ uint32 GuildShareQuestRewardItemValue::Calculate()
     if (neededItems.empty())
         return 0;
 
-    for (uint16 slot = 0; slot < MAX_QUEST_LOG_SIZE; ++slot)
+    for (uint32 questId : ai->GetAllCurrentQuestIds())
     {
-        uint32 questId = bot->GetQuestSlotQuestId(slot);
-        if (!questId)
-            continue;
-
         QuestStatus status = bot->GetQuestStatus(questId);
         if (status != QUEST_STATUS_COMPLETE)
             continue;

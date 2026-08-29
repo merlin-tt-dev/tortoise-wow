@@ -90,11 +90,8 @@ int ListQuestsAction::ListQuests(Player* requester, bool completed, bool silent,
         if (!GetPlayerbotAI(player))
             continue;
 
-        for (uint16 slot = 0; slot < MAX_QUEST_LOG_SIZE; ++slot)
+        for (uint32 questId : GetPlayerbotAI(player)->GetAllCurrentQuestIds())
         {
-            uint32 questId = player->GetQuestSlotQuestId(slot);
-            if (!questId)
-                continue;
 
             if (onlyQuestIds.size() && onlyQuestIds.find(questId) == onlyQuestIds.end())
                 continue;
