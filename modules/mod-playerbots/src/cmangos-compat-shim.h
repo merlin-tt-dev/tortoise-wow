@@ -253,9 +253,6 @@ typedef RolesPriority LfgRolePriority;
 #ifndef LOOT_SLOT_NORMAL
 #define LOOT_SLOT_NORMAL 0
 #endif
-#ifndef ROLL_DISENCHANT
-#define ROLL_DISENCHANT 4
-#endif
 #ifndef SPELL_STATE_TARGETING
 #define SPELL_STATE_TARGETING 0
 #endif
@@ -290,40 +287,6 @@ struct CmangosTaxiNodesStoreProxy
     uint32 GetNumRows() const { return sObjectMgr.GetMaxTaxiNodeId(); }
 };
 inline CmangosTaxiNodesStoreProxy sTaxiNodesStore;
-
-// === sLootMgr adapter (cmangos global; Penqle stores Loot on world objects) ===
-// Bot calls sLootMgr.GetLoot(player[, guid]) to fetch the loot the player is currently looking at.
-// Penqle embeds Loot directly in Creature/GameObject, so resolve the target on the player's
-// current map and return the address of that native Loot object.
-struct CmangosLootMgrStub
-{
-    Loot* GetLoot(Player* player, ObjectGuid guid = ObjectGuid()) const
-    {
-        if (!player)
-            return nullptr;
-
-        if (!guid)
-            guid = player->GetLootGuid();
-
-        if (!guid || !player->GetMap())
-            return nullptr;
-
-        if (guid.IsCreature())
-        {
-            Creature* creature = player->GetMap()->GetCreature(guid);
-            return creature ? &creature->loot : nullptr;
-        }
-
-        if (guid.IsGameObject())
-        {
-            GameObject* gameObject = player->GetMap()->GetGameObject(guid);
-            return gameObject ? &gameObject->loot : nullptr;
-        }
-
-        return nullptr;
-    }
-};
-inline CmangosLootMgrStub sLootMgr;
 
 // === Map::GetHitPosition forwarder (cmangos name) ===
 // Penqle uses GetLosHitPosition. The bot module's call sites were patched at

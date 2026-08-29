@@ -8,6 +8,7 @@
 #include "playerbot/ServerFacade.h"
 #include "playerbot/strategy/values/LootStrategyValue.h"
 #include "playerbot/strategy/values/ItemUsageValue.h"
+#include "playerbot/strategy/values/LootValues.h"
 #include "playerbot/ServerFacade.h"
 #include "playerbot/strategy/values/SharedValueContext.h"
 
@@ -272,7 +273,7 @@ bool StoreLootAction::Execute(Event& event)
 
     bot->SetLootGuid(guid);
 
-    Loot* loot = sLootMgr.GetLoot(bot);
+    Loot* loot = LootAccess::ResolveLoot(bot);
 
     if (!loot)
         return false;
@@ -397,12 +398,8 @@ bool StoreLootAction::IsLootAllowed(ItemQualifier& itemQualifier, PlayerbotAI *a
             return true;
     }
 
-    for (uint8 slot = 0; slot < MAX_QUEST_LOG_SIZE; ++slot)
+    for (Quest const* quest : ai->GetAllCurrentQuests())
     {
-        uint32 entry = ai->GetBot()->GetQuestSlotQuestId(slot);
-        Quest const* quest = sObjectMgr.GetQuestTemplate(entry);
-        if (!quest)
-            continue;
 
         for (int i = 0; i < 4; i++)
         {

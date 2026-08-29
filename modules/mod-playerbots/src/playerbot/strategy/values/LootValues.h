@@ -39,6 +39,7 @@ namespace ai
         std::vector<LootItem*> GetLootContentFor(Player* player) const;
         bool IsLootedForAll() const;
         void GetLootItemsListFor(Player* player, LootItemList& result) const;
+        static Loot* ResolveLoot(Player* player, ObjectGuid guid = ObjectGuid());
 
         // Native Penqle-backed accessors.  Do not mirror the old CMaNGOS Loot
         // layout: Penqle has player-specific quest/FFA/conditional slot maps and

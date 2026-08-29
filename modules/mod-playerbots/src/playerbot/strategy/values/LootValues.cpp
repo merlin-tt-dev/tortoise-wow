@@ -24,6 +24,32 @@ LootType LootAccess::lootType() const
     return loot ? loot->loot_type : LOOT_CORPSE;
 }
 
+Loot* LootAccess::ResolveLoot(Player* player, ObjectGuid guid)
+{
+    if (!player)
+        return nullptr;
+
+    if (!guid)
+        guid = player->GetLootGuid();
+
+    if (!guid || !player->GetMap())
+        return nullptr;
+
+    if (guid.IsCreature())
+    {
+        Creature* creature = player->GetMap()->GetCreature(guid);
+        return creature ? &creature->loot : nullptr;
+    }
+
+    if (guid.IsGameObject())
+    {
+        GameObject* gameObject = player->GetMap()->GetGameObject(guid);
+        return gameObject ? &gameObject->loot : nullptr;
+    }
+
+    return nullptr;
+}
+
 std::vector<LootItem*> LootAccess::GetLootContentFor(Player* player) const
 {
     std::vector<LootItem*> result;
@@ -70,11 +96,11 @@ LootTemplateAccess const* DropMapValue::GetLootTemplate(ObjectGuid guid, LootTyp
 		if (info)
 		{
 			if (type == LOOT_CORPSE)
-				lTemplate = LootTemplates_Creature.GetLootFor(info->LootId);
-			else if (type == LOOT_PICKPOCKETING && info->PickpocketLootId)
-				lTemplate = LootTemplates_Pickpocketing.GetLootFor(info->PickpocketLootId);
-			else if (type == LOOT_SKINNING && info->SkinningLootId)
-				lTemplate = LootTemplates_Skinning.GetLootFor(info->SkinningLootId);
+                lTemplate = LootTemplates_Creature.GetLootFor(info->loot_id);
+            else if (type == LOOT_PICKPOCKETING && info->pickpocket_loot_id)
+                lTemplate = LootTemplates_Pickpocketing.GetLootFor(info->pickpocket_loot_id);
+            else if (type == LOOT_SKINNING && info->skinning_loot_id)
+                lTemplate = LootTemplates_Skinning.GetLootFor(info->skinning_loot_id);
 		}
 	}
 	else if (guid.IsGameObject())
@@ -122,7 +148,7 @@ DropMap* ItemDropMapValue::Calculate()
         uint32 itemId = itemEntry.first;
         ItemPrototype const* proto = &itemEntry.second;
 
-		if (!(proto->Flags & ITEM_FLAG_HAS_LOOT))
+        if (!(proto->Flags & ITEM_FLAG_LOOTABLE))
 			continue;
 
 		LootTemplateAccess const* lTemplateA = DropMapValue::GetLootTemplate(ObjectGuid(HIGHGUID_ITEM, itemId, uint32(1)), LOOT_CORPSE);
@@ -422,8 +448,8 @@ bool ShouldLootObject::Calculate()
 
 	for (auto& lItem : lootAccess.GetLootContentFor(bot))
 	{
-        if (!lItem->itemid
-			continue;
+        if (!lItem->itemid)
+            continue;
 
         uint32 canLootAmount = AI_VALUE2(uint32, "stack space for item", lItem->itemid);
 
@@ -451,7 +477,7 @@ void ActiveRolls::CleanUp(Player* bot, LootRollMap& rollMap, ObjectGuid guid, ui
             continue;
         }
 
-		Loot* loot = sLootMgr.GetLoot(bot, roll->first);
+        Loot* loot = LootAccess::ResolveLoot(bot, roll->first);
 		if (!loot)
 		{
 			roll = rollMap.erase(roll);
@@ -489,7 +515,7 @@ std::string ActiveRolls::Format()
 
 		std::string itemLink;
 
-		Loot* loot = sLootMgr.GetLoot(bot, roll.first);
+        Loot* loot = LootAccess::ResolveLoot(bot, roll.first);
 		if (loot)
 		{
             LootItem* item = roll.second < loot->items.size() ? &loot->items[roll.second] : nullptr;

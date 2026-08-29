@@ -36,7 +36,7 @@ bool LootStartRollAction::Execute(Event& event)
 
     LootRollMap lootRolls = AI_VALUE(LootRollMap, "active rolls");
 
-    Loot* loot = sLootMgr.GetLoot(bot, creatureGuid);
+    Loot* loot = LootAccess::ResolveLoot(bot, creatureGuid);
     if (!loot || itemSlot >= loot->items.size() || !loot->items[itemSlot].is_blocked)
         return false;
 
@@ -171,7 +171,7 @@ bool RollAction::Execute(Event& event)
 
 ItemQualifier RollAction::GetRollItem(ObjectGuid lootGuid, uint32 slot)
 {
-    Loot* loot = sLootMgr.GetLoot(bot, lootGuid);
+    Loot* loot = LootAccess::ResolveLoot(bot, lootGuid);
     if (!loot)
         return ItemQualifier();
 
@@ -235,8 +235,10 @@ RollVote RollAction::CalculateRollVote(ItemQualifier& itemQualifier)
             vote = "Rolling greed";
         else if (needVote == ROLL_NEED)
             vote = "Rolling need";
+#ifdef MANGOSBOT_TWO
         else if (needVote == ROLL_DISENCHANT)
             vote = "Rolling disenchant";
+#endif
 
          ai->TellPlayerNoFacing(ai->GetMaster(), vote + " on " + ChatHelper::formatItem(itemQualifier) + " " + reason);
     }
@@ -246,7 +248,7 @@ RollVote RollAction::CalculateRollVote(ItemQualifier& itemQualifier)
 
 bool RollAction::RollOnItemInSlot(RollVote vote, ObjectGuid lootGuid, uint32 slot)
 {
-    Loot* loot = sLootMgr.GetLoot(bot, lootGuid);
+    Loot* loot = LootAccess::ResolveLoot(bot, lootGuid);
     if (!loot)
         return false;
 
