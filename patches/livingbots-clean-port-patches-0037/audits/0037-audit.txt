@@ -1,0 +1,28 @@
+0037 build compatibility pass 8: native travel graph / mmap / taxi
+Baseline: remote livingbots/playerbots-clean-base a5fc8fb090593ef10e87f030ef6f8c6c7901e761
+Local audit baseline checkpoint: cbba7003dd97e6341a9da600f9358adc4d502426 (0036 equivalent)
+
+Changed files:
+modules/mod-playerbots/src/playerbot/GuidPosition.cpp
+modules/mod-playerbots/src/playerbot/TravelMgr.cpp
+modules/mod-playerbots/src/playerbot/TravelNode.cpp
+modules/mod-playerbots/src/playerbot/TravelNode.h
+modules/mod-playerbots/src/playerbot/strategy/actions/ChooseTravelTargetAction.cpp
+modules/mod-playerbots/src/playerbot/strategy/actions/GoAction.cpp
+
+Diff stat:
+ .../mod-playerbots/src/playerbot/GuidPosition.cpp  | 18 ++--
+ modules/mod-playerbots/src/playerbot/TravelMgr.cpp | 32 ++++----
+ .../mod-playerbots/src/playerbot/TravelNode.cpp    | 96 ++++++++++------------
+ modules/mod-playerbots/src/playerbot/TravelNode.h  |  2 +
+ .../strategy/actions/ChooseTravelTargetAction.cpp  |  7 +-
+ .../src/playerbot/strategy/actions/GoAction.cpp    |  2 +-
+ 6 files changed, 76 insertions(+), 81 deletions(-)
+
+Checks:
+  git diff --check: PASS
+  reverse --check: PASS
+  reverse to clean tree: PASS
+  reapply --check/apply: PASS
+  byte compare: PASS
+  ACE 8.0.2 compiler travel ring: PASS

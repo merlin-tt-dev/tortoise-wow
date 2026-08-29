@@ -1,0 +1,6 @@
+modules/mod-playerbots/src/playerbot/GuidPosition.cpp: OK
+modules/mod-playerbots/src/playerbot/TravelMgr.cpp: OK
+modules/mod-playerbots/src/playerbot/TravelNode.cpp: OK
+modules/mod-playerbots/src/playerbot/TravelNode.h: OK
+modules/mod-playerbots/src/playerbot/strategy/actions/ChooseTravelTargetAction.cpp: OK
+modules/mod-playerbots/src/playerbot/strategy/actions/GoAction.cpp: OK

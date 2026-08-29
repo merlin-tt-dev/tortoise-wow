@@ -1,0 +1,395 @@
+diff --git a/modules/mod-playerbots/src/playerbot/GuidPosition.cpp b/modules/mod-playerbots/src/playerbot/GuidPosition.cpp
+index 0592209..353cb88 100644
+--- a/modules/mod-playerbots/src/playerbot/GuidPosition.cpp
++++ b/modules/mod-playerbots/src/playerbot/GuidPosition.cpp
+@@ -16,7 +16,7 @@ GuidPosition::GuidPosition(std::string qualifier)
+ 
+     uint64 g;
+     char p;
+-    b >> this->mapid >> p >> this->coord_x >> p >> this->coord_y >> p >> this->coord_z >> p >> this->orientation;
++    b >> this->mapId >> p >> this->x >> p >> this->y >> p >> this->z >> p >> this->o;
+ 
+     //if (b.tellp() == std::streampos(0))
+     //    return;
+@@ -46,7 +46,7 @@ GuidPosition::GuidPosition(CreationMask type, const std::string& qualifier, cons
+         GameTele const* tele = sObjectMgr.GetGameTele(qualifier);
+         if (tele)
+         {
+-            set(WorldPosition(tele->mapId, tele->position_x, tele->position_y, tele->position_z, referencePos.orientation));
++            set(WorldPosition(tele->mapId, tele->x, tele->y, tele->z, referencePos.getO()));
+             GuidPosition::Set(0);
+             return;
+         }
+@@ -57,7 +57,7 @@ std::string GuidPosition::to_string() const
+ {
+     std::ostringstream b;
+     char p = '|';
+-    b << this->getMapId() << p << this->coord_x << p << this->coord_y << p << this->coord_z << p << this->orientation << p << GetRawValue();
++    b << this->getMapId() << p << this->getX() << p << this->getY() << p << this->getZ() << p << this->getO() << p << GetRawValue();
+     return b.str();
+ }
+ 
+@@ -122,7 +122,7 @@ const ReputationRank GuidPosition::GetReactionTo(const GuidPosition& other, uint
+     if(other.IsUnit() && other.GetUnit(instanceId))
+         if (other.GetUnit(instanceId)->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PLAYER_CONTROLLED))
+         {
+-            if (const Player* unitPlayer = other.GetUnit(instanceId)->GetControllingPlayer())
++            if (const Player* unitPlayer = other.GetUnit(instanceId)->GetCharmerOrOwnerPlayerOrPlayerItself())
+             {
+                 if (unitPlayer->HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_CONTESTED_PVP) && GetFactionTemplateEntry()->IsContestedGuardFaction())
+                     return REP_HOSTILE;
+@@ -212,11 +212,11 @@ std::string GuidPosition::print()
+ {
+     std::ostringstream out;
+     out << this->GetRawValue();
+-    out << ';' << mapid << std::fixed << std::setprecision(2);
+-    out << ';' << coord_x;
+-    out << ';' << coord_y;
+-    out << ';' << coord_z;
+-    out << ';' << orientation;
++    out << ';' << getMapId() << std::fixed << std::setprecision(2);
++    out << ';' << getX();
++    out << ';' << getY();
++    out << ';' << getZ();
++    out << ';' << getO();
+ 
+     return out.str();
+ }
+\ No newline at end of file
+diff --git a/modules/mod-playerbots/src/playerbot/TravelMgr.cpp b/modules/mod-playerbots/src/playerbot/TravelMgr.cpp
+index f96ef47..a24c022 100644
+--- a/modules/mod-playerbots/src/playerbot/TravelMgr.cpp
++++ b/modules/mod-playerbots/src/playerbot/TravelMgr.cpp
+@@ -1208,7 +1208,7 @@ void TravelMgr::BuildAreaCreatureLevels()
+         if (reactionHum > REP_NEUTRAL || reactionOrc > REP_NEUTRAL)
+             continue;
+ 
+-        WorldPosition creaturePos(cData.position.mapid, cData.position.coord_x, cData.position.coord_y, cData.position.coord_z);
++        WorldPosition creaturePos(cData.position.mapId, cData.position.x, cData.position.y, cData.position.z);
+         AreaEntry const* creatureArea = creaturePos.GetArea();
+         if (!creatureArea)
+             continue;
+@@ -1282,14 +1282,14 @@ void TravelMgr::SetMobAvoidArea()
+ 
+     std::vector<std::future<void>> calculations;
+ 
+-    BarGoLink bar(sMapStore.GetNumRows());
++    BarGoLink bar(sMapStorage.GetMaxEntry());
+ 
+-    for (uint32 i = 0; i < sMapStore.GetNumRows(); ++i)
++    for (uint32 i = 0; i < sMapStorage.GetMaxEntry(); ++i)
+     {
+-        if (!sMapStore.LookupEntry(i))
++        if (!sMapStorage.LookupEntry<MapEntry>(i))
+             continue;
+         
+-        uint32 mapId = sMapStore.LookupEntry(i)->id;
++        uint32 mapId = sMapStorage.LookupEntry<MapEntry>(i)->id;
+         calculations.push_back(std::async([this, mapId] { SetMobAvoidAreaMap(mapId); }));
+         bar.step();
+     }
+@@ -1301,7 +1301,7 @@ void TravelMgr::SetMobAvoidArea()
+         bar2.step();
+     }
+ 
+-    sLog.outString(">> Modified navmap areas for %d maps.", sMapStore.GetNumRows());
++    sLog.outString(">> Modified navmap areas for %d maps.", sMapStorage.GetMaxEntry());
+ }
+ 
+ void TravelMgr::SetMobAvoidAreaMap(uint32 mapId) 
+@@ -1320,7 +1320,7 @@ void TravelMgr::SetMobAvoidAreaMap(uint32 mapId)
+         if (!cInfo)
+             continue;
+ 
+-        WorldPosition point = WorldPosition(cData.position.mapid, cData.position.coord_x, cData.position.coord_y, cData.position.coord_z, cData.position.orientation);
++        WorldPosition point = WorldPosition(cData.position.mapId, cData.position.x, cData.position.y, cData.position.z, cData.position.o);
+ 
+         if (cInfo->npc_flags > 0)
+             continue;
+@@ -1596,7 +1596,7 @@ void TravelMgr::LoadQuestTravelTable()
+             if (!cInfo)
+                 continue;
+ 
+-            WorldPosition point = WorldPosition(cData.position.mapid, cData.position.coord_x, cData.position.coord_y, cData.position.coord_z, cData.position.orientation);
++            WorldPosition point = WorldPosition(cData.position.mapId, cData.position.x, cData.position.y, cData.position.z, cData.position.o);
+ 
+             std::string name = cInfo->name;
+             name.erase(remove(name.begin(), name.end(), ','), name.end());
+@@ -2158,7 +2158,7 @@ void TravelMgr::LoadQuestTravelTable()
+             if (!data)
+                 continue;
+ 
+-            WorldPosition point = WorldPosition(gData.position.mapid, gData.position.coord_x, gData.position.coord_y, gData.position.coord_z, gData.position.orientation);
++            WorldPosition point = WorldPosition(gData.position.mapId, gData.position.x, gData.position.y, gData.position.z, gData.position.o);
+ 
+             std::string name = data->name;
+             name.erase(remove(name.begin(), name.end(), ','), name.end());
+@@ -2275,12 +2275,12 @@ void TravelMgr::LoadQuestTravelTable()
+ #ifndef MANGOSBOT_TWO    
+     sTerrainMgr.Update(60 * 60 * 24);
+ #else
+-    for (uint32 i = 0; i < sMapStore.GetNumRows(); ++i)
++    for (uint32 i = 0; i < sMapStorage.GetMaxEntry(); ++i)
+     {
+-        if (!sMapStore.LookupEntry(i))
++        if (!sMapStorage.LookupEntry<MapEntry>(i))
+             continue;
+ 
+-        uint32 mapId = sMapStore.LookupEntry(i)->id;
++        uint32 mapId = sMapStorage.LookupEntry<MapEntry>(i)->id;
+ 
+         if (WorldPosition(mapId, 0, 0).getMap(0))
+             continue;
+@@ -2294,16 +2294,16 @@ void TravelMgr::GetPopulatedGrids()
+ {
+     sLog.outString("Finding populated grids.");
+ 
+-    BarGoLink bar(sMapStore.GetNumRows());      
++    BarGoLink bar(sMapStorage.GetMaxEntry());
+ 
+-    for (uint32 i = 0; i < sMapStore.GetNumRows(); ++i)
++    for (uint32 i = 0; i < sMapStorage.GetMaxEntry(); ++i)
+     {
+         bar.step();
+ 
+-        if (!sMapStore.LookupEntry(i))
++        if (!sMapStorage.LookupEntry<MapEntry>(i))
+             continue;
+ 
+-        uint32 mapId = sMapStore.LookupEntry(i)->id;
++        uint32 mapId = sMapStorage.LookupEntry<MapEntry>(i)->id;
+ 
+         GetPopulatedGrids(mapId);
+     }
+diff --git a/modules/mod-playerbots/src/playerbot/TravelNode.cpp b/modules/mod-playerbots/src/playerbot/TravelNode.cpp
+index 315c89e..a808acd 100644
+--- a/modules/mod-playerbots/src/playerbot/TravelNode.cpp
++++ b/modules/mod-playerbots/src/playerbot/TravelNode.cpp
+@@ -3,6 +3,8 @@
+ 
+ #include <iomanip>
+ #include <regex>
++#include <filesystem>
++#include <cctype>
+ 
+ #include "ObjectMgr.h"
+ #include "PlayerbotAI.h"
+@@ -1149,7 +1151,8 @@ void TravelPath::ClipPath(PlayerbotAI* ai, Unit* mover, bool ignoreEnemyTargets)
+             if (WorldPosition(unit).sqDistance(p->point) > range * range)
+                 continue;
+ 
+-            if (!unit->CanAttackOnSight(mover) || !unit->IsWithinLOSInMap(mover))
++            Creature* creature = unit->ToCreature();
++            if (!creature || !creature->CanInitiateAttack() || !creature->IsValidAttackTarget(mover) || !creature->IsWithinLOSInMap(mover))
+                 continue;
+ 
+             endP = p;
+@@ -1764,7 +1767,7 @@ TravelNodeRoute TravelNodeMap::getRoute(WorldPosition startPos, WorldPosition en
+ 
+             if (endPath.empty())
+             {
+-                if (endPos.mapid == startPos.mapid)
++                if (endPos.getMapId() == startPos.getMapId())
+                 {
+                     endPath = endNodePosition.getPathTo(endPos, unit);
+ 
+@@ -2060,55 +2063,38 @@ void TravelNodeMap::manageNodes(Unit* bot, bool mapFull)
+ 
+ void TravelNodeMap::LoadMaps()
+ {
+-    sLog.outError("Trying to load all maps and tiles for node generation. Please ignore any maps that could not be loaded.");
+-    for (uint32 i = 0; i < sMapStore.GetNumRows(); ++i)
+-    {
+-        if (!sMapStore.LookupEntry(i))
+-            continue;
++    sLog.outError("Trying to load all mmap tiles for node generation. Please ignore any maps that could not be loaded.");
+ 
+-        uint32 mapId = sMapStore.LookupEntry(i)->MapID;
+-        if (mapId == 0 || mapId == 1 || mapId == 530 || mapId == 571)
+-        {
+-#ifndef MANGOSBOT_TWO
+-            MMAP::MMapFactory::createOrGetMMapManager()->loadAllMapTiles(sWorld.GetDataPath(), mapId);
+-#else
+-            MMAP::MMapFactory::createOrGetMMapManager()->loadAllMapTiles(sWorld.GetDataPath(), mapId, 0);
+-#endif
+-        }
+-        else
+-        {
+-            MMAP::MMapFactory::createOrGetMMapManager()->loadMapInstance(sWorld.GetDataPath(), mapId, 0);
+-        }
++    MMAP::MMapManager* mmap = MMAP::MMapFactory::createOrGetMMapManager();
++    if (!mmap)
++        return;
++
++    std::filesystem::path mmapDir = std::filesystem::path(sWorld.GetDataPath()) / "mmaps";
++    std::error_code ec;
++    if (!std::filesystem::exists(mmapDir, ec))
++    {
++        sLog.outError("Playerbot travel: mmap directory '%s' does not exist.", mmapDir.string().c_str());
++        return;
+     }
+ 
+-#ifndef MANGOSBOT_TWO
+-    for (uint32 i = 0; i < sMapStore.GetNumRows(); ++i)
++    for (std::filesystem::directory_iterator it(mmapDir, ec), endIt; !ec && it != endIt; it.increment(ec))
+     {
+-        if (!sMapStore.LookupEntry(i))
++        std::filesystem::directory_entry const& entry = *it;
++        if (!entry.is_regular_file(ec) || entry.path().extension() != ".mmtile")
+             continue;
+ 
+-        uint32 mapId = sMapStore.LookupEntry(i)->MapID;
+-
+-        for (const auto& entry : boost::filesystem::directory_iterator(sWorld.GetDataPath() + "mmaps"))
+-        {
+-            if (entry.path().extension() == ".mmtile")
+-            {
+-                auto filename = entry.path().filename();
+-                auto fileNameString = filename.c_str();
+-                // trying to avoid string copy
+-                uint32 fileMapId = (fileNameString[0] - '0') * 100 + (fileNameString[1] - '0') * 10 + (fileNameString[2] - '0');
+-                if (fileMapId != mapId)
+-                    continue;
+-
+-                uint32 x = (fileNameString[3] - '0') * 10 + (fileNameString[4] - '0');
+-                uint32 y = (fileNameString[5] - '0') * 10 + (fileNameString[6] - '0');
++        std::string stem = entry.path().stem().string();
++        if (stem.size() != 7 || !std::all_of(stem.begin(), stem.end(), [](unsigned char c) { return std::isdigit(c); }))
++            continue;
+ 
+-                if (!MMAP::MMapFactory::createOrGetMMapManager()->IsMMapIsLoaded(mapId, x, y))
+-                    MMAP::MMapFactory::createOrGetMMapManager()->loadMap(sWorld.GetDataPath(), mapId, x, y);
+-            }
+-        }
++        uint32 mapId = static_cast<uint32>(std::stoul(stem.substr(0, 3)));
++        int32 y = static_cast<int32>(std::stol(stem.substr(3, 2)));
++        int32 x = static_cast<int32>(std::stol(stem.substr(5, 2)));
++        mmap->loadMap(mapId, x, y);
+     }
+-#endif
++
++    if (ec)
++        sLog.outError("Playerbot travel: failed while enumerating mmap tiles in '%s': %s", mmapDir.string().c_str(), ec.message().c_str());
+ }
+ 
+ void TravelNodeMap::generateNpcNodes()
+@@ -2530,16 +2516,17 @@ void TravelNodeMap::generateTransportNodes()
+             else //Boats/Zepelins
+             {
+                 //Loop over the path and connect stop locations.
+-                for (auto& p : *path)
++                for (size_t pathIndex = 0; pathIndex < path->size(); ++pathIndex)
+                 {
+-                    WorldPosition pos = WorldPosition(p->mapid, p->x, p->y, p->z, 0);
++                    TaxiPathNodeEntry const& p = (*path)[pathIndex];
++                    WorldPosition pos = WorldPosition(p.mapid, p.x, p.y, p.z, 0);
+ 
+                     if (prevNode)
+                     {
+                         ppath.push_back(pos);
+                     }
+ 
+-                    if (p->delay > 0)
++                    if (p.delay > 0)
+                     {
+                         TravelNode* node = sTravelNodeMap.addNode(pos, data->name, true, true, true, entry);
+ 
+@@ -2574,9 +2561,10 @@ void TravelNodeMap::generateTransportNodes()
+                 if (prevNode)
+                 {
+                     //Continue from start until first stop and connect to end.
+-                    for (auto& p : *path)
++                    for (size_t pathIndex = 0; pathIndex < path->size(); ++pathIndex)
+                     {
+-                        WorldPosition pos = WorldPosition(p->mapid, p->x, p->y, p->z, 0);
++                        TaxiPathNodeEntry const& p = (*path)[pathIndex];
++                        WorldPosition pos = WorldPosition(p.mapid, p.x, p.y, p.z, 0);
+ 
+                         //if (data->displayId == 3015)
+                         //    pos.setZ(pos.getZ() + 6.0f);
+@@ -2585,7 +2573,7 @@ void TravelNodeMap::generateTransportNodes()
+ 
+                         ppath.push_back(pos);
+ 
+-                        if (p->delay > 0)
++                        if (p.delay > 0)
+                         {
+                             TravelNode* node = sTravelNodeMap.getNode(pos, NULL, 5.0f);
+ 
+@@ -2997,11 +2985,15 @@ void TravelNodeMap::generateTaxiPaths()
+ 
+         std::vector<WorldPosition> ppath;
+ 
+-        if (startNode->fDist(WorldPosition(nodes.front()->mapid, nodes.front()->x, nodes.front()->y, nodes.front()->z, 0.0)) > 0.1f)
++        TaxiPathNodeEntry const& firstNode = nodes[0];
++        if (startNode->fDist(WorldPosition(firstNode.mapid, firstNode.x, firstNode.y, firstNode.z, 0.0f)) > 0.1f)
+             ppath.push_back(*startNode->getPosition());
+ 
+-        for (auto& n : nodes)
+-            ppath.push_back(WorldPosition(n->mapid, n->x, n->y, n->z, 0.0));
++        for (size_t nodeIndex = 0; nodeIndex < nodes.size(); ++nodeIndex)
++        {
++            TaxiPathNodeEntry const& node = nodes[nodeIndex];
++            ppath.push_back(WorldPosition(node.mapid, node.x, node.y, node.z, 0.0f));
++        }
+ 
+         if (endNode->fDist(ppath.back()) > 0.1f)
+             ppath.push_back(*endNode->getPosition());
+diff --git a/modules/mod-playerbots/src/playerbot/TravelNode.h b/modules/mod-playerbots/src/playerbot/TravelNode.h
+index 1069542..e0abb5c 100644
+--- a/modules/mod-playerbots/src/playerbot/TravelNode.h
++++ b/modules/mod-playerbots/src/playerbot/TravelNode.h
+@@ -40,6 +40,8 @@ enum class TravelNodePathType : uint8
+     staticPortal = 6
+ };
+ 
++class PlayerbotAI;
++
+ using namespace ai;
+ 
+ namespace ai
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/ChooseTravelTargetAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/ChooseTravelTargetAction.cpp
+index 2449e39..939b07e 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/ChooseTravelTargetAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/ChooseTravelTargetAction.cpp
+@@ -485,7 +485,8 @@ bool ChooseGroupTravelTargetAction::Execute(Event& event)
+         }
+     }
+ 
+-    std::shuffle(groupPlayers.begin(), groupPlayers.end(), *GetRandomGenerator());
++    std::mt19937 randomGenerator(urand(0, std::numeric_limits<uint32>::max()));
++    std::shuffle(groupPlayers.begin(), groupPlayers.end(), randomGenerator);
+ 
+     PlayerTravelInfo info(bot);
+ 
+@@ -1174,7 +1175,7 @@ bool RequestNamedTravelTargetAction::Execute(Event& event)
+                                 if (!dest->GetCreatureInfo())
+                                     return true;
+ 
+-                                if (dest->GetCreatureInfo()->NpcFlags & UNIT_NPC_FLAG_AUCTIONEER)
++                                if (dest->GetCreatureInfo()->npc_flags & UNIT_NPC_FLAG_AUCTIONEER)
+                                     return false;
+ 
+                                 return true;
+@@ -1277,7 +1278,7 @@ bool RequestNamedTravelTargetAction::Execute(Event& event)
+                             if (!dest->GetCreatureInfo())
+                                 return true;
+ 
+-                            if (dest->GetCreatureInfo()->NpcFlags & cityFlags)
++                            if (dest->GetCreatureInfo()->npc_flags & cityFlags)
+                                 return false;
+ 
+                             return true;
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/GoAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/GoAction.cpp
+index 8f0ac20..3b47336 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/GoAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/GoAction.cpp
+@@ -301,7 +301,7 @@ inline bool TellGrouped(PlayerbotAI* ai, Player* requester)
+     if (bot->GetGroup()->IsLeader(bot->GetObjectGuid()))
+     {
+         out << "Leading a";
+-        if (bot->GetGroup()->IsRaidGroup())
++        if (bot->GetGroup()->isRaidGroup())
+             out << " raid";
+         out << " group of ";
+         out << bot->GetGroup()->GetMembersCount();
