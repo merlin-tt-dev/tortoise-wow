@@ -111,16 +111,63 @@ FactionTemplateEntry const* ServerFacade::GetFactionTemplateEntry(Unit* unit)
     return unit->GetFactionTemplateEntry();
 }
 
-// Penqle's ChaseMovementGenerator is a template. The static_cast dance the
-// bot module uses against cmangos's non-templated version is fragile here,
-// so return safe defaults. Wiring actual chase-generator inspection is
-// future work.
-Unit* ServerFacade::GetChaseTarget(Unit* target) {
-    return target ? target->GetVictim() : nullptr;
+namespace
+{
+struct TargetedMovementInfo
+{
+    Unit* target = nullptr;
+    float angle = 0.0f;
+    float offset = 0.0f;
+};
+
+template <class Owner>
+TargetedMovementInfo GetTargetedMovementInfo(MovementGenerator const* generator, MovementGeneratorType type)
+{
+    if (!generator)
+        return {};
+
+    if (type == CHASE_MOTION_TYPE)
+    {
+        auto const* chase = static_cast<ChaseMovementGenerator<Owner> const*>(generator);
+        return { chase->GetTarget(), chase->GetAngle(), chase->GetOffset() };
+    }
+
+    if (type == FOLLOW_MOTION_TYPE)
+    {
+        auto const* follow = static_cast<FollowMovementGenerator<Owner> const*>(generator);
+        return { follow->GetTarget(), follow->GetAngle(), follow->GetOffset() };
+    }
+
+    return {};
 }
 
-float ServerFacade::GetChaseAngle(Unit* /*target*/) { return 0.0f; }
-float ServerFacade::GetChaseOffset(Unit* /*target*/) { return 0.0f; }
+TargetedMovementInfo GetTargetedMovementInfo(Unit* owner)
+{
+    if (!owner || !owner->GetMotionMaster())
+        return {};
+
+    MovementGenerator const* generator = owner->GetMotionMaster()->GetCurrent();
+    MovementGeneratorType type = owner->GetMotionMaster()->GetCurrentMovementGeneratorType();
+    return owner->IsPlayer()
+        ? GetTargetedMovementInfo<Player>(generator, type)
+        : GetTargetedMovementInfo<Creature>(generator, type);
+}
+}
+
+Unit* ServerFacade::GetChaseTarget(Unit* target)
+{
+    return GetTargetedMovementInfo(target).target;
+}
+
+float ServerFacade::GetChaseAngle(Unit* target)
+{
+    return GetTargetedMovementInfo(target).angle;
+}
+
+float ServerFacade::GetChaseOffset(Unit* target)
+{
+    return GetTargetedMovementInfo(target).offset;
+}
 
 bool ServerFacade::isMoving(Unit* unit)
 {

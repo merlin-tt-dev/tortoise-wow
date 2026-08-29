@@ -1574,7 +1574,7 @@ bool DebugAction::HandleMotion(Event& event, Player* requester, const std::strin
         else if (cmd == "flee")
             mm->MoveFleeing(motionTarget, 10);
         else if (cmd == "followmain")
-            mm->MoveFollow(motionTarget, 5, 0, true, true);
+            mm->MoveFollow(motionTarget, 5, 0, true);
         else if (cmd == "follow")
             mm->MoveFollow(motionTarget, 5, 0);
         else if (cmd == "dist")
