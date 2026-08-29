@@ -1,0 +1,12 @@
+09df5d74ea2ce15fb550f2f189a619b8f1af01dad49db4aa482c1c7930194ce6  ./APPLY_ORDER.txt
+1f5f71a560c88be874837fbba8529ab6b34c9f31f1a3408636af0c1496303441  ./MANIFEST.txt
+c1313c246a615a90c9bcd962b0fc3cd40cb8474a417d0b8a7a737d1dcbdae35a  ./README.md
+3340d0df70ebeddab55ecd06728f01b9c4d7eaa99bf7ab846262af964e314e4f  ./audits/0038-audit.txt
+2fb5224ca3e6a07e028efdbc5cc6b60beb09c1078e9181b70f62d743a8a06487  ./audits/0038-expected-file-sha256.txt
+5da555d8f68eb42043fa0c99d94991415ca137239189a70bb88bb21c7377ac44  ./audits/apply-reverse-reapply.txt
+c902b5a9cca427b5f46f005652e29456a6ce1e8492d87d83e5a4ff7b2a650e6e  ./audits/build-audit.txt
+b0d4ffea430b7394d2e9203400bd62a4b868fb46a67c15b99960123b0cb68652  ./audits/byte-compare.txt
+efe58fca20cfaf3a1131a82d07f2533dda9678b18a5c205704414c80b4fce6af  ./audits/debugaction-known-errors.txt
+8ac202f58e5970b65831e24b585fb77495b352f7a1023de766b09f8c3b027aff  ./audits/semantic-audit.txt
+e7dd9aa6fa2e8d379b58e958ab3982c60c44b3a26a39b4deaa87a4f1246b98eb  ./core/core-0009-native-targeted-follow-catchup.patch
+0b9aa782e0a1294a9b263e6cc75c707ad6aa4e6732fd46aefdb9d9a84cae9b22  ./mod/0038-build-compatibility-pass-9-native-movement-follow.patch

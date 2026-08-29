@@ -1,0 +1,26 @@
+0038 build audit
+================
+
+Configuration:
+- CMake generator: Ninja
+- CMAKE_BUILD_TYPE=RelWithDebInfo
+- MODULES=disabled
+- MODULE_MOD_PLAYERBOTS=static
+- USE_PCH=OFF
+- USE_SCRIPTS=ON
+- ACE_ROOT: Debian ACE 8.0.2 unpacked sysroot
+
+Results:
+PASS  src/game/Movement/TargetedMovementGenerator.cpp.o
+PASS  src/game/Movement/MotionMaster.cpp.o
+PASS  modules/.../playerbot/ServerFacade.cpp.o
+PASS  modules/.../strategy/actions/MovementActions.cpp.o (-O0 -g0 audit compile)
+PASS  modules/.../strategy/actions/FollowActions.cpp.o (-O0 -g0 audit compile)
+PASS  modules/.../strategy/actions/TaxiAction.cpp.o (-O0 -g0 audit compile)
+
+DebugAction.cpp:
+- compile reaches the adjusted MoveFollow call without a MoveFollow/signature error;
+- TU remains blocked by 83 independent pre-existing port errors (RpgSubActions gossip, old spell helpers, debug transports, quest slot access, visual/debug APIs, etc.);
+- those unrelated errors are not included in 0038.
+
+git diff --check: PASS

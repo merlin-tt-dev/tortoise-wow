@@ -1,0 +1,17 @@
+fresh source archive baseline 0037 tree: 05b68da8aa866adae12380316d1e2317f55871d8
+0038 local verification baseline commit: 3384d8c5fa1d360d761f182e99ecd7174fb14979
+0038 baseline tree: b8231e65cd141302de3a5134ac423f4fa81dfd3f
+0039 forward apply --check: PASS
+0039 forward apply: PASS
+0039 forward diff sha256: 7652b1ebdf2ecfd8aebab5ec567794385131a925e0630bc3ecbbc0a09e747164
+0039 forward byte compare: PASS
+0039 reverse apply --check: PASS
+0039 reverse apply: PASS
+post-reverse status clean: PASS
+post-reverse tree: b8231e65cd141302de3a5134ac423f4fa81dfd3f
+post-reverse tree equals 0038 baseline: PASS
+0039 reapply --check: PASS
+0039 reapply: PASS
+0039 reapply diff sha256: 7652b1ebdf2ecfd8aebab5ec567794385131a925e0630bc3ecbbc0a09e747164
+diff hash identical: PASS
+0039 reapply byte compare: PASS

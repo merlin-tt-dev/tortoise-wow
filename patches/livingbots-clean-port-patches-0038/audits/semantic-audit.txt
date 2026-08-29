@@ -1,0 +1,46 @@
+0038 semantic audit
+===================
+
+Baseline
+--------
+Remote livingbots/playerbots-clean-base:
+835f1c0a605da4323220e909ece5e0f081cd520c
+
+Principles used
+---------------
+- Prefer current Penqle/Tortoise APIs.
+- Preserve historical CMaNGOS playerbot intent only where it maps cleanly.
+- Do not add fake WorldObject/Unit compatibility methods.
+- Do not add a second movement/path/LOS stack.
+
+Key decisions
+-------------
+1. Combined combat reach
+   Historical playerbot combined reach is mapped to Penqle Unit::GetCombatReach(target, true, 0.0f), which owns combined attacker/target reach semantics.
+
+2. Follow target/angle/offset
+   Penqle's targeted movement generator already stores the authoritative target, offset and angle. Read-only accessors expose that existing state; ServerFacade no longer substitutes victim/zero defaults.
+
+3. Follow catch-up
+   Historical playerbot requests an explicit catch-up mode. Penqle already implements spline-local catch-up for pet followers, with a distance-dependent curve capped at 2.1x. 0038 reuses that movement-layer pattern only when playerbot follow explicitly requests it and only out of combat. Persistent Unit speed state is never modified.
+
+4. Taxi eject/cleanup
+   Playerbot code no longer calls the unavailable historical OnTaxiFlightEject API. If a taxi movement is active, MotionMaster::Clear() owns generator finalization and native taxi state cleanup before starting the next taxi path.
+
+5. LOS / collision
+   Historical Map::GetHitPosition calls in the active Zero path map to Penqle Map::GetLosHitPosition. No playerbot collision subsystem is introduced.
+
+6. Random reachable ground point
+   Active Zero code uses WorldObject::GetRandomPoint, whose Penqle implementation delegates ground movement to native walk/navmesh positioning.
+
+7. Collision width
+   Penqle does not expose the historical playerbot collision-width helper. The active runtime horizontal object envelope uses GetObjectBoundingRadius(); 0038 uses that rather than inventing a model-width API.
+
+8. Free flying
+   Historical MANGOSBOT_ZERO playerbot semantics do not support free flight. A module-local helper returns false for Zero and preserves non-Zero source behavior without adding a core shim.
+
+9. Player target checks
+   Historical HasTarget(guid) usage is represented by Penqle's authoritative UNIT_FIELD_TARGET accessor: GetTargetGuid() == guid.
+
+10. Fall/movement packet APIs
+    SetFallInformation uses Penqle's current one-argument fall-start-Z form; timestamps use WorldTimer::getMSTime(); SendMessageToSetExcept receives the WorldPacket pointer expected by Penqle.

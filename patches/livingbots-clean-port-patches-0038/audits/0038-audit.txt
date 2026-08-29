@@ -1,0 +1,27 @@
+0038 build compatibility pass 9: native movement / follow
+Baseline: remote livingbots/playerbots-clean-base 835f1c0a605da4323220e909ece5e0f081cd520c
+
+Changed files: 8
+Changed lines: 187 insertions, 100 deletions (git numstat total)
+Patch text: 867 lines total across core + module patches
+
+Checks:
+  remote baseline rechecked: PASS
+  git diff --check: PASS
+  Debian ACE 8.0.2 targeted build ring: PASS
+  MovementActions.cpp: PASS
+  FollowActions.cpp: PASS
+  TaxiAction.cpp: PASS
+  TargetedMovementGenerator.cpp: PASS
+  MotionMaster.cpp: PASS
+  ServerFacade.cpp: PASS
+  DebugAction changed MoveFollow call: parsed without signature error
+  DebugAction unrelated existing errors: 83 (not folded into 0038)
+  git apply --check: PASS
+  forward apply: PASS
+  reverse --check/apply: PASS
+  reverse to exact clean baseline tree: PASS
+  reapply: PASS
+  forward/reapply diff SHA256 equal: PASS
+  patched-file byte compare: PASS
+  repository patches/ modified: NO

@@ -1,0 +1,14 @@
+README.md
+APPLY_ORDER.txt
+MANIFEST.txt
+SHA256SUMS
+mod/0039-build-compatibility-pass-10-native-rpg-quest-mount-spell.patch
+audits/0039-audit.txt
+audits/0039-expected-file-sha256.txt
+audits/apply-reverse-reapply-local.txt
+audits/apply-reverse-reapply-fresh.txt
+audits/byte-compare-local.txt
+audits/byte-compare-fresh-forward.txt
+audits/byte-compare-fresh-reapply.txt
+audits/build-audit.md
+audits/semantic-audit.md

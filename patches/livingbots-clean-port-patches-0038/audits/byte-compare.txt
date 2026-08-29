@@ -1,0 +1,8 @@
+src/game/Movement/MotionMaster.cpp: OK
+src/game/Movement/MotionMaster.h: OK
+src/game/Movement/TargetedMovementGenerator.cpp: OK
+src/game/Movement/TargetedMovementGenerator.h: OK
+modules/mod-playerbots/src/playerbot/ServerFacade.cpp: OK
+modules/mod-playerbots/src/playerbot/strategy/actions/DebugAction.cpp: OK
+modules/mod-playerbots/src/playerbot/strategy/actions/FollowActions.cpp: OK
+modules/mod-playerbots/src/playerbot/strategy/actions/MovementActions.cpp: OK

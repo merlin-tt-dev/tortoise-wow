@@ -1,0 +1,15 @@
+baseline_local_commit=27819b7ab816c554ea771a68d5f91cb8d22dca08
+changed_files=11
+diff_sha256=7652b1ebdf2ecfd8aebab5ec567794385131a925e0630bc3ecbbc0a09e747164
+ modules/mod-playerbots/src/cmangos-compat-shim.h   | 11 ------
+ .../strategy/actions/CastCustomSpellAction.cpp     |  5 +--
+ .../strategy/actions/CastCustomSpellAction.h       |  2 +-
+ .../strategy/actions/CheckMountStateAction.cpp     |  7 ++--
+ .../strategy/actions/ChooseRpgTargetAction.cpp     |  3 +-
+ .../src/playerbot/strategy/actions/DebugAction.cpp |  2 +-
+ .../playerbot/strategy/actions/DropQuestAction.cpp | 41 ++++++----------------
+ .../playerbot/strategy/actions/RpgSubActions.cpp   | 13 +++----
+ .../src/playerbot/strategy/actions/RpgSubActions.h |  4 +--
+ .../strategy/values/ItemForSpellValue.cpp          |  6 ++--
+ .../src/playerbot/strategy/values/MountValues.cpp  |  4 +--
+ 11 files changed, 37 insertions(+), 61 deletions(-)

@@ -1,0 +1,11 @@
+baseline tree: 05b68da8aa866adae12380316d1e2317f55871d8
+git apply --check core: PASS
+git apply --check mod: PASS
+forward apply: PASS
+forward diff sha256: 3b8bdab2370ffaef77c5516a8e60fd158217cb3d1772092e82260f2f75970ee1
+reverse checks: PASS
+reverse baseline clean/tree-equal: PASS (05b68da8aa866adae12380316d1e2317f55871d8)
+reapply: PASS
+reapply diff sha256: 3b8bdab2370ffaef77c5516a8e60fd158217cb3d1772092e82260f2f75970ee1
+forward/reapply diff hash equal: PASS
+reapply byte compare: PASS

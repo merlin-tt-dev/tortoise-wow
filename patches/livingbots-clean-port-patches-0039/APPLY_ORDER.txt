@@ -1,0 +1,2 @@
+# prerequisite: package 0038 must already be applied
+mod/0039-build-compatibility-pass-10-native-rpg-quest-mount-spell.patch

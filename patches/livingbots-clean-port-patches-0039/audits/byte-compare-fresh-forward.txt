@@ -1,0 +1,11 @@
+modules/mod-playerbots/src/cmangos-compat-shim.h: OK
+modules/mod-playerbots/src/playerbot/strategy/actions/CastCustomSpellAction.cpp: OK
+modules/mod-playerbots/src/playerbot/strategy/actions/CastCustomSpellAction.h: OK
+modules/mod-playerbots/src/playerbot/strategy/actions/CheckMountStateAction.cpp: OK
+modules/mod-playerbots/src/playerbot/strategy/actions/ChooseRpgTargetAction.cpp: OK
+modules/mod-playerbots/src/playerbot/strategy/actions/DebugAction.cpp: OK
+modules/mod-playerbots/src/playerbot/strategy/actions/DropQuestAction.cpp: OK
+modules/mod-playerbots/src/playerbot/strategy/actions/RpgSubActions.cpp: OK
+modules/mod-playerbots/src/playerbot/strategy/actions/RpgSubActions.h: OK
+modules/mod-playerbots/src/playerbot/strategy/values/ItemForSpellValue.cpp: OK
+modules/mod-playerbots/src/playerbot/strategy/values/MountValues.cpp: OK

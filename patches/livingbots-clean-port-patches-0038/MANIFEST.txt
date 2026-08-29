@@ -1,0 +1,18 @@
+Baseline remote branch: livingbots/playerbots-clean-base
+Baseline remote HEAD: 835f1c0a605da4323220e909ece5e0f081cd520c
+
+Patch files:
+core/core-0009-native-targeted-follow-catchup.patch
+mod/0038-build-compatibility-pass-9-native-movement-follow.patch
+
+Changed source files:
+src/game/Movement/MotionMaster.cpp
+src/game/Movement/MotionMaster.h
+src/game/Movement/TargetedMovementGenerator.cpp
+src/game/Movement/TargetedMovementGenerator.h
+modules/mod-playerbots/src/playerbot/ServerFacade.cpp
+modules/mod-playerbots/src/playerbot/strategy/actions/DebugAction.cpp
+modules/mod-playerbots/src/playerbot/strategy/actions/FollowActions.cpp
+modules/mod-playerbots/src/playerbot/strategy/actions/MovementActions.cpp
+
+No repository patches/ bookkeeping is included.

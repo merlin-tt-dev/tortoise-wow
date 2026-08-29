@@ -1,0 +1,320 @@
+diff --git a/modules/mod-playerbots/src/cmangos-compat-shim.h b/modules/mod-playerbots/src/cmangos-compat-shim.h
+index 7a36d0d..59fa7a1 100644
+--- a/modules/mod-playerbots/src/cmangos-compat-shim.h
++++ b/modules/mod-playerbots/src/cmangos-compat-shim.h
+@@ -355,9 +355,6 @@ inline uint32 GetSpellCastTime(SpellEntry const* spellInfo, WorldObject* caster,
+ inline bool IsNextMeleeSwingSpell(SpellEntry const* spellInfo) {
+     return spellInfo && (spellInfo->Attributes & (SPELL_ATTR_ON_NEXT_SWING_1 | SPELL_ATTR_ON_NEXT_SWING_2));
+ }
+-inline uint32 GetSpellRecoveryTime(SpellEntry const* spellInfo) {
+-    return spellInfo ? spellInfo->GetRecoveryTime() : 0;
+-}
+ inline int32 GetSpellDuration(SpellEntry const* spellInfo) {
+     return spellInfo ? spellInfo->GetDuration() : 0;
+ }
+@@ -404,14 +401,6 @@ inline BattleGroundTeamIndex GetTeamIndexByTeamId(Team team) {
+     return team == ALLIANCE ? BG_TEAM_ALLIANCE : BG_TEAM_HORDE;
+ }
+ 
+-// === GetRandomGenerator (cmangos) === stub: cmangos has its own thread-local PRNG;
+-// Penqle uses urand/frand. Bot module's TravelMgr seeds a default_random_engine via this.
+-// Returns pointer-style — bot does *GetRandomGenerator() in some sites.
+-inline std::mt19937* GetRandomGenerator() {
+-    thread_local std::mt19937 s_rng(static_cast<unsigned>(std::chrono::steady_clock::now().time_since_epoch().count()));
+-    return &s_rng;
+-}
+-
+ // === Loot status flags (cmangos LootMgr.h) ===
+ // Bot's LootValues.cpp returns bitflags describing loot state. Penqle has no equivalent
+ // (its Loot just exposes items/gold). Define as bitflags so bot computes a value (which
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/CastCustomSpellAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/CastCustomSpellAction.cpp
+index e7f54e8..f5ba7cd 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/CastCustomSpellAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/CastCustomSpellAction.cpp
+@@ -375,7 +375,7 @@ bool CastCustomSpellAction::CastSummonPlayer(Player* requester, std::string comm
+                             data << bot->GetObjectGuid();
+                             data << uint32(bot->GetZoneId());
+                             data << uint32(MAX_PLAYER_SUMMON_DELAY * IN_MILLISECONDS);
+-                            target->GetSession()->SendPacket(data);
++                            target->GetSession()->SendPacket(&data);
+                         }
+                         else
+                         {
+@@ -628,7 +628,8 @@ bool CastRandomSpellAction::castSpell(uint32 spellId, WorldObject* wo, Player* r
+ bool CraftRandomItemAction::Execute(Event& event)
+ {
+     std::vector<uint32> spellIds = AI_VALUE(std::vector<uint32>, "craft spells");
+-    std::shuffle(spellIds.begin(), spellIds.end(),*GetRandomGenerator());
++    std::mt19937 shuffleRng(urand(0, std::numeric_limits<uint32>::max()));
++    std::shuffle(spellIds.begin(), spellIds.end(), shuffleRng);
+ 
+     std::list<ObjectGuid> wos = chat->parseGameobjects(event.getParam());
+     WorldObject* wot = nullptr;
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/CastCustomSpellAction.h b/modules/mod-playerbots/src/playerbot/strategy/actions/CastCustomSpellAction.h
+index fe09482..68ca5b0 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/CastCustomSpellAction.h
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/CastCustomSpellAction.h
+@@ -47,7 +47,7 @@ namespace ai
+ 
+             bool hasCost = pSpellInfo->manaCost > 0;
+ 
+-            return hasCost && !isTradeSkill && (GetSpellRecoveryTime(pSpellInfo) < MINUTE * IN_MILLISECONDS || !ai->HasActivePlayerMaster());
++            return hasCost && !isTradeSkill && (pSpellInfo->GetRecoveryTime() < MINUTE * IN_MILLISECONDS || !ai->HasActivePlayerMaster());
+         }
+ 
+         virtual uint32 GetSpellPriority(const SpellEntry* pSpellInfo) { return 1; }
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/CheckMountStateAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/CheckMountStateAction.cpp
+index 5515878..76db42f 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/CheckMountStateAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/CheckMountStateAction.cpp
+@@ -302,7 +302,7 @@ bool CheckMountStateAction::isUseful()
+         }
+     }
+ 
+-    if (!bot->GetMap()->IsMountAllowed() && bot->GetMapId() != 531)
++    if (!bot->GetMap()->GetMapEntry()->IsMountAllowed() && bot->GetMapId() != 531)
+         return false;
+ 
+     if (AI_VALUE(std::vector<MountValue>, "mount list").empty())
+@@ -431,7 +431,8 @@ bool CheckMountStateAction::Mount(Player* requester, bool limitSpeedToGroup)
+ 
+     std::vector<MountValue> mountList = AI_VALUE(std::vector<MountValue>, "mount list");
+ 
+-    std::shuffle(mountList.begin(), mountList.end(), *GetRandomGenerator());
++    std::mt19937 shuffleRng(urand(0, std::numeric_limits<uint32>::max()));
++    std::shuffle(mountList.begin(), mountList.end(), shuffleRng);
+     std::sort(mountList.begin(), mountList.end(), [canFly](MountValue i, MountValue j) {return i.GetSpeed(canFly) > j.GetSpeed(canFly); });
+ 
+     for (auto& mount : mountList)
+@@ -484,7 +485,7 @@ bool CheckMountStateAction::Mount(Player* requester, bool limitSpeedToGroup)
+ 
+         if (mount.IsItem())
+         {
+-            if (!bot->GetItemByEntry(mount.GetItemProto()->ItemId))
++            if (!bot->HasItemCount(mount.GetItemProto()->ItemId, 1))
+             {
+                 if (ai->HasStrategy("debug mount", BotState::BOT_STATE_NON_COMBAT))
+                     ai->TellPlayerNoFacing(requester, "Bot does not have this mount.", PlayerbotSecurityLevel::PLAYERBOT_SECURITY_ALLOW_ALL, true, false);
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/ChooseRpgTargetAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/ChooseRpgTargetAction.cpp
+index e291836..08d2225 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/ChooseRpgTargetAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/ChooseRpgTargetAction.cpp
+@@ -132,7 +132,8 @@ std::unordered_map<ObjectGuid, float> ChooseRpgTargetAction::GetTargets(Player*
+     for (auto& target : targets)
+         targetList.push_back(target.first);
+ 
+-    std::shuffle(targetList.begin(), targetList.end(), *GetRandomGenerator());
++    std::mt19937 shuffleRng(urand(0, std::numeric_limits<uint32>::max()));
++    std::shuffle(targetList.begin(), targetList.end(), shuffleRng);
+ 
+     //Only check up to 50 targets. Selfbots and bots with a real master can check more.
+     uint16 checked = 0, sametarget = 0, maxCheck = 50;
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/DebugAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/DebugAction.cpp
+index 80f2eeb..8d7a0d7 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/DebugAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/DebugAction.cpp
+@@ -1270,7 +1270,7 @@ bool DebugAction::HandleMonsterTalk(Event& event, Player* requester, const std::
+     if (!rpgAction)
+         return false;
+     std::string line = text.substr(12);
+-    rpgAction->ManualChat(guidP, line);
++    rpgAction->ManualChat(guidP, line, requester);
+     return true;
+ }
+ 
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/DropQuestAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/DropQuestAction.cpp
+index 042ed9e..a0b32ae 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/DropQuestAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/DropQuestAction.cpp
+@@ -15,25 +15,16 @@ bool DropQuestAction::Execute(Event& event)
+     uint32 entry = handler.extractQuestId(link);
+     bool dropped = false;
+ 
+-    // remove all quest entries for 'entry' from quest log
+-    for (uint8 slot = 0; slot < MAX_QUEST_LOG_SIZE; ++slot)
++    // Operate through PlayerbotAI::DropQuest/Player::RemoveQuest so Penqle owns
++    // quest-log cleanup, source items, timed-quest state, and quest item teardown.
++    std::vector<const Quest*> quests = ai->GetAllCurrentQuests();
++    for (Quest const* quest : quests)
+     {
+-        uint32 logQuest = bot->GetQuestSlotQuestId(slot);
+-        Quest const* quest = sObjectMgr.GetQuestTemplate(logQuest);
+-        if (!quest)
+-            continue;
+-
++        uint32 logQuest = quest->GetQuestId();
+         if (logQuest == entry || link.find(quest->GetTitle()) != std::string::npos || link == "all")
+         {
+-            bot->SetQuestSlot(slot, 0);
+-
+-            // we ignore unequippable quest items in this case, its' still be equipped
+-            bot->TakeQuestSourceItem(logQuest, false);
++            ai->DropQuest(logQuest);
+             entry = logQuest;
+-
+-            bot->SetQuestStatus(entry, QUEST_STATUS_NONE);
+-            bot->getQuestStatusMap()[entry].m_rewarded = false;
+-
+             dropped = true;
+ 
+             if (link != "all")
+@@ -94,27 +85,17 @@ bool CleanQuestLogAction::Execute(Event& event)
+ 
+ void CleanQuestLogAction::DropQuestType(Player* requester, uint8 &numQuest, uint8 wantNum, bool isGreen, bool hasProgress, bool isComplete)
+ {
+-    std::vector<uint8> slots;
+-
+-    for (uint8 slot = 0; slot < MAX_QUEST_LOG_SIZE; ++slot)
+-        slots.push_back(slot);
+-
++    std::vector<const Quest*> quests = ai->GetAllCurrentQuests();
+ 
+     if (wantNum < 100)
+     {
+-        std::shuffle(slots.begin(), slots.end(), *GetRandomGenerator());
++        std::mt19937 shuffleRng(urand(0, std::numeric_limits<uint32>::max()));
++        std::shuffle(quests.begin(), quests.end(), shuffleRng);
+     }
+ 
+-    for (uint8 slot : slots)
++    for (Quest const* quest : quests)
+     {
+-        uint32 questId = bot->GetQuestSlotQuestId(slot);
+-
+-        if (!questId)
+-            continue;
+-
+-        Quest const* quest = sObjectMgr.GetQuestTemplate(questId);
+-        if (!quest)
+-            continue;
++        uint32 questId = quest->GetQuestId();
+ 
+         if (bot->GetQuestStatus(questId) != QUEST_STATUS_FAILED)
+         {
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/RpgSubActions.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/RpgSubActions.cpp
+index 646343a..2a1de01 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/RpgSubActions.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/RpgSubActions.cpp
+@@ -91,7 +91,7 @@ void RpgHelper::resetFacing(GuidPosition guidPosition)
+ 
+     if (data)
+     {
+-        unit->SetFacingTo(data->position.orientation);
++        unit->SetFacingTo(data->position.o);
+         sRandomPlayerbotMgr.AddFacingFix(bot->GetMapId(),bot->GetInstanceId(), guidPosition);
+     }
+ }
+@@ -282,7 +282,7 @@ bool RpgUseAction::isUseful()
+ 
+             //Do not get in cart if miner is moving some other bot. (This is a core bug, minecart will head to other more distant miner if it exists).
+             Creature* creature = nullptr;
+-            MaNGOS::NearestCreatureEntryWithLiveStateInObjectRangeCheck creature_check(*bot, 28841, true, false, 500.0f, true);
++            MaNGOS::NearestCreatureEntryWithLiveStateInObjectRangeCheck creature_check(*bot, 28841, true, 500.0f);
+             MaNGOS::CreatureLastSearcher<MaNGOS::NearestCreatureEntryWithLiveStateInObjectRangeCheck> searcher(creature, creature_check);
+             Cell::VisitGridObjects(bot, searcher, 500.0f);
+ 
+@@ -576,7 +576,7 @@ bool RpgAIChatAction::Execute(Event& event)
+     return false;
+ }
+ 
+-void RpgAIChatAction::ManualChat(GuidPosition target, const std::string& line)
++void RpgAIChatAction::ManualChat(GuidPosition target, const std::string& line, Player* requester)
+ {  
+     SET_AI_VALUE(GuidPosition, "rpg target", target);
+ 
+@@ -586,7 +586,7 @@ void RpgAIChatAction::ManualChat(GuidPosition target, const std::string& line)
+     {
+         llmContext.clear();
+         SET_GAI_VALUE2(std::string, "global string", "llmcontext manual" + std::to_string(target.GetCounter()), llmContext);
+-        bot->SendMessageToPlayer("<conversation restarted>");
++        ai->TellPlayerNoFacing(requester, "<conversation restarted>", PlayerbotSecurityLevel::PLAYERBOT_SECURITY_ALLOW_ALL, true, false);
+         return;
+     }
+     else if (line == "undo")
+@@ -597,7 +597,7 @@ void RpgAIChatAction::ManualChat(GuidPosition target, const std::string& line)
+ 
+         llmContext = llmContext.substr(0, std::max(lastBot,lastUnit));
+         SET_GAI_VALUE2(std::string, "global string", "llmcontext manual" + std::to_string(target.GetCounter()), llmContext);
+-        bot->SendMessageToPlayer("<last message remove>");
++        ai->TellPlayerNoFacing(requester, "<last message removed>", PlayerbotSecurityLevel::PLAYERBOT_SECURITY_ALLOW_ALL, true, false);
+         return;
+     }
+     else if (line == "impersonate")
+@@ -769,7 +769,8 @@ bool RpgEnchantAction::Execute(Event& event)
+     std::vector<uint32> enchantSpells = AI_VALUE(std::vector<uint32>, "enchant spells");
+ 
+     //Needs more logic to pick best enchant to apply instead of a random one that's bette than current.
+-    std::shuffle(enchantSpells.begin(), enchantSpells.end(), *GetRandomGenerator());
++    std::mt19937 randomGenerator(urand(0, std::numeric_limits<uint32>::max()));
++    std::shuffle(enchantSpells.begin(), enchantSpells.end(), randomGenerator);
+ 
+     for (auto& spellId : enchantSpells)
+     {
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/RpgSubActions.h b/modules/mod-playerbots/src/playerbot/strategy/actions/RpgSubActions.h
+index b272066..b9f87b9 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/RpgSubActions.h
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/RpgSubActions.h
+@@ -64,7 +64,7 @@ namespace ai
+ 
+         virtual std::string GetRpgActionName() const override { return "idling near"; };
+ 
+-        virtual bool Execute(Event& event) override { rpg->BeforeExecute(); if (bot->GetPlayerMenu()) bot->GetPlayerMenu()->CloseGossip(); rpg->AfterExecute(); DoDelay(); return true; };
++        virtual bool Execute(Event& event) override { rpg->BeforeExecute(); if (bot->PlayerTalkClass) bot->PlayerTalkClass->CloseGossip(); rpg->AfterExecute(); DoDelay(); return true; };
+     };   
+ 
+     class RpgWorkAction : public RpgSubAction
+@@ -295,7 +295,7 @@ namespace ai
+     public:
+         RpgAIChatAction(PlayerbotAI* ai, std::string name = "rpg ai chat") : RpgSubAction(ai, name) {}
+ 
+-        void ManualChat(GuidPosition target, const std::string& line);
++        void ManualChat(GuidPosition target, const std::string& line, Player* requester);
+ 
+         virtual std::string GetRpgActionName() const override { return "ai talking with"; };
+     private:
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/ItemForSpellValue.cpp b/modules/mod-playerbots/src/playerbot/strategy/values/ItemForSpellValue.cpp
+index aedaa00..142d010 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/ItemForSpellValue.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/ItemForSpellValue.cpp
+@@ -75,7 +75,8 @@ Item* ItemForSpellValue::Calculate()
+         slots.push_back(slot);
+     }
+ 
+-    std::shuffle(slots.begin(), slots.end(), *GetRandomGenerator());
++    std::mt19937 slotShuffleRng(urand(0, std::numeric_limits<uint32>::max()));
++    std::shuffle(slots.begin(), slots.end(), slotShuffleRng);
+ 
+     for( auto& slot : slots ) 
+     {
+@@ -89,7 +90,8 @@ Item* ItemForSpellValue::Calculate()
+     for (auto& item : AI_VALUE2(std::list<Item*>, "inventory items", "all"))
+         items.push_back(item);
+ 
+-    std::shuffle(items.begin(), items.end(), *GetRandomGenerator());
++    std::mt19937 itemShuffleRng(urand(0, std::numeric_limits<uint32>::max()));
++    std::shuffle(items.begin(), items.end(), itemShuffleRng);
+ 
+     for(auto& item: items)
+     {
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/MountValues.cpp b/modules/mod-playerbots/src/playerbot/strategy/values/MountValues.cpp
+index 2e191fe..884d2fe 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/MountValues.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/MountValues.cpp
+@@ -159,7 +159,7 @@ bool MountValue::IsValidLocation(Player* bot)
+     // Ignore map check if spell have AreaId. AreaId already checked and this prevent special mount spells
+     if (bot->GetTypeId() == TYPEID_PLAYER &&
+         !isAQ40Mounted &&   // [-ZERO] && !m_spellInfo->AreaId)
+-        !bot->GetMap()->IsMountAllowed())
++        !bot->GetMap()->GetMapEntry()->IsMountAllowed())
+     {
+         return false;  //SPELL_FAILED_NO_MOUNTS_ALLOWED;
+     }
+@@ -245,7 +245,7 @@ std::vector<MountValue> MountListValue::Calculate()
+ 		mounts.push_back(MountValue(mount));
+ 
+     for (PlayerSpellMap::iterator itr = bot->GetSpellMap().begin(); itr != bot->GetSpellMap().end(); ++itr)
+-        if (itr->second.state != PLAYERSPELL_REMOVED && !itr->second.disabled && !IsPassiveSpell(itr->first))
++        if (itr->second.state != PLAYERSPELL_REMOVED && !itr->second.disabled && !Spells::IsPassiveSpell(itr->first))
+             if(MountValue::IsMountSpell(itr->first))
+                 mounts.push_back(MountValue(itr->first));
+ 

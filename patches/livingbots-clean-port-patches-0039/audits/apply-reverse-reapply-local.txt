@@ -1,0 +1,10 @@
+patch: mod/0039-build-compatibility-pass-10-native-rpg-quest-mount-spell.patch
+local 0038 baseline commit: 27819b7ab816c554ea771a68d5f91cb8d22dca08
+reverse apply: PASS
+post-reverse status clean: PASS
+post-reverse tree: b8231e65cd141302de3a5134ac423f4fa81dfd3f
+reapply check: PASS
+reapply: PASS
+diff hash before: 7652b1ebdf2ecfd8aebab5ec567794385131a925e0630bc3ecbbc0a09e747164
+diff hash after:  7652b1ebdf2ecfd8aebab5ec567794385131a925e0630bc3ecbbc0a09e747164
+diff hash identical: PASS
