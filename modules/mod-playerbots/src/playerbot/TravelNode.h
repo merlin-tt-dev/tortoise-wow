@@ -40,6 +40,8 @@ enum class TravelNodePathType : uint8
     staticPortal = 6
 };
 
+class PlayerbotAI;
+
 using namespace ai;
 
 namespace ai

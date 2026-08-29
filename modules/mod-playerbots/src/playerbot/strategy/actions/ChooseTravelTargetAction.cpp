@@ -485,7 +485,8 @@ bool ChooseGroupTravelTargetAction::Execute(Event& event)
         }
     }
 
-    std::shuffle(groupPlayers.begin(), groupPlayers.end(), *GetRandomGenerator());
+    std::mt19937 randomGenerator(urand(0, std::numeric_limits<uint32>::max()));
+    std::shuffle(groupPlayers.begin(), groupPlayers.end(), randomGenerator);
 
     PlayerTravelInfo info(bot);
 
@@ -1174,7 +1175,7 @@ bool RequestNamedTravelTargetAction::Execute(Event& event)
                                 if (!dest->GetCreatureInfo())
                                     return true;
 
-                                if (dest->GetCreatureInfo()->NpcFlags & UNIT_NPC_FLAG_AUCTIONEER)
+                                if (dest->GetCreatureInfo()->npc_flags & UNIT_NPC_FLAG_AUCTIONEER)
                                     return false;
 
                                 return true;
@@ -1277,7 +1278,7 @@ bool RequestNamedTravelTargetAction::Execute(Event& event)
                             if (!dest->GetCreatureInfo())
                                 return true;
 
-                            if (dest->GetCreatureInfo()->NpcFlags & cityFlags)
+                            if (dest->GetCreatureInfo()->npc_flags & cityFlags)
                                 return false;
 
                             return true;

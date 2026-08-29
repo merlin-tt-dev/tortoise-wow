@@ -3,6 +3,8 @@
 
 #include <iomanip>
 #include <regex>
+#include <filesystem>
+#include <cctype>
 
 #include "ObjectMgr.h"
 #include "PlayerbotAI.h"
@@ -1149,7 +1151,8 @@ void TravelPath::ClipPath(PlayerbotAI* ai, Unit* mover, bool ignoreEnemyTargets)
             if (WorldPosition(unit).sqDistance(p->point) > range * range)
                 continue;
 
-            if (!unit->CanAttackOnSight(mover) || !unit->IsWithinLOSInMap(mover))
+            Creature* creature = unit->ToCreature();
+            if (!creature || !creature->CanInitiateAttack() || !creature->IsValidAttackTarget(mover) || !creature->IsWithinLOSInMap(mover))
                 continue;
 
             endP = p;
@@ -1764,7 +1767,7 @@ TravelNodeRoute TravelNodeMap::getRoute(WorldPosition startPos, WorldPosition en
 
             if (endPath.empty())
             {
-                if (endPos.mapid == startPos.mapid)
+                if (endPos.getMapId() == startPos.getMapId())
                 {
                     endPath = endNodePosition.getPathTo(endPos, unit);
 
@@ -2060,55 +2063,38 @@ void TravelNodeMap::manageNodes(Unit* bot, bool mapFull)
 
 void TravelNodeMap::LoadMaps()
 {
-    sLog.outError("Trying to load all maps and tiles for node generation. Please ignore any maps that could not be loaded.");
-    for (uint32 i = 0; i < sMapStore.GetNumRows(); ++i)
-    {
-        if (!sMapStore.LookupEntry(i))
-            continue;
+    sLog.outError("Trying to load all mmap tiles for node generation. Please ignore any maps that could not be loaded.");
 
-        uint32 mapId = sMapStore.LookupEntry(i)->MapID;
-        if (mapId == 0 || mapId == 1 || mapId == 530 || mapId == 571)
-        {
-#ifndef MANGOSBOT_TWO
-            MMAP::MMapFactory::createOrGetMMapManager()->loadAllMapTiles(sWorld.GetDataPath(), mapId);
-#else
-            MMAP::MMapFactory::createOrGetMMapManager()->loadAllMapTiles(sWorld.GetDataPath(), mapId, 0);
-#endif
-        }
-        else
-        {
-            MMAP::MMapFactory::createOrGetMMapManager()->loadMapInstance(sWorld.GetDataPath(), mapId, 0);
-        }
+    MMAP::MMapManager* mmap = MMAP::MMapFactory::createOrGetMMapManager();
+    if (!mmap)
+        return;
+
+    std::filesystem::path mmapDir = std::filesystem::path(sWorld.GetDataPath()) / "mmaps";
+    std::error_code ec;
+    if (!std::filesystem::exists(mmapDir, ec))
+    {
+        sLog.outError("Playerbot travel: mmap directory '%s' does not exist.", mmapDir.string().c_str());
+        return;
     }
 
-#ifndef MANGOSBOT_TWO
-    for (uint32 i = 0; i < sMapStore.GetNumRows(); ++i)
+    for (std::filesystem::directory_iterator it(mmapDir, ec), endIt; !ec && it != endIt; it.increment(ec))
     {
-        if (!sMapStore.LookupEntry(i))
+        std::filesystem::directory_entry const& entry = *it;
+        if (!entry.is_regular_file(ec) || entry.path().extension() != ".mmtile")
             continue;
 
-        uint32 mapId = sMapStore.LookupEntry(i)->MapID;
+        std::string stem = entry.path().stem().string();
+        if (stem.size() != 7 || !std::all_of(stem.begin(), stem.end(), [](unsigned char c) { return std::isdigit(c); }))
+            continue;
 
-        for (const auto& entry : boost::filesystem::directory_iterator(sWorld.GetDataPath() + "mmaps"))
-        {
-            if (entry.path().extension() == ".mmtile")
-            {
-                auto filename = entry.path().filename();
-                auto fileNameString = filename.c_str();
-                // trying to avoid string copy
-                uint32 fileMapId = (fileNameString[0] - '0') * 100 + (fileNameString[1] - '0') * 10 + (fileNameString[2] - '0');
-                if (fileMapId != mapId)
-                    continue;
-
-                uint32 x = (fileNameString[3] - '0') * 10 + (fileNameString[4] - '0');
-                uint32 y = (fileNameString[5] - '0') * 10 + (fileNameString[6] - '0');
-
-                if (!MMAP::MMapFactory::createOrGetMMapManager()->IsMMapIsLoaded(mapId, x, y))
-                    MMAP::MMapFactory::createOrGetMMapManager()->loadMap(sWorld.GetDataPath(), mapId, x, y);
-            }
-        }
+        uint32 mapId = static_cast<uint32>(std::stoul(stem.substr(0, 3)));
+        int32 y = static_cast<int32>(std::stol(stem.substr(3, 2)));
+        int32 x = static_cast<int32>(std::stol(stem.substr(5, 2)));
+        mmap->loadMap(mapId, x, y);
     }
-#endif
+
+    if (ec)
+        sLog.outError("Playerbot travel: failed while enumerating mmap tiles in '%s': %s", mmapDir.string().c_str(), ec.message().c_str());
 }
 
 void TravelNodeMap::generateNpcNodes()
@@ -2530,16 +2516,17 @@ void TravelNodeMap::generateTransportNodes()
             else //Boats/Zepelins
             {
                 //Loop over the path and connect stop locations.
-                for (auto& p : *path)
+                for (size_t pathIndex = 0; pathIndex < path->size(); ++pathIndex)
                 {
-                    WorldPosition pos = WorldPosition(p->mapid, p->x, p->y, p->z, 0);
+                    TaxiPathNodeEntry const& p = (*path)[pathIndex];
+                    WorldPosition pos = WorldPosition(p.mapid, p.x, p.y, p.z, 0);
 
                     if (prevNode)
                     {
                         ppath.push_back(pos);
                     }
 
-                    if (p->delay > 0)
+                    if (p.delay > 0)
                     {
                         TravelNode* node = sTravelNodeMap.addNode(pos, data->name, true, true, true, entry);
 
@@ -2574,9 +2561,10 @@ void TravelNodeMap::generateTransportNodes()
                 if (prevNode)
                 {
                     //Continue from start until first stop and connect to end.
-                    for (auto& p : *path)
+                    for (size_t pathIndex = 0; pathIndex < path->size(); ++pathIndex)
                     {
-                        WorldPosition pos = WorldPosition(p->mapid, p->x, p->y, p->z, 0);
+                        TaxiPathNodeEntry const& p = (*path)[pathIndex];
+                        WorldPosition pos = WorldPosition(p.mapid, p.x, p.y, p.z, 0);
 
                         //if (data->displayId == 3015)
                         //    pos.setZ(pos.getZ() + 6.0f);
@@ -2585,7 +2573,7 @@ void TravelNodeMap::generateTransportNodes()
 
                         ppath.push_back(pos);
 
-                        if (p->delay > 0)
+                        if (p.delay > 0)
                         {
                             TravelNode* node = sTravelNodeMap.getNode(pos, NULL, 5.0f);
 
@@ -2997,11 +2985,15 @@ void TravelNodeMap::generateTaxiPaths()
 
         std::vector<WorldPosition> ppath;
 
-        if (startNode->fDist(WorldPosition(nodes.front()->mapid, nodes.front()->x, nodes.front()->y, nodes.front()->z, 0.0)) > 0.1f)
+        TaxiPathNodeEntry const& firstNode = nodes[0];
+        if (startNode->fDist(WorldPosition(firstNode.mapid, firstNode.x, firstNode.y, firstNode.z, 0.0f)) > 0.1f)
             ppath.push_back(*startNode->getPosition());
 
-        for (auto& n : nodes)
-            ppath.push_back(WorldPosition(n->mapid, n->x, n->y, n->z, 0.0));
+        for (size_t nodeIndex = 0; nodeIndex < nodes.size(); ++nodeIndex)
+        {
+            TaxiPathNodeEntry const& node = nodes[nodeIndex];
+            ppath.push_back(WorldPosition(node.mapid, node.x, node.y, node.z, 0.0f));
+        }
 
         if (endNode->fDist(ppath.back()) > 0.1f)
             ppath.push_back(*endNode->getPosition());

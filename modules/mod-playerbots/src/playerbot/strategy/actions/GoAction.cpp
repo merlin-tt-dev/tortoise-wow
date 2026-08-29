@@ -301,7 +301,7 @@ inline bool TellGrouped(PlayerbotAI* ai, Player* requester)
     if (bot->GetGroup()->IsLeader(bot->GetObjectGuid()))
     {
         out << "Leading a";
-        if (bot->GetGroup()->IsRaidGroup())
+        if (bot->GetGroup()->isRaidGroup())
             out << " raid";
         out << " group of ";
         out << bot->GetGroup()->GetMembersCount();

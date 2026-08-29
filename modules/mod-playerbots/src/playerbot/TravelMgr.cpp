@@ -1208,7 +1208,7 @@ void TravelMgr::BuildAreaCreatureLevels()
         if (reactionHum > REP_NEUTRAL || reactionOrc > REP_NEUTRAL)
             continue;
 
-        WorldPosition creaturePos(cData.position.mapid, cData.position.coord_x, cData.position.coord_y, cData.position.coord_z);
+        WorldPosition creaturePos(cData.position.mapId, cData.position.x, cData.position.y, cData.position.z);
         AreaEntry const* creatureArea = creaturePos.GetArea();
         if (!creatureArea)
             continue;
@@ -1282,14 +1282,14 @@ void TravelMgr::SetMobAvoidArea()
 
     std::vector<std::future<void>> calculations;
 
-    BarGoLink bar(sMapStore.GetNumRows());
+    BarGoLink bar(sMapStorage.GetMaxEntry());
 
-    for (uint32 i = 0; i < sMapStore.GetNumRows(); ++i)
+    for (uint32 i = 0; i < sMapStorage.GetMaxEntry(); ++i)
     {
-        if (!sMapStore.LookupEntry(i))
+        if (!sMapStorage.LookupEntry<MapEntry>(i))
             continue;
         
-        uint32 mapId = sMapStore.LookupEntry(i)->id;
+        uint32 mapId = sMapStorage.LookupEntry<MapEntry>(i)->id;
         calculations.push_back(std::async([this, mapId] { SetMobAvoidAreaMap(mapId); }));
         bar.step();
     }
@@ -1301,7 +1301,7 @@ void TravelMgr::SetMobAvoidArea()
         bar2.step();
     }
 
-    sLog.outString(">> Modified navmap areas for %d maps.", sMapStore.GetNumRows());
+    sLog.outString(">> Modified navmap areas for %d maps.", sMapStorage.GetMaxEntry());
 }
 
 void TravelMgr::SetMobAvoidAreaMap(uint32 mapId) 
@@ -1320,7 +1320,7 @@ void TravelMgr::SetMobAvoidAreaMap(uint32 mapId)
         if (!cInfo)
             continue;
 
-        WorldPosition point = WorldPosition(cData.position.mapid, cData.position.coord_x, cData.position.coord_y, cData.position.coord_z, cData.position.orientation);
+        WorldPosition point = WorldPosition(cData.position.mapId, cData.position.x, cData.position.y, cData.position.z, cData.position.o);
 
         if (cInfo->npc_flags > 0)
             continue;
@@ -1596,7 +1596,7 @@ void TravelMgr::LoadQuestTravelTable()
             if (!cInfo)
                 continue;
 
-            WorldPosition point = WorldPosition(cData.position.mapid, cData.position.coord_x, cData.position.coord_y, cData.position.coord_z, cData.position.orientation);
+            WorldPosition point = WorldPosition(cData.position.mapId, cData.position.x, cData.position.y, cData.position.z, cData.position.o);
 
             std::string name = cInfo->name;
             name.erase(remove(name.begin(), name.end(), ','), name.end());
@@ -2158,7 +2158,7 @@ void TravelMgr::LoadQuestTravelTable()
             if (!data)
                 continue;
 
-            WorldPosition point = WorldPosition(gData.position.mapid, gData.position.coord_x, gData.position.coord_y, gData.position.coord_z, gData.position.orientation);
+            WorldPosition point = WorldPosition(gData.position.mapId, gData.position.x, gData.position.y, gData.position.z, gData.position.o);
 
             std::string name = data->name;
             name.erase(remove(name.begin(), name.end(), ','), name.end());
@@ -2275,12 +2275,12 @@ void TravelMgr::LoadQuestTravelTable()
 #ifndef MANGOSBOT_TWO    
     sTerrainMgr.Update(60 * 60 * 24);
 #else
-    for (uint32 i = 0; i < sMapStore.GetNumRows(); ++i)
+    for (uint32 i = 0; i < sMapStorage.GetMaxEntry(); ++i)
     {
-        if (!sMapStore.LookupEntry(i))
+        if (!sMapStorage.LookupEntry<MapEntry>(i))
             continue;
 
-        uint32 mapId = sMapStore.LookupEntry(i)->id;
+        uint32 mapId = sMapStorage.LookupEntry<MapEntry>(i)->id;
 
         if (WorldPosition(mapId, 0, 0).getMap(0))
             continue;
@@ -2294,16 +2294,16 @@ void TravelMgr::GetPopulatedGrids()
 {
     sLog.outString("Finding populated grids.");
 
-    BarGoLink bar(sMapStore.GetNumRows());      
+    BarGoLink bar(sMapStorage.GetMaxEntry());
 
-    for (uint32 i = 0; i < sMapStore.GetNumRows(); ++i)
+    for (uint32 i = 0; i < sMapStorage.GetMaxEntry(); ++i)
     {
         bar.step();
 
-        if (!sMapStore.LookupEntry(i))
+        if (!sMapStorage.LookupEntry<MapEntry>(i))
             continue;
 
-        uint32 mapId = sMapStore.LookupEntry(i)->id;
+        uint32 mapId = sMapStorage.LookupEntry<MapEntry>(i)->id;
 
         GetPopulatedGrids(mapId);
     }
