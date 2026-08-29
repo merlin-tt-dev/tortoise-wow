@@ -206,7 +206,7 @@ uint32 EntryTravelPurposeMapValue::SkillIdToGatherEntry(int32 entry)
 {
     if (entry > 0)
     {
-        CreatureInfo const* cInfo = sCreatureStorage.LookupEntry<CreatureInfo>(entry);
+        CreatureInfo const* cInfo = sObjectMgr.GetCreatureTemplate(entry);
 
         if (!cInfo || !cInfo->skinning_loot_id)
             return 0;

@@ -177,14 +177,6 @@ struct CmangosFactionStoreProxy
 };
 inline CmangosFactionStoreProxy sFactionStore;
 
-// sCreatureStorage (creature_template SQL).
-struct CmangosCreatureStorageProxy
-{
-    template<typename T = CreatureInfo>
-    T const* LookupEntry(uint32 id) const { return sObjectMgr.GetCreatureTemplate(id); }
-};
-inline CmangosCreatureStorageProxy sCreatureStorage;
-
 // === Helpers ===
 // strstri overload: bot's PlayerbotAI.cpp forward-declares strstri(std::string, std::string).
 // Penqle's playerbot/Helpers.cpp now provides the implementation (added).
