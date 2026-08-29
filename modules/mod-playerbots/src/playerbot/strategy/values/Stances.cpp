@@ -236,7 +236,7 @@ bool SetStanceAction::Execute(Event& event)
     {
         WorldLocation loc = value->Get()->GetLocation();
         if (!Formation::IsNullLocation(loc))
-            ai->Ping(loc.coord_x, loc.coord_y);
+            ai->Ping(loc.x, loc.y);
 
         return true;
     }

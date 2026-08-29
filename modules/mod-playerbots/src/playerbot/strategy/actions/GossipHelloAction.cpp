@@ -35,7 +35,7 @@ bool GossipHelloAction::Execute(Event& event)
 		return false;
 	}
 
-	GossipMenuItemsMapBounds pMenuItemBounds = sObjectMgr.GetGossipMenuItemsMapBounds(pCreature->GetCreatureInfo()->GossipMenuId);
+    GossipMenuItemsMapBounds pMenuItemBounds = sObjectMgr.GetGossipMenuItemsMapBounds(pCreature->GetCreatureInfo()->gossip_menu_id);
 	if (pMenuItemBounds.first == pMenuItemBounds.second)
 		return false;
 
@@ -67,7 +67,7 @@ bool GossipHelloAction::Execute(Event& event)
 
         TellGossipMenus(requester);
 	}
-	else if (!bot->GetPlayerMenu())
+    else if (!bot->PlayerTalkClass)
 	{
 	    ai->TellPlayerNoFacing(requester, "I need to talk first");
 	    return false;
@@ -83,30 +83,39 @@ bool GossipHelloAction::Execute(Event& event)
 	return true;
 }
 
-void GossipHelloAction::TellGossipText(Player* requester, uint32 textId)
+void GossipHelloAction::TellGossipText(Player* requester, uint32 textId, Creature const* creature)
 {
     if (!textId)
         return;
 
-    GossipText const* text = sObjectMgr.GetGossipText(textId);
-    if (text)
+    NpcText const* text = sObjectMgr.GetNpcText(textId);
+    if (!text)
+        return;
+
+    int locale = requester && requester->GetSession() ? requester->GetSession()->GetSessionDbLocaleIndex() : DB_LOCALE_enUS;
+    uint8 gender = creature ? creature->GetGender() : GENDER_MALE;
+
+    for (int i = 0; i < MAX_NPC_TEXT_OPTIONS; ++i)
     {
-        for (int i = 0; i < MAX_GOSSIP_TEXT_OPTIONS; i++)
+        uint32 broadcastTextId = text->Options[i].BroadcastTextID;
+        if (!broadcastTextId)
+            continue;
+
+        if (BroadcastText const* broadcastText = sObjectMgr.GetBroadcastTextLocale(broadcastTextId))
         {
-            std::string text0 = text->Options[i].Text_0;
-            if (!text0.empty()) ai->TellPlayerNoFacing(requester, text0);
-            std::string text1 = text->Options[i].Text_1;
-            if (!text1.empty()) ai->TellPlayerNoFacing(requester, text1);
+            std::string const& gossipText = broadcastText->GetText(locale, gender, false);
+            if (!gossipText.empty())
+                ai->TellPlayerNoFacing(requester, gossipText);
         }
     }
 }
 
 void GossipHelloAction::TellGossipMenus(Player* requester)
 {
-    if (!bot->GetPlayerMenu())
+    if (!bot->PlayerTalkClass)
         return;
 
-     GossipMenu& menu = bot->GetPlayerMenu()->GetGossipMenu();
+     GossipMenu& menu = bot->PlayerTalkClass->GetGossipMenu();
 
      if (requester)
      {
@@ -115,7 +124,7 @@ void GossipHelloAction::TellGossipMenus(Player* requester)
          if (pCreature)
          {
              uint32 textId = bot->GetGossipTextId(menu.GetMenuId(), pCreature);
-             TellGossipText(requester, textId);
+             TellGossipText(requester, textId, pCreature);
          }
      }
 
@@ -129,7 +138,7 @@ void GossipHelloAction::TellGossipMenus(Player* requester)
 
 bool GossipHelloAction::ProcessGossip(Player* requester, ObjectGuid creatureGuid, int menuToSelect)
 {
-    GossipMenu& menu = bot->GetPlayerMenu()->GetGossipMenu();
+    GossipMenu& menu = bot->PlayerTalkClass->GetGossipMenu();
 
     bool noFeedback = (menuToSelect == -1);
 

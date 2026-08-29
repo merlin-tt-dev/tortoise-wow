@@ -12,6 +12,6 @@ namespace ai
     private:
         void TellGossipMenus(Player* requester);
         bool ProcessGossip(Player* requester, ObjectGuid creatureGuid, int menuToSelect);
-        void TellGossipText(Player* requester, uint32 textId);
+        void TellGossipText(Player* requester, uint32 textId, Creature const* creature);
     };
 }

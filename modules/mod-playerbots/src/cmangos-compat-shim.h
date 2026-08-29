@@ -268,11 +268,6 @@ typedef RolesPriority LfgRolePriority;
 #define SPELL_STATE_TARGETING 0
 #endif
 
-// === MAX_GOSSIP_TEXT_OPTIONS ===
-#ifndef MAX_GOSSIP_TEXT_OPTIONS
-#define MAX_GOSSIP_TEXT_OPTIONS 8
-#endif
-
 // === SkillLineAbility store proxy ===
 // cmangos exposes sSkillLineAbilityStore (DBCStorage<SkillLineAbilityEntry>);
 // Penqle exposes sObjectMgr.GetSkillLineAbility(id).

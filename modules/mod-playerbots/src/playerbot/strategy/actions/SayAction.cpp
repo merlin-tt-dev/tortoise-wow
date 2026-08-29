@@ -218,20 +218,27 @@ void ChatReplyAction::GetAIChatPlaceholders(std::map<std::string, std::string>& 
         GossipMenusMapBounds pMenuBounds = sObjectMgr.GetGossipMenusMapBounds(creature->GetDefaultGossipMenuId());
         GossipMenuItemsMapBounds pMenuItemBounds = sObjectMgr.GetGossipMenuItemsMapBounds(creature->GetDefaultGossipMenuId());
 
-        for (auto& gossip = pMenuBounds.first; gossip != pMenuBounds.second; gossip++)
+        auto appendNpcText = [&](uint32 textId)
         {
-            const GossipText* gos = sObjectMgr.GetGossipText(gossip->second.text_id);
-            gossipText += " " + gos->Options->Text_0;
-        }
+            NpcText const* npcText = sObjectMgr.GetNpcText(textId);
+            if (!npcText || !npcText->Options[0].BroadcastTextID)
+                return;
+
+            if (BroadcastText const* broadcastText = sObjectMgr.GetBroadcastTextLocale(npcText->Options[0].BroadcastTextID))
+            {
+                int locale = observer->GetSession() ? observer->GetSession()->GetSessionDbLocaleIndex() : DB_LOCALE_enUS;
+                std::string const& text = broadcastText->GetText(locale, creature->GetGender(), false);
+                if (!text.empty())
+                    gossipText += " " + text;
+            }
+        };
+
+        for (auto& gossip = pMenuBounds.first; gossip != pMenuBounds.second; gossip++)
+            appendNpcText(gossip->second.text_id);
 
         uint32 textId = observer->GetGossipTextId(creature);
-
         if (textId)
-        {
-            const GossipText* gos = sObjectMgr.GetGossipText(textId);
-            if (gos)
-                gossipText += " " + gos->Options->Text_0;
-        }
+            appendNpcText(textId);
 
         for (auto& gossip = pMenuItemBounds.first; gossip != pMenuItemBounds.second; gossip++)
         {
@@ -445,7 +452,10 @@ delayedPackets ChatReplyAction::GenerateResponsePackets(const std::string json
     if (!debugLines.empty())
     {
         debugPackets = LinesToPackets(debugLines, systemTemplate, true, 1);
-        packets.insert(packets.begin(), debugPackets.begin(), debugPackets.end());
+        debugPackets.reserve(debugPackets.size() + packets.size());
+        for (auto& packet : packets)
+            debugPackets.emplace_back(std::move(packet.first), packet.second);
+        packets.swap(debugPackets);
     }
 
     return packets;
@@ -709,17 +719,8 @@ bool ChatReplyAction::HandleThunderfuryReply(Player* bot, ChatChannelSource chat
 bool ChatReplyAction::HandleToxicLinksReply(Player* bot, ChatChannelSource chatChannelSource, std::string msg, std::string name)
 {
     //quests
-    std::vector<uint32> incompleteQuests;
-    for (uint16 slot = 0; slot < MAX_QUEST_LOG_SIZE; ++slot)
-    {
-        uint32 questId = bot->GetQuestSlotQuestId(slot);
-        if (!questId)
-            continue;
-
-        QuestStatus status = bot->GetQuestStatus(questId);
-        if (status == QUEST_STATUS_INCOMPLETE || status == QUEST_STATUS_NONE)
-            incompleteQuests.push_back(questId);
-    }
+    std::set<uint32> incompleteQuestIds = GetPlayerbotAI(bot)->GetCurrentIncompleteQuestIds();
+    std::vector<uint32> incompleteQuests(incompleteQuestIds.begin(), incompleteQuestIds.end());
 
     //items
     std::vector<Item*> botItems = GetPlayerbotAI(bot)->GetInventoryAndEquippedItems();
@@ -1096,7 +1097,7 @@ std::string ChatReplyAction::GenerateReplyMessage(Player* bot, std::string incom
         // blame gm with chat tag
         if (Player* plr = sObjectMgr.GetPlayer(ObjectGuid(HIGHGUID_PLAYER, guid1)))
         {
-            if (plr->isGMChat())
+            if (plr->IsGMChat())
             {
                 replyType = REPLY_ADMIN_ABUSE;
                 found = true;
