@@ -2718,7 +2718,7 @@ bool BGTactics::Execute(Event& event)
     std::vector<BattleBotPath*> const* vPaths;
     std::vector<uint32> const* vFlagIds;
 
-    BattleGroundTypeId bgType = bg->GetTypeId();
+    BattleGroundTypeId bgType = bg->GetTypeID();
 #ifdef MANGOSBOT_TWO
     if (bgType == BATTLEGROUND_RB)
         bgType = bot->GetBattleGround()->GetTypeId(true);
@@ -2862,7 +2862,7 @@ bool BGTactics::moveToStart(bool force)
     if (!force && bg->GetStatus() != STATUS_WAIT_JOIN)
         return false;
 
-    BattleGroundTypeId bgType = bg->GetTypeId();
+    BattleGroundTypeId bgType = bg->GetTypeID();
 #ifdef MANGOSBOT_TWO
     if (bgType == BATTLEGROUND_RB)
         bgType = bg->GetTypeId(true);
@@ -2970,7 +2970,7 @@ bool BGTactics::selectObjective(bool reset)
     if (pos.isSet() && !reset)
         return false;
 
-    BattleGroundTypeId bgType = bg->GetTypeId();
+    BattleGroundTypeId bgType = bg->GetTypeID();
 #ifdef MANGOSBOT_TWO
     if (bgType == BATTLEGROUND_RB)
         bgType = bg->GetTypeId(true);
@@ -2993,7 +2993,7 @@ bool BGTactics::selectObjective(bool reset)
         {
             if (!pos.isSet())
             {
-                pos.Set(objectiveLocation.coord_x, objectiveLocation.coord_y, objectiveLocation.coord_z, objectiveLocation.mapid);
+                pos.Set(objectiveLocation.x, objectiveLocation.y, objectiveLocation.z, objectiveLocation.mapId);
             }
 
             posMap["bg objective"] = pos;
@@ -4000,7 +4000,7 @@ bool BGTactics::moveToObjective()
     if (!bg)
         return false;
 
-    BattleGroundTypeId bgType = bg->GetTypeId();
+    BattleGroundTypeId bgType = bg->GetTypeID();
 #ifdef MANGOSBOT_TWO
     if (bgType == BATTLEGROUND_RB)
         bgType = bg->GetTypeId(true);
@@ -4057,7 +4057,7 @@ bool BGTactics::selectObjectiveWp(std::vector<BattleBotPath*> const& vPaths)
     if (!bg)
         return false;
 
-    BattleGroundTypeId bgType = bg->GetTypeId();
+    BattleGroundTypeId bgType = bg->GetTypeID();
 #ifdef MANGOSBOT_TWO
     if (bgType == BATTLEGROUND_RB)
         bgType = bg->GetTypeId(true);
@@ -4259,7 +4259,7 @@ bool BGTactics::startNewPathBegin(std::vector<BattleBotPath*> const& vPaths)
     if (!bg)
         return false;
 
-    BattleGroundTypeId bgType = bg->GetTypeId();
+    BattleGroundTypeId bgType = bg->GetTypeID();
 #ifdef MANGOSBOT_TWO
     if (bgType == BATTLEGROUND_RB)
         bgType = bg->GetTypeId(true);
@@ -4317,7 +4317,7 @@ bool BGTactics::startNewPathFree(std::vector<BattleBotPath*> const& vPaths)
     if (!bg)
         return false;
 
-    BattleGroundTypeId bgType = bg->GetTypeId();
+    BattleGroundTypeId bgType = bg->GetTypeID();
 #ifdef MANGOSBOT_TWO
     if (bgType == BATTLEGROUND_RB)
         bgType = bg->GetTypeId(true);
@@ -4368,7 +4368,7 @@ bool BGTactics::atFlag(std::vector<BattleBotPath*> const& vPaths, std::vector<ui
     if (!bg)
         return false;
 
-    BattleGroundTypeId bgType = bg->GetTypeId();
+    BattleGroundTypeId bgType = bg->GetTypeID();
 #ifdef MANGOSBOT_TWO
     if (bgType == BATTLEGROUND_RB)
         bgType = bg->GetTypeId(true);
@@ -4451,14 +4451,14 @@ bool BGTactics::atFlag(std::vector<BattleBotPath*> const& vPaths, std::vector<ui
         if (!sServerFacade.isSpawned(go) || go->HasFlag(GAMEOBJECT_FLAGS, GO_FLAG_IN_USE) || go->GetGoState() != GO_STATE_READY)
             continue;
 
-        if (!bot->CanInteract(go) && bgType != BATTLEGROUND_WS)
+        if (!bot->CanInteractWithGameObject(go) && bgType != BATTLEGROUND_WS)
             continue;
         
         if (flagRange)
             if (!bot->IsWithinDistInMap(go, flagRange))
                 continue;
 
-        bool atBase = go->GetEntry() == vFlagsWS[GetTeamIndexByTeamId(bot->GetTeam())];
+        bool atBase = go->GetEntry() == vFlagsWS[BattleGround::GetTeamIndexByTeamId(bot->GetTeam())];
 #ifndef MANGOSBOT_ZERO
         if (bgType == BATTLEGROUND_EY)
         {
@@ -4594,7 +4594,8 @@ bool BGTactics::flagTaken()
     if (!bg)
         return false;
 
-    return !bg->GetFlagCarrierGuid(GetTeamIndexByTeamId(bg->GetOtherTeam(bot->GetTeam()))).IsEmpty();
+    Team const enemyTeam = bg->GetOtherTeam(bot->GetTeam());
+    return enemyTeam == ALLIANCE ? bg->IsAllianceFlagPickedup() : bg->IsHordeFlagPickedup();
 }
 
 bool BGTactics::teamFlagTaken()
@@ -4603,7 +4604,7 @@ bool BGTactics::teamFlagTaken()
     if (!bg)
         return false;
 
-    return !bg->GetFlagCarrierGuid(GetTeamIndexByTeamId(bot->GetTeam())).IsEmpty();
+    return bot->GetTeam() == ALLIANCE ? bg->IsAllianceFlagPickedup() : bg->IsHordeFlagPickedup();
 }
 
 bool BGTactics::protectFC()
@@ -4625,7 +4626,7 @@ bool BGTactics::useBuff()
     if (!bg)
         return false;
 
-    BattleGroundTypeId bgType = bg->GetTypeId();
+    BattleGroundTypeId bgType = bg->GetTypeID();
 #ifdef MANGOSBOT_TWO
     if (bgType == BATTLEGROUND_RB)
         bgType = bg->GetTypeId(true);
@@ -4719,7 +4720,7 @@ bool BGTactics::IsLockedInsideKeep()
     if (!bg)
         return false;
 
-    BattleGroundTypeId bgType = bg->GetTypeId();
+    BattleGroundTypeId bgType = bg->GetTypeID();
 #ifdef MANGOSBOT_TWO
     if (bgType == BATTLEGROUND_RB)
         bgType = bg->GetTypeId(true);
@@ -4879,7 +4880,7 @@ bool ArenaTactics::Execute(Event& event)
     if (sBattleGroundMgr.IsArenaType(bg->GetTypeID()))
 #endif
 #ifdef CMANGOS
-        if (sBattleGroundMgr.IsArenaType(bg->GetTypeId()))
+        if (sBattleGroundMgr.IsArenaType(bg->GetTypeID()))
 #endif
         {
             ai->ResetStrategies(false);
@@ -4900,7 +4901,7 @@ bool ArenaTactics::moveToCenter(BattleGround *bg)
     switch (bg->GetTypeID())
 #endif
 #ifdef CMANGOS
-        switch (bg->GetTypeId())
+        switch (bg->GetTypeID())
 #endif
         {
         case BATTLEGROUND_BE:
