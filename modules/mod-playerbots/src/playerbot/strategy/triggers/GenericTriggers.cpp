@@ -95,7 +95,7 @@ bool OutNumberedTrigger::IsActive()
         return false;
 
     // Don't trigger if the bot is in a raid group
-    if (bot->GetGroup() && bot->GetGroup()->IsRaidGroup())
+    if (bot->GetGroup() && bot->GetGroup()->isRaidGroup())
         return false;
 
     // Don't trigger if the bot is in a group with a real player
@@ -111,7 +111,7 @@ bool OutNumberedTrigger::IsActive()
         if (!creature)
             continue;
 
-        if (!creature->CanAttackOnSight(bot))
+        if (!creature->CanAttack(bot))
             continue;
 
         int32 dLevel = creature->GetLevel() - botLevel;
@@ -316,7 +316,7 @@ bool SpellNoCooldownTrigger::IsActive()
     if (!spellId)
         return false;
 
-    return bot->IsSpellReady(spellId);
+    return sServerFacade.IsSpellReady(bot, spellId);
 }
 
 bool RandomTrigger::IsActive()
@@ -445,7 +445,7 @@ bool DeflectSpellTrigger::IsActive()
     if (!target->IsNonMeleeSpellCasted(true))
         return false;
 
-    if (!target->HasTarget(bot->GetObjectGuid()))
+    if (!target->GetTargetGuid() == bot->GetObjectGuid())
         return false;
 
     uint32 spellid = context->GetValue<uint32>("spell id", spell)->Get();
@@ -473,7 +473,7 @@ bool DeflectSpellTrigger::IsActive()
         SpellEntry const* tarSpellInfo = spell->m_spellInfo;
         if (tarSpellInfo)
         {
-            attackSchool = GetSpellSchoolMask(tarSpellInfo);
+            attackSchool = tarSpellInfo->GetSpellSchoolMask();
             if (deflectSchool == attackSchool)
                 return true;
         }
@@ -814,7 +814,8 @@ bool InRaidFightTrigger::IsActive()
 bool GreaterBuffOnPartyTrigger::IsActive()
 {
     Unit* target = GetTarget();
-    return target && bot->IsInGroup(target) && BuffOnPartyTrigger::IsActive() && !ai->HasAura(lowerSpell, target, false, checkIsOwner);
+    Player* targetPlayer = target ? target->GetCharmerOrOwnerPlayerOrPlayerItself() : nullptr;
+    return targetPlayer && bot->IsInSameRaidWith(targetPlayer) && BuffOnPartyTrigger::IsActive() && !ai->HasAura(lowerSpell, target, false, checkIsOwner);
 }
 
 bool TargetOfAttacker::IsActive()
@@ -900,7 +901,7 @@ bool DispelOnTargetTrigger::IsActive()
     Unit* target = GetTarget();
     if (target)
     {
-        const uint32 dispelMask = GetDispellMask(dispelType);
+        const uint32 dispelMask = Spells::GetDispellMask(dispelType);
         const std::vector<Aura*> auras = ai->GetAuras(target);
         for (const Aura* aura : auras)
         {
@@ -954,7 +955,7 @@ bool SpellTargetTrigger::IsTargetValid(Unit* target)
     return target &&
            ai->IsSafe(target) &&
            (bot == target || sServerFacade.GetDistance2d(bot, target) < sPlayerbotAIConfig.sightDistance) &&
-           (bot->IsInGroup(target)) &&
+           (target->GetCharmerOrOwnerPlayerOrPlayerItself() && bot->IsInSameRaidWith(target->GetCharmerOrOwnerPlayerOrPlayerItself())) &&
            (!aliveCheck || !target->IsDead()) &&
            (!auraCheck || !ai->HasAura(spell, target));
 }
@@ -962,7 +963,7 @@ bool SpellTargetTrigger::IsTargetValid(Unit* target)
 bool SpellTargetTrigger::IsSpellReady()
 {
     uint32 spellId = AI_VALUE2(uint32, "spell id", spell);
-    return spellId && bot->IsSpellReady(spellId);
+    return spellId && sServerFacade.IsSpellReady(bot, spellId);
 }
 
 bool ItemTargetTrigger::IsTargetValid(Unit* target)

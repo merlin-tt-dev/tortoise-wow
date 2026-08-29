@@ -27,12 +27,12 @@ namespace ai
                 const bool canMove = !PossibleAttackTargetsValue::HasBreakableCC(target, bot) && !PossibleAttackTargetsValue::HasUnBreakableCC(target, bot);
 
                 // Don't move if the target is targeting you and you can't add distance between you and the target
-                if (target->GetTarget() == bot && canMove && target->GetSpeedInMotion() > (bot->GetSpeedInMotion() * 0.65))
+                if (target->GetTargetGuid() == bot->GetObjectGuid() && canMove && target->GetXZFlagBasedSpeed() > (bot->GetXZFlagBasedSpeed() * 0.65))
                 {
                     return false;
                 }
 
-                float const combatReach = bot->GetCombinedCombatReach(target, false);
+                float const combatReach = bot->GetCombatReach(target, false, 0.0f);
                 float const minDistance = ai->GetRange("spell") + combatReach;
                 float const targetDistance = sServerFacade.GetDistance2d(bot, target) + combatReach;
 
@@ -97,12 +97,12 @@ namespace ai
             if (target)
             {
                 // Don't move if the target is targeting you and you can't add distance between you and the target
-                if (target->GetTarget() == bot && !target->IsRooted() && target->GetSpeedInMotion() > (bot->GetSpeedInMotion() * 0.65))
+                if (target->GetTargetGuid() == bot->GetObjectGuid() && !target->IsRooted() && target->GetXZFlagBasedSpeed() > (bot->GetXZFlagBasedSpeed() * 0.65))
                 {
                     return false;
                 }
 
-                float const combatReach = bot->GetCombinedCombatReach(target, false);
+                float const combatReach = bot->GetCombatReach(target, false, 0.0f);
                 float const minShootDistance = ai->GetRange("shoot") + combatReach;
                 float const targetDistance = sServerFacade.GetDistance2d(bot, target) + combatReach;
 
@@ -191,7 +191,7 @@ namespace ai
                     return false;
                 }
 
-                if (enemyTargetsBot && target->GetTarget() != bot)
+                if (enemyTargetsBot && target->GetTargetGuid() != bot->GetObjectGuid())
                 {
                     return false;
                 }
@@ -246,7 +246,7 @@ namespace ai
             if (!target)
                 return false;
 
-            return !bot->CanReachWithMeleeAttack(target) || !bot->IsWithinLOSInMap(target, true);
+            return !bot->CanReachWithMeleeAutoAttack(target) || !bot->IsWithinLOSInMap(target, true);
         }
     };
 
@@ -351,7 +351,7 @@ namespace ai
             if (!target)
                 return true;
 
-            if (target->GetTarget() == bot) //Try pulling target to follow position
+            if (target->GetTargetGuid() == bot->GetObjectGuid()) //Try pulling target to follow position
                 return true;
 
             if (!ai->IsRanged(bot)) //Melee bots stay in melee.
@@ -440,7 +440,7 @@ namespace ai
                 if (!ai->HasStrategy("stay", ai->GetState()))
                 {
                     // Do not move if currently being targeted
-                    const bool isBeingTargeted = !bot->getAttackers().empty();
+                    const bool isBeingTargeted = !bot->GetAttackers().empty();
                     if (!isBeingTargeted)
                     {
                         Unit* target = AI_VALUE(Unit*, "current target");
