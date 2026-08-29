@@ -1,0 +1,1 @@
+c3c18b69dba23ab896e605f8318f6ff2c2d71a1427bb693d74b545fc150e0821  /mnt/data/livingbots-clean-port-bundle-0042-0049/patches/0043-build-compatibility-pass-14-native-generic-range-triggers.patch

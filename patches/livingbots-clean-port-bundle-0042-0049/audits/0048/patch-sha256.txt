@@ -1,0 +1,1 @@
+6e3e19bae5332d6f870a58b26f3a27259fa64733d61c4a48e09647838fc081da  /mnt/data/livingbots-clean-port-bundle-0042-0049/patches/0048-build-compatibility-pass-19-native-loot-apis.patch

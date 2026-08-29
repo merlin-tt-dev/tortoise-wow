@@ -1,0 +1,73 @@
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/SeeSpellAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/SeeSpellAction.cpp
+index a762f0a..f522f81 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/SeeSpellAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/SeeSpellAction.cpp
+@@ -16,6 +16,20 @@
+ 
+ using namespace ai;
+ 
++namespace
++{
++    void SendPlaySpellVisual(WorldSession* session, ObjectGuid guid, uint32 visualId)
++    {
++        if (!session)
++            return;
++
++        WorldPacket data(SMSG_PLAY_SPELL_VISUAL, 8 + 4);
++        data << guid;
++        data << visualId;
++        session->SendPacket(&data);
++    }
++}
++
+ Creature* SeeSpellAction::CreateWps(Player* wpOwner, float x, float y, float z, float o, uint32 entry, Creature* lastWp, bool important)
+ {
+     float dist = wpOwner->GetDistance(x, y, z);
+@@ -23,7 +37,7 @@ Creature* SeeSpellAction::CreateWps(Player* wpOwner, float x, float y, float z,
+ 
+     if (!important)
+         delay *= 0.25;
+-    Creature* wpCreature = wpOwner->SummonCreature(entry, x, y, z - 1, o, TEMPSPAWN_TIMED_DESPAWN, delay);
++    Creature* wpCreature = wpOwner->SummonCreature(entry, x, y, z - 1, o, TEMPSUMMON_TIMED_DESPAWN, delay);
+ 
+     if (!important)
+         wpCreature->SetObjectScale(0.2f);
+@@ -123,9 +137,9 @@ bool SeeSpellAction::Execute(Event& event)
+     if (nextAction.empty())
+     {
+         if (!inRange && selected)
+-            requester->GetSession()->SendPlaySpellVisual(bot->GetObjectGuid(), 6372);
++            SendPlaySpellVisual(requester->GetSession(), bot->GetObjectGuid(), 6372);
+         else if (inRange && !selected)
+-            requester->GetSession()->SendPlaySpellVisual(bot->GetObjectGuid(), 5036);
++            SendPlaySpellVisual(requester->GetSession(), bot->GetObjectGuid(), 5036);
+ 
+         SET_AI_VALUE(bool, "RTSC selected", inRange);
+ 
+@@ -202,7 +216,7 @@ bool SeeSpellAction::Execute(Event& event)
+ 
+         SET_AI_VALUE2(WorldPosition, "RTSC saved location", locationName, spellPosition);
+         
+-        Creature* wpCreature = bot->SummonCreature(15631, spellPosition.getX(), spellPosition.getY(), spellPosition.getZ(), spellPosition.getO(), TEMPSPAWN_TIMED_DESPAWN, 2000.0f);
++        Creature* wpCreature = bot->SummonCreature(15631, spellPosition.getX(), spellPosition.getY(), spellPosition.getZ(), spellPosition.getO(), TEMPSUMMON_TIMED_DESPAWN, 2000.0f);
+         wpCreature->SetObjectScale(0.5f);
+         RESET_AI_VALUE(std::string, "RTSC next spell action");
+ 
+@@ -217,7 +231,7 @@ bool SeeSpellAction::SelectSpell(Player* requester, WorldPosition& spellPosition
+     if (spellPosition.distance(bot) <= 5 || AI_VALUE(bool, "RTSC selected"))
+     {
+         SET_AI_VALUE(bool, "RTSC selected", true);
+-        requester->GetSession()->SendPlaySpellVisual(bot->GetObjectGuid(), 5036);
++        SendPlaySpellVisual(requester->GetSession(), bot->GetObjectGuid(), 5036);
+     }
+     return true;
+ }
+@@ -275,7 +289,7 @@ void SeeSpellAction::SetFormationOffset(Player* requester, WorldPosition& spellP
+ 
+     WorldLocation formationLocation = formation->GetLocation();
+ 
+-    if (formationLocation.coord_x != 0 || formationLocation.coord_y != 0)
++    if (formationLocation.x != 0 || formationLocation.y != 0)
+     {
+         spellPosition -= WorldPosition(requester);
+         spellPosition += formationLocation;

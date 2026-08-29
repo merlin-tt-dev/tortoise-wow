@@ -1,0 +1,3 @@
+ .../strategy/actions/BattleGroundTactics.cpp       | 35 ++++++++--------
+ .../strategy/actions/BattleGroundTacticsAV.cpp     | 46 +++++++++++-----------
+ 2 files changed, 41 insertions(+), 40 deletions(-)

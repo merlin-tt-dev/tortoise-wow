@@ -1,0 +1,8 @@
+modules/mod-playerbots/src/playerbot/strategy/actions/AutoCompleteQuestAction.cpp
+modules/mod-playerbots/src/playerbot/strategy/actions/GuildAcceptQuestOrderAction.cpp
+modules/mod-playerbots/src/playerbot/strategy/actions/ListQuestsActions.cpp
+modules/mod-playerbots/src/playerbot/strategy/actions/QueryQuestAction.cpp
+modules/mod-playerbots/src/playerbot/strategy/actions/ShareQuestAction.cpp
+modules/mod-playerbots/src/playerbot/strategy/actions/SuggestWhatToDoAction.cpp
+modules/mod-playerbots/src/playerbot/strategy/values/GuildValues.cpp
+modules/mod-playerbots/src/playerbot/strategy/values/QuestValues.cpp

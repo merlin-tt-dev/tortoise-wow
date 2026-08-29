@@ -1,0 +1,1 @@
+d516051c1ac0690822e018a57a036cb0c3715806d7e6d58f036ee0c669a2e2c5  /mnt/data/livingbots-clean-port-bundle-0042-0049/patches/0042-build-compatibility-pass-13-native-creature-template-storage.patch

@@ -1,0 +1,3 @@
+ modules/mod-playerbots/src/cmangos-compat-shim.h                  | 8 --------
+ .../mod-playerbots/src/playerbot/strategy/values/TravelValues.cpp | 2 +-
+ 2 files changed, 1 insertion(+), 9 deletions(-)

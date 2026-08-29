@@ -1,0 +1,26 @@
+Fresh final target check (all 19 changed TUs):
+ninja: Entering directory `/mnt/data/0042-0049-fresh-build'
+[0/2] Re-checking globbed directories...
+ninja: no work to do.
+
+Object inventory:
+PASS modules/mod-playerbots/src/playerbot/RandomPlayerbotMgr.cpp size=33611976
+PASS modules/mod-playerbots/src/playerbot/strategy/actions/AutoCompleteQuestAction.cpp size=5537848
+PASS modules/mod-playerbots/src/playerbot/strategy/actions/BattleGroundTactics.cpp size=8520304
+PASS modules/mod-playerbots/src/playerbot/strategy/actions/BattleGroundTacticsAV.cpp size=4904928
+PASS modules/mod-playerbots/src/playerbot/strategy/actions/GuildAcceptQuestOrderAction.cpp size=8199544
+PASS modules/mod-playerbots/src/playerbot/strategy/actions/ListQuestsActions.cpp size=10695528
+PASS modules/mod-playerbots/src/playerbot/strategy/actions/LootAction.cpp size=15583048
+PASS modules/mod-playerbots/src/playerbot/strategy/actions/LootRollAction.cpp size=8274360
+PASS modules/mod-playerbots/src/playerbot/strategy/actions/QueryQuestAction.cpp size=5958976
+PASS modules/mod-playerbots/src/playerbot/strategy/actions/SeeSpellAction.cpp size=7410592
+PASS modules/mod-playerbots/src/playerbot/strategy/actions/ShareQuestAction.cpp size=6034328
+PASS modules/mod-playerbots/src/playerbot/strategy/actions/SuggestWhatToDoAction.cpp size=9077208
+PASS modules/mod-playerbots/src/playerbot/strategy/triggers/GenericTriggers.cpp size=16167464
+PASS modules/mod-playerbots/src/playerbot/strategy/values/Formations.cpp size=6381152
+PASS modules/mod-playerbots/src/playerbot/strategy/values/GuildValues.cpp size=17092024
+PASS modules/mod-playerbots/src/playerbot/strategy/values/ItemUsageValue.cpp size=11756896
+PASS modules/mod-playerbots/src/playerbot/strategy/values/LootValues.cpp size=15628208
+PASS modules/mod-playerbots/src/playerbot/strategy/values/QuestValues.cpp size=19146072
+PASS modules/mod-playerbots/src/playerbot/strategy/values/TravelValues.cpp size=14458848
+ALL_FRESH_CHANGED_TUS_PASS 19/19

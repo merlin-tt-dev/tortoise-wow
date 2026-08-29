@@ -1,0 +1,58 @@
+-- The C compiler identification is GNU 14.2.0
+-- The CXX compiler identification is GNU 14.2.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/cc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Detected 64-bit platform.
+-- Found Git: /usr/bin/git
+-- 
+This script builds the MaNGOS server.
+  Options that can be used in order to configure the process:
+    PREFIX: Path where the server should be installed to
+    USE_PCH: Use precompiled headers
+  To set an option simply type -D<OPTION>=<VALUE> after 'cmake <srcs>'.
+  For example: cmake .. -DPREFIX=/opt/mangos
+
+-- Found ACE library: /mnt/data/next-ace-sysroot/lib/libACE.so
+-- Found ACE headers: /mnt/data/next-ace-sysroot/include
+-- Using mysql-config: /usr/bin/mysql_config
+-- Found MySQL library: /usr/lib/x86_64-linux-gnu/libmariadb.so
+-- Found MySQL headers: /usr/include/mariadb
+-- Found OpenSSL library: /usr/lib/x86_64-linux-gnu/libssl.so
+-- Found OpenSSL headers: /usr/include/openssl
+-- Found ZLIB: /usr/lib/x86_64-linux-gnu/libz.so (found version "1.3.1")
+-- 
+    Could not find a proper repository signature (hash) - you may need to pull tags with git fetch -t
+    Continuing anyway - note that the versionstring will be set to "unknown 1970-01-01 00:00:00 (Archived)"
+-- 
+-- Core revision: unknown 1970-01-01 00:00:00 +0000 
+-- Install server to: /mnt/data/server
+-- 
+-- Use PCH               : No
+-- PGO profile           : Disabled
+-- Memory allocation     : std::malloc 
+-- Detected compiler     : GNU
+-- Build type            : Debug
+-- Use anticheat         : Yes
+-- Build scripts         : Yes (default)
+-- Build modules         : disabled
+--   mod-playerbots: static (MODULE_MOD_PLAYERBOTS=static)
+-- Module dynamic linking: Not required
+-- Build Discord Bot     : No (default)
+-- Allow Turtle Addons   : Yes
+-- Debug symbols         : Included
+-- Build flags (RELEASE) : -O3 -DNDEBUG  -g --no-warnings -fexceptions -fnon-call-exceptions -march=native -O3 -pipe 
+-- Build flags (DEBUG)   : -O0 -g0  -g --no-warnings -fexceptions -fnon-call-exceptions -march=native -O3 -pipe 
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+-- Found Threads: TRUE
+-- Configuring done (0.4s)
+-- Generating done (0.1s)
+-- Build files have been written to: /mnt/data/0042-0049-fresh-build

@@ -1,0 +1,177 @@
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/triggers/GenericTriggers.cpp b/modules/mod-playerbots/src/playerbot/strategy/triggers/GenericTriggers.cpp
+index f1d6683..89fbbd9 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/triggers/GenericTriggers.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/triggers/GenericTriggers.cpp
+@@ -95,7 +95,7 @@ bool OutNumberedTrigger::IsActive()
+         return false;
+ 
+     // Don't trigger if the bot is in a raid group
+-    if (bot->GetGroup() && bot->GetGroup()->IsRaidGroup())
++    if (bot->GetGroup() && bot->GetGroup()->isRaidGroup())
+         return false;
+ 
+     // Don't trigger if the bot is in a group with a real player
+@@ -111,7 +111,7 @@ bool OutNumberedTrigger::IsActive()
+         if (!creature)
+             continue;
+ 
+-        if (!creature->CanAttackOnSight(bot))
++        if (!creature->CanAttack(bot))
+             continue;
+ 
+         int32 dLevel = creature->GetLevel() - botLevel;
+@@ -316,7 +316,7 @@ bool SpellNoCooldownTrigger::IsActive()
+     if (!spellId)
+         return false;
+ 
+-    return bot->IsSpellReady(spellId);
++    return sServerFacade.IsSpellReady(bot, spellId);
+ }
+ 
+ bool RandomTrigger::IsActive()
+@@ -445,7 +445,7 @@ bool DeflectSpellTrigger::IsActive()
+     if (!target->IsNonMeleeSpellCasted(true))
+         return false;
+ 
+-    if (!target->HasTarget(bot->GetObjectGuid()))
++    if (!target->GetTargetGuid() == bot->GetObjectGuid())
+         return false;
+ 
+     uint32 spellid = context->GetValue<uint32>("spell id", spell)->Get();
+@@ -473,7 +473,7 @@ bool DeflectSpellTrigger::IsActive()
+         SpellEntry const* tarSpellInfo = spell->m_spellInfo;
+         if (tarSpellInfo)
+         {
+-            attackSchool = GetSpellSchoolMask(tarSpellInfo);
++            attackSchool = tarSpellInfo->GetSpellSchoolMask();
+             if (deflectSchool == attackSchool)
+                 return true;
+         }
+@@ -814,7 +814,8 @@ bool InRaidFightTrigger::IsActive()
+ bool GreaterBuffOnPartyTrigger::IsActive()
+ {
+     Unit* target = GetTarget();
+-    return target && bot->IsInGroup(target) && BuffOnPartyTrigger::IsActive() && !ai->HasAura(lowerSpell, target, false, checkIsOwner);
++    Player* targetPlayer = target ? target->GetCharmerOrOwnerPlayerOrPlayerItself() : nullptr;
++    return targetPlayer && bot->IsInSameRaidWith(targetPlayer) && BuffOnPartyTrigger::IsActive() && !ai->HasAura(lowerSpell, target, false, checkIsOwner);
+ }
+ 
+ bool TargetOfAttacker::IsActive()
+@@ -900,7 +901,7 @@ bool DispelOnTargetTrigger::IsActive()
+     Unit* target = GetTarget();
+     if (target)
+     {
+-        const uint32 dispelMask = GetDispellMask(dispelType);
++        const uint32 dispelMask = Spells::GetDispellMask(dispelType);
+         const std::vector<Aura*> auras = ai->GetAuras(target);
+         for (const Aura* aura : auras)
+         {
+@@ -954,7 +955,7 @@ bool SpellTargetTrigger::IsTargetValid(Unit* target)
+     return target &&
+            ai->IsSafe(target) &&
+            (bot == target || sServerFacade.GetDistance2d(bot, target) < sPlayerbotAIConfig.sightDistance) &&
+-           (bot->IsInGroup(target)) &&
++           (target->GetCharmerOrOwnerPlayerOrPlayerItself() && bot->IsInSameRaidWith(target->GetCharmerOrOwnerPlayerOrPlayerItself())) &&
+            (!aliveCheck || !target->IsDead()) &&
+            (!auraCheck || !ai->HasAura(spell, target));
+ }
+@@ -962,7 +963,7 @@ bool SpellTargetTrigger::IsTargetValid(Unit* target)
+ bool SpellTargetTrigger::IsSpellReady()
+ {
+     uint32 spellId = AI_VALUE2(uint32, "spell id", spell);
+-    return spellId && bot->IsSpellReady(spellId);
++    return spellId && sServerFacade.IsSpellReady(bot, spellId);
+ }
+ 
+ bool ItemTargetTrigger::IsTargetValid(Unit* target)
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/triggers/GenericTriggers.h b/modules/mod-playerbots/src/playerbot/strategy/triggers/GenericTriggers.h
+index 4098558..7f8648a 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/triggers/GenericTriggers.h
++++ b/modules/mod-playerbots/src/playerbot/strategy/triggers/GenericTriggers.h
+@@ -1095,13 +1095,13 @@ namespace ai
+ 
+         virtual bool IsActive() override
+         {
+-            uint32 disMask = GetDispellMask(DISPEL_DISEASE);
+-            uint32 poisMask = GetDispellMask(DISPEL_POISON);
++            uint32 disMask = Spells::GetDispellMask(DISPEL_DISEASE);
++            uint32 poisMask = Spells::GetDispellMask(DISPEL_POISON);
+             uint32 bleedType = 1 << (MECHANIC_BLEED - 1);
+             for (auto itr : bot->GetSpellAuraHolderMap())
+             {
+                 SpellEntry const* spell = itr.second->GetSpellProto();
+-                if (IsPositiveSpell(spell->Id))
++                if (Spells::IsPositiveSpell(spell->Id))
+                     continue;
+ 
+                 if (((1 << spell->Dispel) & disMask) || ((1 << spell->Dispel) & poisMask))
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/triggers/RangeTriggers.h b/modules/mod-playerbots/src/playerbot/strategy/triggers/RangeTriggers.h
+index 3080ba0..2a5ca97 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/triggers/RangeTriggers.h
++++ b/modules/mod-playerbots/src/playerbot/strategy/triggers/RangeTriggers.h
+@@ -27,12 +27,12 @@ namespace ai
+                 const bool canMove = !PossibleAttackTargetsValue::HasBreakableCC(target, bot) && !PossibleAttackTargetsValue::HasUnBreakableCC(target, bot);
+ 
+                 // Don't move if the target is targeting you and you can't add distance between you and the target
+-                if (target->GetTarget() == bot && canMove && target->GetSpeedInMotion() > (bot->GetSpeedInMotion() * 0.65))
++                if (target->GetTargetGuid() == bot->GetObjectGuid() && canMove && target->GetXZFlagBasedSpeed() > (bot->GetXZFlagBasedSpeed() * 0.65))
+                 {
+                     return false;
+                 }
+ 
+-                float const combatReach = bot->GetCombinedCombatReach(target, false);
++                float const combatReach = bot->GetCombatReach(target, false, 0.0f);
+                 float const minDistance = ai->GetRange("spell") + combatReach;
+                 float const targetDistance = sServerFacade.GetDistance2d(bot, target) + combatReach;
+ 
+@@ -97,12 +97,12 @@ namespace ai
+             if (target)
+             {
+                 // Don't move if the target is targeting you and you can't add distance between you and the target
+-                if (target->GetTarget() == bot && !target->IsRooted() && target->GetSpeedInMotion() > (bot->GetSpeedInMotion() * 0.65))
++                if (target->GetTargetGuid() == bot->GetObjectGuid() && !target->IsRooted() && target->GetXZFlagBasedSpeed() > (bot->GetXZFlagBasedSpeed() * 0.65))
+                 {
+                     return false;
+                 }
+ 
+-                float const combatReach = bot->GetCombinedCombatReach(target, false);
++                float const combatReach = bot->GetCombatReach(target, false, 0.0f);
+                 float const minShootDistance = ai->GetRange("shoot") + combatReach;
+                 float const targetDistance = sServerFacade.GetDistance2d(bot, target) + combatReach;
+ 
+@@ -191,7 +191,7 @@ namespace ai
+                     return false;
+                 }
+ 
+-                if (enemyTargetsBot && target->GetTarget() != bot)
++                if (enemyTargetsBot && target->GetTargetGuid() != bot->GetObjectGuid())
+                 {
+                     return false;
+                 }
+@@ -246,7 +246,7 @@ namespace ai
+             if (!target)
+                 return false;
+ 
+-            return !bot->CanReachWithMeleeAttack(target) || !bot->IsWithinLOSInMap(target, true);
++            return !bot->CanReachWithMeleeAutoAttack(target) || !bot->IsWithinLOSInMap(target, true);
+         }
+     };
+ 
+@@ -351,7 +351,7 @@ namespace ai
+             if (!target)
+                 return true;
+ 
+-            if (target->GetTarget() == bot) //Try pulling target to follow position
++            if (target->GetTargetGuid() == bot->GetObjectGuid()) //Try pulling target to follow position
+                 return true;
+ 
+             if (!ai->IsRanged(bot)) //Melee bots stay in melee.
+@@ -440,7 +440,7 @@ namespace ai
+                 if (!ai->HasStrategy("stay", ai->GetState()))
+                 {
+                     // Do not move if currently being targeted
+-                    const bool isBeingTargeted = !bot->getAttackers().empty();
++                    const bool isBeingTargeted = !bot->GetAttackers().empty();
+                     if (!isBeingTargeted)
+                     {
+                         Unit* target = AI_VALUE(Unit*, "current target");

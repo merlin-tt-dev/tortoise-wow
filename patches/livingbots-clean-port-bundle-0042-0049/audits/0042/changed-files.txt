@@ -1,0 +1,2 @@
+modules/mod-playerbots/src/cmangos-compat-shim.h
+modules/mod-playerbots/src/playerbot/strategy/values/TravelValues.cpp

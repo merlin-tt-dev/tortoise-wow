@@ -1,0 +1,6 @@
+ modules/mod-playerbots/src/cmangos-compat-shim.h   | 37 -----------------
+ .../src/playerbot/strategy/actions/LootAction.cpp  |  9 ++---
+ .../playerbot/strategy/actions/LootRollAction.cpp  |  8 ++--
+ .../src/playerbot/strategy/values/LootValues.cpp   | 46 +++++++++++++++++-----
+ .../src/playerbot/strategy/values/LootValues.h     |  1 +
+ 5 files changed, 45 insertions(+), 56 deletions(-)

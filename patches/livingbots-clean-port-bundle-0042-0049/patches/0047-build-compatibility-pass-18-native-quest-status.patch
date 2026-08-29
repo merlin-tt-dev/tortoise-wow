@@ -1,0 +1,299 @@
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/AutoCompleteQuestAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/AutoCompleteQuestAction.cpp
+index cadc1fd..719f81d 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/AutoCompleteQuestAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/AutoCompleteQuestAction.cpp
+@@ -29,12 +29,9 @@ bool AutoCompleteQuestAction::Execute(Event& event)
+     bool isAutoCompleteQuest = false;
+     bool isAutoCompleteObjective = false;
+ 
+-    // Check the bot's quest log for any active quests from the list
+-    for (uint8 slot = 0; slot < MAX_QUEST_LOG_SIZE; ++slot)
++    // Check the bot's active incomplete quests against the auto-complete list.
++    for (uint32 questId : ai->GetCurrentIncompleteQuestIds())
+     {
+-        uint32 questId = bot->GetQuestSlotQuestId(slot);
+-        if (!questId)
+-            continue;
+ 
+         if (!ai->HasCheat(BotCheatMask::quest))
+         {
+@@ -47,9 +44,6 @@ bool AutoCompleteQuestAction::Execute(Event& event)
+         if (!pQuest)
+             continue;
+ 
+-        if (bot->GetQuestStatus(questId) == QUEST_STATUS_COMPLETE)
+-            continue;
+-
+         // Add quest items for quests that require items
+         for (uint8 x = 0; x < QUEST_ITEM_OBJECTIVES_COUNT; ++x)
+         {
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/GuildAcceptQuestOrderAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/GuildAcceptQuestOrderAction.cpp
+index 8994600..3222394 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/GuildAcceptQuestOrderAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/GuildAcceptQuestOrderAction.cpp
+@@ -35,14 +35,10 @@ bool GuildAcceptQuestOrderAction::Execute(Event& event)
+ 
+     if (!bot->SatisfyQuestLog(false))
+     {
+-        std::vector<std::pair<uint8, uint32>> candidates;
++        std::vector<uint32> candidates;
+ 
+-        for (uint8 slot = 0; slot < MAX_QUEST_LOG_SIZE; ++slot)
++        for (uint32 questId : ai->GetAllCurrentQuestIds())
+         {
+-            uint32 questId = bot->GetQuestSlotQuestId(slot);
+-            if (!questId)
+-                continue;
+-
+             if (questId == order.questId)
+                 continue;
+ 
+@@ -53,7 +49,7 @@ bool GuildAcceptQuestOrderAction::Execute(Event& event)
+             if (candidate->GetRequiredClasses())
+                 continue;
+ 
+-            candidates.push_back({ slot, questId });
++            candidates.push_back(questId);
+         }
+ 
+         if (candidates.empty())
+@@ -62,8 +58,8 @@ bool GuildAcceptQuestOrderAction::Execute(Event& event)
+             return false;
+         }
+ 
+-        std::vector<std::pair<uint8, uint32>> noProgressCandidates;
+-        for (auto& [slot, questId] : candidates)
++        std::vector<uint32> noProgressCandidates;
++        for (uint32 questId : candidates)
+         {
+             Quest const* candidate = sObjectMgr.GetQuestTemplate(questId);
+             if (candidate && bot->GetQuestStatus(questId) != QUEST_STATUS_COMPLETE)
+@@ -82,12 +78,12 @@ bool GuildAcceptQuestOrderAction::Execute(Event& event)
+                     }
+                 }
+                 if (!hasProgress)
+-                    noProgressCandidates.push_back({ slot, questId });
++                    noProgressCandidates.push_back(questId);
+             }
+         }
+ 
+         auto& dropPool = noProgressCandidates.empty() ? candidates : noProgressCandidates;
+-        auto& [dropSlot, dropQuestId] = dropPool[urand(0, dropPool.size() - 1)];
++        uint32 dropQuestId = dropPool[urand(0, dropPool.size() - 1)];
+ 
+         Quest const* droppedQuest = sObjectMgr.GetQuestTemplate(dropQuestId);
+         ai->TellDebug(ai->GetMaster(), "Dropping quest [" + (droppedQuest ? droppedQuest->GetTitle() : std::to_string(dropQuestId)) + "] to make room for guild order quest", "debug travel");
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/ListQuestsActions.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/ListQuestsActions.cpp
+index 735ddcf..ab1e4db 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/ListQuestsActions.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/ListQuestsActions.cpp
+@@ -90,11 +90,8 @@ int ListQuestsAction::ListQuests(Player* requester, bool completed, bool silent,
+         if (!GetPlayerbotAI(player))
+             continue;
+ 
+-        for (uint16 slot = 0; slot < MAX_QUEST_LOG_SIZE; ++slot)
++        for (uint32 questId : GetPlayerbotAI(player)->GetAllCurrentQuestIds())
+         {
+-            uint32 questId = player->GetQuestSlotQuestId(slot);
+-            if (!questId)
+-                continue;
+ 
+             if (onlyQuestIds.size() && onlyQuestIds.find(questId) == onlyQuestIds.end())
+                 continue;
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/QueryQuestAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/QueryQuestAction.cpp
+index 46a2782..19ee9e4 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/QueryQuestAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/QueryQuestAction.cpp
+@@ -16,10 +16,8 @@ bool QueryQuestAction::Execute(Event& event)
+     uint32 questId = ch.extractQuestId(text);
+     if (!questId)
+     {
+-        for (uint8 slot = 0; slot < MAX_QUEST_LOG_SIZE; ++slot)
++        for (uint32 logQuest : ai->GetAllCurrentQuestIds())
+         {
+-            uint32 logQuest = bot->GetQuestSlotQuestId(slot);
+-
+             Quest const* quest = sObjectMgr.GetQuestTemplate(logQuest);
+             if (!quest)
+                 continue;
+@@ -35,29 +33,24 @@ bool QueryQuestAction::Execute(Event& event)
+     if (!questId)
+         return false;
+ 
+-    for (uint16 slot = 0; slot < MAX_QUEST_LOG_SIZE; ++slot)
+-    {
+-        if (questId != bot->GetQuestSlotQuestId(slot))
+-            continue;
+-
+-        std::ostringstream out;
+-        out << "--- " << chat->formatQuest(sObjectMgr.GetQuestTemplate(questId)) << " ";
+-        if (bot->GetQuestStatus(questId) == QUEST_STATUS_COMPLETE)
+-        {
+-            out << "|c0000FF00completed|r ---";
+-            ai->TellPlayer(requester, out, PlayerbotSecurityLevel::PLAYERBOT_SECURITY_ALLOW_ALL, false);
+-        }
+-        else
+-        {
+-            out << "|c00FF0000not completed|r ---";
+-            ai->TellPlayer(requester, out, PlayerbotSecurityLevel::PLAYERBOT_SECURITY_ALLOW_ALL, false);
+-            TellObjectives(requester, questId);
+-        }      
++    if (!bot->IsCurrentQuest(questId))
++        return false;
+ 
+-        return true;
++    std::ostringstream out;
++    out << "--- " << chat->formatQuest(sObjectMgr.GetQuestTemplate(questId)) << " ";
++    if (bot->GetQuestStatus(questId) == QUEST_STATUS_COMPLETE)
++    {
++        out << "|c0000FF00completed|r ---";
++        ai->TellPlayer(requester, out, PlayerbotSecurityLevel::PLAYERBOT_SECURITY_ALLOW_ALL, false);
++    }
++    else
++    {
++        out << "|c00FF0000not completed|r ---";
++        ai->TellPlayer(requester, out, PlayerbotSecurityLevel::PLAYERBOT_SECURITY_ALLOW_ALL, false);
++        TellObjectives(requester, questId);
+     }
+ 
+-    return false;
++    return true;
+ }
+ 
+ void QueryQuestAction::TellObjectives(Player* requester, uint32 questId)
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/ShareQuestAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/ShareQuestAction.cpp
+index 6d2a075..e484810 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/ShareQuestAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/ShareQuestAction.cpp
+@@ -21,21 +21,14 @@ bool ShareQuestAction::Execute(Event& event)
+     if (!quest)
+         return false;
+ 
+-    // remove all quest entries for 'entry' from quest log
+-    for (uint8 slot = 0; slot < MAX_QUEST_LOG_SIZE; ++slot)
+-    {
+-        uint32 logQuest = bot->GetQuestSlotQuestId(slot);
+-        if (logQuest == entry)
+-        {
+-            WorldPacket p;
+-            p << entry;
+-            bot->GetSession()->HandlePushQuestToParty(p);
+-            ai->TellPlayer(requester, "Quest shared", PlayerbotSecurityLevel::PLAYERBOT_SECURITY_ALLOW_ALL, false);
+-            return true;
+-        }
+-    }
++    if (!bot->IsCurrentQuest(entry))
++        return false;
+ 
+-    return false;
++    WorldPacket p;
++    p << entry;
++    bot->GetSession()->HandlePushQuestToParty(p);
++    ai->TellPlayer(requester, "Quest shared", PlayerbotSecurityLevel::PLAYERBOT_SECURITY_ALLOW_ALL, false);
++    return true;
+ }
+ 
+ bool AutoShareQuestAction::Execute(Event& event)
+@@ -43,9 +36,8 @@ bool AutoShareQuestAction::Execute(Event& event)
+     Player* requester = event.getOwner() ? event.getOwner() : GetMaster();
+     bool shared = false;
+ 
+-    for (uint8 slot = 0; slot < MAX_QUEST_LOG_SIZE; ++slot)
++    for (uint32 logQuest : ai->GetAllCurrentQuestIds())
+     {
+-        uint32 logQuest = bot->GetQuestSlotQuestId(slot);
+         Quest const* quest = sObjectMgr.GetQuestTemplate(logQuest);
+ 
+         if (!quest)
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/SuggestWhatToDoAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/SuggestWhatToDoAction.cpp
+index 52c70c1..473a1dd 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/SuggestWhatToDoAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/SuggestWhatToDoAction.cpp
+@@ -113,20 +113,8 @@ void SuggestWhatToDoAction::instance()
+ 
+ std::vector<uint32> SuggestWhatToDoAction::GetIncompletedQuests()
+ {
+-    std::vector<uint32> result;
+-
+-    for (uint16 slot = 0; slot < MAX_QUEST_LOG_SIZE; ++slot)
+-    {
+-        uint32 questId = bot->GetQuestSlotQuestId(slot);
+-        if (!questId)
+-            continue;
+-
+-        QuestStatus status = bot->GetQuestStatus(questId);
+-        if (status == QUEST_STATUS_INCOMPLETE || status == QUEST_STATUS_NONE)
+-            result.push_back(questId);
+-    }
+-
+-    return result;
++    std::set<uint32> questIds = ai->GetCurrentIncompleteQuestIds();
++    return std::vector<uint32>(questIds.begin(), questIds.end());
+ }
+ 
+ void SuggestWhatToDoAction::specificQuest()
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/GuildValues.cpp b/modules/mod-playerbots/src/playerbot/strategy/values/GuildValues.cpp
+index 32aca73..86a182f 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/GuildValues.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/GuildValues.cpp
+@@ -236,7 +236,7 @@ static std::unordered_map<uint32, uint32> BuildCraftSpellMap(Player* bot, const
+         if (remaining.empty())
+             break;
+ 
+-        if (spellState.state == PLAYERSPELL_REMOVED || spellState.disabled || IsPassiveSpell(spellId))
++        if (spellState.state == PLAYERSPELL_REMOVED || spellState.disabled || Spells::IsPassiveSpell(spellId))
+             continue;
+ 
+         const SpellEntry* pSpellInfo = sServerFacade.LookupSpellInfo(spellId);
+@@ -537,7 +537,7 @@ std::vector<GuildShareItemEntry> GuildShareListValue::Calculate()
+     if (!guild)
+         return result;
+ 
+-    std::string ginfo = guild->GetGINFO();
++    std::string ginfo = guild->GetInfo();
+     if (ginfo.empty())
+         return result;
+ 
+@@ -980,12 +980,8 @@ uint32 GuildShareQuestRewardItemValue::Calculate()
+     if (neededItems.empty())
+         return 0;
+ 
+-    for (uint16 slot = 0; slot < MAX_QUEST_LOG_SIZE; ++slot)
++    for (uint32 questId : ai->GetAllCurrentQuestIds())
+     {
+-        uint32 questId = bot->GetQuestSlotQuestId(slot);
+-        if (!questId)
+-            continue;
+-
+         QuestStatus status = bot->GetQuestStatus(questId);
+         if (status != QUEST_STATUS_COMPLETE)
+             continue;
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/QuestValues.cpp b/modules/mod-playerbots/src/playerbot/strategy/values/QuestValues.cpp
+index 2ab2b07..aca5e6d 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/QuestValues.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/QuestValues.cpp
+@@ -421,22 +421,8 @@ bool NeedForQuestValue::Calculate()
+ 
+ uint8 FreeQuestLogSlotValue::Calculate()
+ {
+-	uint8 numQuest = 0;
+-	for (uint8 slot = 0; slot < MAX_QUEST_LOG_SIZE; ++slot)
+-	{
+-		uint32 questId = bot->GetQuestSlotQuestId(slot);
+-
+-		if (!questId)
+-			continue;
+-
+-		Quest const* quest = sObjectMgr.GetQuestTemplate(questId);
+-		if (!quest)
+-			continue;
+-
+-		numQuest++;
+-	}
+-
+-	return MAX_QUEST_LOG_SIZE - numQuest;
++    size_t const numQuest = ai->GetAllCurrentQuestIds().size();
++    return numQuest >= MAX_QUEST_LOG_SIZE ? 0 : uint8(MAX_QUEST_LOG_SIZE - numQuest);
+ }
+ 
+ uint32 DialogStatusValue::getDialogStatus(Player* bot, int32 questgiver, uint32 questId)

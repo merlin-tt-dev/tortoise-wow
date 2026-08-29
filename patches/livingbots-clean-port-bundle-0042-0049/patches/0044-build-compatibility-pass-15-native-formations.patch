@@ -1,0 +1,80 @@
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/Formations.cpp b/modules/mod-playerbots/src/playerbot/strategy/values/Formations.cpp
+index a75e08f..7943b09 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/Formations.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/Formations.cpp
+@@ -12,7 +12,7 @@ WorldLocation Formation::NullLocation = WorldLocation();
+ 
+ bool IsSameLocation(WorldLocation const &a, WorldLocation const &b)
+ {
+-	return a.coord_x == b.coord_x && a.coord_y == b.coord_y && a.coord_z == b.coord_z && a.mapid == b.mapid;
++    return a.x == b.x && a.y == b.y && a.z == b.z && a.mapId == b.mapId;
+ }
+ 
+ float Formation::GetMaxDistance()
+@@ -28,7 +28,7 @@ bool Formation::IsNullLocation(WorldLocation const& loc)
+ float Formation::GetAngle()
+ {
+     WorldLocation loc = GetLocation();
+-    if (Formation::IsNullLocation(loc) || loc.mapid == -1)
++    if (Formation::IsNullLocation(loc) || loc.mapId == uint32(-1))
+         return 0.0f;
+ 
+     Unit* followTarget = AI_VALUE(Unit*, "follow target");
+@@ -42,7 +42,7 @@ float Formation::GetAngle()
+ float Formation::GetOffset()
+ {
+     WorldLocation loc = GetLocation();
+-    if (Formation::IsNullLocation(loc) || loc.mapid == -1)
++    if (Formation::IsNullLocation(loc) || loc.mapId == uint32(-1))
+         return 0.0f;
+ 
+     Unit* followTarget = AI_VALUE(Unit*, "follow target");
+@@ -167,10 +167,10 @@ namespace ai
+ #ifdef MANGOSBOT_TWO
+             followTarget->GetMap()->GetHitPosition(ox, oy, oz + bot->GetCollisionHeight(), x, y, z, bot->GetPhaseMask(), -0.5f);
+ #else
+-            followTarget->GetMap()->GetHitPosition(ox, oy, oz + bot->GetCollisionHeight(), x, y, z, -0.5f);
++            followTarget->GetMap()->GetLosHitPosition(ox, oy, oz + bot->GetCollisionHeight(), x, y, z, -0.5f);
+ #endif
+ 
+-            if (!bot->IsFlying() && !bot->IsFreeFlying() && !bot->IsSwimming())
++            if (!bot->WorldObject::IsFlying() && !bot->IsFlying() && !bot->IsSwimming())
+             {
+                 z += CONTACT_DISTANCE;
+                 bot->UpdateAllowedPositionZ(x, y, z);
+@@ -216,7 +216,7 @@ namespace ai
+             //if (ground <= INVALID_HEIGHT)
+             //    return Formation::NullLocation;
+ 
+-            if (!bot->IsFlying() && !bot->IsFreeFlying())
++            if (!bot->WorldObject::IsFlying() && !bot->IsFlying())
+             {
+                 z += CONTACT_DISTANCE;
+                 bot->UpdateAllowedPositionZ(x, y, z);
+@@ -260,7 +260,7 @@ namespace ai
+             if (ground <= INVALID_HEIGHT)
+                 return Formation::NullLocation;
+ 
+-            if (!bot->IsFlying() && !bot->IsFreeFlying())
++            if (!bot->WorldObject::IsFlying() && !bot->IsFlying())
+             {
+                 z += CONTACT_DISTANCE;
+                 bot->UpdateAllowedPositionZ(x, y, z);
+@@ -614,7 +614,7 @@ bool SetFormationAction::Execute(Event& event)
+     {
+         WorldLocation loc = value->Get()->GetLocation();
+         if (!Formation::IsNullLocation(loc))
+-            ai->Ping(loc.coord_x, loc.coord_y);
++            ai->Ping(loc.x, loc.y);
+ 
+         return true;
+     }
+@@ -696,7 +696,7 @@ WorldLocation MoveFormation::MoveSingleLine(std::vector<Player*> line, float dif
+             if (ground <= INVALID_HEIGHT)
+                 return Formation::NullLocation;
+ 
+-            if (!bot->IsFlying() && !bot->IsFreeFlying())
++            if (!bot->WorldObject::IsFlying() && !bot->IsFlying())
+             {
+                 lz += CONTACT_DISTANCE;
+                 bot->UpdateAllowedPositionZ(lx, ly, lz);

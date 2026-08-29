@@ -1,0 +1,236 @@
+diff --git a/modules/mod-playerbots/src/cmangos-compat-shim.h b/modules/mod-playerbots/src/cmangos-compat-shim.h
+index 8db324d..f77c9e0 100644
+--- a/modules/mod-playerbots/src/cmangos-compat-shim.h
++++ b/modules/mod-playerbots/src/cmangos-compat-shim.h
+@@ -253,9 +253,6 @@ typedef RolesPriority LfgRolePriority;
+ #ifndef LOOT_SLOT_NORMAL
+ #define LOOT_SLOT_NORMAL 0
+ #endif
+-#ifndef ROLL_DISENCHANT
+-#define ROLL_DISENCHANT 4
+-#endif
+ #ifndef SPELL_STATE_TARGETING
+ #define SPELL_STATE_TARGETING 0
+ #endif
+@@ -291,40 +288,6 @@ struct CmangosTaxiNodesStoreProxy
+ };
+ inline CmangosTaxiNodesStoreProxy sTaxiNodesStore;
+ 
+-// === sLootMgr adapter (cmangos global; Penqle stores Loot on world objects) ===
+-// Bot calls sLootMgr.GetLoot(player[, guid]) to fetch the loot the player is currently looking at.
+-// Penqle embeds Loot directly in Creature/GameObject, so resolve the target on the player's
+-// current map and return the address of that native Loot object.
+-struct CmangosLootMgrStub
+-{
+-    Loot* GetLoot(Player* player, ObjectGuid guid = ObjectGuid()) const
+-    {
+-        if (!player)
+-            return nullptr;
+-
+-        if (!guid)
+-            guid = player->GetLootGuid();
+-
+-        if (!guid || !player->GetMap())
+-            return nullptr;
+-
+-        if (guid.IsCreature())
+-        {
+-            Creature* creature = player->GetMap()->GetCreature(guid);
+-            return creature ? &creature->loot : nullptr;
+-        }
+-
+-        if (guid.IsGameObject())
+-        {
+-            GameObject* gameObject = player->GetMap()->GetGameObject(guid);
+-            return gameObject ? &gameObject->loot : nullptr;
+-        }
+-
+-        return nullptr;
+-    }
+-};
+-inline CmangosLootMgrStub sLootMgr;
+-
+ // === Map::GetHitPosition forwarder (cmangos name) ===
+ // Penqle uses GetLosHitPosition. The bot module's call sites were patched at
+ // the source level (TravelMgr.cpp / WorldPosition.h).
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/LootAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/LootAction.cpp
+index 72c961d..190597e 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/LootAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/LootAction.cpp
+@@ -8,6 +8,7 @@
+ #include "playerbot/ServerFacade.h"
+ #include "playerbot/strategy/values/LootStrategyValue.h"
+ #include "playerbot/strategy/values/ItemUsageValue.h"
++#include "playerbot/strategy/values/LootValues.h"
+ #include "playerbot/ServerFacade.h"
+ #include "playerbot/strategy/values/SharedValueContext.h"
+ 
+@@ -272,7 +273,7 @@ bool StoreLootAction::Execute(Event& event)
+ 
+     bot->SetLootGuid(guid);
+ 
+-    Loot* loot = sLootMgr.GetLoot(bot);
++    Loot* loot = LootAccess::ResolveLoot(bot);
+ 
+     if (!loot)
+         return false;
+@@ -397,12 +398,8 @@ bool StoreLootAction::IsLootAllowed(ItemQualifier& itemQualifier, PlayerbotAI *a
+             return true;
+     }
+ 
+-    for (uint8 slot = 0; slot < MAX_QUEST_LOG_SIZE; ++slot)
++    for (Quest const* quest : ai->GetAllCurrentQuests())
+     {
+-        uint32 entry = ai->GetBot()->GetQuestSlotQuestId(slot);
+-        Quest const* quest = sObjectMgr.GetQuestTemplate(entry);
+-        if (!quest)
+-            continue;
+ 
+         for (int i = 0; i < 4; i++)
+         {
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/LootRollAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/LootRollAction.cpp
+index 14b2845..0dd252e 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/LootRollAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/LootRollAction.cpp
+@@ -36,7 +36,7 @@ bool LootStartRollAction::Execute(Event& event)
+ 
+     LootRollMap lootRolls = AI_VALUE(LootRollMap, "active rolls");
+ 
+-    Loot* loot = sLootMgr.GetLoot(bot, creatureGuid);
++    Loot* loot = LootAccess::ResolveLoot(bot, creatureGuid);
+     if (!loot || itemSlot >= loot->items.size() || !loot->items[itemSlot].is_blocked)
+         return false;
+ 
+@@ -171,7 +171,7 @@ bool RollAction::Execute(Event& event)
+ 
+ ItemQualifier RollAction::GetRollItem(ObjectGuid lootGuid, uint32 slot)
+ {
+-    Loot* loot = sLootMgr.GetLoot(bot, lootGuid);
++    Loot* loot = LootAccess::ResolveLoot(bot, lootGuid);
+     if (!loot)
+         return ItemQualifier();
+ 
+@@ -235,8 +235,10 @@ RollVote RollAction::CalculateRollVote(ItemQualifier& itemQualifier)
+             vote = "Rolling greed";
+         else if (needVote == ROLL_NEED)
+             vote = "Rolling need";
++#ifdef MANGOSBOT_TWO
+         else if (needVote == ROLL_DISENCHANT)
+             vote = "Rolling disenchant";
++#endif
+ 
+          ai->TellPlayerNoFacing(ai->GetMaster(), vote + " on " + ChatHelper::formatItem(itemQualifier) + " " + reason);
+     }
+@@ -246,7 +248,7 @@ RollVote RollAction::CalculateRollVote(ItemQualifier& itemQualifier)
+ 
+ bool RollAction::RollOnItemInSlot(RollVote vote, ObjectGuid lootGuid, uint32 slot)
+ {
+-    Loot* loot = sLootMgr.GetLoot(bot, lootGuid);
++    Loot* loot = LootAccess::ResolveLoot(bot, lootGuid);
+     if (!loot)
+         return false;
+ 
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/LootValues.cpp b/modules/mod-playerbots/src/playerbot/strategy/values/LootValues.cpp
+index 4c7c5e2..37de998 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/LootValues.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/LootValues.cpp
+@@ -24,6 +24,32 @@ LootType LootAccess::lootType() const
+     return loot ? loot->loot_type : LOOT_CORPSE;
+ }
+ 
++Loot* LootAccess::ResolveLoot(Player* player, ObjectGuid guid)
++{
++    if (!player)
++        return nullptr;
++
++    if (!guid)
++        guid = player->GetLootGuid();
++
++    if (!guid || !player->GetMap())
++        return nullptr;
++
++    if (guid.IsCreature())
++    {
++        Creature* creature = player->GetMap()->GetCreature(guid);
++        return creature ? &creature->loot : nullptr;
++    }
++
++    if (guid.IsGameObject())
++    {
++        GameObject* gameObject = player->GetMap()->GetGameObject(guid);
++        return gameObject ? &gameObject->loot : nullptr;
++    }
++
++    return nullptr;
++}
++
+ std::vector<LootItem*> LootAccess::GetLootContentFor(Player* player) const
+ {
+     std::vector<LootItem*> result;
+@@ -70,11 +96,11 @@ LootTemplateAccess const* DropMapValue::GetLootTemplate(ObjectGuid guid, LootTyp
+ 		if (info)
+ 		{
+ 			if (type == LOOT_CORPSE)
+-				lTemplate = LootTemplates_Creature.GetLootFor(info->LootId);
+-			else if (type == LOOT_PICKPOCKETING && info->PickpocketLootId)
+-				lTemplate = LootTemplates_Pickpocketing.GetLootFor(info->PickpocketLootId);
+-			else if (type == LOOT_SKINNING && info->SkinningLootId)
+-				lTemplate = LootTemplates_Skinning.GetLootFor(info->SkinningLootId);
++                lTemplate = LootTemplates_Creature.GetLootFor(info->loot_id);
++            else if (type == LOOT_PICKPOCKETING && info->pickpocket_loot_id)
++                lTemplate = LootTemplates_Pickpocketing.GetLootFor(info->pickpocket_loot_id);
++            else if (type == LOOT_SKINNING && info->skinning_loot_id)
++                lTemplate = LootTemplates_Skinning.GetLootFor(info->skinning_loot_id);
+ 		}
+ 	}
+ 	else if (guid.IsGameObject())
+@@ -122,7 +148,7 @@ DropMap* ItemDropMapValue::Calculate()
+         uint32 itemId = itemEntry.first;
+         ItemPrototype const* proto = &itemEntry.second;
+ 
+-		if (!(proto->Flags & ITEM_FLAG_HAS_LOOT))
++        if (!(proto->Flags & ITEM_FLAG_LOOTABLE))
+ 			continue;
+ 
+ 		LootTemplateAccess const* lTemplateA = DropMapValue::GetLootTemplate(ObjectGuid(HIGHGUID_ITEM, itemId, uint32(1)), LOOT_CORPSE);
+@@ -422,8 +448,8 @@ bool ShouldLootObject::Calculate()
+ 
+ 	for (auto& lItem : lootAccess.GetLootContentFor(bot))
+ 	{
+-        if (!lItem->itemid
+-			continue;
++        if (!lItem->itemid)
++            continue;
+ 
+         uint32 canLootAmount = AI_VALUE2(uint32, "stack space for item", lItem->itemid);
+ 
+@@ -451,7 +477,7 @@ void ActiveRolls::CleanUp(Player* bot, LootRollMap& rollMap, ObjectGuid guid, ui
+             continue;
+         }
+ 
+-		Loot* loot = sLootMgr.GetLoot(bot, roll->first);
++        Loot* loot = LootAccess::ResolveLoot(bot, roll->first);
+ 		if (!loot)
+ 		{
+ 			roll = rollMap.erase(roll);
+@@ -489,7 +515,7 @@ std::string ActiveRolls::Format()
+ 
+ 		std::string itemLink;
+ 
+-		Loot* loot = sLootMgr.GetLoot(bot, roll.first);
++        Loot* loot = LootAccess::ResolveLoot(bot, roll.first);
+ 		if (loot)
+ 		{
+             LootItem* item = roll.second < loot->items.size() ? &loot->items[roll.second] : nullptr;
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/LootValues.h b/modules/mod-playerbots/src/playerbot/strategy/values/LootValues.h
+index 2f2549d..6781e90 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/LootValues.h
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/LootValues.h
+@@ -39,6 +39,7 @@ namespace ai
+         std::vector<LootItem*> GetLootContentFor(Player* player) const;
+         bool IsLootedForAll() const;
+         void GetLootItemsListFor(Player* player, LootItemList& result) const;
++        static Loot* ResolveLoot(Player* player, ObjectGuid guid = ObjectGuid());
+ 
+         // Native Penqle-backed accessors.  Do not mirror the old CMaNGOS Loot
+         // layout: Penqle has player-specific quest/FFA/conditional slot maps and

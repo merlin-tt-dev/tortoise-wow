@@ -1,0 +1,32 @@
+diff --git a/modules/mod-playerbots/src/cmangos-compat-shim.h b/modules/mod-playerbots/src/cmangos-compat-shim.h
+index ca822dd..8db324d 100644
+--- a/modules/mod-playerbots/src/cmangos-compat-shim.h
++++ b/modules/mod-playerbots/src/cmangos-compat-shim.h
+@@ -177,14 +177,6 @@ struct CmangosFactionStoreProxy
+ };
+ inline CmangosFactionStoreProxy sFactionStore;
+ 
+-// sCreatureStorage (creature_template SQL).
+-struct CmangosCreatureStorageProxy
+-{
+-    template<typename T = CreatureInfo>
+-    T const* LookupEntry(uint32 id) const { return sObjectMgr.GetCreatureTemplate(id); }
+-};
+-inline CmangosCreatureStorageProxy sCreatureStorage;
+-
+ // === Helpers ===
+ // strstri overload: bot's PlayerbotAI.cpp forward-declares strstri(std::string, std::string).
+ // Penqle's playerbot/Helpers.cpp now provides the implementation (added).
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/TravelValues.cpp b/modules/mod-playerbots/src/playerbot/strategy/values/TravelValues.cpp
+index ac0152b..006e9c3 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/TravelValues.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/TravelValues.cpp
+@@ -206,7 +206,7 @@ uint32 EntryTravelPurposeMapValue::SkillIdToGatherEntry(int32 entry)
+ {
+     if (entry > 0)
+     {
+-        CreatureInfo const* cInfo = sCreatureStorage.LookupEntry<CreatureInfo>(entry);
++        CreatureInfo const* cInfo = sObjectMgr.GetCreatureTemplate(entry);
+ 
+         if (!cInfo || !cInfo->skinning_loot_id)
+             return 0;

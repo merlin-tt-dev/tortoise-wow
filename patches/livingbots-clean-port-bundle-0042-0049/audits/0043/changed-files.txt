@@ -1,0 +1,3 @@
+modules/mod-playerbots/src/playerbot/strategy/triggers/GenericTriggers.cpp
+modules/mod-playerbots/src/playerbot/strategy/triggers/GenericTriggers.h
+modules/mod-playerbots/src/playerbot/strategy/triggers/RangeTriggers.h

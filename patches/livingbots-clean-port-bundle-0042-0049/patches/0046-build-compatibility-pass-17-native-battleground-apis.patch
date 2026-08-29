@@ -1,0 +1,299 @@
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/BattleGroundTactics.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/BattleGroundTactics.cpp
+index 3115138..b4c585e 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/BattleGroundTactics.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/BattleGroundTactics.cpp
+@@ -2718,7 +2718,7 @@ bool BGTactics::Execute(Event& event)
+     std::vector<BattleBotPath*> const* vPaths;
+     std::vector<uint32> const* vFlagIds;
+ 
+-    BattleGroundTypeId bgType = bg->GetTypeId();
++    BattleGroundTypeId bgType = bg->GetTypeID();
+ #ifdef MANGOSBOT_TWO
+     if (bgType == BATTLEGROUND_RB)
+         bgType = bot->GetBattleGround()->GetTypeId(true);
+@@ -2862,7 +2862,7 @@ bool BGTactics::moveToStart(bool force)
+     if (!force && bg->GetStatus() != STATUS_WAIT_JOIN)
+         return false;
+ 
+-    BattleGroundTypeId bgType = bg->GetTypeId();
++    BattleGroundTypeId bgType = bg->GetTypeID();
+ #ifdef MANGOSBOT_TWO
+     if (bgType == BATTLEGROUND_RB)
+         bgType = bg->GetTypeId(true);
+@@ -2970,7 +2970,7 @@ bool BGTactics::selectObjective(bool reset)
+     if (pos.isSet() && !reset)
+         return false;
+ 
+-    BattleGroundTypeId bgType = bg->GetTypeId();
++    BattleGroundTypeId bgType = bg->GetTypeID();
+ #ifdef MANGOSBOT_TWO
+     if (bgType == BATTLEGROUND_RB)
+         bgType = bg->GetTypeId(true);
+@@ -2993,7 +2993,7 @@ bool BGTactics::selectObjective(bool reset)
+         {
+             if (!pos.isSet())
+             {
+-                pos.Set(objectiveLocation.coord_x, objectiveLocation.coord_y, objectiveLocation.coord_z, objectiveLocation.mapid);
++                pos.Set(objectiveLocation.x, objectiveLocation.y, objectiveLocation.z, objectiveLocation.mapId);
+             }
+ 
+             posMap["bg objective"] = pos;
+@@ -4000,7 +4000,7 @@ bool BGTactics::moveToObjective()
+     if (!bg)
+         return false;
+ 
+-    BattleGroundTypeId bgType = bg->GetTypeId();
++    BattleGroundTypeId bgType = bg->GetTypeID();
+ #ifdef MANGOSBOT_TWO
+     if (bgType == BATTLEGROUND_RB)
+         bgType = bg->GetTypeId(true);
+@@ -4057,7 +4057,7 @@ bool BGTactics::selectObjectiveWp(std::vector<BattleBotPath*> const& vPaths)
+     if (!bg)
+         return false;
+ 
+-    BattleGroundTypeId bgType = bg->GetTypeId();
++    BattleGroundTypeId bgType = bg->GetTypeID();
+ #ifdef MANGOSBOT_TWO
+     if (bgType == BATTLEGROUND_RB)
+         bgType = bg->GetTypeId(true);
+@@ -4259,7 +4259,7 @@ bool BGTactics::startNewPathBegin(std::vector<BattleBotPath*> const& vPaths)
+     if (!bg)
+         return false;
+ 
+-    BattleGroundTypeId bgType = bg->GetTypeId();
++    BattleGroundTypeId bgType = bg->GetTypeID();
+ #ifdef MANGOSBOT_TWO
+     if (bgType == BATTLEGROUND_RB)
+         bgType = bg->GetTypeId(true);
+@@ -4317,7 +4317,7 @@ bool BGTactics::startNewPathFree(std::vector<BattleBotPath*> const& vPaths)
+     if (!bg)
+         return false;
+ 
+-    BattleGroundTypeId bgType = bg->GetTypeId();
++    BattleGroundTypeId bgType = bg->GetTypeID();
+ #ifdef MANGOSBOT_TWO
+     if (bgType == BATTLEGROUND_RB)
+         bgType = bg->GetTypeId(true);
+@@ -4368,7 +4368,7 @@ bool BGTactics::atFlag(std::vector<BattleBotPath*> const& vPaths, std::vector<ui
+     if (!bg)
+         return false;
+ 
+-    BattleGroundTypeId bgType = bg->GetTypeId();
++    BattleGroundTypeId bgType = bg->GetTypeID();
+ #ifdef MANGOSBOT_TWO
+     if (bgType == BATTLEGROUND_RB)
+         bgType = bg->GetTypeId(true);
+@@ -4451,14 +4451,14 @@ bool BGTactics::atFlag(std::vector<BattleBotPath*> const& vPaths, std::vector<ui
+         if (!sServerFacade.isSpawned(go) || go->HasFlag(GAMEOBJECT_FLAGS, GO_FLAG_IN_USE) || go->GetGoState() != GO_STATE_READY)
+             continue;
+ 
+-        if (!bot->CanInteract(go) && bgType != BATTLEGROUND_WS)
++        if (!bot->CanInteractWithGameObject(go) && bgType != BATTLEGROUND_WS)
+             continue;
+         
+         if (flagRange)
+             if (!bot->IsWithinDistInMap(go, flagRange))
+                 continue;
+ 
+-        bool atBase = go->GetEntry() == vFlagsWS[GetTeamIndexByTeamId(bot->GetTeam())];
++        bool atBase = go->GetEntry() == vFlagsWS[BattleGround::GetTeamIndexByTeamId(bot->GetTeam())];
+ #ifndef MANGOSBOT_ZERO
+         if (bgType == BATTLEGROUND_EY)
+         {
+@@ -4594,7 +4594,8 @@ bool BGTactics::flagTaken()
+     if (!bg)
+         return false;
+ 
+-    return !bg->GetFlagCarrierGuid(GetTeamIndexByTeamId(bg->GetOtherTeam(bot->GetTeam()))).IsEmpty();
++    Team const enemyTeam = bg->GetOtherTeam(bot->GetTeam());
++    return enemyTeam == ALLIANCE ? bg->IsAllianceFlagPickedup() : bg->IsHordeFlagPickedup();
+ }
+ 
+ bool BGTactics::teamFlagTaken()
+@@ -4603,7 +4604,7 @@ bool BGTactics::teamFlagTaken()
+     if (!bg)
+         return false;
+ 
+-    return !bg->GetFlagCarrierGuid(GetTeamIndexByTeamId(bot->GetTeam())).IsEmpty();
++    return bot->GetTeam() == ALLIANCE ? bg->IsAllianceFlagPickedup() : bg->IsHordeFlagPickedup();
+ }
+ 
+ bool BGTactics::protectFC()
+@@ -4625,7 +4626,7 @@ bool BGTactics::useBuff()
+     if (!bg)
+         return false;
+ 
+-    BattleGroundTypeId bgType = bg->GetTypeId();
++    BattleGroundTypeId bgType = bg->GetTypeID();
+ #ifdef MANGOSBOT_TWO
+     if (bgType == BATTLEGROUND_RB)
+         bgType = bg->GetTypeId(true);
+@@ -4719,7 +4720,7 @@ bool BGTactics::IsLockedInsideKeep()
+     if (!bg)
+         return false;
+ 
+-    BattleGroundTypeId bgType = bg->GetTypeId();
++    BattleGroundTypeId bgType = bg->GetTypeID();
+ #ifdef MANGOSBOT_TWO
+     if (bgType == BATTLEGROUND_RB)
+         bgType = bg->GetTypeId(true);
+@@ -4879,7 +4880,7 @@ bool ArenaTactics::Execute(Event& event)
+     if (sBattleGroundMgr.IsArenaType(bg->GetTypeID()))
+ #endif
+ #ifdef CMANGOS
+-        if (sBattleGroundMgr.IsArenaType(bg->GetTypeId()))
++        if (sBattleGroundMgr.IsArenaType(bg->GetTypeID()))
+ #endif
+         {
+             ai->ResetStrategies(false);
+@@ -4900,7 +4901,7 @@ bool ArenaTactics::moveToCenter(BattleGround *bg)
+     switch (bg->GetTypeID())
+ #endif
+ #ifdef CMANGOS
+-        switch (bg->GetTypeId())
++        switch (bg->GetTypeID())
+ #endif
+         {
+         case BATTLEGROUND_BE:
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/BattleGroundTacticsAV.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/BattleGroundTacticsAV.cpp
+index aca32de..4b3f756 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/BattleGroundTacticsAV.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/BattleGroundTacticsAV.cpp
+@@ -124,7 +124,7 @@ bool BGTactics::SelectAvObjectiveAlliance(WorldLocation& objectiveLocation)
+     {
+         if (Creature* pDrek = bot->GetMap()->GetCreature(bg->GetSingleCreatureGuid(BG_AV_BOSS_H, 0)))
+         {
+-            objectiveLocation = WorldLocation(pDrek->GetMapId(), pDrek->GetPosition());
++            objectiveLocation = WorldPosition(pDrek->GetMapId(), pDrek->GetPosition());
+             return true;
+         }
+     }
+@@ -160,7 +160,7 @@ bool BGTactics::SelectAvObjectiveAlliance(WorldLocation& objectiveLocation)
+             {
+                 if (WorldLocation icebloodGarrison; sRandomPlayerbotMgr.GetNamedLocation("AV_ICEBLOOD_GARRISON_WAITING_ALLIANCE", icebloodGarrison))
+                 {
+-                    uint32 attackCount = getDefendersCount(Position(icebloodGarrison.coord_x, icebloodGarrison.coord_y, icebloodGarrison.coord_z, icebloodGarrison.orientation), 10.0f, false);
++                    uint32 attackCount = getDefendersCount(Position(icebloodGarrison.x, icebloodGarrison.y, icebloodGarrison.z, icebloodGarrison.o), 10.0f, false);
+ 
+                     // Prepare to attack Captain
+                     if (attackCount < 5 && !sServerFacade.IsInCombat(pGalvangar))
+@@ -169,7 +169,7 @@ bool BGTactics::SelectAvObjectiveAlliance(WorldLocation& objectiveLocation)
+                     }
+                     else
+                     {
+-                        objectiveLocation = WorldLocation(pGalvangar->GetMapId(), pGalvangar->GetPosition());
++                        objectiveLocation = WorldPosition(pGalvangar->GetMapId(), pGalvangar->GetPosition());
+                     }
+ 
+                     return true;
+@@ -204,22 +204,22 @@ bool BGTactics::SelectAvObjectiveAlliance(WorldLocation& objectiveLocation)
+     }
+ 
+     // Mine capture
+-    if (!supporter && (bg->IsActiveEvent(BG_AV_MINE_BOSSES_SOUTH, TEAM_INDEX_HORDE) || bg->IsActiveEvent(BG_AV_MINE_BOSSES_SOUTH, TEAM_INDEX_NEUTRAL)))
++    if (!supporter && (bg->IsActiveEvent(BG_AV_MINE_BOSSES_SOUTH, BG_AV_TEAM_HORDE) || bg->IsActiveEvent(BG_AV_MINE_BOSSES_SOUTH, BG_AV_TEAM_NEUTRAL)))
+     {
+-        if (Creature* neutralMineBoss = bot->GetMap()->GetCreature(bg->GetSingleCreatureGuid(BG_AV_MINE_BOSSES_SOUTH, TEAM_INDEX_NEUTRAL)))
++        if (Creature* neutralMineBoss = bot->GetMap()->GetCreature(bg->GetSingleCreatureGuid(BG_AV_MINE_BOSSES_SOUTH, BG_AV_TEAM_NEUTRAL)))
+         {
+-            if (bot->IsWithinDist(neutralMineBoss, VISIBILITY_DISTANCE_LARGE) && neutralMineBoss->GetDeathState() != DEAD && bg->IsActiveEvent(BG_AV_MINE_BOSSES_SOUTH, TEAM_INDEX_NEUTRAL))
++            if (bot->IsWithinDist(neutralMineBoss, VISIBILITY_DISTANCE_LARGE) && neutralMineBoss->GetDeathState() != DEAD && bg->IsActiveEvent(BG_AV_MINE_BOSSES_SOUTH, BG_AV_TEAM_NEUTRAL))
+             {
+-                objectiveLocation = WorldLocation(neutralMineBoss->GetMapId(), neutralMineBoss->GetPosition());
++                objectiveLocation = WorldPosition(neutralMineBoss->GetMapId(), neutralMineBoss->GetPosition());
+                 return true;
+             }
+         }
+ 
+-        if (Creature* hordeMineBoss = bot->GetMap()->GetCreature(bg->GetSingleCreatureGuid(BG_AV_MINE_BOSSES_SOUTH, TEAM_INDEX_HORDE)))
++        if (Creature* hordeMineBoss = bot->GetMap()->GetCreature(bg->GetSingleCreatureGuid(BG_AV_MINE_BOSSES_SOUTH, BG_AV_TEAM_HORDE)))
+         {
+-            if (bot->IsWithinDist(hordeMineBoss, VISIBILITY_DISTANCE_LARGE) && hordeMineBoss->GetDeathState() != DEAD && bg->IsActiveEvent(BG_AV_MINE_BOSSES_SOUTH, TEAM_INDEX_HORDE))
++            if (bot->IsWithinDist(hordeMineBoss, VISIBILITY_DISTANCE_LARGE) && hordeMineBoss->GetDeathState() != DEAD && bg->IsActiveEvent(BG_AV_MINE_BOSSES_SOUTH, BG_AV_TEAM_HORDE))
+             {
+-                objectiveLocation = WorldLocation(hordeMineBoss->GetMapId(), hordeMineBoss->GetPosition());
++                objectiveLocation = WorldPosition(hordeMineBoss->GetMapId(), hordeMineBoss->GetPosition());
+                 return true;
+             }
+         }
+@@ -285,7 +285,7 @@ bool BGTactics::SelectAvObjectiveHorde(WorldLocation& objectiveLocation)
+     {
+         if (Creature* pVanndar = bot->GetMap()->GetCreature(bg->GetSingleCreatureGuid(BG_AV_BOSS_A, 0)))
+         {
+-            objectiveLocation = WorldLocation(pVanndar->GetMapId(), pVanndar->GetPosition());
++            objectiveLocation = WorldPosition(pVanndar->GetMapId(), pVanndar->GetPosition());
+             return true;
+         }
+     }
+@@ -321,7 +321,7 @@ bool BGTactics::SelectAvObjectiveHorde(WorldLocation& objectiveLocation)
+             {
+                 if (WorldLocation stoneheartOutpost; sRandomPlayerbotMgr.GetNamedLocation("AV_STONEHEART_OUTPOST_WAITING_HORDE", stoneheartOutpost))
+                 {
+-                    uint32 attackCount = getDefendersCount(Position(stoneheartOutpost.coord_x, stoneheartOutpost.coord_y, stoneheartOutpost.coord_z, stoneheartOutpost.orientation), 10.0f, false);
++                    uint32 attackCount = getDefendersCount(Position(stoneheartOutpost.x, stoneheartOutpost.y, stoneheartOutpost.z, stoneheartOutpost.o), 10.0f, false);
+ 
+                     // Prepare to attack Captain
+                     if (attackCount < 5 && !sServerFacade.IsInCombat(pBalinda))
+@@ -330,7 +330,7 @@ bool BGTactics::SelectAvObjectiveHorde(WorldLocation& objectiveLocation)
+                     }
+                     else
+                     {
+-                        objectiveLocation = WorldLocation(pBalinda->GetMapId(), pBalinda->GetPosition());
++                        objectiveLocation = WorldPosition(pBalinda->GetMapId(), pBalinda->GetPosition());
+                     }
+ 
+                     return true;
+@@ -366,27 +366,27 @@ bool BGTactics::SelectAvObjectiveHorde(WorldLocation& objectiveLocation)
+ 
+     // Mine capture (need paths & script fix)
+ #ifndef MANGOSBOT_TWO  
+-    if (!supporter && (bg->IsActiveEvent(BG_AV_MINE_BOSSES_NORTH, TEAM_INDEX_ALLIANCE) || bg->IsActiveEvent(BG_AV_MINE_BOSSES_NORTH, TEAM_INDEX_NEUTRAL)) &&
++    if (!supporter && (bg->IsActiveEvent(BG_AV_MINE_BOSSES_NORTH, BG_AV_TEAM_ALLIANCE) || bg->IsActiveEvent(BG_AV_MINE_BOSSES_NORTH, BG_AV_TEAM_NEUTRAL)) &&
+         !bg->IsActiveEvent(BG_AV_NODES_STORMPIKE_GRAVE, ALLIANCE_CONTROLLED))
+ #else
+-    if (!supporter && (bg->IsActiveEvent(BG_AV_MINE_BOSSES_NORTH, TEAM_INDEX_ALLIANCE) || bg->IsActiveEvent(BG_AV_MINE_BOSSES_NORTH, TEAM_INDEX_NEUTRAL)) &&
++    if (!supporter && (bg->IsActiveEvent(BG_AV_MINE_BOSSES_NORTH, BG_AV_TEAM_ALLIANCE) || bg->IsActiveEvent(BG_AV_MINE_BOSSES_NORTH, BG_AV_TEAM_NEUTRAL)) &&
+         !bg->IsActiveEvent(BG_AV_NODE_GY_STORMPIKE, ALLIANCE_CONTROLLED))
+ #endif
+     {
+-        if (Creature* neutralMineBoss = bot->GetMap()->GetCreature(bg->GetSingleCreatureGuid(BG_AV_MINE_BOSSES_NORTH, TEAM_INDEX_NEUTRAL)))
++        if (Creature* neutralMineBoss = bot->GetMap()->GetCreature(bg->GetSingleCreatureGuid(BG_AV_MINE_BOSSES_NORTH, BG_AV_TEAM_NEUTRAL)))
+         {
+-            if (bot->IsWithinDist(neutralMineBoss, VISIBILITY_DISTANCE_GIGANTIC) && neutralMineBoss->GetDeathState() != DEAD && bg->IsActiveEvent(BG_AV_MINE_BOSSES_NORTH, TEAM_INDEX_NEUTRAL))
++            if (bot->IsWithinDist(neutralMineBoss, VISIBILITY_DISTANCE_GIGANTIC) && neutralMineBoss->GetDeathState() != DEAD && bg->IsActiveEvent(BG_AV_MINE_BOSSES_NORTH, BG_AV_TEAM_NEUTRAL))
+             {
+-                objectiveLocation = WorldLocation(neutralMineBoss->GetMapId(), neutralMineBoss->GetPosition());
++                objectiveLocation = WorldPosition(neutralMineBoss->GetMapId(), neutralMineBoss->GetPosition());
+                 return true;
+             }
+         }
+ 
+-        if (Creature* allianceMineBoss = bot->GetMap()->GetCreature(bg->GetSingleCreatureGuid(BG_AV_MINE_BOSSES_NORTH, TEAM_INDEX_ALLIANCE)))
++        if (Creature* allianceMineBoss = bot->GetMap()->GetCreature(bg->GetSingleCreatureGuid(BG_AV_MINE_BOSSES_NORTH, BG_AV_TEAM_ALLIANCE)))
+         {
+-            if (bot->IsWithinDist(allianceMineBoss, VISIBILITY_DISTANCE_GIGANTIC) && allianceMineBoss->GetDeathState() != DEAD && bg->IsActiveEvent(BG_AV_MINE_BOSSES_NORTH, TEAM_INDEX_ALLIANCE))
++            if (bot->IsWithinDist(allianceMineBoss, VISIBILITY_DISTANCE_GIGANTIC) && allianceMineBoss->GetDeathState() != DEAD && bg->IsActiveEvent(BG_AV_MINE_BOSSES_NORTH, BG_AV_TEAM_ALLIANCE))
+             {
+-                objectiveLocation = WorldLocation(allianceMineBoss->GetMapId(), allianceMineBoss->GetPosition());
++                objectiveLocation = WorldPosition(allianceMineBoss->GetMapId(), allianceMineBoss->GetPosition());
+                 return true;
+             }
+         }
+@@ -435,7 +435,7 @@ bool BGTactics::CheckFlagAv()
+         return false;
+     }
+ 
+-    BattleGroundTypeId bgType = bg->GetTypeId();
++    BattleGroundTypeId bgType = bg->GetTypeID();
+ #ifdef MANGOSBOT_TWO
+     if (bgType == BATTLEGROUND_RB)
+         bgType = bg->GetTypeId(true);
+@@ -459,7 +459,7 @@ bool BGTactics::CheckFlagAv()
+         if (!sServerFacade.isSpawned(go) || go->HasFlag(GAMEOBJECT_FLAGS, GO_FLAG_IN_USE) || go->GetGoState() != GO_STATE_READY)
+             continue;
+ 
+-        if (!bot->CanInteract(go))
++        if (!bot->CanInteractWithGameObject(go))
+             continue;
+ 
+         if (!bot->IsWithinDistInMap(go, INTERACTION_DISTANCE))

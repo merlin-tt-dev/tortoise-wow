@@ -1,0 +1,1 @@
+60b8bae608a0d5686f485616bd991f4d8adbc83391959653085aabb74018aaaf  /mnt/data/livingbots-clean-port-bundle-0042-0049/patches/0049-build-compatibility-pass-20-native-auction-item-usage.patch

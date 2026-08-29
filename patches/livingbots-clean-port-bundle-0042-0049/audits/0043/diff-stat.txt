@@ -1,0 +1,4 @@
+ .../playerbot/strategy/triggers/GenericTriggers.cpp   | 19 ++++++++++---------
+ .../src/playerbot/strategy/triggers/GenericTriggers.h |  6 +++---
+ .../src/playerbot/strategy/triggers/RangeTriggers.h   | 16 ++++++++--------
+ 3 files changed, 21 insertions(+), 20 deletions(-)

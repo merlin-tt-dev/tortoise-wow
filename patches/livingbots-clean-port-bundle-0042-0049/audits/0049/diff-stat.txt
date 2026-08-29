@@ -1,0 +1,4 @@
+ .../src/playerbot/RandomPlayerbotMgr.cpp           |  3 ++-
+ .../src/playerbot/RandomPlayerbotMgr.h             | 16 +++++++++----
+ .../playerbot/strategy/values/ItemUsageValue.cpp   | 26 +++++++++-------------
+ 3 files changed, 25 insertions(+), 20 deletions(-)

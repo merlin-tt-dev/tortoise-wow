@@ -1,0 +1,9 @@
+ .../strategy/actions/AutoCompleteQuestAction.cpp   | 10 ++----
+ .../actions/GuildAcceptQuestOrderAction.cpp        | 18 ++++------
+ .../strategy/actions/ListQuestsActions.cpp         |  5 +--
+ .../strategy/actions/QueryQuestAction.cpp          | 39 +++++++++-------------
+ .../strategy/actions/ShareQuestAction.cpp          | 24 +++++--------
+ .../strategy/actions/SuggestWhatToDoAction.cpp     | 16 ++-------
+ .../src/playerbot/strategy/values/GuildValues.cpp  | 10 ++----
+ .../src/playerbot/strategy/values/QuestValues.cpp  | 18 ++--------
+ 8 files changed, 41 insertions(+), 99 deletions(-)

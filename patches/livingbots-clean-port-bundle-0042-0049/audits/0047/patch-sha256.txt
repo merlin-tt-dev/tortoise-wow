@@ -1,0 +1,1 @@
+0162609e55bffe29c44bd49d1cad7cfab949c6aa68532c0db63a09ffab28cab1  /mnt/data/livingbots-clean-port-bundle-0042-0049/patches/0047-build-compatibility-pass-18-native-quest-status.patch

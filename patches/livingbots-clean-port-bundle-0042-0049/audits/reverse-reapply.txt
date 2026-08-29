@@ -1,0 +1,44 @@
+REVERSE_CHECK 0049-build-compatibility-pass-20-native-auction-item-usage.patch
+REVERSE_CHECK 0048-build-compatibility-pass-19-native-loot-apis.patch
+/mnt/data/livingbots-clean-port-bundle-0042-0049/patches/0048-build-compatibility-pass-19-native-loot-apis.patch:174: tab in indent.
+				lTemplate = LootTemplates_Creature.GetLootFor(info->LootId);
+/mnt/data/livingbots-clean-port-bundle-0042-0049/patches/0048-build-compatibility-pass-19-native-loot-apis.patch:175: tab in indent.
+			else if (type == LOOT_PICKPOCKETING && info->PickpocketLootId)
+/mnt/data/livingbots-clean-port-bundle-0042-0049/patches/0048-build-compatibility-pass-19-native-loot-apis.patch:176: tab in indent.
+				lTemplate = LootTemplates_Pickpocketing.GetLootFor(info->PickpocketLootId);
+/mnt/data/livingbots-clean-port-bundle-0042-0049/patches/0048-build-compatibility-pass-19-native-loot-apis.patch:177: tab in indent.
+			else if (type == LOOT_SKINNING && info->SkinningLootId)
+/mnt/data/livingbots-clean-port-bundle-0042-0049/patches/0048-build-compatibility-pass-19-native-loot-apis.patch:178: tab in indent.
+				lTemplate = LootTemplates_Skinning.GetLootFor(info->SkinningLootId);
+warning: squelched 4 whitespace errors
+warning: 9 lines add whitespace errors.
+REVERSE_CHECK 0047-build-compatibility-pass-18-native-quest-status.patch
+/mnt/data/livingbots-clean-port-bundle-0042-0049/patches/0047-build-compatibility-pass-18-native-quest-status.patch:140: trailing whitespace.
+        }      
+/mnt/data/livingbots-clean-port-bundle-0042-0049/patches/0047-build-compatibility-pass-18-native-quest-status.patch:279: tab in indent.
+	uint8 numQuest = 0;
+/mnt/data/livingbots-clean-port-bundle-0042-0049/patches/0047-build-compatibility-pass-18-native-quest-status.patch:280: tab in indent.
+	for (uint8 slot = 0; slot < MAX_QUEST_LOG_SIZE; ++slot)
+/mnt/data/livingbots-clean-port-bundle-0042-0049/patches/0047-build-compatibility-pass-18-native-quest-status.patch:281: tab in indent.
+	{
+/mnt/data/livingbots-clean-port-bundle-0042-0049/patches/0047-build-compatibility-pass-18-native-quest-status.patch:282: tab in indent.
+		uint32 questId = bot->GetQuestSlotQuestId(slot);
+warning: squelched 8 whitespace errors
+warning: 13 lines add whitespace errors.
+REVERSE_CHECK 0046-build-compatibility-pass-17-native-battleground-apis.patch
+REVERSE_CHECK 0045-build-compatibility-pass-16-native-rtsc-spell-visual.patch
+REVERSE_CHECK 0044-build-compatibility-pass-15-native-formations.patch
+/mnt/data/livingbots-clean-port-bundle-0042-0049/patches/0044-build-compatibility-pass-15-native-formations.patch:9: tab in indent.
+	return a.coord_x == b.coord_x && a.coord_y == b.coord_y && a.coord_z == b.coord_z && a.mapid == b.mapid;
+warning: 1 line adds whitespace errors.
+REVERSE_CHECK 0043-build-compatibility-pass-14-native-generic-range-triggers.patch
+REVERSE_CHECK 0042-build-compatibility-pass-13-native-creature-template-storage.patch
+REAPPLY_CHECK 0042-build-compatibility-pass-13-native-creature-template-storage.patch
+REAPPLY_CHECK 0043-build-compatibility-pass-14-native-generic-range-triggers.patch
+REAPPLY_CHECK 0044-build-compatibility-pass-15-native-formations.patch
+REAPPLY_CHECK 0045-build-compatibility-pass-16-native-rtsc-spell-visual.patch
+REAPPLY_CHECK 0046-build-compatibility-pass-17-native-battleground-apis.patch
+REAPPLY_CHECK 0047-build-compatibility-pass-18-native-quest-status.patch
+REAPPLY_CHECK 0048-build-compatibility-pass-19-native-loot-apis.patch
+REAPPLY_CHECK 0049-build-compatibility-pass-20-native-auction-item-usage.patch
+REVERSE_REAPPLY_PASS
