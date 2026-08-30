@@ -29,7 +29,7 @@ public:
         if (!(member->IsInSameGroupWith(ai->GetBot()) || member->IsInSameRaidWith(ai->GetBot())))
 #endif
 #ifdef CMANGOS
-        if (!member->IsInGroup(ai->GetBot()))
+        if (!member->IsInSameRaidWith(ai->GetBot()))
 #endif
             return false;
 
