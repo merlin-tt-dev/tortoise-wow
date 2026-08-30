@@ -79,7 +79,7 @@ bool GuildManageNearbyAction::Execute(Event& event)
         if (!player || bot == player)
             continue;
 
-        if (player->isDND())
+        if (player->IsDND())
             continue;
 
 
@@ -208,8 +208,8 @@ bool GuildManageNearbyAction::Execute(Event& event)
                 if (sameGroup)
                 {
                     WorldPacket data;
-                    ChatHandler::BuildChatPacket(data, bot->GetGroup()->IsRaidGroup() ? CHAT_MSG_RAID : CHAT_MSG_PARTY, line.c_str(), LANG_UNIVERSAL, CHAT_TAG_NONE, bot->GetObjectGuid(), bot->GetName());
-                    bot->GetGroup()->BroadcastPacket(data,true);
+                    ChatHandler::BuildChatPacket(data, bot->GetGroup()->isRaidGroup() ? CHAT_MSG_RAID : CHAT_MSG_PARTY, line.c_str(), LANG_UNIVERSAL, CHAT_TAG_NONE, bot->GetObjectGuid(), bot->GetName());
+                    bot->GetGroup()->BroadcastPacket(&data, true);
                 }
                 else
                     bot->Say(line, (bot->GetTeam() == ALLIANCE ? LANG_COMMON : LANG_ORCISH));
