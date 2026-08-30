@@ -71,13 +71,14 @@ bool SkillAction::Execute(Event& event)
             {
                 args["%skillname"] = ChatHelper::formatSkill(id);
 
-                if (!bot->GetSkillInfo(uint16(id), ([](SkillRaceClassInfoEntry const& entry) { return (entry.flags & SKILL_FLAG_UNLEARNABLE); })))
+                SkillRaceClassInfoEntry const* rcEntry = GetSkillRaceClassInfo(id, bot->GetRace(), bot->GetClass());
+                if (!rcEntry || !(rcEntry->flags & SKILL_FLAG_UNLEARNABLE))
                 {
                     ai->TellPlayerNoFacing(requester, BOT_TEXT2("Unable to unlearn %skillname", args));
                     return false;
                 }
 
-                bot->SetSkillStep(uint16(id), 0);
+                bot->SetSkill(uint16(id), 0, 0);
 
                 ai->TellPlayerNoFacing(requester, BOT_TEXT2("Unlearned %skillname", args));
 
