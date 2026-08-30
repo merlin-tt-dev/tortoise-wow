@@ -120,8 +120,8 @@ bool AddAllLootAction::AddLoot(Player* requester, ObjectGuid guid)
         //NOTE: They are !unable to loot quests items! too if so
         if (isInDungeon
             && group->GetLootMethod() == LootMethod::MASTER_LOOT
-            && group->GetMasterLooterGuid()
-            && group->GetMasterLooterGuid() != bot->GetObjectGuid())
+            && group->GetLooterGuid()
+            && group->GetLooterGuid() != bot->GetObjectGuid())
         {
             ai->TellDebug(requester, "Not master looter.", "debug loot");
             return false;
