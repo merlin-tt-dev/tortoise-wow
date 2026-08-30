@@ -109,12 +109,27 @@ namespace ai
                 return true;
             }
 #else
-            if (cell.GridX() > 0 && cell.GridY() > 0 && !MMAP::MMapFactory::createOrGetMMapManager()->IsMMapIsLoaded(botPos.getMapId(), cell.GridX(), cell.GridY()) 
-                && !MMAP::MMapFactory::createOrGetMMapManager()->loadMap(sWorld.GetDataPath(), botPos.getMapId(), cell.GridX(), cell.GridY()))
+            MMAP::MMapManager* mmapManager = MMAP::MMapFactory::createOrGetMMapManager();
+            auto hasMmapTile = [&]()
             {
-                ai->TellDebug(ai->GetMaster(), "Stuck: In unloaded grid" + std::to_string(grid.x_coord) + "," + std::to_string(grid.y_coord), "debug stuck");
+                dtNavMesh const* navMesh = mmapManager->GetNavMesh(botPos.getMapId());
+                if (!navMesh)
+                    return false;
 
-                return true;
+                float point[3] = {botPos.getY(), botPos.getZ(), botPos.getX()};
+                int tileX = 0, tileY = 0;
+                navMesh->calcTileLoc(point, &tileX, &tileY);
+                return navMesh->getTileAt(tileX, tileY, 0) != nullptr;
+            };
+
+            if (grid.x_coord > 0 && grid.y_coord > 0 && !hasMmapTile())
+            {
+                mmapManager->loadMap(botPos.getMapId(), grid.x_coord, grid.y_coord);
+                if (!hasMmapTile())
+                {
+                    ai->TellDebug(ai->GetMaster(), "Stuck: In unloaded grid" + std::to_string(grid.x_coord) + "," + std::to_string(grid.y_coord), "debug stuck");
+                    return true;
+                }
             }
 #endif
 
@@ -239,11 +254,11 @@ namespace ai
 
             if (Group* group = bot->GetGroup())
             {
-                Player* leader = sObjectMgr.GetPlayer(group->GetLeaderGuid(), true);
+                Player* leader = sObjectMgr.GetPlayer(group->GetLeaderGuid());
                 if (!leader)
                     return false;
 
-                return leader->isAFK();
+                return leader->IsAFK();
             }
 
             return false;
