@@ -5,7 +5,6 @@
 #include "AccountMgr.h"
 #include "playerbot/PlayerbotFactory.h"
 #include "RandomItemMgr.h"
-#include "WorldState.h"
 #include "playerbot/PlayerbotHelpMgr.h"
 #include "playerbot/strategy/actions/CheatAction.h"
 
@@ -19,22 +18,6 @@
 #include <fstream>
 #include <sstream>
 #include "PlayerbotLoginMgr.h"
-
-std::vector<std::string> ConfigAccess::GetValues(const std::string& name) const
-{
-    // The original cmangos implementation iterates m_entries
-    // (unordered_map populated by cmangos's own Config parser). Penqle's Config (which
-    // ConfigAccess is reinterpret_cast'd onto) has a totally different layout — that
-    // map doesn't exist at this offset, and iterating it segfaults.
-    //
-    // Bot uses GetValues for multi-value keys: LoginCriteria, WorldBuff. Both
-    // downstream call sites handle an empty result by skipping the optional feature.
-    // Returning empty here is safe; full multi-value parsing against Penqle's Config
-    // is a future enhancement (would need to iterate the underlying ACE_Configuration_Heap
-    // and pattern-match on the key prefix).
-    (void)name;
-    return {};
-}
 
 namespace
 {

@@ -64,18 +64,6 @@ enum class BotLoginCriteriaType : uint8
 
 #define MAX_GEAR_PROGRESSION_LEVEL 6
 
-class ConfigAccess
-{
-private:
-    std::string m_filename;
-    std::string m_envVarPrefix;
-    std::unordered_map<std::string, std::string> m_entries; // keys are converted to lower case.  values cannot be.
-
-public:
-    std::vector<std::string> GetValues(const std::string& name) const;
-    std::mutex m_configLock;
-};
-
 struct ParsedUrl {
     std::string hostname;
     std::string path;
