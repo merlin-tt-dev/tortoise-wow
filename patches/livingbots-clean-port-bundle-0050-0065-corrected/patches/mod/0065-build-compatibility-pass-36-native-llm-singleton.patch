@@ -1,0 +1,12 @@
+diff --git a/modules/mod-playerbots/src/playerbot/PlayerbotLLMInterface.cpp b/modules/mod-playerbots/src/playerbot/PlayerbotLLMInterface.cpp
+index aac4103..4f87b6e 100644
+--- a/modules/mod-playerbots/src/playerbot/PlayerbotLLMInterface.cpp
++++ b/modules/mod-playerbots/src/playerbot/PlayerbotLLMInterface.cpp
+@@ -3,6 +3,7 @@
+ //And yes I used chat-gpt to write most of this. LLM for LLM code is what I call fitting.
+ 
+ #include "PlayerbotLLMInterface.h"
++#include "Policies/SingletonImp.h"
+ 
+ // Penqle's Singleton<> requires an explicit instantiation in a .cpp file.
+ INSTANTIATE_SINGLETON_1(PlayerbotLLMInterface);

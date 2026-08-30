@@ -1,0 +1,2 @@
+modules/mod-playerbots/src/playerbot/PlayerbotLoginMgr.cpp
+modules/mod-playerbots/src/playerbot/PlayerbotLoginMgr.h

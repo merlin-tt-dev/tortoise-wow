@@ -1,0 +1,4 @@
+ modules/mod-playerbots/src/playerbot/strategy/druid/DruidTriggers.cpp | 4 ++--
+ modules/mod-playerbots/src/playerbot/strategy/druid/DruidTriggers.h   | 2 +-
+ modules/mod-playerbots/src/playerbot/strategy/rogue/RogueTriggers.h   | 2 +-
+ 3 files changed, 4 insertions(+), 4 deletions(-)

@@ -1,0 +1,14 @@
+modules/mod-playerbots/src/playerbot/PlayerbotAI.cpp
+modules/mod-playerbots/src/playerbot/ServerFacade.cpp
+modules/mod-playerbots/src/playerbot/ServerFacade.h
+modules/mod-playerbots/src/playerbot/strategy/actions/GenericSpellActions.cpp
+modules/mod-playerbots/src/playerbot/strategy/hunter/HunterActions.h
+modules/mod-playerbots/src/playerbot/strategy/hunter/HunterTriggers.h
+modules/mod-playerbots/src/playerbot/strategy/mage/MageTriggers.h
+modules/mod-playerbots/src/playerbot/strategy/priest/PriestTriggers.cpp
+modules/mod-playerbots/src/playerbot/strategy/values/CraftValues.cpp
+modules/mod-playerbots/src/playerbot/strategy/values/ItemCountValue.cpp
+modules/mod-playerbots/src/playerbot/strategy/values/SpellCastUsefulValue.cpp
+modules/mod-playerbots/src/playerbot/strategy/warrior/ArmsWarriorStrategy.cpp
+modules/mod-playerbots/src/playerbot/strategy/warrior/WarriorActions.h
+modules/mod-playerbots/src/playerbot/strategy/warrior/WarriorTriggers.h

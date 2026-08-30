@@ -1,0 +1,2 @@
+modules/mod-playerbots/src/playerbot/strategy/shaman/ShamanTriggers.h
+modules/mod-playerbots/src/playerbot/strategy/values/EnemyHealerTargetValue.cpp

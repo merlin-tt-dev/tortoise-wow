@@ -1,0 +1,1 @@
+4a873e90b1815d2d49603553d9027c5cd1eac4c7b1dae1383cb473ac826f881f  /mnt/data/livingbots-clean-port-bundle-0050-0065-corrected/patches/mod/0056-build-compatibility-pass-27-native-temp-summon-dungeon-search.patch

@@ -1,0 +1,41 @@
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/druid/DruidTriggers.cpp b/modules/mod-playerbots/src/playerbot/strategy/druid/DruidTriggers.cpp
+index ee81aac..8c73a95 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/druid/DruidTriggers.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/druid/DruidTriggers.cpp
+@@ -13,8 +13,8 @@ bool EntanglingRootsKiteTrigger::IsActive()
+     if (AI_VALUE(uint8, "attackers count") > 3)
+         return false;
+ 
+-	if (!GetTarget()->HasMana())
+-		return false;
++    if (GetTarget()->GetPowerType() != POWER_MANA)
++        return false;
+ 
+     std::list<ObjectGuid> attackers = context->GetValue<std::list<ObjectGuid>>("attackers")->Get();
+     for (std::list<ObjectGuid>::iterator i = attackers.begin(); i != attackers.end(); i++)
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/druid/DruidTriggers.h b/modules/mod-playerbots/src/playerbot/strategy/druid/DruidTriggers.h
+index d6cd6f0..7102f98 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/druid/DruidTriggers.h
++++ b/modules/mod-playerbots/src/playerbot/strategy/druid/DruidTriggers.h
+@@ -428,7 +428,7 @@ namespace ai
+                 && target->IsAlive()                                                    //target is alive
+                 && !ai->HasAura("lifebloom", target, true, true, -1, false, 2000, 8)    //target dont have max stacked aura or aura will expire soon
+                 && ai->CanCastSpell("lifebloom", target, 0)                             //bot can cast spell
+-                && !target->getAttackers().empty();                                     //target have attackers
++                && !target->GetAttackers().empty();                                     //target have attackers
+         }
+     };
+ 
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/rogue/RogueTriggers.h b/modules/mod-playerbots/src/playerbot/strategy/rogue/RogueTriggers.h
+index bf3cdf9..226a609 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/rogue/RogueTriggers.h
++++ b/modules/mod-playerbots/src/playerbot/strategy/rogue/RogueTriggers.h
+@@ -217,7 +217,7 @@ namespace ai
+             }
+ 
+             // use sprint on players
+-            if (enemyPlayer && !bot->CanReachWithMeleeAttack(enemyPlayer))
++            if (enemyPlayer && !bot->CanReachWithMeleeAutoAttack(enemyPlayer))
+             {
+                 return true;
+             }

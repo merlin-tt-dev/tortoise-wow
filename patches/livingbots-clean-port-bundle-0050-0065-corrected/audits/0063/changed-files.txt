@@ -1,0 +1,2 @@
+modules/mod-playerbots/src/playerbot/PlayerbotHelpMgr.cpp
+modules/mod-playerbots/src/playerbot/PlayerbotTextMgr.cpp

@@ -1,0 +1,154 @@
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/AcceptInvitationAction.h b/modules/mod-playerbots/src/playerbot/strategy/actions/AcceptInvitationAction.h
+index e74f63a..9e65bff 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/AcceptInvitationAction.h
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/AcceptInvitationAction.h
+@@ -28,7 +28,7 @@ namespace ai
+                 return false;
+             }
+             
+-            if (bot->isAFK())
++            if (bot->IsAFK())
+                 bot->ToggleAFK();
+ 
+             WorldPacket p;
+@@ -70,7 +70,7 @@ namespace ai
+ 
+                     Guild* guild = sGuildMgr.GetGuildById(bot->GetGuildId());
+ 
+-                    if (guild && master->IsInGuild(bot->GetGuildId()))
++                    if (guild && master->GetGuildId() == bot->GetGuildId())
+                         guild->BroadcastToGuild(bot->GetSession(), reply, LANG_UNIVERSAL);
+                     else if (sServerFacade.GetDistance2d(bot, master) < sPlayerbotAIConfig.spellDistance * 1.5)
+                         bot->Say(reply, (bot->GetTeam() == ALLIANCE ? LANG_COMMON : LANG_ORCISH));
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/DistanceValue.h b/modules/mod-playerbots/src/playerbot/strategy/values/DistanceValue.h
+index 52e9fb3..8311255 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/DistanceValue.h
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/DistanceValue.h
+@@ -78,7 +78,7 @@ namespace ai
+             {
+                 Stance* stance = AI_VALUE(Stance*, "stance");
+                 WorldLocation loc = stance->GetLocation();
+-                return sServerFacade.GetDistance2d(ai->GetBot(), loc.coord_x, loc.coord_y);
++                return sServerFacade.GetDistance2d(ai->GetBot(), loc.x, loc.y);
+             }
+             else
+             {
+@@ -88,9 +88,10 @@ namespace ai
+                     Formation* formation = AI_VALUE(Formation*, "formation");
+                     WorldLocation loc = formation->GetLocation();
+                     if (Formation::IsNullLocation(loc))
+-                        loc = WorldLocation(target->GetMapId(), target->GetPosition());
++                        loc = WorldLocation(target->GetMapId(), target->GetPositionX(), target->GetPositionY(),
++                                            target->GetPositionZ(), target->GetOrientation());
+ 
+-                    return sServerFacade.GetDistance2d(ai->GetBot(), loc.coord_x, loc.coord_y);
++                    return sServerFacade.GetDistance2d(ai->GetBot(), loc.x, loc.y);
+                 }
+             }
+ 
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/HasTotemValue.h b/modules/mod-playerbots/src/playerbot/strategy/values/HasTotemValue.h
+index 9e1696f..80ea728 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/HasTotemValue.h
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/HasTotemValue.h
+@@ -28,7 +28,7 @@ namespace ai
+                 
+                 if (!totemIsInRange) continue;
+ 
+-                Unit* totemOwner = totem->GetCreator();
++                Unit* totemOwner = totem->GetCreatorGuid() ? totem->GetMap()->GetUnit(totem->GetCreatorGuid()) : nullptr;
+                 if (!totemOwner)
+                     continue;
+ 
+@@ -46,7 +46,7 @@ namespace ai
+                     // Totem from a player in our group found, and we are either not in a raid or in the same raid subgroup
+                     if (totemPlayerOwner->GetGroup() == botGroup)
+                     {
+-                        if (!botGroup->IsRaidGroup() || botGroup->SameSubGroup(totemPlayerOwner, bot)) return true;
++                        if (!botGroup->isRaidGroup() || botGroup->SameSubGroup(totemPlayerOwner, bot)) return true;
+                     }
+ #endif
+                 }
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/IsBehindValue.h b/modules/mod-playerbots/src/playerbot/strategy/values/IsBehindValue.h
+index 848997a..3ad9529 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/IsBehindValue.h
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/IsBehindValue.h
+@@ -16,7 +16,7 @@ namespace ai
+ 
+             float targetOrientation = target->GetOrientation();
+             float orientation = bot->GetOrientation();
+-            return bot->CanReachWithMeleeAttack(target) && abs(targetOrientation - orientation) < M_PI / 2;
++            return bot->CanReachWithMeleeAutoAttack(target) && abs(targetOrientation - orientation) < M_PI / 2;
+         }
+     };
+ }
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/IsMovingValue.h b/modules/mod-playerbots/src/playerbot/strategy/values/IsMovingValue.h
+index ec58c33..183f810 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/IsMovingValue.h
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/IsMovingValue.h
+@@ -32,7 +32,7 @@ namespace ai
+             if (!target)
+                 return false;
+ 
+-            return sServerFacade.IsUnderwater(target) || target->IsInSwimmableWater();
++            return sServerFacade.IsUnderwater(target) || target->IsInWater();
+         }
+     };
+ }
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/MaintenanceValues.h b/modules/mod-playerbots/src/playerbot/strategy/values/MaintenanceValues.h
+index a1210ef..bd245ee 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/MaintenanceValues.h
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/MaintenanceValues.h
+@@ -160,7 +160,7 @@ namespace ai
+         ShouldDrinkValue(PlayerbotAI* ai) : BoolCalculatedValue(ai, "should drink", 2) {}
+         virtual bool Calculate() override
+         {
+-            if (!bot->HasMana())
++            if (bot->GetPowerType() != POWER_MANA)
+                 return false;
+ 
+             if (AI_VALUE2(uint8, "mana", "self target") >= 85)
+@@ -184,7 +184,7 @@ namespace ai
+                 return true;
+ 
+             float minDistance = sPlayerbotAIConfig.EatDrinkMinDistance;
+-            if (!bot->GetGroup()->IsRaidGroup())
++            if (!bot->GetGroup()->isRaidGroup())
+                 minDistance += sPlayerbotAIConfig.followDistance;
+             else
+                 minDistance += sPlayerbotAIConfig.raidFollowDistance;
+@@ -223,7 +223,7 @@ namespace ai
+                 return true;
+ 
+             float minDistance = sPlayerbotAIConfig.EatDrinkMinDistance;
+-            if (!bot->GetGroup()->IsRaidGroup())
++            if (!bot->GetGroup()->isRaidGroup())
+                 minDistance += sPlayerbotAIConfig.followDistance;
+             else
+                 minDistance += sPlayerbotAIConfig.raidFollowDistance;
+@@ -243,7 +243,7 @@ namespace ai
+         {
+             Player* master = ai->GetMaster();
+ 
+-            float mpMissingPct = 100.0f - bot->GetPowerPercent();
++            float mpMissingPct = 100.0f - bot->GetPowerPercent(POWER_MANA);
+             float multiplier = bot->InBattleGround() ? 20000.0f : 27000.0f;
+             float drinkDuration = multiplier * (mpMissingPct / 100.0f);
+ 
+@@ -259,7 +259,7 @@ namespace ai
+ 
+             float minDistance = sPlayerbotAIConfig.followDistance;
+ 
+-            if (bot->GetGroup()->IsRaidGroup())
++            if (bot->GetGroup()->isRaidGroup())
+                 minDistance = sPlayerbotAIConfig.raidFollowDistance;
+ 
+             if (!master->IsMoving())
+@@ -304,7 +304,7 @@ namespace ai
+ 
+             float minDistance = sPlayerbotAIConfig.followDistance;
+ 
+-            if (bot->GetGroup()->IsRaidGroup())
++            if (bot->GetGroup()->isRaidGroup())
+                 minDistance = sPlayerbotAIConfig.raidFollowDistance;
+ 
+             if (!master->IsMoving())

@@ -1,0 +1,7 @@
+ .../src/playerbot/strategy/actions/AcceptInvitationAction.h  |  4 ++--
+ .../src/playerbot/strategy/values/DistanceValue.h            |  7 ++++---
+ .../src/playerbot/strategy/values/HasTotemValue.h            |  4 ++--
+ .../src/playerbot/strategy/values/IsBehindValue.h            |  2 +-
+ .../src/playerbot/strategy/values/IsMovingValue.h            |  2 +-
+ .../src/playerbot/strategy/values/MaintenanceValues.h        | 12 ++++++------
+ 6 files changed, 16 insertions(+), 15 deletions(-)

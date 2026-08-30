@@ -1,0 +1,3 @@
+ src/game/Handlers/CharacterHandler.cpp | 24 +-----------------------
+ src/game/Handlers/LoginQueryHolder.h   | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 29 insertions(+), 23 deletions(-)

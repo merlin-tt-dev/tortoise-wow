@@ -1,0 +1,1 @@
+41628e6034050fa0942a7adf669f487eec3544fc83e3cfdf8b56f83fcb1be53f  /mnt/data/livingbots-clean-port-bundle-0050-0065-corrected/patches/mod/0053-build-compatibility-pass-24-native-debug-action.patch

@@ -1,0 +1,76 @@
+diff --git a/src/game/Handlers/CharacterHandler.cpp b/src/game/Handlers/CharacterHandler.cpp
+index 048a527..2391e91 100644
+--- a/src/game/Handlers/CharacterHandler.cpp
++++ b/src/game/Handlers/CharacterHandler.cpp
+@@ -49,6 +49,7 @@
+ #include "miscellaneous/feature_transmog.h"
+ #include "Config.hpp"
+ #include "Logging/DatabaseLogger.hpp"
++#include "Handlers/LoginQueryHolder.h"
+ 
+ // config option SkipCinematics supported values
+ enum CinematicsSkipMode
+@@ -59,29 +60,6 @@ enum CinematicsSkipMode
+ };
+ 
+ 
+-class LoginQueryHolder : public SqlQueryHolder
+-{
+-private:
+-    uint32 m_accountId;
+-    ObjectGuid m_guid;
+-public:
+-    LoginQueryHolder(uint32 accountId, ObjectGuid guid)
+-        : SqlQueryHolder(guid.GetCounter()), m_accountId(accountId), m_guid(guid) { }
+-    ~LoginQueryHolder()
+-    {
+-        // Queries should NOT be deleted by user
+-        DeleteAllResults();
+-    }
+-    ObjectGuid GetGuid() const
+-    {
+-        return m_guid;
+-    }
+-    uint32 GetAccountId() const
+-    {
+-        return m_accountId;
+-    }
+-    bool Initialize();
+-};
+ 
+ bool LoginQueryHolder::Initialize()
+ {
+diff --git a/src/game/Handlers/LoginQueryHolder.h b/src/game/Handlers/LoginQueryHolder.h
+new file mode 100644
+index 0000000..1bbce38
+--- /dev/null
++++ b/src/game/Handlers/LoginQueryHolder.h
+@@ -0,0 +1,28 @@
++#ifndef MANGOS_LOGIN_QUERY_HOLDER_H
++#define MANGOS_LOGIN_QUERY_HOLDER_H
++
++#include "Database/DatabaseEnv.h"
++#include "ObjectGuid.h"
++
++class LoginQueryHolder : public SqlQueryHolder
++{
++private:
++    uint32 m_accountId;
++    ObjectGuid m_guid;
++
++public:
++    LoginQueryHolder(uint32 accountId, ObjectGuid guid)
++        : SqlQueryHolder(guid.GetCounter()), m_accountId(accountId), m_guid(guid) { }
++
++    ~LoginQueryHolder()
++    {
++        // Queries should NOT be deleted by user.
++        DeleteAllResults();
++    }
++
++    ObjectGuid GetGuid() const { return m_guid; }
++    uint32 GetAccountId() const { return m_accountId; }
++    bool Initialize();
++};
++
++#endif

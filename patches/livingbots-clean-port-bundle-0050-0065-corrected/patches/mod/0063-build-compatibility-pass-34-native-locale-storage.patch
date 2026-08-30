@@ -1,0 +1,62 @@
+diff --git a/modules/mod-playerbots/src/playerbot/PlayerbotHelpMgr.cpp b/modules/mod-playerbots/src/playerbot/PlayerbotHelpMgr.cpp
+index 98d53b1..0112bfb 100644
+--- a/modules/mod-playerbots/src/playerbot/PlayerbotHelpMgr.cpp
++++ b/modules/mod-playerbots/src/playerbot/PlayerbotHelpMgr.cpp
+@@ -916,7 +916,7 @@ void PlayerbotHelpMgr::FormatHelpTopics()
+ 
+         for (uint8 i = 1; i < MAX_LOCALE; ++i)
+         {
+-            FormatHelpTopic(helpText.second.m_text_locales[sObjectMgr.GetStorageLocaleIndexFor(LocaleConstant(i))]);
++            FormatHelpTopic(helpText.second.m_text_locales[sObjectMgr.GetOrNewIndexForLocale(LocaleConstant(i))]);
+         }
+     }
+ }
+@@ -939,7 +939,7 @@ void PlayerbotHelpMgr::LoadBotHelpTexts()
+ 
+             for (uint8 i = 1; i < MAX_LOCALE; ++i)
+             {
+-                text_locale[sObjectMgr.GetStorageLocaleIndexFor(LocaleConstant(i))] = fields[i + 2].GetString();
++                text_locale[sObjectMgr.GetOrNewIndexForLocale(LocaleConstant(i))] = fields[i + 2].GetString();
+             }
+ 
+             botHelpText[name] = BotHelpEntry(templateText, text, text_locale);
+diff --git a/modules/mod-playerbots/src/playerbot/PlayerbotTextMgr.cpp b/modules/mod-playerbots/src/playerbot/PlayerbotTextMgr.cpp
+index e92c187..3c75ca7 100644
+--- a/modules/mod-playerbots/src/playerbot/PlayerbotTextMgr.cpp
++++ b/modules/mod-playerbots/src/playerbot/PlayerbotTextMgr.cpp
+@@ -10,7 +10,7 @@ PlayerbotTextMgr::PlayerbotTextMgr()
+ {
+     for (uint8 i = 1; i < MAX_LOCALE; ++i)
+     {
+-        botTextLocalePriority[sObjectMgr.GetStorageLocaleIndexFor(LocaleConstant(i))] = 0;
++        botTextLocalePriority[sObjectMgr.GetOrNewIndexForLocale(LocaleConstant(i))] = 0;
+     }
+ }
+ 
+@@ -53,7 +53,7 @@ void PlayerbotTextMgr::LoadBotTexts()
+             uint32 replyType = fields[3].GetUInt32();
+             for (uint8 i = 1; i < MAX_LOCALE; ++i)
+             {
+-                text_locale[sObjectMgr.GetStorageLocaleIndexFor(LocaleConstant(i))] = fields[i + 3].GetString();
++                text_locale[sObjectMgr.GetOrNewIndexForLocale(LocaleConstant(i))] = fields[i + 3].GetString();
+             }
+             botTexts[name].push_back(BotTextEntry(name, text, text_locale, sayType, replyType));
+             count++;
+@@ -220,7 +220,7 @@ int32 PlayerbotTextMgr::GetLocalePriority()
+ 
+     for (uint8 i = 1; i < MAX_LOCALE; ++i)
+     {
+-        int32 locale_idx = sObjectMgr.GetStorageLocaleIndexFor(LocaleConstant(i));
++        int32 locale_idx = sObjectMgr.GetOrNewIndexForLocale(LocaleConstant(i));
+         if (locale_idx == -1)
+             continue;
+ 
+@@ -238,6 +238,6 @@ void PlayerbotTextMgr::ResetLocalePriority()
+ {
+     for (uint8 i = 1; i < MAX_LOCALE; ++i)
+     {
+-        botTextLocalePriority[sObjectMgr.GetStorageLocaleIndexFor(LocaleConstant(i))] = 0;
++        botTextLocalePriority[sObjectMgr.GetOrNewIndexForLocale(LocaleConstant(i))] = 0;
+     }
+ }
+\ No newline at end of file

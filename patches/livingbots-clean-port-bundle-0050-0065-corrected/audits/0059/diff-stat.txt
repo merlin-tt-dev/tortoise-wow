@@ -1,0 +1,3 @@
+ .../playerbot/strategy/actions/RepairAllAction.cpp |  4 ++--
+ .../playerbot/strategy/triggers/StuckTriggers.h    | 27 +++++++++++++++++-----
+ 2 files changed, 23 insertions(+), 8 deletions(-)

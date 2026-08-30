@@ -1,0 +1,3 @@
+ modules/mod-playerbots/src/playerbot/PlayerbotHelpMgr.cpp | 4 ++--
+ modules/mod-playerbots/src/playerbot/PlayerbotTextMgr.cpp | 8 ++++----
+ 2 files changed, 6 insertions(+), 6 deletions(-)

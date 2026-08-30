@@ -1,0 +1,8 @@
+ .../src/playerbot/strategy/actions/TradeStatusAction.cpp     |  2 +-
+ .../src/playerbot/strategy/actions/UpdateGearAction.cpp      |  2 +-
+ .../src/playerbot/strategy/paladin/PaladinTriggers.cpp       |  3 ++-
+ .../src/playerbot/strategy/paladin/PaladinTriggers.h         | 12 ++++++------
+ .../src/playerbot/strategy/values/AoeHealValues.cpp          |  2 +-
+ .../src/playerbot/strategy/values/PartyMemberValue.cpp       |  2 +-
+ .../strategy/values/PartyMemberWithoutItemValue.cpp          |  2 +-
+ 7 files changed, 13 insertions(+), 12 deletions(-)

@@ -1,0 +1,5 @@
+ .../mod-playerbots/src/playerbot/Talentspec.cpp    | 28 +++++++++++++++-------
+ .../strategy/values/AttackerCountValues.cpp        |  4 ++--
+ .../strategy/values/AttackerCountValues.h          |  4 ++--
+ .../playerbot/strategy/values/EnemyPlayerValue.cpp |  4 ++--
+ 4 files changed, 26 insertions(+), 14 deletions(-)

@@ -1,0 +1,11 @@
+PASS  druid/DruidAiObjectContext.cpp.o
+PASS  hunter/HunterAiObjectContext.cpp.o
+PASS  mage/MageAiObjectContext.cpp.o
+PASS  paladin/PaladinAiObjectContext.cpp.o
+PASS  priest/PriestAiObjectContext.cpp.o
+PASS  rogue/RogueAiObjectContext.cpp.o
+PASS  shaman/ShamanAiObjectContext.cpp.o
+PASS  warlock/WarlockAiObjectContext.cpp.o
+PASS  warrior/WarriorAiObjectContext.cpp.o
+
+RESULT: 9/9 class context objects present

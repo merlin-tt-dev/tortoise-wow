@@ -1,0 +1,137 @@
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/TradeStatusAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/TradeStatusAction.cpp
+index 90f24e2..d09904e 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/TradeStatusAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/TradeStatusAction.cpp
+@@ -23,7 +23,7 @@ bool TradeStatusAction::Execute(Event& event)
+     if (!GetPlayerbotAI(trader))
+     {
+         shouldTrade = false;
+-        if (trader == master || bot->IsInGroup(trader))
++        if (trader == master || bot->IsInSameRaidWith(trader))
+         {
+             shouldTrade = ai->GetSecurity()->CheckLevelFor(PlayerbotSecurityLevel::PLAYERBOT_SECURITY_ALLOW_ALL, false, trader);
+         }
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/UpdateGearAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/UpdateGearAction.cpp
+index 136eb95..c189137 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/UpdateGearAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/UpdateGearAction.cpp
+@@ -129,7 +129,7 @@ bool UpdateGearAction::isUseful()
+     {
+         // Only for max level random bots that are playing with a real player
+         Player* master = GetMaster();
+-        if (master && IsRealPlayer(master) && bot->IsInGroup(master) && sRandomPlayerbotMgr.IsRandomBot(bot))
++        if (master && IsRealPlayer(master) && bot->IsInSameRaidWith(master) && sRandomPlayerbotMgr.IsRandomBot(bot))
+         {
+             return bot->GetLevel() >= PLAYER_MAX_LEVEL;
+         }
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/paladin/PaladinTriggers.cpp b/modules/mod-playerbots/src/playerbot/strategy/paladin/PaladinTriggers.cpp
+index a9c750a..a9c5d3f 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/paladin/PaladinTriggers.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/paladin/PaladinTriggers.cpp
+@@ -231,7 +231,8 @@ bool GreaterBlessingOnPartyTrigger::IsActive()
+ 
+     // Doesn't have any of my blessings
+     Unit* target = AI_VALUE2(Unit*, "party member without my aura", blessings);
+-    return target && bot->IsInGroup(target);
++    Player* targetPlayer = target ? target->GetCharmerOrOwnerPlayerOrPlayerItself() : nullptr;
++    return targetPlayer && bot->IsInSameRaidWith(targetPlayer);
+ }
+ 
+ bool NoPaladinAuraTrigger::IsActive()
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/paladin/PaladinTriggers.h b/modules/mod-playerbots/src/playerbot/strategy/paladin/PaladinTriggers.h
+index b9900b2..93ba976 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/paladin/PaladinTriggers.h
++++ b/modules/mod-playerbots/src/playerbot/strategy/paladin/PaladinTriggers.h
+@@ -261,7 +261,7 @@ namespace ai
+             if (target && target->IsPlayer())
+             {
+                 Player* player = (Player*)target;
+-                if (bot->IsInGroup(player) && ai->GetBuffedCount((Player*)GetTarget(), spell) < 4)
++                if (bot->IsInSameRaidWith(player) && ai->GetBuffedCount((Player*)GetTarget(), spell) < 4)
+                 {
+                     return BuffTrigger::IsActive();
+                 }
+@@ -292,7 +292,7 @@ namespace ai
+             if (target && target->IsPlayer())
+             {
+                 Player* player = (Player*)target;
+-                if (bot->IsInGroup(player) && ai->GetBuffedCount((Player*)GetTarget(), spell) < 4)
++                if (bot->IsInSameRaidWith(player) && ai->GetBuffedCount((Player*)GetTarget(), spell) < 4)
+                 {
+                     return BuffTrigger::IsActive();
+                 }
+@@ -323,7 +323,7 @@ namespace ai
+             if (target && target->IsPlayer())
+             {
+                 Player* player = (Player*)target;
+-                if (bot->IsInGroup(player) && ai->GetBuffedCount((Player*)GetTarget(), spell) < 4)
++                if (bot->IsInSameRaidWith(player) && ai->GetBuffedCount((Player*)GetTarget(), spell) < 4)
+                 {
+                     return BuffTrigger::IsActive();
+                 }
+@@ -354,7 +354,7 @@ namespace ai
+             if (target && target->IsPlayer())
+             {
+                 Player* player = (Player*)target;
+-                if (bot->IsInGroup(player) && ai->GetBuffedCount((Player*)GetTarget(), spell) < 4)
++                if (bot->IsInSameRaidWith(player) && ai->GetBuffedCount((Player*)GetTarget(), spell) < 4)
+                 {
+                     return BuffTrigger::IsActive();
+                 }
+@@ -385,7 +385,7 @@ namespace ai
+             if (target && target->IsPlayer())
+             {
+                 Player* player = (Player*)target;
+-                if (bot->IsInGroup(player) && ai->GetBuffedCount((Player*)GetTarget(), spell) < 4)
++                if (bot->IsInSameRaidWith(player) && ai->GetBuffedCount((Player*)GetTarget(), spell) < 4)
+                 {
+                     return BuffTrigger::IsActive();
+                 }
+@@ -416,7 +416,7 @@ namespace ai
+             if (target && target->IsPlayer())
+             {
+                 Player* player = (Player*)target;
+-                if (bot->IsInGroup(player) && ai->GetBuffedCount((Player*)GetTarget(), spell) < 4)
++                if (bot->IsInSameRaidWith(player) && ai->GetBuffedCount((Player*)GetTarget(), spell) < 4)
+                 {
+                     return BuffTrigger::IsActive();
+                 }
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/AoeHealValues.cpp b/modules/mod-playerbots/src/playerbot/strategy/values/AoeHealValues.cpp
+index aece0c7..a28be6b 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/AoeHealValues.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/AoeHealValues.cpp
+@@ -28,7 +28,7 @@ uint8 AoeHealValue::Calculate()
+ 		if( !player || !sServerFacade.IsAlive(player) || sServerFacade.GetDistance2d(bot, player) > 30.0f)
+ 			continue;
+ 
+-        if (bot->GetClass() == CLASS_PRIEST && !bot->IsInGroup(player, true))
++        if (bot->GetClass() == CLASS_PRIEST && !bot->IsInSameGroupWith(player))
+             continue;
+ 
+ 	    float percent = (static_cast<float> (player->GetHealth()) / player->GetMaxHealth()) * 100;
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/PartyMemberValue.cpp b/modules/mod-playerbots/src/playerbot/strategy/values/PartyMemberValue.cpp
+index 84926de..635f7ae 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/PartyMemberValue.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/PartyMemberValue.cpp
+@@ -20,7 +20,7 @@ Unit* PartyMemberValue::FindPartyMember(std::list<Player*>* party, FindPlayerPre
+         if (ignoreTanks && ai->IsTank(player))
+             continue;
+ 
+-        if (bot->GetGroup() && !player->IsInGroup(bot) && !CanFreeMoveValue::CanFreeMoveTo(ai, player))
++        if (bot->GetGroup() && !player->IsInSameRaidWith(bot) && !CanFreeMoveValue::CanFreeMoveTo(ai, player))
+             continue;
+ 
+         if (Check(player) && predicate.Check(player))
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/PartyMemberWithoutItemValue.cpp b/modules/mod-playerbots/src/playerbot/strategy/values/PartyMemberWithoutItemValue.cpp
+index fbf279c..d8f579f 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/PartyMemberWithoutItemValue.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/PartyMemberWithoutItemValue.cpp
+@@ -29,7 +29,7 @@ public:
+         if (!(member->IsInSameGroupWith(ai->GetBot()) || member->IsInSameRaidWith(ai->GetBot())))
+ #endif
+ #ifdef CMANGOS
+-        if (!member->IsInGroup(ai->GetBot()))
++        if (!member->IsInSameRaidWith(ai->GetBot()))
+ #endif
+             return false;
+ 

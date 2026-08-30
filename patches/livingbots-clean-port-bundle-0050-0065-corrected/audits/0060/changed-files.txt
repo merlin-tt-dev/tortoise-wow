@@ -1,0 +1,6 @@
+modules/mod-playerbots/src/playerbot/strategy/actions/AcceptInvitationAction.h
+modules/mod-playerbots/src/playerbot/strategy/values/DistanceValue.h
+modules/mod-playerbots/src/playerbot/strategy/values/HasTotemValue.h
+modules/mod-playerbots/src/playerbot/strategy/values/IsBehindValue.h
+modules/mod-playerbots/src/playerbot/strategy/values/IsMovingValue.h
+modules/mod-playerbots/src/playerbot/strategy/values/MaintenanceValues.h

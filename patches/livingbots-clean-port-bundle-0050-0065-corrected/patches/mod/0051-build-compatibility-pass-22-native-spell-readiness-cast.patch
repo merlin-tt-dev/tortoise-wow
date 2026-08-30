@@ -1,0 +1,421 @@
+diff --git a/modules/mod-playerbots/src/playerbot/PlayerbotAI.cpp b/modules/mod-playerbots/src/playerbot/PlayerbotAI.cpp
+index 52a0cac..e9c3590 100644
+--- a/modules/mod-playerbots/src/playerbot/PlayerbotAI.cpp
++++ b/modules/mod-playerbots/src/playerbot/PlayerbotAI.cpp
+@@ -4979,7 +4979,7 @@ bool PlayerbotAI::CanCastVehicleSpell(uint32 spellId, Unit* target)
+         return false;
+ #endif
+ #ifdef CMANGOS
+-    if (!vehicle->IsSpellReady(spellId))
++    if (!sServerFacade.IsSpellReady(vehicle, spellId))
+         return false;
+ #endif
+ 
+diff --git a/modules/mod-playerbots/src/playerbot/ServerFacade.cpp b/modules/mod-playerbots/src/playerbot/ServerFacade.cpp
+index f1e081d..ccbc821 100644
+--- a/modules/mod-playerbots/src/playerbot/ServerFacade.cpp
++++ b/modules/mod-playerbots/src/playerbot/ServerFacade.cpp
+@@ -93,7 +93,7 @@ bool ServerFacade::IsHostileTo(WorldObject* bot, Unit* to)
+ }
+ 
+ 
+-bool ServerFacade::IsSpellReady(Player* bot, uint32 spell, uint32 /*itemId*/)
++bool ServerFacade::IsSpellReady(Unit* bot, uint32 spell, uint32 /*itemId*/)
+ {
+     SpellEntry const* spellInfo = sSpellMgr.GetSpellEntry(spell);
+     return spellInfo && !bot->HasSpellCooldown(spell) && !bot->HasSpellCategoryCooldown(spellInfo->Category);
+diff --git a/modules/mod-playerbots/src/playerbot/ServerFacade.h b/modules/mod-playerbots/src/playerbot/ServerFacade.h
+index 30be0ce..8b3950f 100644
+--- a/modules/mod-playerbots/src/playerbot/ServerFacade.h
++++ b/modules/mod-playerbots/src/playerbot/ServerFacade.h
+@@ -95,7 +95,7 @@ class ServerFacade
+         bool IsHostileTo(Unit* bot, Unit* to);
+         bool IsHostileTo(WorldObject* bot, Unit* to);
+ 
+-        bool IsSpellReady(Player* bot, uint32 spell, uint32 itemId = 0);
++        bool IsSpellReady(Unit* bot, uint32 spell, uint32 itemId = 0);
+ 
+         bool IsUnderwater(Unit *unit);
+         FactionTemplateEntry const* GetFactionTemplateEntry(Unit *unit);
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/GenericSpellActions.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/GenericSpellActions.cpp
+index cfd5d7b..9c66468 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/GenericSpellActions.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/GenericSpellActions.cpp
+@@ -107,7 +107,7 @@ bool CastSpellAction::isPossible()
+         float dist = bot->GetDistance(spellTarget, ai->IsRanged(bot) ? SizeFactor::CombatReach : SizeFactor::CombatReachWithMelee);
+         if (range == ATTACK_DISTANCE) 
+         {
+-            canReach = bot->CanReachWithMeleeAttack(spellTarget);
++            canReach = bot->CanReachWithMeleeAutoAttack(spellTarget);
+         }
+         else 
+         {
+@@ -218,7 +218,7 @@ bool CastPetSpellAction::isPossible()
+     if (pet && ai->IsSafe(pet))
+     {
+         const uint32& spellId = GetSpellID();
+-        if (pet->HasSpell(spellId) && pet->IsSpellReady(spellId))
++        if (pet->HasSpell(spellId) && sServerFacade.IsSpellReady(pet, spellId))
+         {
+             // Check if the pet is not too far from the owner
+             if (bot->GetDistance(pet) <= sPlayerbotAIConfig.sightDistance)
+@@ -460,7 +460,7 @@ bool InterruptCurrentSpellAction::isUseful()
+     for (int type = CURRENT_MELEE_SPELL; type < CURRENT_CHANNELED_SPELL; type++)
+     {
+         Spell* currentSpell = bot->GetCurrentSpell((CurrentSpellTypes)type);
+-        if (currentSpell && currentSpell->CanBeInterrupted())
++        if (currentSpell && currentSpell->getState() != SPELL_STATE_FINISHED)
+             return true;
+     }
+     return false;
+@@ -472,10 +472,11 @@ bool InterruptCurrentSpellAction::Execute(Event& event)
+     for (int type = CURRENT_MELEE_SPELL; type < CURRENT_CHANNELED_SPELL; type++)
+     {
+         Spell* currentSpell = bot->GetCurrentSpell((CurrentSpellTypes)type);
+-        if (currentSpell && currentSpell->CanBeInterrupted())
++        if (currentSpell && currentSpell->getState() != SPELL_STATE_FINISHED)
+         {
++            uint32 const spellId = currentSpell->m_spellInfo->Id;
+             bot->InterruptSpell((CurrentSpellTypes)type);
+-            ai->SpellInterrupted(currentSpell->m_spellInfo->Id);
++            ai->SpellInterrupted(spellId);
+             interrupted = true;
+         }
+     }
+@@ -515,7 +516,10 @@ bool CastSpellTargetAction::IsTargetValid(Unit* target)
+     return target &&
+            ai->IsSafe(target) &&
+            (bot == target || sServerFacade.GetDistance2d(bot, target) < sPlayerbotAIConfig.sightDistance) &&
+-           bot->IsInGroup(target) &&
++           ([&]() {
++               Player* targetPlayer = target->GetCharmerOrOwnerPlayerOrPlayerItself();
++               return targetPlayer && bot->GetGroup() && targetPlayer->GetGroup() == bot->GetGroup();
++           })() &&
+            (!aliveCheck || !target->IsDead()) &&
+            (!auraCheck || !ai->HasAura(GetSpellID(), target));
+ }
+@@ -567,7 +571,7 @@ bool CastItemTargetAction::isUseful()
+         {
+             for (int i = 0; i < MAX_ITEM_PROTO_SPELLS; ++i)
+             {
+-                const _Spell& spellData = proto->Spells[i];
++                const _ItemSpell& spellData = proto->Spells[i];
+                 if (spellData.SpellId)
+                 {
+                     if (skipSpells.find(spellData.SpellId) != skipSpells.end())
+@@ -605,7 +609,7 @@ bool CastItemTargetAction::isPossible()
+ 
+     for (int i = 0; i < MAX_ITEM_PROTO_SPELLS; ++i)
+     {
+-        _Spell const& spellData = proto->Spells[i];
++        _ItemSpell const& spellData = proto->Spells[i];
+ 
+         // no spell
+         if (!spellData.SpellId)
+@@ -666,7 +670,7 @@ bool CastItemTargetAction::Execute(Event& event)
+ 
+     for (int i = 0; i < MAX_ITEM_PROTO_SPELLS; ++i)
+     {
+-        _Spell const& spellData = proto->Spells[i];
++        _ItemSpell const& spellData = proto->Spells[i];
+ 
+         // no spell
+         if (!spellData.SpellId)
+@@ -696,10 +700,9 @@ bool CastItemTargetAction::Execute(Event& event)
+         if (item)
+         {
+             spell->SetCastItem(item);
+-            item->SetUsedInSpell(true);
+         }
+ 
+-        spell->m_clientCast = true;
++        spell->SetClientStarted(true);
+ 
+         bool result = (spell->ForceSpellStart(&targets) == SPELL_CAST_OK);
+ 
+@@ -710,8 +713,8 @@ bool CastItemTargetAction::Execute(Event& event)
+         {
+             if (!HasSpellCooldown(itemId))
+             {
+-                bot->RemoveSpellCooldown(*spellInfo, false);
+-                bot->AddCooldown(*spellInfo, proto, false);
++                bot->RemoveSpellCooldown(spellInfo->Id, false);
++                bot->AddSpellAndCategoryCooldowns(spellInfo, proto->ItemId);
+             }
+         }
+ 
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/hunter/HunterActions.h b/modules/mod-playerbots/src/playerbot/strategy/hunter/HunterActions.h
+index 66c04e8..ce5c807 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/hunter/HunterActions.h
++++ b/modules/mod-playerbots/src/playerbot/strategy/hunter/HunterActions.h
+@@ -203,7 +203,7 @@ public:
+         virtual bool isUseful()
+         {
+             Unit* target = GetTarget();
+-            return CastMeleeSpellAction::isUseful() && (ai->HasStrategy("close", BotState::BOT_STATE_COMBAT) || bot->hasUnitState(UNIT_STAT_MELEE_ATTACKING));
++            return CastMeleeSpellAction::isUseful() && (ai->HasStrategy("close", BotState::BOT_STATE_COMBAT) || bot->HasUnitState(UNIT_STAT_MELEE_ATTACKING));
+         }
+     };
+ 
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/hunter/HunterTriggers.h b/modules/mod-playerbots/src/playerbot/strategy/hunter/HunterTriggers.h
+index e21310f..906a19a 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/hunter/HunterTriggers.h
++++ b/modules/mod-playerbots/src/playerbot/strategy/hunter/HunterTriggers.h
+@@ -261,7 +261,7 @@ private:
+             float distance = AI_VALUE2(float, "distance", "current target");
+             return target && ai->HasStrategy("close", BotState::BOT_STATE_COMBAT) &&
+                 (target->GetVictim() != bot ||
+-                target->IsImmobilizedState() ||
++                target->HasUnitState(UNIT_STAT_CAN_NOT_MOVE) ||
+                 (target->GetSpeed(MOVE_RUN) <= (bot->GetSpeed(MOVE_RUN) / 2) && !((!bot->GetPet() || bot->GetPet()->IsDead()) && target->IsCreature() && target->GetHealthPercent() < 50.f && target->GetHealth() < bot->GetHealth())) ||
+                 distance > 8.0f);
+         }
+@@ -284,7 +284,7 @@ private:
+ 
+             Unit* target = AI_VALUE(Unit*, "current target");
+             return target && ((target->GetSpeed(MOVE_RUN) > (bot->GetSpeed(MOVE_RUN) / 2)) || ((!bot->GetPet() || bot->GetPet()->IsDead()) && target->GetHealthPercent() < 50.f && target->IsCreature() && target->GetHealth() < bot->GetHealth())) &&
+-                !target->IsImmobilizedState() &&
++                !target->HasUnitState(UNIT_STAT_CAN_NOT_MOVE) &&
+                 ai->HasStrategy("ranged", BotState::BOT_STATE_COMBAT) &&
+                 target->GetVictim() == bot &&
+                 sServerFacade.IsDistanceLessOrEqualThan(AI_VALUE2(float, "distance", "current target"), 8.0f);
+@@ -324,7 +324,7 @@ private:
+ 
+         virtual bool IsActive() override
+         {
+-            if (!bot->HasSpell(19434) || !bot->IsSpellReady(19434))
++            if (!bot->HasSpell(19434) || !sServerFacade.IsSpellReady(bot, 19434))
+                 return false;
+ 
+             Unit* target = GetTarget();
+@@ -332,11 +332,11 @@ private:
+                 return false;
+ 
+             float distanceTo = AI_VALUE2(float, "distance", GetTargetName());
+-            if (target->GetSelectionGuid() != bot->GetObjectGuid() && sServerFacade.IsDistanceGreaterOrEqualThan(distanceTo, 8.0f))
++            if (target->GetTargetGuid() != bot->GetObjectGuid() && sServerFacade.IsDistanceGreaterOrEqualThan(distanceTo, 8.0f))
+                 return true;
+ 
+             // victim
+-            if (target->GetSelectionGuid() == bot->GetObjectGuid())
++            if (target->GetTargetGuid() == bot->GetObjectGuid())
+             {
+                 if (sServerFacade.IsDistanceGreaterOrEqualThan(distanceTo, 15.0f))
+                     return true;
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/mage/MageTriggers.h b/modules/mod-playerbots/src/playerbot/strategy/mage/MageTriggers.h
+index 34e9188..881bd2d 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/mage/MageTriggers.h
++++ b/modules/mod-playerbots/src/playerbot/strategy/mage/MageTriggers.h
+@@ -174,8 +174,8 @@ namespace ai
+ 
+         virtual bool IsActive() override
+         {
+-            return !bot->IsSpellReady(133)      //fireball
+-                && !bot->IsSpellReady(2948);    //scorch
++            return !sServerFacade.IsSpellReady(bot, 133)      //fireball
++                && !sServerFacade.IsSpellReady(bot, 2948);    //scorch
+         }
+     };
+ 
+@@ -247,8 +247,8 @@ namespace ai
+ 
+         virtual bool IsActive() override
+         {
+-            return !bot->IsSpellReady(12472)    //icy veins on cooldown
+-                && bot->IsSpellReady(11958);    //cold snap not on cooldown
++            return !sServerFacade.IsSpellReady(bot, 12472)    //icy veins on cooldown
++                && sServerFacade.IsSpellReady(bot, 11958);    //cold snap not on cooldown
+         }
+     };
+ 
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/priest/PriestTriggers.cpp b/modules/mod-playerbots/src/playerbot/strategy/priest/PriestTriggers.cpp
+index 77f8085..e07da10 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/priest/PriestTriggers.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/priest/PriestTriggers.cpp
+@@ -18,5 +18,5 @@ bool ShadowformTrigger::IsActive()
+ 
+ bool ShadowfiendTrigger::IsActive()
+ {
+-    return BoostTrigger::IsActive() && bot->IsSpellReady(34433);
++    return BoostTrigger::IsActive() && sServerFacade.IsSpellReady(bot, 34433);
+ }
+\ No newline at end of file
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/CraftValues.cpp b/modules/mod-playerbots/src/playerbot/strategy/values/CraftValues.cpp
+index 4c33134..4e8da75 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/CraftValues.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/CraftValues.cpp
+@@ -15,7 +15,7 @@ std::vector<uint32> CraftSpellsValue::Calculate()
+     {
+         uint32 spellId = spell.first;
+ 
+-        if (spell.second.state == PLAYERSPELL_REMOVED || spell.second.disabled || IsPassiveSpell(spellId))
++        if (spell.second.state == PLAYERSPELL_REMOVED || spell.second.disabled || Spells::IsPassiveSpell(spellId))
+             continue;
+ 
+         const SpellEntry* pSpellInfo = sServerFacade.LookupSpellInfo(spellId);
+@@ -23,7 +23,7 @@ std::vector<uint32> CraftSpellsValue::Calculate()
+             continue;
+ 
+ #ifdef MANGOSBOT_TWO
+-        if (pSpellInfo->Effect[0] == SPELL_EFFECT_CREATE_ITEM_2 && spellId == 61288 && bot->IsSpellReady(61288)) //Todo handle other item_2 spells
++        if (pSpellInfo->Effect[0] == SPELL_EFFECT_CREATE_ITEM_2 && spellId == 61288 && sServerFacade.IsSpellReady(bot, 61288)) //Todo handle other item_2 spells
+         {
+             spellIds.push_back(spellId);
+             continue;
+@@ -56,7 +56,7 @@ std::vector<uint32> EnchantSpellsValue::Calculate()
+     {
+         uint32 spellId = spell.first;
+ 
+-        if (spell.second.state == PLAYERSPELL_REMOVED || spell.second.disabled || IsPassiveSpell(spellId))
++        if (spell.second.state == PLAYERSPELL_REMOVED || spell.second.disabled || Spells::IsPassiveSpell(spellId))
+             continue;
+ 
+         const SpellEntry* pSpellInfo = sServerFacade.LookupSpellInfo(spellId);
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/ItemCountValue.cpp b/modules/mod-playerbots/src/playerbot/strategy/values/ItemCountValue.cpp
+index d0ef75a..22828f5 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/ItemCountValue.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/ItemCountValue.cpp
+@@ -56,7 +56,7 @@ std::list<Item*> EquipedUsableTrinketValue::Calculate()
+ 		{
+ 			if (proto->Spells[i].SpellTrigger == ITEM_SPELLTRIGGER_ON_USE &&
+ 				proto->Spells[i].SpellId > 0 &&
+-				bot->IsSpellReady(proto->Spells[i].SpellId, proto))
++                sServerFacade.IsSpellReady(bot, proto->Spells[i].SpellId, proto->ItemId))
+ 			{
+ 				result.push_back(item);
+ 			}
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/SpellCastUsefulValue.cpp b/modules/mod-playerbots/src/playerbot/strategy/values/SpellCastUsefulValue.cpp
+index 73be09e..52dee28 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/SpellCastUsefulValue.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/SpellCastUsefulValue.cpp
+@@ -19,15 +19,14 @@ bool SpellCastUsefulValue::Calculate()
+ 	if (!spellInfo)
+ 		return true; // there can be known alternatives
+ 
+-	if (spellInfo->Attributes & SPELL_ATTR_ON_NEXT_SWING ||
+-		spellInfo->Attributes & SPELL_ATTR_ON_NEXT_SWING_NO_DAMAGE)
++    if (spellInfo->Attributes & (SPELL_ATTR_ON_NEXT_SWING_1 | SPELL_ATTR_ON_NEXT_SWING_2))
+ 	{
+ 		Spell* spell = bot->GetCurrentSpell(CURRENT_MELEE_SPELL);
+ #ifdef CMANGOS
+-		if (spell && spell->m_spellInfo->Id == spellid && IsNextMeleeSwingSpell(spell->m_spellInfo) && bot->hasUnitState(UNIT_STAT_MELEE_ATTACKING))
++        if (spell && spell->m_spellInfo->Id == spellid && spell->IsNextMeleeSwingSpell() && bot->HasUnitState(UNIT_STAT_MELEE_ATTACKING))
+ #endif
+ #ifdef MANGOS
+-		if (spell && spell->m_spellInfo->Id == spellid && spell->IsNextMeleeSwingSpell() && bot->hasUnitState(UNIT_STAT_MELEE_ATTACKING))
++        if (spell && spell->m_spellInfo->Id == spellid && spell->IsNextMeleeSwingSpell() && bot->HasUnitState(UNIT_STAT_MELEE_ATTACKING))
+ #endif
+ 			return false;
+ 	}
+@@ -42,7 +41,7 @@ bool SpellCastUsefulValue::Calculate()
+         }
+ 	}
+ 
+-    if (IsAutoRepeatRangedSpell(spellInfo) && bot->GetCurrentSpell(CURRENT_AUTOREPEAT_SPELL) &&
++    if (spellInfo->IsAutoRepeatRangedSpell() && bot->GetCurrentSpell(CURRENT_AUTOREPEAT_SPELL) &&
+             bot->GetCurrentSpell(CURRENT_AUTOREPEAT_SPELL)->m_spellInfo->Id == spellid)
+     {
+         return false;
+@@ -86,5 +85,5 @@ bool SpellReadyValue::Calculate()
+     if (!spellid)
+         return false;
+ 
+-    return bot->IsSpellReady(spellid);
++    return sServerFacade.IsSpellReady(bot, spellid);
+ }
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/warrior/ArmsWarriorStrategy.cpp b/modules/mod-playerbots/src/playerbot/strategy/warrior/ArmsWarriorStrategy.cpp
+index b31b17d..e5b2b7f 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/warrior/ArmsWarriorStrategy.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/warrior/ArmsWarriorStrategy.cpp
+@@ -1,6 +1,7 @@
+ 
+ #include "playerbot/playerbot.h"
+ #include "ArmsWarriorStrategy.h"
++#include "playerbot/ServerFacade.h"
+ 
+ using namespace ai;
+ 
+@@ -1081,7 +1082,7 @@ public:
+             actionName == "cleave") &&
+             AI_VALUE2(bool, "trigger active", "melee light aoe") &&
+             bot->HasSpell(12292) &&
+-            bot->IsSpellReady(12292) &&
++            sServerFacade.IsSpellReady(bot, 12292) &&
+             !bot->HasAura(12292))
+         {
+             return 0.0f;
+@@ -1091,7 +1092,7 @@ public:
+         if ((actionName == "battle stance") &&
+             AI_VALUE2(bool, "trigger active", "melee light aoe") &&
+             bot->HasSpell(12292) &&
+-            !bot->IsSpellReady(12292))
++            !sServerFacade.IsSpellReady(bot, 12292))
+         {
+             return 0.0f;
+         }
+@@ -1116,7 +1117,7 @@ public:
+             actionName == "cleave") &&
+             AI_VALUE2(bool, "trigger active", "melee light aoe") &&
+             bot->HasSpell(12292) &&
+-            bot->IsSpellReady(12292) &&
++            sServerFacade.IsSpellReady(bot, 12292) &&
+             !bot->HasAura(12292))
+         {
+             return 0.0f;
+@@ -1126,7 +1127,7 @@ public:
+         if ((actionName == "battle stance") &&
+             AI_VALUE2(bool, "trigger active", "melee light aoe") &&
+             bot->HasSpell(12292) &&
+-            !bot->IsSpellReady(12292))
++            !sServerFacade.IsSpellReady(bot, 12292))
+         {
+             return 0.0f;
+         }
+@@ -1151,7 +1152,7 @@ public:
+             actionName == "cleave") &&
+             AI_VALUE2(bool, "trigger active", "melee light aoe") &&
+             bot->HasSpell(12292) &&
+-            bot->IsSpellReady(12292) &&
++            sServerFacade.IsSpellReady(bot, 12292) &&
+             !bot->HasAura(12292))
+         {
+             return 0.0f;
+@@ -1161,7 +1162,7 @@ public:
+         if ((actionName == "battle stance") &&
+             AI_VALUE2(bool, "trigger active", "melee light aoe") &&
+             bot->HasSpell(12292) &&
+-            !bot->IsSpellReady(12292))
++            !sServerFacade.IsSpellReady(bot, 12292))
+         {
+             return 0.0f;
+         }
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/warrior/WarriorActions.h b/modules/mod-playerbots/src/playerbot/strategy/warrior/WarriorActions.h
+index a5741de..eecc70b 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/warrior/WarriorActions.h
++++ b/modules/mod-playerbots/src/playerbot/strategy/warrior/WarriorActions.h
+@@ -129,9 +129,9 @@ namespace ai
+                 uint32 mortalStrike = AI_VALUE2(uint32, "spell id", "mortal strike");
+                 uint32 shieldSlam = AI_VALUE2(uint32, "spell id", "shield slam");
+ 
+-                if ((bloodThirst && bot->IsSpellReady(bloodThirst)) ||
+-                    (mortalStrike && bot->IsSpellReady(mortalStrike)) ||
+-                    (shieldSlam && bot->IsSpellReady(shieldSlam)))
++                if ((bloodThirst && sServerFacade.IsSpellReady(bot, bloodThirst)) ||
++                    (mortalStrike && sServerFacade.IsSpellReady(bot, mortalStrike)) ||
++                    (shieldSlam && sServerFacade.IsSpellReady(bot, shieldSlam)))
+                 {
+                     return false;
+                 }
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/warrior/WarriorTriggers.h b/modules/mod-playerbots/src/playerbot/strategy/warrior/WarriorTriggers.h
+index c7462b4..15c44a5 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/warrior/WarriorTriggers.h
++++ b/modules/mod-playerbots/src/playerbot/strategy/warrior/WarriorTriggers.h
+@@ -70,7 +70,7 @@ namespace ai
+         {
+             // Check for spell cooldown
+             uint32 spellid = AI_VALUE2(uint32, "spell id", "berserker rage");
+-            if (spellid && bot->IsSpellReady(spellid))
++            if (spellid && sServerFacade.IsSpellReady(bot, spellid))
+             {
+                 return TargetOfFearCastTrigger::IsActive();
+             }

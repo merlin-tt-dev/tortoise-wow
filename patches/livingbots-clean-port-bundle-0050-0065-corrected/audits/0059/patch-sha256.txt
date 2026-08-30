@@ -1,0 +1,1 @@
+7818f5b020ac813018efc3aad25fb121aaf23499503c07d089d619d43636a5ae  /mnt/data/livingbots-clean-port-bundle-0050-0065-corrected/patches/mod/0059-build-compatibility-pass-30-native-repair-stuck.patch

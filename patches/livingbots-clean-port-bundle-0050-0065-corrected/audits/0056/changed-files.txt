@@ -1,0 +1,7 @@
+modules/mod-playerbots/src/cmangos-compat-shim.h
+modules/mod-playerbots/src/playerbot/strategy/actions/DungeonActions.cpp
+modules/mod-playerbots/src/playerbot/strategy/actions/RtscAction.cpp
+modules/mod-playerbots/src/playerbot/strategy/actions/TellLosAction.cpp
+modules/mod-playerbots/src/playerbot/strategy/actions/WaitForAttackAction.cpp
+modules/mod-playerbots/src/playerbot/strategy/triggers/DungeonTriggers.cpp
+modules/mod-playerbots/src/playerbot/strategy/triggers/KarazhanDungeonTriggers.cpp

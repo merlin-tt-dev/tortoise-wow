@@ -1,0 +1,1 @@
+b35fb43bc0e7291762a60bc7d35a889d260941743ee07e67a3667cd9f96698f7  /mnt/data/livingbots-clean-port-bundle-0050-0065-corrected/patches/mod/0064-build-compatibility-pass-35-native-security-lfg-whisper.patch

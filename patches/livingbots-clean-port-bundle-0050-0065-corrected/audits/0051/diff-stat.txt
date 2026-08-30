@@ -1,0 +1,15 @@
+ .../mod-playerbots/src/playerbot/PlayerbotAI.cpp   |  2 +-
+ .../mod-playerbots/src/playerbot/ServerFacade.cpp  |  2 +-
+ .../mod-playerbots/src/playerbot/ServerFacade.h    |  2 +-
+ .../strategy/actions/GenericSpellActions.cpp       | 29 ++++++++++++----------
+ .../src/playerbot/strategy/hunter/HunterActions.h  |  2 +-
+ .../src/playerbot/strategy/hunter/HunterTriggers.h | 10 ++++----
+ .../src/playerbot/strategy/mage/MageTriggers.h     |  8 +++---
+ .../playerbot/strategy/priest/PriestTriggers.cpp   |  2 +-
+ .../src/playerbot/strategy/values/CraftValues.cpp  |  6 ++---
+ .../playerbot/strategy/values/ItemCountValue.cpp   |  2 +-
+ .../strategy/values/SpellCastUsefulValue.cpp       | 11 ++++----
+ .../strategy/warrior/ArmsWarriorStrategy.cpp       | 13 +++++-----
+ .../playerbot/strategy/warrior/WarriorActions.h    |  6 ++---
+ .../playerbot/strategy/warrior/WarriorTriggers.h   |  2 +-
+ 14 files changed, 50 insertions(+), 47 deletions(-)

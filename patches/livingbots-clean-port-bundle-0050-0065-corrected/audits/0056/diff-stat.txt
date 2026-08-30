@@ -1,0 +1,8 @@
+ modules/mod-playerbots/src/cmangos-compat-shim.h   | 33 ----------------------
+ .../playerbot/strategy/actions/DungeonActions.cpp  | 14 ++++-----
+ .../src/playerbot/strategy/actions/RtscAction.cpp  | 30 ++++++++++++++------
+ .../playerbot/strategy/actions/TellLosAction.cpp   |  4 +--
+ .../strategy/actions/WaitForAttackAction.cpp       | 16 +++++++----
+ .../strategy/triggers/DungeonTriggers.cpp          |  8 +++---
+ .../strategy/triggers/KarazhanDungeonTriggers.cpp  |  4 +--
+ 7 files changed, 47 insertions(+), 62 deletions(-)

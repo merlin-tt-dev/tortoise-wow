@@ -1,0 +1,323 @@
+diff --git a/modules/mod-playerbots/src/cmangos-compat-shim.h b/modules/mod-playerbots/src/cmangos-compat-shim.h
+index f77c9e0..8f0afe5 100644
+--- a/modules/mod-playerbots/src/cmangos-compat-shim.h
++++ b/modules/mod-playerbots/src/cmangos-compat-shim.h
+@@ -128,28 +128,6 @@ inline CmangosFactionTemplateStoreProxy sFactionTemplateStore;
+ // Penqle uses _ItemSpell (current naming). They're the same shape.
+ typedef _ItemSpell _Spell;
+ 
+-// cmangos has TEMPSPAWN_* enum values; Penqle has TEMPSUMMON_*. Map.
+-#ifndef TEMPSPAWN_TIMED_DESPAWN
+-#define TEMPSPAWN_TIMED_DESPAWN TEMPSUMMON_TIMED_DESPAWN
+-#endif
+-#ifndef TEMPSPAWN_TIMED_OR_DEAD_DESPAWN
+-#define TEMPSPAWN_TIMED_OR_DEAD_DESPAWN TEMPSUMMON_TIMED_OR_DEAD_DESPAWN
+-#endif
+-#ifndef TEMPSPAWN_TIMED_OR_CORPSE_DESPAWN
+-#define TEMPSPAWN_TIMED_OR_CORPSE_DESPAWN TEMPSUMMON_TIMED_OR_CORPSE_DESPAWN
+-#endif
+-#ifndef TEMPSPAWN_DEAD_DESPAWN
+-#define TEMPSPAWN_DEAD_DESPAWN TEMPSUMMON_DEAD_DESPAWN
+-#endif
+-#ifndef TEMPSPAWN_CORPSE_DESPAWN
+-#define TEMPSPAWN_CORPSE_DESPAWN TEMPSUMMON_CORPSE_DESPAWN
+-#endif
+-#ifndef TEMPSPAWN_CORPSE_TIMED_DESPAWN
+-#define TEMPSPAWN_CORPSE_TIMED_DESPAWN TEMPSUMMON_CORPSE_TIMED_DESPAWN
+-#endif
+-#ifndef TEMPSPAWN_MANUAL_DESPAWN
+-#define TEMPSPAWN_MANUAL_DESPAWN TEMPSUMMON_MANUAL_DESPAWN
+-#endif
+ 
+ // === Spells namespace functions hoisted to global scope ===
+ // cmangos's bot calls IsPositiveSpell / GetDispellMask without namespace.
+@@ -317,9 +295,6 @@ inline SpellSchoolMask GetSpellSchoolMask(SpellEntry const* spellInfo) {
+ inline bool IsNonCombatSpell(SpellEntry const* spellInfo) {
+     return spellInfo && spellInfo->IsNonCombatSpell();
+ }
+-inline bool IsPositiveEffect(SpellEntry const* spellInfo, SpellEffectIndex eff) {
+-    return spellInfo && spellInfo->IsPositiveEffect(eff);
+-}
+ 
+ // === MeetingStoneInfo / MeetingStoneSet (cmangos LFG) ===
+ // Definition lives in LFGMgr.h so both host (game.vcxproj) and bot module see the same type.
+@@ -365,14 +340,6 @@ inline BattleGroundTeamIndex GetTeamIndexByTeamId(Team team) {
+ #define SPELL_ATTR_ON_NEXT_SWING_NO_DAMAGE SPELL_ATTR_ON_NEXT_SWING_2
+ #endif
+ 
+-// === UNIT_FLAG_UNTARGETABLE / UNIT_FLAG_UNINTERACTIBLE (cmangos names) ===
+-// Penqle uses UNIT_FLAG_NOT_SELECTABLE for both concepts.
+-#ifndef UNIT_FLAG_UNTARGETABLE
+-#define UNIT_FLAG_UNTARGETABLE UNIT_FLAG_NOT_SELECTABLE
+-#endif
+-#ifndef UNIT_FLAG_UNINTERACTIBLE
+-#define UNIT_FLAG_UNINTERACTIBLE UNIT_FLAG_NOT_SELECTABLE
+-#endif
+ 
+ // === IsAutoRepeatRangedSpell (cmangos free function) ===
+ // Penqle's SpellEntry has IsAutoRepeatRangedSpell as a method. Wrap as free fn.
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/DungeonActions.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/DungeonActions.cpp
+index bef200d..1f6df6e 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/DungeonActions.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/DungeonActions.cpp
+@@ -63,7 +63,7 @@ bool MoveAwayFromHazard::Execute(Event& event)
+                     {
+                         if (ai->HasStrategy("debug move", BotState::BOT_STATE_COMBAT))
+                         {
+-                            bot->SummonCreature(15631, point.getX(), point.getY(), point.getZ(), 0.0f, TEMPSPAWN_TIMED_DESPAWN, 5000.0f);
++                            bot->SummonCreature(15631, point.getX(), point.getY(), point.getZ(), 0.0f, TEMPSUMMON_TIMED_DESPAWN, 5000.0f);
+                         }
+ 
+                         if (MoveTo(bot->GetMapId(), point.getX(), point.getY(), point.getZ(), false, IsReaction(), false, true))
+@@ -80,7 +80,7 @@ bool MoveAwayFromHazard::Execute(Event& event)
+ 
+                 if (ai->HasStrategy("debug move", BotState::BOT_STATE_COMBAT))
+                 {
+-                    bot->SummonCreature(1, point.getX(), point.getY(), point.getZ(), 0.0f, TEMPSPAWN_TIMED_DESPAWN, 5000.0f);
++                    bot->SummonCreature(1, point.getX(), point.getY(), point.getZ(), 0.0f, TEMPSUMMON_TIMED_DESPAWN, 5000.0f);
+                 }
+ 
+                 angle += angleIncrement;
+@@ -126,8 +126,8 @@ bool MoveAwayFromCreature::Execute(Event& event)
+ 
+     // Iterate through the near creatures
+     std::list<Unit*> units;
+-    MaNGOS::AllCreaturesOfEntryInRangeCheck u_check(bot, creatureID, range);
+-    MaNGOS::UnitListSearcher<MaNGOS::AllCreaturesOfEntryInRangeCheck> searcher(units, u_check);
++    MaNGOS::AllCreaturesOfEntryInRange u_check(bot, creatureID, range);
++    MaNGOS::UnitListSearcher<MaNGOS::AllCreaturesOfEntryInRange> searcher(units, u_check);
+     Cell::VisitAllObjects(bot, searcher, range);
+     for (Unit* unit : units)
+     {
+@@ -196,7 +196,7 @@ bool MoveAwayFromCreature::Execute(Event& event)
+         {
+             if (ai->HasStrategy("debug move", BotState::BOT_STATE_COMBAT))
+             {
+-                bot->SummonCreature(15631, validPoint->getX(), validPoint->getY(), validPoint->getZ(), 0.0f, TEMPSPAWN_TIMED_DESPAWN, 5000.0f);
++                bot->SummonCreature(15631, validPoint->getX(), validPoint->getY(), validPoint->getZ(), 0.0f, TEMPSUMMON_TIMED_DESPAWN, 5000.0f);
+             }
+ 
+             if (MoveTo(bot->GetMapId(), validPoint->getX(), validPoint->getY(), validPoint->getZ(), false, IsReaction(), false, true))
+@@ -212,8 +212,8 @@ bool MoveAwayFromCreature::Execute(Event& event)
+ 
+         if (ai->HasStrategy("debug move", BotState::BOT_STATE_COMBAT))
+         {
+-            bot->SummonCreature(1, pointLeft.getX(), pointLeft.getY(), pointLeft.getZ(), 0.0f, TEMPSPAWN_TIMED_DESPAWN, 5000.0f);
+-            bot->SummonCreature(1, pointRight.getX(), pointRight.getY(), pointRight.getZ(), 0.0f, TEMPSPAWN_TIMED_DESPAWN, 5000.0f);
++            bot->SummonCreature(1, pointLeft.getX(), pointLeft.getY(), pointLeft.getZ(), 0.0f, TEMPSUMMON_TIMED_DESPAWN, 5000.0f);
++            bot->SummonCreature(1, pointRight.getX(), pointRight.getY(), pointRight.getZ(), 0.0f, TEMPSUMMON_TIMED_DESPAWN, 5000.0f);
+         }
+ 
+         angleLeft += angleIncrement;
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/RtscAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/RtscAction.cpp
+index c9e9d50..ce903ce 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/RtscAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/RtscAction.cpp
+@@ -7,6 +7,20 @@
+ 
+ using namespace ai;
+ 
++namespace
++{
++void SendPlaySpellVisual(WorldSession* session, ObjectGuid guid, uint32 visualId)
++{
++    if (!session)
++        return;
++
++    WorldPacket data(SMSG_PLAY_SPELL_VISUAL, 8 + 4);
++    data << guid;
++    data << visualId;
++    session->SendPacket(&data);
++}
++}
++
+ bool RTSCAction::Execute(Event& event)
+ {
+ 	std::string command = event.getParam();
+@@ -22,7 +36,7 @@ bool RTSCAction::Execute(Event& event)
+ 
+ 	if (command != "reset" && !requester->HasSpell(RTSC_MOVE_SPELL))
+ 	{
+-		requester->learnSpell(RTSC_MOVE_SPELL, false);
++        requester->LearnSpell(RTSC_MOVE_SPELL, false);
+ 		ai->TellPlayerNoFacing(requester, "RTS control enabled.");
+ 		ai->TellPlayerNoFacing(requester, "Aedm (Awesome energetic do move) spell trained.");
+ 	}
+@@ -30,7 +44,7 @@ bool RTSCAction::Execute(Event& event)
+ 	{
+ 		if (requester->HasSpell(RTSC_MOVE_SPELL))
+ 		{
+-			requester->removeSpell(RTSC_MOVE_SPELL);
++            requester->RemoveSpell(RTSC_MOVE_SPELL);
+ 			ai->TellPlayerNoFacing(requester, "RTS control spell removed.");
+ 		}
+ 
+@@ -49,7 +63,7 @@ bool RTSCAction::Execute(Event& event)
+ 	if (command == "select" && !selected)
+ 	{
+ 		SET_AI_VALUE(bool, "RTSC selected", true);
+-		requester->GetSession()->SendPlaySpellVisual(bot->GetObjectGuid(), 5036);
++        SendPlaySpellVisual(requester->GetSession(), bot->GetObjectGuid(), 5036);
+ 		return true;
+ 	}
+ 	else if (command == "cancel")
+@@ -57,7 +71,7 @@ bool RTSCAction::Execute(Event& event)
+ 		RESET_AI_VALUE(bool, "RTSC selected");
+ 		RESET_AI_VALUE(std::string, "RTSC next spell action");
+ 		if(selected)
+-			requester->GetSession()->SendPlaySpellVisual(bot->GetObjectGuid(), 6372);
++            SendPlaySpellVisual(requester->GetSession(), bot->GetObjectGuid(), 6372);
+ 		return true;
+ 	}
+ 	else if (command == "toggle")
+@@ -65,12 +79,12 @@ bool RTSCAction::Execute(Event& event)
+ 		if (!selected)
+ 		{
+ 			SET_AI_VALUE(bool, "RTSC selected", true);
+-			requester->GetSession()->SendPlaySpellVisual(bot->GetObjectGuid(), 5036);
++            SendPlaySpellVisual(requester->GetSession(), bot->GetObjectGuid(), 5036);
+ 		}
+ 		else
+ 		{
+ 			SET_AI_VALUE(bool, "RTSC selected", false);
+-			requester->GetSession()->SendPlaySpellVisual(bot->GetObjectGuid(), 6372);
++            SendPlaySpellVisual(requester->GetSession(), bot->GetObjectGuid(), 6372);
+ 		}
+ 
+ 		return true;
+@@ -82,7 +96,7 @@ bool RTSCAction::Execute(Event& event)
+ 		WorldPosition spellPosition(bot);
+ 		SET_AI_VALUE2(WorldPosition, "RTSC saved location", locationName, spellPosition);
+ 
+-		Creature* wpCreature = bot->SummonCreature(15631, spellPosition.getX(), spellPosition.getY(), spellPosition.getZ(), spellPosition.getO(), TEMPSPAWN_TIMED_DESPAWN, 2000.0f);
++        Creature* wpCreature = bot->SummonCreature(15631, spellPosition.getX(), spellPosition.getY(), spellPosition.getZ(), spellPosition.getO(), TEMPSUMMON_TIMED_DESPAWN, 2000.0f);
+ 		wpCreature->SetObjectScale(0.5f);
+ 
+ 		return true;
+@@ -275,7 +289,7 @@ bool RTSCAction::Execute(Event& event)
+ 
+ 		if (spellPosition)
+ 		{
+-			Creature* wpCreature = bot->SummonCreature(15631, spellPosition.getX(), spellPosition.getY(), spellPosition.getZ(), spellPosition.getO(), TEMPSPAWN_TIMED_DESPAWN, 2000.0f);
++                Creature* wpCreature = bot->SummonCreature(15631, spellPosition.getX(), spellPosition.getY(), spellPosition.getZ(), spellPosition.getO(), TEMPSUMMON_TIMED_DESPAWN, 2000.0f);
+ 			wpCreature->SetObjectScale(0.5f);
+ 		}
+ 
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/TellLosAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/TellLosAction.cpp
+index bd7b8b0..ec3f8a5 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/TellLosAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/TellLosAction.cpp
+@@ -66,7 +66,7 @@ bool TellLosAction::Execute(Event& event)
+           for (GameObject* go : objects)
+           {
+              WorldPosition spellPosition(go);
+-             Creature* wpCreature = ai->GetBot()->SummonCreature(15631, spellPosition.getX(), spellPosition.getY(), spellPosition.getZ(), spellPosition.getO(), TEMPSPAWN_TIMED_DESPAWN, 2000.0f);
++             Creature* wpCreature = ai->GetBot()->SummonCreature(15631, spellPosition.getX(), spellPosition.getY(), spellPosition.getZ(), spellPosition.getO(), TEMPSUMMON_TIMED_DESPAWN, 2000.0f);
+              wpCreature->SetObjectScale(0.5f);
+           }
+        }
+@@ -206,7 +206,7 @@ void TellLosAction::TellGameObjects(Player* requester, std::string title, const
+       }
+ 
+       WorldPosition spellPosition(go);
+-      Creature* wpCreature = ai->GetBot()->SummonCreature(15631, spellPosition.getX(), spellPosition.getY(), spellPosition.getZ(), spellPosition.getO(), TEMPSPAWN_TIMED_DESPAWN, 2000.0f);
++      Creature* wpCreature = ai->GetBot()->SummonCreature(15631, spellPosition.getX(), spellPosition.getY(), spellPosition.getZ(), spellPosition.getO(), TEMPSUMMON_TIMED_DESPAWN, 2000.0f);
+       wpCreature->SetObjectScale(0.5f);
+ 
+       ai->TellPlayer(requester, ss.str());
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/WaitForAttackAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/WaitForAttackAction.cpp
+index 5ca086a..0ed919c 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/WaitForAttackAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/WaitForAttackAction.cpp
+@@ -9,8 +9,12 @@ bool WaitForAttackKeepSafeDistanceAction::Execute(Event& event)
+ {
+     Unit* target = AI_VALUE(Unit*, "current target");
+ 
+-    if (target && !target->IsStopped() && target->GetTarget() && target->GetTarget()->IsStopped())
+-        target = target->GetTarget();
++    if (target && !target->IsStopped() && !target->GetTargetGuid().IsEmpty())
++    {
++        Unit* selectedTarget = target->GetMap()->GetUnit(target->GetTargetGuid());
++        if (selectedTarget && selectedTarget->IsStopped())
++            target = selectedTarget;
++    }
+ 
+ 
+     if (target && target->IsAlive())
+@@ -46,7 +50,7 @@ const ai::WorldPosition WaitForAttackKeepSafeDistanceAction::GetBestPoint(Unit*
+         for (uint32 dist = 0; dist < distance; dist++)
+         {
+             WorldPosition point = targetPosition + WorldPosition(0, dist * cos(startAngle), dist * sin(startAngle), 1.0f);
+-            Creature* wpCreature = bot->SummonCreature(1, point.getX(), point.getY(), point.getZ(), 0.0f, TEMPSPAWN_TIMED_DESPAWN, 1000.0f + dist * 100.0f);
++            Creature* wpCreature = bot->SummonCreature(1, point.getX(), point.getY(), point.getZ(), 0.0f, TEMPSUMMON_TIMED_DESPAWN, 1000.0f + dist * 100.0f);
+         }
+     }
+ 
+@@ -63,7 +67,7 @@ const ai::WorldPosition WaitForAttackKeepSafeDistanceAction::GetBestPoint(Unit*
+ 
+             if (ai->HasStrategy("debug move", BotState::BOT_STATE_COMBAT))
+             {
+-                Creature* wpCreature = bot->SummonCreature(1, point.getX(), point.getY(), point.getZ(), 0.0f, TEMPSPAWN_TIMED_DESPAWN, 5000.0f + tryAngle * 1000.0f);
++                Creature* wpCreature = bot->SummonCreature(1, point.getX(), point.getY(), point.getZ(), 0.0f, TEMPSUMMON_TIMED_DESPAWN, 5000.0f + tryAngle * 1000.0f);
+             }
+ 
+             // Check if the target is visible from the point
+@@ -80,7 +84,7 @@ const ai::WorldPosition WaitForAttackKeepSafeDistanceAction::GetBestPoint(Unit*
+ 
+             if (ai->HasStrategy("debug move", BotState::BOT_STATE_COMBAT))
+             {
+-                Creature* wpCreature = bot->SummonCreature(15631, point.getX(), point.getY(), point.getZ(), 0.0f, TEMPSPAWN_TIMED_DESPAWN, 5000.0f + tryAngle * 1000.0f);
++                Creature* wpCreature = bot->SummonCreature(15631, point.getX(), point.getY(), point.getZ(), 0.0f, TEMPSUMMON_TIMED_DESPAWN, 5000.0f + tryAngle * 1000.0f);
+             }
+ 
+             return point;
+@@ -103,7 +107,7 @@ bool WaitForAttackKeepSafeDistanceAction::IsEnemyClose(const WorldPosition& poin
+             if (enemy->IsWithinLOSInMap(bot))
+             {
+                 // If the enemy is not neutral
+-                if (enemy->CanAttackOnSight(bot))
++                if (enemy->CanAttack(bot))
+                 {
+                     const float enemyAttackRange = sServerFacade.GetAggroDistance(enemy, bot) + ATTACK_DISTANCE;
+                     const float distanceToPoint = WorldPosition(enemy).sqDistance(point);
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/triggers/DungeonTriggers.cpp b/modules/mod-playerbots/src/playerbot/strategy/triggers/DungeonTriggers.cpp
+index 20d8728..db4c239 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/triggers/DungeonTriggers.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/triggers/DungeonTriggers.cpp
+@@ -173,8 +173,8 @@ std::list<ObjectGuid> CloseToCreatureHazardTrigger::GetPossibleHazards()
+     std::list<ObjectGuid> possibleHazards;
+ 
+     std::list<Unit*> creatures;
+-    MaNGOS::AllCreaturesOfEntryInRangeCheck u_check(bot, creatureID, hazardRadius);
+-    MaNGOS::UnitListSearcher<MaNGOS::AllCreaturesOfEntryInRangeCheck> searcher(creatures, u_check);
++    MaNGOS::AllCreaturesOfEntryInRange u_check(bot, creatureID, hazardRadius);
++    MaNGOS::UnitListSearcher<MaNGOS::AllCreaturesOfEntryInRange> searcher(creatures, u_check);
+     Cell::VisitAllObjects(bot, searcher, hazardRadius);
+     for (Unit* unit : creatures)
+     {
+@@ -225,8 +225,8 @@ bool CloseToCreatureTrigger::IsActive()
+ 
+         // Iterate through the near creatures
+         std::list<Unit*> creatures;
+-        MaNGOS::AllCreaturesOfEntryInRangeCheck u_check(bot, creatureID, range);
+-        MaNGOS::UnitListSearcher<MaNGOS::AllCreaturesOfEntryInRangeCheck> searcher(creatures, u_check);
++        MaNGOS::AllCreaturesOfEntryInRange u_check(bot, creatureID, range);
++        MaNGOS::UnitListSearcher<MaNGOS::AllCreaturesOfEntryInRange> searcher(creatures, u_check);
+         Cell::VisitAllObjects(bot, searcher, range);
+         for (Unit* unit : creatures)
+         {
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/triggers/KarazhanDungeonTriggers.cpp b/modules/mod-playerbots/src/playerbot/strategy/triggers/KarazhanDungeonTriggers.cpp
+index fb8ab77..261ee74 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/triggers/KarazhanDungeonTriggers.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/triggers/KarazhanDungeonTriggers.cpp
+@@ -12,8 +12,8 @@ bool NetherspiteBeamsCheatNeedRefreshTrigger::IsActive()
+ {
+     //Checking that is portal phase
+     std::list<Unit*> creatures;
+-    MaNGOS::AllCreaturesOfEntryInRangeCheck u_check(bot, 17369, 100);
+-    MaNGOS::UnitListSearcher<MaNGOS::AllCreaturesOfEntryInRangeCheck> searcher(creatures, u_check);
++    MaNGOS::AllCreaturesOfEntryInRange u_check(bot, 17369, 100);
++    MaNGOS::UnitListSearcher<MaNGOS::AllCreaturesOfEntryInRange> searcher(creatures, u_check);
+     Cell::VisitAllObjects(bot, searcher, 100);
+ 
+     if (creatures.empty())

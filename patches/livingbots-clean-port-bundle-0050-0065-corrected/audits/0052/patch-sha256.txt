@@ -1,0 +1,1 @@
+93d7c69d5f21309ec750a7c3443c4f268029c9735ec00b512c59b20d1e74bf77  /mnt/data/livingbots-clean-port-bundle-0050-0065-corrected/patches/mod/0052-build-compatibility-pass-23-native-class-item-use.patch

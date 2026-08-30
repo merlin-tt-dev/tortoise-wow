@@ -1,0 +1,81 @@
+REVERSE-CHECK mod/0065-build-compatibility-pass-36-native-llm-singleton.patch
+REVERSE-CHECK mod/0064-build-compatibility-pass-35-native-security-lfg-whisper.patch
+REVERSE-CHECK mod/0063-build-compatibility-pass-34-native-locale-storage.patch
+REVERSE-CHECK mod/0062-build-compatibility-pass-33-native-spell-polarity.patch
+REVERSE-CHECK mod/0061-build-compatibility-pass-32-native-group-membership.patch
+REVERSE-CHECK mod/0060-build-compatibility-pass-31-native-context-maintenance-values.patch
+REVERSE-CHECK mod/0059-build-compatibility-pass-30-native-repair-stuck.patch
+/mnt/data/livingbots-clean-port-bundle-0050-0065-corrected/patches/mod/0059-build-compatibility-pass-30-native-repair-stuck.patch:26: trailing whitespace.
+            if (cell.GridX() > 0 && cell.GridY() > 0 && !MMAP::MMapFactory::createOrGetMMapManager()->IsMMapIsLoaded(botPos.getMapId(), cell.GridX(), cell.GridY()) 
+warning: 1 line adds whitespace errors.
+REVERSE-CHECK mod/0058-build-compatibility-pass-29-native-class-triggers.patch
+/mnt/data/livingbots-clean-port-bundle-0050-0065-corrected/patches/mod/0058-build-compatibility-pass-29-native-class-triggers.patch:9: tab in indent.
+	if (!GetTarget()->HasMana())
+/mnt/data/livingbots-clean-port-bundle-0050-0065-corrected/patches/mod/0058-build-compatibility-pass-29-native-class-triggers.patch:10: tab in indent.
+		return false;
+warning: 2 lines add whitespace errors.
+REVERSE-CHECK mod/0057-build-compatibility-pass-28-native-battleground-join.patch
+REVERSE-CHECK mod/0056-build-compatibility-pass-27-native-temp-summon-dungeon-search.patch
+/mnt/data/livingbots-clean-port-bundle-0050-0065-corrected/patches/mod/0056-build-compatibility-pass-27-native-temp-summon-dungeon-search.patch:141: tab in indent.
+		requester->learnSpell(RTSC_MOVE_SPELL, false);
+/mnt/data/livingbots-clean-port-bundle-0050-0065-corrected/patches/mod/0056-build-compatibility-pass-27-native-temp-summon-dungeon-search.patch:150: tab in indent.
+			requester->removeSpell(RTSC_MOVE_SPELL);
+/mnt/data/livingbots-clean-port-bundle-0050-0065-corrected/patches/mod/0056-build-compatibility-pass-27-native-temp-summon-dungeon-search.patch:159: tab in indent.
+		requester->GetSession()->SendPlaySpellVisual(bot->GetObjectGuid(), 5036);
+/mnt/data/livingbots-clean-port-bundle-0050-0065-corrected/patches/mod/0056-build-compatibility-pass-27-native-temp-summon-dungeon-search.patch:168: tab in indent.
+			requester->GetSession()->SendPlaySpellVisual(bot->GetObjectGuid(), 6372);
+/mnt/data/livingbots-clean-port-bundle-0050-0065-corrected/patches/mod/0056-build-compatibility-pass-27-native-temp-summon-dungeon-search.patch:177: tab in indent.
+			requester->GetSession()->SendPlaySpellVisual(bot->GetObjectGuid(), 5036);
+warning: squelched 3 whitespace errors
+warning: 8 lines add whitespace errors.
+REVERSE-CHECK mod/0055-build-compatibility-pass-26-native-combat-target-threat.patch
+REVERSE-CHECK mod/0054-build-compatibility-pass-25-native-talent-combat-values.patch
+/mnt/data/livingbots-clean-port-bundle-0050-0065-corrected/patches/mod/0054-build-compatibility-pass-25-native-talent-combat-values.patch:95: trailing whitespace.
+            switch (creature->GetCreatureInfo()->Rank) 
+warning: 1 line adds whitespace errors.
+REVERSE-CHECK mod/0053-build-compatibility-pass-24-native-debug-action.patch
+/mnt/data/livingbots-clean-port-bundle-0050-0065-corrected/patches/mod/0053-build-compatibility-pass-24-native-debug-action.patch:9: trailing whitespace.
+    
+/mnt/data/livingbots-clean-port-bundle-0050-0065-corrected/patches/mod/0053-build-compatibility-pass-24-native-debug-action.patch:18: trailing whitespace.
+        return HandleRPGTargets(event, requester, text);    
+/mnt/data/livingbots-clean-port-bundle-0050-0065-corrected/patches/mod/0053-build-compatibility-pass-24-native-debug-action.patch:27: trailing whitespace.
+    
+/mnt/data/livingbots-clean-port-bundle-0050-0065-corrected/patches/mod/0053-build-compatibility-pass-24-native-debug-action.patch:31: trailing whitespace.
+    
+/mnt/data/livingbots-clean-port-bundle-0050-0065-corrected/patches/mod/0053-build-compatibility-pass-24-native-debug-action.patch:40: trailing whitespace.
+        
+warning: squelched 92 whitespace errors
+warning: 97 lines add whitespace errors.
+REVERSE-CHECK mod/0052-build-compatibility-pass-23-native-class-item-use.patch
+REVERSE-CHECK mod/0051-build-compatibility-pass-22-native-spell-readiness-cast.patch
+/mnt/data/livingbots-clean-port-bundle-0050-0065-corrected/patches/mod/0051-build-compatibility-pass-22-native-spell-readiness-cast.patch:281: tab in indent.
+				bot->IsSpellReady(proto->Spells[i].SpellId, proto))
+/mnt/data/livingbots-clean-port-bundle-0050-0065-corrected/patches/mod/0051-build-compatibility-pass-22-native-spell-readiness-cast.patch:294: tab in indent.
+	if (spellInfo->Attributes & SPELL_ATTR_ON_NEXT_SWING ||
+/mnt/data/livingbots-clean-port-bundle-0050-0065-corrected/patches/mod/0051-build-compatibility-pass-22-native-spell-readiness-cast.patch:295: tab in indent.
+		spellInfo->Attributes & SPELL_ATTR_ON_NEXT_SWING_NO_DAMAGE)
+/mnt/data/livingbots-clean-port-bundle-0050-0065-corrected/patches/mod/0051-build-compatibility-pass-22-native-spell-readiness-cast.patch:300: tab in indent.
+		if (spell && spell->m_spellInfo->Id == spellid && IsNextMeleeSwingSpell(spell->m_spellInfo) && bot->hasUnitState(UNIT_STAT_MELEE_ATTACKING))
+/mnt/data/livingbots-clean-port-bundle-0050-0065-corrected/patches/mod/0051-build-compatibility-pass-22-native-spell-readiness-cast.patch:304: tab in indent.
+		if (spell && spell->m_spellInfo->Id == spellid && spell->IsNextMeleeSwingSpell() && bot->hasUnitState(UNIT_STAT_MELEE_ATTACKING))
+warning: 5 lines add whitespace errors.
+REVERSE-CHECK mod/0050-mod-native-playerbot-login-query-holder.patch
+REVERSE-CHECK core/0050-core-native-login-query-holder-extract.patch
+REAPPLY-CHECK core/0050-core-native-login-query-holder-extract.patch
+REAPPLY-CHECK mod/0050-mod-native-playerbot-login-query-holder.patch
+REAPPLY-CHECK mod/0051-build-compatibility-pass-22-native-spell-readiness-cast.patch
+REAPPLY-CHECK mod/0052-build-compatibility-pass-23-native-class-item-use.patch
+REAPPLY-CHECK mod/0053-build-compatibility-pass-24-native-debug-action.patch
+REAPPLY-CHECK mod/0054-build-compatibility-pass-25-native-talent-combat-values.patch
+REAPPLY-CHECK mod/0055-build-compatibility-pass-26-native-combat-target-threat.patch
+REAPPLY-CHECK mod/0056-build-compatibility-pass-27-native-temp-summon-dungeon-search.patch
+REAPPLY-CHECK mod/0057-build-compatibility-pass-28-native-battleground-join.patch
+REAPPLY-CHECK mod/0058-build-compatibility-pass-29-native-class-triggers.patch
+REAPPLY-CHECK mod/0059-build-compatibility-pass-30-native-repair-stuck.patch
+REAPPLY-CHECK mod/0060-build-compatibility-pass-31-native-context-maintenance-values.patch
+REAPPLY-CHECK mod/0061-build-compatibility-pass-32-native-group-membership.patch
+REAPPLY-CHECK mod/0062-build-compatibility-pass-33-native-spell-polarity.patch
+REAPPLY-CHECK mod/0063-build-compatibility-pass-34-native-locale-storage.patch
+REAPPLY-CHECK mod/0064-build-compatibility-pass-35-native-security-lfg-whisper.patch
+REAPPLY-CHECK mod/0065-build-compatibility-pass-36-native-llm-singleton.patch
+RESULT: reverse 0065→0050-mod→0050-core and reapply core→mod→0065 PASS

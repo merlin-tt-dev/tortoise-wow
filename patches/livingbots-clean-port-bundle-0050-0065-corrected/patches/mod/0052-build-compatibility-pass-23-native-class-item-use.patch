@@ -1,0 +1,90 @@
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/rogue/RogueActions.h b/modules/mod-playerbots/src/playerbot/strategy/rogue/RogueActions.h
+index 9847b6f..1acfeb7 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/rogue/RogueActions.h
++++ b/modules/mod-playerbots/src/playerbot/strategy/rogue/RogueActions.h
+@@ -6,7 +6,7 @@ namespace ai
+ {
+     BUFF_ACTION(CastColdBloodAction, "cold blood");
+ 
+-    BUFF_ACTION_U(CastPreparationAction, "preparation", !bot->IsSpellReady(14177) || !bot->IsSpellReady(2983) || !bot->IsSpellReady(2094));
++    BUFF_ACTION_U(CastPreparationAction, "preparation", !sServerFacade.IsSpellReady(bot, 14177) || !sServerFacade.IsSpellReady(bot, 2983) || !sServerFacade.IsSpellReady(bot, 2094));
+ 
+     class CastShadowstepAction : public CastSpellAction 
+     {
+@@ -17,7 +17,7 @@ namespace ai
+ 
+         virtual bool isUseful() override
+         {
+-            return bot->HasSpell(36554) && bot->IsSpellReady(36554);
++            return bot->HasSpell(36554) && sServerFacade.IsSpellReady(bot, 36554);
+         }
+ 
+         virtual bool Execute(Event& event) override
+@@ -411,19 +411,19 @@ namespace ai
+                         int count = 0;
+                         for (int i = 0; i < MAX_ITEM_PROTO_SPELLS; ++i)
+                         {
+-                            const _Spell& spellData = poisonProto->Spells[i];
++                            const _ItemSpell& spellData = poisonProto->Spells[i];
+                             if (spellData.SpellId)
+                             {
+                                 const SpellEntry* spellInfo = sSpellMgr.GetSpellEntry(spellData.SpellId);
+                                 if (spellInfo)
+                                 {
+                                     BotUseItemSpell* spell = new BotUseItemSpell(bot, spellInfo, count > 0);
+-                                    spell->m_clientCast = true;
++                                    spell->SetClientStarted(true);
+ 
+                                     if (spell->ForceSpellStart(&targets) == SPELL_CAST_OK)
+                                     {
+-                                        bot->RemoveSpellCooldown(*spellInfo, false);
+-                                        bot->AddCooldown(*spellInfo, poisonProto, false);
++                                        bot->RemoveSpellCooldown(spellInfo->Id, false);
++                                        bot->AddSpellAndCategoryCooldowns(spellInfo, poisonProto->ItemId);
+                                         SetDuration(3000);
+                                     }
+                                     else
+@@ -441,7 +441,16 @@ namespace ai
+                 }
+                 else
+                 {
+-                    Item* poisonItem = bot->GetItemByEntry(poisonItemId);
++                    Item* poisonItem = nullptr;
++                    for (Item* item : ai->GetInventoryItems())
++                    {
++                        if (item && item->GetEntry() == poisonItemId)
++                        {
++                            poisonItem = item;
++                            break;
++                        }
++                    }
++
+                     if (poisonItem)
+                     {
+                         ai->ImbueItem(poisonItem, weaponSlot);
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/warlock/WarlockActions.h b/modules/mod-playerbots/src/playerbot/strategy/warlock/WarlockActions.h
+index ad3f5c1..4344236 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/warlock/WarlockActions.h
++++ b/modules/mod-playerbots/src/playerbot/strategy/warlock/WarlockActions.h
+@@ -52,11 +52,18 @@ namespace ai
+                     Unit* target = GetTarget();
+                     if (target && AI_VALUE2(uint8, "health", GetTargetName()) <= 20)
+                     {
+-                        Item* soulShard = bot->GetItemByEntry(6265);
+-                        if (soulShard)
++                        Item* soulShard = nullptr;
++                        for (Item* item : ai->GetInventoryItems())
+                         {
+-                            bot->DestroyItem(soulShard->GetBagSlot(), soulShard->GetSlot(), true);
++                            if (item && item->GetEntry() == 6265)
++                            {
++                                soulShard = item;
++                                break;
++                            }
+                         }
++
++                        if (soulShard)
++                            bot->DestroyItem(soulShard->GetBagSlot(), soulShard->GetSlot(), true);
+                     }
+                 }
+                 

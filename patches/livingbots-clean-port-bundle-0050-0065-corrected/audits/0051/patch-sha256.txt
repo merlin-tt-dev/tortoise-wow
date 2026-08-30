@@ -1,0 +1,1 @@
+938ce81dfeba9f023a751b83765a8986d7a18de895e9b0cd6c5f4d34afaf2b4a  /mnt/data/livingbots-clean-port-bundle-0050-0065-corrected/patches/mod/0051-build-compatibility-pass-22-native-spell-readiness-cast.patch

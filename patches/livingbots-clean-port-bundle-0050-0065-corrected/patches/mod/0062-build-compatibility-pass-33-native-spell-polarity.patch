@@ -1,0 +1,31 @@
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/shaman/ShamanTriggers.h b/modules/mod-playerbots/src/playerbot/strategy/shaman/ShamanTriggers.h
+index 55e93d4..a391e6e 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/shaman/ShamanTriggers.h
++++ b/modules/mod-playerbots/src/playerbot/strategy/shaman/ShamanTriggers.h
+@@ -305,7 +305,7 @@ namespace ai
+                     const Aura* aura = *itr;
+                     const SpellEntry* entry = aura->GetSpellProto();
+                     uint32 spellId = entry->Id;
+-                    if (!IsPositiveSpell(spellId))
++                    if (!entry->IsPositiveSpell())
+                         continue;
+ 
+                     std::vector<uint32> ignoreSpells;
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/EnemyHealerTargetValue.cpp b/modules/mod-playerbots/src/playerbot/strategy/values/EnemyHealerTargetValue.cpp
+index 1eb0b22..76c77be 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/EnemyHealerTargetValue.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/EnemyHealerTargetValue.cpp
+@@ -25,11 +25,11 @@ Unit* EnemyHealerTargetValue::Calculate()
+             continue;
+ 
+         Spell* spell = unit->GetCurrentSpell(CURRENT_GENERIC_SPELL);
+-        if (spell && IsPositiveSpell(spell->m_spellInfo))
++        if (spell && spell->m_spellInfo->IsPositiveSpell())
+             return unit;
+ 
+         spell = unit->GetCurrentSpell(CURRENT_CHANNELED_SPELL);
+-        if (spell && IsPositiveSpell(spell->m_spellInfo))
++        if (spell && spell->m_spellInfo->IsPositiveSpell())
+             return unit;
+     }
+ 

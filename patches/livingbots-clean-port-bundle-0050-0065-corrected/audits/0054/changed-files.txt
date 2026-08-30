@@ -1,0 +1,4 @@
+modules/mod-playerbots/src/playerbot/Talentspec.cpp
+modules/mod-playerbots/src/playerbot/strategy/values/AttackerCountValues.cpp
+modules/mod-playerbots/src/playerbot/strategy/values/AttackerCountValues.h
+modules/mod-playerbots/src/playerbot/strategy/values/EnemyPlayerValue.cpp

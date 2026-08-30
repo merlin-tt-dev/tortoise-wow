@@ -1,0 +1,3 @@
+ .../src/playerbot/PlayerbotLoginMgr.cpp               | 19 ++++++++++---------
+ .../mod-playerbots/src/playerbot/PlayerbotLoginMgr.h  |  2 ++
+ 2 files changed, 12 insertions(+), 9 deletions(-)

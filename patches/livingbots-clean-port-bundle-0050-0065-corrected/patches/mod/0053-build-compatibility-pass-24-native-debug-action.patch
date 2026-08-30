@@ -1,0 +1,1536 @@
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/DebugAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/DebugAction.cpp
+index 8d7a0d7..c11aea3 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/DebugAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/DebugAction.cpp
+@@ -46,7 +46,7 @@ bool DebugAction::Execute(Event& event)
+     }
+ 
+     std::string text = event.getParam();
+-    
++
+     if (text == "help" || text.find("help ") == 0)
+         return HandleDebugHelp(event, requester, text, isMod);
+     else if (text == "avoid scan" && isMod)
+@@ -126,7 +126,7 @@ bool DebugAction::Execute(Event& event)
+     else if (text.find("rpg ") == 0)
+         return HandleRPG(event, requester, text);
+     else if (text.find("rpgtargets") == 0)
+-        return HandleRPGTargets(event, requester, text);    
++        return HandleRPGTargets(event, requester, text);
+     else if (text.find("travel ") == 0)
+         return HandleTravel(event, requester, text);
+     else if (text.find("print travel") == 0)
+@@ -233,10 +233,10 @@ bool DebugAction::HandleDebugHelp(Event& event, Player* requester, const std::st
+         cmd = cmd.substr(5);
+     else
+         cmd = "";
+-    
++
+     while (cmd.size() > 0 && cmd[0] == ' ')
+         cmd = cmd.substr(1);
+-    
++
+     if (cmd.empty())
+     {
+         ai->TellPlayer(requester, "=== Debug Commands ===");
+@@ -248,19 +248,19 @@ bool DebugAction::HandleDebugHelp(Event& event, Player* requester, const std::st
+         ai->TellPlayer(requester, "Interaction: npc, go, rpg, travel, loot, trade, mail");
+         ai->TellPlayer(requester, "Quest: quest list|complete|drop|add|travel");
+         ai->TellPlayer(requester, "Nodes: nodes");
+-        
++
+         if (isMod)
+         {
+             ai->TellPlayer(requester, "Mod Only: llm, area, avoid, motion, transport, nc, gps");
+         }
+-        
++
+         ai->TellPlayer(requester, "");
+         ai->TellPlayer(requester, "Type 'debug help <command>' for detailed help.");
+         return true;
+     }
+-    
++
+     std::transform(cmd.begin(), cmd.end(), cmd.begin(), ::tolower);
+-    
++
+     if (cmd == "position" || cmd == "pos")
+     {
+         ai->TellPlayer(requester, "=== debug position ===");
+@@ -1015,7 +1015,7 @@ bool DebugAction::HandleDebugHelp(Event& event, Player* requester, const std::st
+         ai->TellPlayer(requester, "Unknown command: " + cmd);
+         ai->TellPlayer(requester, "Type 'debug help' for list of commands.");
+     }
+-    
++
+     return true;
+ }
+ 
+@@ -1033,7 +1033,7 @@ void DebugAction::FakeSpell(uint32 spellId, Unit* truecaster, Unit* caster, Obje
+         data << truecaster->GetPackGUID();                      //truecaster
+ 
+         if (caster)
+-            data << caster->GetPackGUID();                          //m_caster->GetPackGUID();     
++            data << caster->GetPackGUID();                          //m_caster->GetPackGUID();
+         else
+             data << ObjectGuid();
+ 
+@@ -1070,7 +1070,7 @@ void DebugAction::FakeSpell(uint32 spellId, Unit* truecaster, Unit* caster, Obje
+         data << truecaster->GetPackGUID();                      //truecaster
+ 
+         if (caster)
+-            data << caster->GetPackGUID();                          //m_caster->GetPackGUID();     
++            data << caster->GetPackGUID();                          //m_caster->GetPackGUID();
+         else
+             data << ObjectGuid();
+ 
+@@ -1080,12 +1080,12 @@ void DebugAction::FakeSpell(uint32 spellId, Unit* truecaster, Unit* caster, Obje
+         //WriteSpellGoTargets
+         uint32 hits = otherTargets.size() + (target ? 1 : 0);
+ 
+-        data << uint8(hits);                                      // Hits                   
++        data << uint8(hits);                                      // Hits
+ 
+         if (target)
+             data << target;
+ 
+-        //Hit targets here.                   
++        //Hit targets here.
+         for (auto otherTarget : otherTargets)
+             data << otherTarget;
+ 
+@@ -1131,8 +1131,8 @@ void DebugAction::addAura(uint32 spellId, Unit* target)
+     if (!spellInfo)
+         return;
+ 
+-    if (!IsSpellAppliesAura(spellInfo, (1 << EFFECT_INDEX_0) | (1 << EFFECT_INDEX_1) | (1 << EFFECT_INDEX_2)) &&
+-        !IsSpellHaveEffect(spellInfo, SPELL_EFFECT_PERSISTENT_AREA_AURA))
++    if (!spellInfo->IsSpellAppliesAura((1 << EFFECT_INDEX_0) | (1 << EFFECT_INDEX_1) | (1 << EFFECT_INDEX_2)) &&
++        !spellInfo->HasEffect(SPELL_EFFECT_PERSISTENT_AREA_AURA))
+     {
+         return;
+     }
+@@ -1144,7 +1144,7 @@ void DebugAction::addAura(uint32 spellId, Unit* target)
+         uint8 eff = spellInfo->Effect[i];
+         if (eff >= MAX_SPELL_EFFECTS)
+             continue;
+-        if (IsAreaAuraEffect(eff) ||
++        if (Spells::IsAreaAuraEffect(eff) ||
+             eff == SPELL_EFFECT_APPLY_AURA ||
+             eff == SPELL_EFFECT_PERSISTENT_AREA_AURA)
+         {
+@@ -1172,7 +1172,7 @@ bool DebugAction::HandleAvoidScan(Event& event, Player* requester, const std::st
+             p.setX(p.getX() + x);
+             p.setY(p.getY() + y);
+             p.setZ(p.getHeight(bot->GetInstanceId()));
+-            Creature* wpCreature = requester->SummonCreature(2334, p.getX(), p.getY(), p.getZ(), 0.0, TEMPSPAWN_TIMED_DESPAWN, 20000.0f);
++            Creature* wpCreature = requester->SummonCreature(2334, p.getX(), p.getY(), p.getZ(), 0.0, TEMPSUMMON_TIMED_DESPAWN, 20000.0f);
+             if(path.GetNavArea(p.getX(), p.getY(), p.getZ()) == PLAYERBOT_MMAP_AREA_AVOID)
+                 ai->AddAura(wpCreature, 246);
+             if (path.GetNavArea(p.getX(), p.getY(), p.getZ()) == PLAYERBOT_MMAP_AREA_DANGER)
+@@ -1205,9 +1205,7 @@ bool DebugAction::HandleMount(Event& event, Player* requester, const std::string
+     out << (bot->IsMounted() ? "mounted" : "not mounted");
+     out << (bot->IsTaxiFlying() ? ", taxi flying" : ", not taxi flying");
+     out << ", mount speed: " << AI_VALUE2(uint32, "current mount speed", "self target");
+-    out << ", mount id: " << bot->GetMountID();        
+-    if(bot->GetMountInfo())
+-        out << ", mount info: " << bot->GetMountInfo()->Name;
++    out << ", mount id: " << bot->GetMountID();
+     ai->TellPlayerNoFacing(requester, out, PlayerbotSecurityLevel::PLAYERBOT_SECURITY_ALLOW_ALL, true, false);
+     return true;
+ }
+@@ -1276,49 +1274,35 @@ bool DebugAction::HandleMonsterTalk(Event& event, Player* requester, const std::
+ 
+ bool DebugAction::HandleGY(Event& event, Player* requester, const std::string& text)
+ {
+-    for (uint32 i = 0; i < sMapStore.GetNumRows(); ++i)
++    for (auto itr = sMapStorage.begin<MapEntry>(); itr < sMapStorage.end<MapEntry>(); ++itr)
+     {
+-        if (!sMapStore.LookupEntry(i))
++        MapEntry const* mapEntry = *itr;
++        if (!mapEntry)
+             continue;
+ 
+-        uint32 mapId = sMapStore.LookupEntry(i)->MapID;
+-
++        uint32 mapId = mapEntry->id;
+         Map* map = sMapMgr.FindMap(mapId);
+-
+         if (!map)
+             continue;
+ 
+-        // Penqle exposes GraveyardManagerStub on Map.
+-        Map::GraveyardManagerStub* gy = &map->GetGraveyardManager();
+-
+-        if (!gy)
+-            continue;
+-
+-        for (uint32 x = 0; x < TOTAL_NUMBER_OF_CELLS_PER_MAP; x++)
++        for (uint32 x = 0; x < TOTAL_NUMBER_OF_CELLS_PER_MAP; ++x)
+         {
+-            for (uint32 y = 0; y < TOTAL_NUMBER_OF_CELLS_PER_MAP; y++)
++            for (uint32 y = 0; y < TOTAL_NUMBER_OF_CELLS_PER_MAP; ++y)
+             {
+                 CellPair c(x, y);
+-
+                 WorldPosition pos(mapId, c);
+-
+                 if (!pos.isValid())
+-                {
+                     continue;
+-                }
+ 
+                 pos.setZ(pos.getHeight(bot->GetInstanceId()));
+ 
+-                const uint32 zoneId = sTerrainMgr.GetZoneId(mapId, pos.getX(), pos.getY(), pos.getZ());
+                 const uint32 areaId = sTerrainMgr.GetAreaId(mapId, pos.getX(), pos.getY(), pos.getZ());
++                if (!areaId)
++                    continue;
+ 
+-                WorldSafeLocsEntry const* graveyard = nullptr;
+-                if (areaId != 0)
+-                {
+-                    WorldSafeLocsEntry const* ClosestGrave;
+-                    ClosestGrave = gy->GetClosestGraveYard(pos.getX(), pos.getY(), pos.getZ(), mapId, ALLIANCE);
+-                    ClosestGrave = gy->GetClosestGraveYard(pos.getX(), pos.getY(), pos.getZ(), mapId, HORDE);
+-                }
++                // Exercise the native global graveyard resolver for both factions.
++                (void)sObjectMgr.GetClosestGraveYard(pos.getX(), pos.getY(), pos.getZ(), mapId, ALLIANCE);
++                (void)sObjectMgr.GetClosestGraveYard(pos.getX(), pos.getY(), pos.getZ(), mapId, HORDE);
+             }
+         }
+     }
+@@ -1334,7 +1318,7 @@ bool DebugAction::HandleGrid(Event& event, Player* requester, const std::string&
+ 
+     out << "Map: " << botPos.getMapId() << " " << botPos.getAreaName() << " Grid: " << botPos.getGridPair().x_coord << "," << botPos.getGridPair().y_coord << " [" << loaded << "] Cell: " << botPos.getCellPair().x_coord << "," << botPos.getCellPair().y_coord;
+ 
+-    bot->Whisper(out.str().c_str(), LANG_UNIVERSAL, event.getOwner()->GetObjectGuid());
++    ai->TellPlayer(requester, out.str());
+ 
+     return true;
+ }
+@@ -1358,7 +1342,7 @@ bool DebugAction::HandleTest(Event& event, Player* requester, const std::string&
+         return true;
+     }
+ 
+-#ifdef GenerateBotTests 
++#ifdef GenerateBotTests
+     if (param == "locations")
+     {
+         ai->TellPlayer(requester, "=== Test Locations ===");
+@@ -1374,7 +1358,7 @@ bool DebugAction::HandleTest(Event& event, Player* requester, const std::string&
+         if (TestRegistry::ParseLocation(locationName, loc))
+         {
+             std::ostringstream out;
+-            out << locationName << " -> map=" << loc.mapid << " pos=(" << std::fixed << std::setprecision(2) << loc.coord_x << ", " << loc.coord_y << ", " << loc.coord_z << ")";
++            out << locationName << " -> map=" << loc.mapid << " pos=(" << std::fixed << std::setprecision(2) << loc.x << ", " << loc.y << ", " << loc.z << ")";
+             ai->TellPlayer(requester, out.str());
+         }
+         else
+@@ -1396,9 +1380,9 @@ bool DebugAction::HandleGPS(Event& event, Player* requester, const std::string&
+     out << botPos.getAreaName() << ",";
+ 
+     out << "\"node = sTravelNodeMap.addNode(WorldPosition(" << botPos.getMapId() << std::fixed << std::setprecision(2);
+-    out << ',' << botPos.coord_x << "f";
+-    out << ',' << botPos.coord_y << "f";
+-    out << ',' << botPos.coord_z << "f";
++    out << ',' << botPos.x << "f";
++    out << ',' << botPos.y << "f";
++    out << ',' << botPos.z << "f";
+     out << "), \\\"c1" << botPos.getAreaName() << "\\\", true, false);\"";
+ 
+     //node = sTravelNodeMap.addNode(WorldPosition(1, -3626.39f, 917.37f, 150.13f), "c1-Dire maul", true, false);
+@@ -1467,7 +1451,7 @@ bool DebugAction::HandleMail(Event& event, Player* requester, const std::string&
+ }
+ 
+ bool DebugAction::HandlePOI(Event& event, Player* requester, const std::string& text)
+-{        
++{
+     WorldPosition botPos = WorldPosition(bot);
+ 
+     WorldPosition poiPoint = botPos;
+@@ -1509,7 +1493,7 @@ bool DebugAction::HandlePOI(Event& event, Player* requester, const std::string&
+         args.push_back("0");
+     }
+ 
+-    ai->Poi(poiPoint.coord_x, poiPoint.coord_y, name, nullptr, stoi(args[1]), stoi(args[2]), stoi(args[3]));
++    ai->Poi(poiPoint.x, poiPoint.y, name, nullptr, stoi(args[1]), stoi(args[2]), stoi(args[3]));
+ 
+     return true;
+ }
+@@ -1578,13 +1562,19 @@ bool DebugAction::HandleMotion(Event& event, Player* requester, const std::strin
+         else if (cmd == "follow")
+             mm->MoveFollow(motionTarget, 5, 0);
+         else if (cmd == "dist")
+-            mm->DistanceYourself(10);
++        {
++            ai->TellPlayer(requester, "distance-yourself movement is not supported by the Tortoise core");
++            return true;
++        }
+         else if (cmd == "update")
+             mm->UpdateMotion(10);
+         else if (cmd == "chase")
+             mm->MoveChase(motionTarget, 5, 0);
+         else if (cmd == "fall")
+-            mm->MoveFall();
++        {
++            ai->TellPlayer(requester, "fall movement is not exposed by the Tortoise MotionMaster");
++            return true;
++        }
+         else if (cmd == "formation")
+         {
+             ai->TellPlayer(requester, "formation movement is not supported by the Tortoise core");
+@@ -1690,8 +1680,8 @@ bool DebugAction::HandlePointOnTrans(Event& event, Player* requester, const std:
+     Transport* botTrans = bot->GetTransport();
+     bot->SetTransport(nullptr);
+ 
+-    Creature* wpCreature = bot->SummonCreature(2334, pointOnTrans.getX(), pointOnTrans.getY(), pointOnTrans.getZ(), 0, TEMPSPAWN_TIMED_DESPAWN, 10000.0f);
+-    transport->AddPassenger(wpCreature, true);
++    Creature* wpCreature = bot->SummonCreature(2334, pointOnTrans.getX(), pointOnTrans.getY(), pointOnTrans.getZ(), 0, TEMPSUMMON_TIMED_DESPAWN, 10000.0f);
++    transport->AddPassenger(wpCreature);
+     wpCreature->NearTeleportTo(pointOnTrans.getX(), pointOnTrans.getY(), pointOnTrans.getZ(), wpCreature->GetOrientation());
+     ai->AddAura(wpCreature, 246);
+     bot->SetTransport(botTrans);
+@@ -1739,8 +1729,8 @@ bool DebugAction::HandlePointOnTrans(Event& event, Player* requester, const std:
+ 
+             bot->SetTransport(nullptr);
+ 
+-            Creature* wpCreature = bot->SummonCreature(2334, pos.getX(), pos.getY(), pos.getZ(), 0, TEMPSPAWN_TIMED_DESPAWN, 10000.0f);
+-            transport->AddPassenger(wpCreature, true);
++            Creature* wpCreature = bot->SummonCreature(2334, pos.getX(), pos.getY(), pos.getZ(), 0, TEMPSUMMON_TIMED_DESPAWN, 10000.0f);
++            transport->AddPassenger(wpCreature);
+             wpCreature->NearTeleportTo(pos.getX(), pos.getY(), pos.getZ(), wpCreature->GetOrientation());
+             ai->AddAura(wpCreature, 246);
+ 
+@@ -1855,7 +1845,7 @@ bool DebugAction::HandleOnTrans(Event& event, Player* requester, const std::stri
+     else
+     {
+         ai->TellPlayer(requester, "Found point on transport, trying to walk there.");
+-        transport->AddPassenger(bot, true);
++        transport->AddPassenger(bot);
+ 
+         ai->StopMoving();
+ 
+@@ -1874,9 +1864,9 @@ bool DebugAction::HandleOnTrans(Event& event, Player* requester, const std::stri
+     {
+         for (auto& p : path)
+         {
+-            Creature* wpCreature = bot->SummonCreature(2334, p.getX(), p.getY(), p.getZ(), 0, TEMPSPAWN_TIMED_DESPAWN, 10000.0f);
++            Creature* wpCreature = bot->SummonCreature(2334, p.getX(), p.getY(), p.getZ(), 0, TEMPSUMMON_TIMED_DESPAWN, 10000.0f);
+ 
+-            transport->AddPassenger(wpCreature, true);
++            transport->AddPassenger(wpCreature);
+ 
+             wpCreature->NearTeleportTo(p.getX(), p.getY(), p.getZ(), wpCreature->GetOrientation());
+ 
+@@ -1894,7 +1884,7 @@ bool DebugAction::HandleOnTrans(Event& event, Player* requester, const std::stri
+     bot->GetMotionMaster()->MovePath(pointPath, MOVE_RUN_MODE);
+ #else
+     bot->GetMotionMaster()->MovePath(pointPath, MOVE_RUN_MODE);
+-#endif  
++#endif
+ 
+     return true;
+ }
+@@ -1937,7 +1927,7 @@ bool DebugAction::HandleOffTrans(Event& event, Player* requester, const std::str
+     bot->GetMotionMaster()->MovePath(pointPath, MOVE_RUN_MODE);
+ #else
+     bot->GetMotionMaster()->MovePath(pointPath, MOVE_RUN_MODE);
+-#endif  
++#endif
+ 
+     return true;
+ }
+@@ -1990,7 +1980,7 @@ bool DebugAction::HandlePathable(Event& event, Player* requester, const std::str
+             else //Generate wp off transport so it doesn't spawn on transport.
+                 bot->SetTransport(nullptr);
+ 
+-            Creature* wpCreature = bot->SummonCreature(2334, pos.getX(), pos.getY(), pos.getZ(), 0, TEMPSPAWN_TIMED_DESPAWN, 10000.0f);
++            Creature* wpCreature = bot->SummonCreature(2334, pos.getX(), pos.getY(), pos.getZ(), 0, TEMPSUMMON_TIMED_DESPAWN, 10000.0f);
+             ai->AddAura(wpCreature, 246);
+ 
+             if (onTrans)
+@@ -2016,26 +2006,32 @@ bool DebugAction::HandleRandomSpot(Event& event, Player* requester, const std::s
+     if (bot->GetTransport())
+         botPos.CalculatePassengerOffset(bot->GetTransport());
+ 
+-    pathfinder.ComputePathToRandomPoint(botPos.getVector3(), radius);
++    float randomX = botPos.getX();
++    float randomY = botPos.getY();
++    float randomZ = botPos.getZ();
++    if (!bot->GetMap()->GetWalkRandomPosition(bot->GetTransport(), randomX, randomY, randomZ, radius))
++        return false;
++
++    pathfinder.calculate(randomX, randomY, randomZ);
+     PointsArray points = pathfinder.getPath();
+     std::vector<WorldPosition> path = botPos.fromPointsArray(points);
+ 
+     if (path.empty())
+         return false;
+-   
+-    Creature* wpCreature = bot->SummonCreature(6, path.back().getX(), path.back().getY(), path.back().getZ(), 0, TEMPSPAWN_TIMED_DESPAWN, 10000.0f);
++
++    Creature* wpCreature = bot->SummonCreature(6, path.back().getX(), path.back().getY(), path.back().getZ(), 0, TEMPSUMMON_TIMED_DESPAWN, 10000.0f);
+     wpCreature->SetObjectScale(0.5f);
+ 
+     if (bot->GetTransport())
+-        bot->GetTransport()->AddPassenger(wpCreature,true);
++        bot->GetTransport()->AddPassenger(wpCreature);
+ 
+ 
+     for (auto& p : path)
+     {
+-        Creature* wpCreature = bot->SummonCreature(2334, p.getX(), p.getY(), p.getZ(), 0, TEMPSPAWN_TIMED_DESPAWN, 10000.0f);
++        Creature* wpCreature = bot->SummonCreature(2334, p.getX(), p.getY(), p.getZ(), 0, TEMPSUMMON_TIMED_DESPAWN, 10000.0f);
+         ai->AddAura(wpCreature, 246);
+         if (bot->GetTransport())
+-            bot->GetTransport()->AddPassenger(wpCreature,true);
++            bot->GetTransport()->AddPassenger(wpCreature);
+     }
+     return true;
+ }
+@@ -2100,7 +2096,7 @@ bool DebugAction::HandleLogoutTime(Event& event, Player* requester, const std::s
+ 
+     out << "Logout in: " << hr << ":" << min << ":" << time;
+ 
+-    bot->Whisper(out.str().c_str(), LANG_UNIVERSAL, event.getOwner()->GetObjectGuid());
++    ai->TellPlayer(requester, out.str());
+ 
+     return true;
+ }
+@@ -2114,9 +2110,9 @@ bool DebugAction::HandleLevel(Event& event, Player* requester, const std::string
+ 
+     std::ostringstream out;
+ 
+-    out << "Level: " << level << ", xp:" << xp << "/" << nextLevelXp << " :" || flevel;
++    out << "Level: " << level << ", xp:" << xp << "/" << nextLevelXp << " :" << flevel;
+ 
+-    bot->Whisper(out.str().c_str(), LANG_UNIVERSAL, event.getOwner()->GetObjectGuid());
++    ai->TellPlayer(requester, out.str());
+ 
+     return true;
+ }
+@@ -2150,19 +2146,17 @@ bool DebugAction::HandleQuest(Event& event, Player* requester, const std::string
+         std::ostringstream out;
+         out << "=== Quest Log ===";
+         int count = 0;
+-        for (uint8 slot = 0; slot < MAX_QUEST_LOG_SIZE; ++slot)
++        for (Quest const* pQuest : ai->GetAllCurrentQuests())
+         {
+-            uint32 questId = bot->GetQuestSlotQuestId(slot);
+-            if (!questId)
++            if (!pQuest)
+                 continue;
+ 
+-            Quest const* pQuest = sObjectMgr.GetQuestTemplate(questId);
+-            std::string name = pQuest ? pQuest->GetTitle() : "Unknown";
++            uint32 questId = pQuest->GetQuestId();
+             QuestStatus status = bot->GetQuestStatus(questId);
+             std::string statusStr = (status == QUEST_STATUS_COMPLETE) ? "[COMPLETE]" : "[INCOMPLETE]";
+-            
+-            out << "\n" << questId << ": " << statusStr << " " << name;
+-            count++;
++
++            out << "\n" << questId << ": " << statusStr << " " << pQuest->GetTitle();
++            ++count;
+         }
+         if (count == 0)
+             out << "\nNo quests in log";
+@@ -2232,120 +2226,90 @@ bool DebugAction::HandleQuest(Event& event, Player* requester, const std::string
+             return true;
+         }
+ 
+-        // Find the quest in bot's quest log
+-        bool found = false;
+-        bool completed = false;
++        if (!bot->IsCurrentQuest(questId))
++        {
++            std::ostringstream out;
++            out << "Quest " << questId << " not found in quest log.";
++            ai->TellPlayer(requester, out.str());
++            return true;
++        }
+ 
+-        for (uint8 slot = 0; slot < MAX_QUEST_LOG_SIZE; ++slot)
++        if (bot->GetQuestStatus(questId) == QUEST_STATUS_COMPLETE)
+         {
+-            uint32 logQuestId = bot->GetQuestSlotQuestId(slot);
+-            if (!logQuestId)
+-                continue;
++            std::ostringstream out;
++            out << "Quest " << questId << " already completed.";
++            ai->TellPlayer(requester, out.str());
++            return true;
++        }
++
++        Quest const* pQuest = sObjectMgr.GetQuestTemplate(questId);
++        if (!pQuest)
++            return false;
+ 
+-            if (logQuestId != questId)
++        // Add required items.
++        for (uint8 x = 0; x < QUEST_ITEM_OBJECTIVES_COUNT; ++x)
++        {
++            uint32 id = pQuest->ReqItemId[x];
++            uint32 count = pQuest->ReqItemCount[x];
++            if (!id || !count)
+                 continue;
+ 
+-            found = true;
++            uint32 curItemCount = bot->GetItemCount(id, true);
++            if (curItemCount >= count)
++                continue;
+ 
+-            if (bot->GetQuestStatus(questId) == QUEST_STATUS_COMPLETE)
++            ItemPosCountVec dest;
++            uint8 msg = bot->CanStoreNewItem(NULL_BAG, NULL_SLOT, dest, id, count - curItemCount);
++            if (msg == EQUIP_ERR_OK)
+             {
+-                completed = true;
+-                break;
++                Item* item = bot->StoreNewItem(dest, id, true);
++                bot->SendNewItem(item, count - curItemCount, true, false);
+             }
++        }
+ 
+-            Quest const* pQuest = sObjectMgr.GetQuestTemplate(questId);
+-            if (!pQuest)
+-                break;
++        // Complete kill/cast objectives through the normal player quest APIs.
++        for (uint8 i = 0; i < QUEST_OBJECTIVES_COUNT; ++i)
++        {
++            int32 creature = pQuest->ReqCreatureOrGOId[i];
++            uint32 creatureCount = pQuest->ReqCreatureOrGOCount[i];
+ 
+-            // Add required items
+-            for (uint8 x = 0; x < QUEST_ITEM_OBJECTIVES_COUNT; ++x)
++            if (uint32 spellId = pQuest->ReqSpell[i])
+             {
+-                uint32 id = pQuest->ReqItemId[x];
+-                uint32 count = pQuest->ReqItemCount[x];
+-                if (!id || !count)
+-                    continue;
+-
+-                uint32 curItemCount = bot->GetItemCount(id, true);
+-                if (curItemCount >= count)
+-                    continue;
+-
+-                ItemPosCountVec dest;
+-                uint8 msg = bot->CanStoreNewItem(NULL_BAG, NULL_SLOT, dest, id, count - curItemCount);
+-                if (msg == EQUIP_ERR_OK)
+-                {
+-                    Item* item = bot->StoreNewItem(dest, id, true);
+-                    bot->SendNewItem(item, count - curItemCount, true, false);
+-                }
++                for (uint16 z = 0; z < creatureCount; ++z)
++                    bot->CastedCreatureOrGO(creature,
++                        ObjectGuid((creature > 0 ? HIGHGUID_UNIT : HIGHGUID_GAMEOBJECT), uint32(std::abs(creature)), 1u), spellId);
+             }
+-
+-            // Complete kill objectives
+-            for (uint8 i = 0; i < QUEST_OBJECTIVES_COUNT; ++i)
++            else if (creature > 0)
+             {
+-                int32 creature = pQuest->ReqCreatureOrGOId[i];
+-                uint32 creaturecount = pQuest->ReqCreatureOrGOCount[i];
+-
+-                if (uint32 spell_id = pQuest->ReqSpell[i])
+-                {
+-                    for (uint16 z = 0; z < creaturecount; ++z)
+-                        bot->CastedCreatureOrGO(creature, ObjectGuid((creature > 0 ? HIGHGUID_UNIT : HIGHGUID_GAMEOBJECT), uint32(std::abs(creature)), 1u), spell_id);
+-                }
+-                else if (creature > 0)
+-                {
+-                    if (CreatureInfo const* cInfo = sObjectMgr.GetCreatureTemplate(creature))
+-                        for (uint16 z = 0; z < creaturecount; ++z)
+-                            bot->KilledMonster(cInfo, ObjectGuid());
+-                }
+-                else if (creature < 0)
+-                {
+-                    for (uint16 z = 0; z < creaturecount; ++z)
+-                        bot->CastedCreatureOrGO(-creature, ObjectGuid(), 0);
+-                }
++                if (CreatureInfo const* cInfo = sObjectMgr.GetCreatureTemplate(creature))
++                    for (uint16 z = 0; z < creatureCount; ++z)
++                        bot->KilledMonster(cInfo, ObjectGuid());
+             }
+-
+-            // Complete reputation
+-            if (uint32 repFaction = pQuest->GetRepObjectiveFaction())
++            else if (creature < 0)
+             {
+-                uint32 repValue = pQuest->GetRepObjectiveValue();
+-                uint32 curRep = bot->GetReputationMgr().GetReputation(repFaction);
+-                if (curRep < repValue)
+-                {
+-#ifndef MANGOSBOT_ONE
+-                    if (FactionEntry const* factionEntry = sObjectMgr.GetFactionEntry(repFaction))
+-#else
+-                    if (FactionEntry const* factionEntry = sObjectMgr.GetFactionEntry(repFaction))
+-#endif
+-                        bot->GetReputationMgr().SetReputation(factionEntry, repValue);
+-                }
++                for (uint16 z = 0; z < creatureCount; ++z)
++                    bot->CastedCreatureOrGO(-creature, ObjectGuid(), 0);
+             }
+-
+-            // Complete money requirement
+-            int32 ReqOrRewMoney = pQuest->GetRewOrReqMoney();
+-            if (ReqOrRewMoney < 0)
+-                bot->ModifyMoney(-ReqOrRewMoney);
+-
+-            bot->CompleteQuest(questId);
+-            completed = true;
+-            break;
+         }
+ 
+-        if (completed)
+-        {
+-            std::ostringstream out;
+-            out << "Quest " << questId << " completed!";
+-            ai->TellPlayer(requester, out.str());
+-        }
+-        else if (found)
+-        {
+-            std::ostringstream out;
+-            out << "Quest " << questId << " already completed.";
+-            ai->TellPlayer(requester, out.str());
+-        }
+-        else
++        if (uint32 repFaction = pQuest->GetRepObjectiveFaction())
+         {
+-            std::ostringstream out;
+-            out << "Quest " << questId << " not found in quest log.";
+-            ai->TellPlayer(requester, out.str());
++            uint32 repValue = pQuest->GetRepObjectiveValue();
++            uint32 curRep = bot->GetReputationMgr().GetReputation(repFaction);
++            if (curRep < repValue)
++                if (FactionEntry const* factionEntry = sObjectMgr.GetFactionEntry(repFaction))
++                    bot->GetReputationMgr().SetReputation(factionEntry, repValue);
+         }
++
++        int32 reqOrRewMoney = pQuest->GetRewOrReqMoney();
++        if (reqOrRewMoney < 0)
++            bot->ModifyMoney(-reqOrRewMoney);
++
++        bot->CompleteQuest(questId);
++
++        std::ostringstream out;
++        out << "Quest " << questId << " completed!";
++        ai->TellPlayer(requester, out.str());
+         return true;
+     }
+ 
+@@ -2358,23 +2322,17 @@ bool DebugAction::HandleQuest(Event& event, Player* requester, const std::string
+             return true;
+         }
+ 
+-        for (uint8 slot = 0; slot < MAX_QUEST_LOG_SIZE; ++slot)
++        if (!bot->IsCurrentQuest(questId))
+         {
+-            uint32 logQuestId = bot->GetQuestSlotQuestId(slot);
+-            if (!logQuestId || logQuestId != questId)
+-                continue;
+-
+-            bot->SetQuestSlot(slot, 0);
+-            bot->SetQuestSlotState(slot, QUEST_STATE_NONE);
+-            
+             std::ostringstream out;
+-            out << "Quest " << questId << " dropped.";
++            out << "Quest " << questId << " not found in quest log.";
+             ai->TellPlayer(requester, out.str());
+             return true;
+         }
+ 
++        ai->DropQuest(questId);
+         std::ostringstream out;
+-        out << "Quest " << questId << " not found in quest log.";
++        out << "Quest " << questId << " dropped.";
+         ai->TellPlayer(requester, out.str());
+         return true;
+     }
+@@ -2397,22 +2355,22 @@ bool DebugAction::HandleQuest(Event& event, Player* requester, const std::string
+             return true;
+         }
+ 
+-        // Find empty slot
+-        for (uint8 slot = 0; slot < MAX_QUEST_LOG_SIZE; ++slot)
++        if (bot->IsCurrentQuest(questId))
+         {
+-            if (bot->GetQuestSlotQuestId(slot))
+-                continue;
++            ai->TellPlayer(requester, "Quest is already in the quest log");
++            return true;
++        }
+ 
+-            bot->SetQuestSlot(slot, questId);
+-            bot->SetQuestSlotState(slot, QUEST_STATE_NONE);
+-            
+-            std::ostringstream out;
+-            out << "Quest " << questId << " (" << pQuest->GetTitle() << ") added.";
+-            ai->TellPlayer(requester, out.str());
++        if (!bot->CanAddQuest(pQuest, false))
++        {
++            ai->TellPlayer(requester, "Quest cannot be added to the quest log");
+             return true;
+         }
+ 
+-        ai->TellPlayer(requester, "Quest log is full");
++        bot->AddQuest(pQuest, nullptr);
++        std::ostringstream out;
++        out << "Quest " << questId << " (" << pQuest->GetTitle() << ") added.";
++        ai->TellPlayer(requester, out.str());
+         return true;
+     }
+ 
+@@ -2437,7 +2395,7 @@ bool DebugAction::HandleQuest(Event& event, Player* requester, const std::string
+         std::ostringstream out;
+         out << "=== Quest: " << questId << " ===";
+         out << "\n" << pQuest->GetTitle();
+-        
++
+         // Show objectives
+         out << "\n--- Objectives ---";
+         for (uint8 i = 0; i < QUEST_OBJECTIVES_COUNT; ++i)
+@@ -2476,18 +2434,9 @@ bool DebugAction::HandleQuest(Event& event, Player* requester, const std::string
+             return true;
+         }
+ 
+-        // Check if in quest log
+-        bool inLog = false;
+-        QuestStatus status = QUEST_STATUS_NONE;
+-        for (uint8 slot = 0; slot < MAX_QUEST_LOG_SIZE; ++slot)
+-        {
+-            if (bot->GetQuestSlotQuestId(slot) == questId)
+-            {
+-                inLog = true;
+-                status = bot->GetQuestStatus(questId);
+-                break;
+-            }
+-        }
++        // Check the native quest-status model rather than private quest-log slots.
++        bool inLog = bot->IsCurrentQuest(questId);
++        QuestStatus status = inLog ? bot->GetQuestStatus(questId) : QUEST_STATUS_NONE;
+ 
+         std::ostringstream out;
+         out << "=== Quest: " << questId << " ===";
+@@ -2513,7 +2462,7 @@ bool DebugAction::HandleQuest(Event& event, Player* requester, const std::string
+ PositionTarget DebugAction::ParseLocation(const std::string& param, Player* bot)
+ {
+     PositionTarget result;
+-    
++
+     if (param.empty())
+         return result;
+ 
+@@ -2526,7 +2475,7 @@ PositionTarget DebugAction::ParseLocation(const std::string& param, Player* bot)
+     }
+ 
+     bool isAllNumbers = numbers.size() > 0 && param.find_first_not_of("0123456789.-+ ") == std::string::npos;
+-    
++
+     if (isAllNumbers && numbers.size() <= 4)
+     {
+         result.valid = true;
+@@ -2559,9 +2508,9 @@ PositionTarget DebugAction::ParseLocation(const std::string& param, Player* bot)
+     {
+         result.valid = true;
+         result.mapId = tele->mapId;
+-        result.x = tele->position_x;
+-        result.y = tele->position_y;
+-        result.z = tele->position_z;
++        result.x = tele->x;
++        result.y = tele->y;
++        result.z = tele->z;
+         result.name = param;
+         return result;
+     }
+@@ -2640,7 +2589,7 @@ bool DebugAction::HandlePosition(Event& event, Player* requester, const std::str
+         std::vector<TravelNode*> nodes = sTravelNodeMap.getNodes(pos);
+         std::ostringstream out;
+         out << "Travel nodes near " << pos.getAreaName() << " (" << uint32(pos.getX()) << "," << uint32(pos.getY()) << "," << uint32(pos.getZ()) << "): " << nodes.size();
+-        
++
+         if (nodes.size() > 0)
+         {
+             out << " - closest: " << uint32(nodes[0]->getDistance(pos)) << "y";
+@@ -2749,11 +2698,11 @@ bool DebugAction::HandlePosition(Event& event, Player* requester, const std::str
+ 
+         std::string targetParam;
+         WorldPosition startPos(bot);
+-        
++
+         size_t pipePos = pathParam.find('|');
+         if (pipePos == std::string::npos)
+             pipePos = pathParam.find("->");
+-        
++
+         bool showFull = false;
+         if (pipePos != std::string::npos)
+         {
+@@ -2761,7 +2710,7 @@ bool DebugAction::HandlePosition(Event& event, Player* requester, const std::str
+             targetParam = pathParam.substr(pipePos + 1);
+             while (targetParam.size() > 0 && targetParam[0] == ' ')
+                 targetParam = targetParam.substr(1);
+-            
++
+             if (targetParam.find("full") != std::string::npos)
+             {
+                 showFull = true;
+@@ -2770,7 +2719,7 @@ bool DebugAction::HandlePosition(Event& event, Player* requester, const std::str
+                 while (targetParam.size() > 0 && targetParam[targetParam.size() - 1] == ' ')
+                     targetParam = targetParam.substr(0, targetParam.size() - 1);
+             }
+-            
++
+             PositionTarget startTarget = ParseLocation(startStr, bot);
+             if (startTarget.valid)
+             {
+@@ -2792,7 +2741,7 @@ bool DebugAction::HandlePosition(Event& event, Player* requester, const std::str
+         {
+             WorldPosition endPos(target.mapId, target.x, target.y, target.z);
+             TravelPath fullPath = sTravelNodeMap.getFullPath(startPos, endPos, bot);
+-            
++
+             if (fullPath.empty())
+             {
+                 ai->TellPlayer(requester, "No path found");
+@@ -2806,11 +2755,11 @@ bool DebugAction::HandlePosition(Event& event, Player* requester, const std::str
+             maps.insert(prevMapId);
+             WorldPosition prevPos = startPos;
+             bool debugMove = ai->HasStrategy("debug move", BotState::BOT_STATE_NON_COMBAT);
+-            
++
+             std::ostringstream out;
+             out << "Path (" << fullPath.getPath().size() << " points):";
+             ai->TellPlayer(requester, out.str());
+-            
++
+             if (showFull)
+             {
+                 for (size_t i = 0; i < fullPath.getPath().size(); i++)
+@@ -2818,12 +2767,12 @@ bool DebugAction::HandlePosition(Event& event, Player* requester, const std::str
+                     PathNodePoint& p = fullPath.getPath()[i];
+                     float dist = prevPos.distance(p.point);
+                     totalDist += dist;
+-                    
++
+                     if (p.point.getMapId() != prevMapId)
+                     {
+                         maps.insert(p.point.getMapId());
+                     }
+-                    
++
+                     switch (p.type)
+                     {
+                         case PathNodeType::NODE_PATH:
+@@ -2843,12 +2792,12 @@ bool DebugAction::HandlePosition(Event& event, Player* requester, const std::str
+                         default:
+                             break;
+                     }
+-                    
++
+                     std::ostringstream ptOut;
+-                    ptOut << "  " << i << ". " << p.point.getX() << "," << p.point.getY() << "," << p.point.getZ() 
++                    ptOut << "  " << i << ". " << p.point.getX() << "," << p.point.getY() << "," << p.point.getZ()
+                           << " m" << p.point.getMapId() << " type:" << (int)p.type;
+                     ai->TellPlayer(requester, ptOut.str());
+-                    
++
+                     prevPos = p.point;
+                     prevMapId = p.point.getMapId();
+                 }
+@@ -2860,12 +2809,12 @@ bool DebugAction::HandlePosition(Event& event, Player* requester, const std::str
+                     PathNodePoint& p = fullPath.getPath()[i];
+                     float dist = prevPos.distance(p.point);
+                     totalDist += dist;
+-                    
++
+                     if (p.point.getMapId() != prevMapId)
+                     {
+                         maps.insert(p.point.getMapId());
+                     }
+-                    
++
+                     switch (p.type)
+                     {
+                         case PathNodeType::NODE_PATH:
+@@ -2885,30 +2834,30 @@ bool DebugAction::HandlePosition(Event& event, Player* requester, const std::str
+                         default:
+                             break;
+                     }
+-                    
++
+                     if (debugMove && i < 20)
+                     {
+-                        bot->SummonCreature(2334, p.point.getX(), p.point.getY(), p.point.getZ(), 0, TEMPSPAWN_TIMED_DESPAWN, 20000.0f);
++                        bot->SummonCreature(2334, p.point.getX(), p.point.getY(), p.point.getZ(), 0, TEMPSUMMON_TIMED_DESPAWN, 20000.0f);
+                     }
+-                    
++
+                     prevPos = p.point;
+                     prevMapId = p.point.getMapId();
+                 }
+             }
+-            
++
+             if (debugMove && !fullPath.getPath().empty())
+             {
+-                bot->SummonCreature(6, fullPath.getFront().getX(), fullPath.getFront().getY(), fullPath.getFront().getZ(), 0, TEMPSPAWN_TIMED_DESPAWN, 30000.0f);
++                bot->SummonCreature(6, fullPath.getFront().getX(), fullPath.getFront().getY(), fullPath.getFront().getZ(), 0, TEMPSUMMON_TIMED_DESPAWN, 30000.0f);
+             }
+ 
+             std::ostringstream summary;
+             summary << "Total: " << totalDist << " yards";
+             ai->TellPlayer(requester, summary.str());
+-            
++
+             std::ostringstream breakdown;
+             breakdown << "Walk: " << walkDist << "y, Fly: " << flightDist << "y, Transport: " << transportDist << "y, Teleport: " << teleportCount << "x";
+             ai->TellPlayer(requester, breakdown.str());
+-            
++
+             if (maps.size() > 1)
+             {
+                 std::ostringstream mapInfo;
+@@ -2917,7 +2866,7 @@ bool DebugAction::HandlePosition(Event& event, Player* requester, const std::str
+                     mapInfo << m << " ";
+                 ai->TellPlayer(requester, mapInfo.str());
+             }
+-            
++
+             std::ostringstream next;
+             next << "Next Point: " << fullPath.getFront().getX() << " " << fullPath.getFront().getY() << " " << fullPath.getFront().getZ();
+             ai->TellPlayer(requester, next.str());
+@@ -2942,18 +2891,18 @@ bool DebugAction::HandlePosition(Event& event, Player* requester, const std::str
+ 
+         std::string targetParam;
+         WorldPosition startPos(bot);
+-        
++
+         size_t pipePos = routeParam.find('|');
+         if (pipePos == std::string::npos)
+             pipePos = routeParam.find("->");
+-        
++
+         if (pipePos != std::string::npos)
+         {
+             std::string startStr = routeParam.substr(0, pipePos);
+             targetParam = routeParam.substr(pipePos + 1);
+             while (targetParam.size() > 0 && targetParam[0] == ' ')
+                 targetParam = targetParam.substr(1);
+-            
++
+             PositionTarget startTarget = ParseLocation(startStr, bot);
+             if (startTarget.valid)
+             {
+@@ -2974,10 +2923,10 @@ bool DebugAction::HandlePosition(Event& event, Player* requester, const std::str
+         if (target.valid)
+         {
+             WorldPosition endPos(target.mapId, target.x, target.y, target.z);
+-            
++
+             std::vector<WorldPosition> beginPath, endPath;
+             TravelNodeRoute route = sTravelNodeMap.getRoute(startPos, endPos, beginPath, endPath, bot);
+-            
++
+             if (route.isEmpty())
+             {
+                 ai->TellPlayer(requester, "No route found");
+@@ -2987,41 +2936,41 @@ bool DebugAction::HandlePosition(Event& event, Player* requester, const std::str
+             std::ostringstream out;
+             out << "Route (" << route.getNodes().size() << " nodes):";
+             ai->TellPlayer(requester, out.str());
+-            
++
+             float totalDist = 0.0f;
+             WorldPosition prevPos = startPos;
+             bool debugMove = ai->HasStrategy("debug move", BotState::BOT_STATE_NON_COMBAT);
+-            
++
+             for (size_t i = 0; i < route.getNodes().size(); i++)
+             {
+                 TravelNode* node = route.getNodes()[i];
+                 WorldPosition nodePos = *node->getPosition();
+                 float dist = prevPos.distance(nodePos);
+                 totalDist += dist;
+-                
++
+                 uint32 areaId = sTerrainMgr.GetAreaId(nodePos.getMapId(), nodePos.getX(), nodePos.getY(), nodePos.getZ());
+                 const AreaEntry* area = AreaEntry::GetById(areaId);
+                 std::string areaName = "Unknown";
+                 if (area && area->Name)
+                     areaName = area->Name;
+-                
++
+                 std::ostringstream nodeOut;
+                 nodeOut << "  " << (i + 1) << ". " << node->getName() << " [" << areaName << ", m" << nodePos.getMapId() << "] (" << dist << " yd)";
+                 ai->TellPlayer(requester, nodeOut.str());
+-                
++
+                 if (debugMove)
+                 {
+-                    bot->SummonCreature(2334, nodePos.getX(), nodePos.getY(), nodePos.getZ(), 0, TEMPSPAWN_TIMED_DESPAWN, 20000.0f);
++                    bot->SummonCreature(2334, nodePos.getX(), nodePos.getY(), nodePos.getZ(), 0, TEMPSUMMON_TIMED_DESPAWN, 20000.0f);
+                 }
+-                
++
+                 prevPos = nodePos;
+             }
+-            
++
+             if (debugMove && !route.getNodes().empty())
+             {
+-                bot->SummonCreature(6, route.getNodes().front()->getPosition()->getX(), 
+-                    route.getNodes().front()->getPosition()->getY(), 
+-                    route.getNodes().front()->getPosition()->getZ(), 0, TEMPSPAWN_TIMED_DESPAWN, 30000.0f);
++                bot->SummonCreature(6, route.getNodes().front()->getPosition()->getX(),
++                    route.getNodes().front()->getPosition()->getY(),
++                    route.getNodes().front()->getPosition()->getZ(), 0, TEMPSUMMON_TIMED_DESPAWN, 30000.0f);
+             }
+ 
+             std::ostringstream summary;
+@@ -3194,7 +3143,7 @@ bool DebugAction::HandlePosition(Event& event, Player* requester, const std::str
+     AnyUnitInObjectRangeCheck u_check(bot, 100000.0f);
+     UnitListSearcher<AnyUnitInObjectRangeCheck> searcher(targets, u_check);
+     Cell::VisitAllObjects(bot, searcher, 100000.0f);
+-    
++
+     for (Unit* u : targets)
+     {
+         if (u && u->GetTypeId() == TYPEID_UNIT)
+@@ -3268,12 +3217,12 @@ bool DebugAction::HandleNPC(Event& event, Player* requester, const std::string&
+ 
+     if (guidP.GetWorldObject(bot->GetInstanceId()))
+         out << chat->formatWorldobject(guidP.GetWorldObject(bot->GetInstanceId()));
+-    
++
+     out << " (e:" << guidP.GetEntry();
+-    
++
+     if (guidP.GetUnit(bot->GetInstanceId()))
+         out << ",level:" << guidP.GetUnit(bot->GetInstanceId())->GetLevel();
+-        
++
+     out << ") ";
+ 
+     guidP.printWKT(out);
+@@ -3350,7 +3299,7 @@ bool DebugAction::HandleNPC(Event& event, Player* requester, const std::string&
+ 
+ 
+     std::ostringstream out2;
+-    FactionTemplateEntry const* requestFaction = sObjectMgr.GetFactionTemplateEntry(requester->GetFaction());
++    FactionTemplateEntry const* requestFaction = sObjectMgr.GetFactionTemplateEntry(requester->GetFactionId());
+     FactionTemplateEntry const* objectFaction = nullptr;
+     if(guidP.GetCreatureTemplate() && guidP.GetCreatureTemplate()->faction)
+         objectFaction = sObjectMgr.GetFactionTemplateEntry(guidP.GetCreatureTemplate()->faction);
+@@ -3428,8 +3377,8 @@ bool DebugAction::HandleGO(Event& event, Player* requester, const std::string& t
+     ai->TellPlayerNoFacing(requester, out);
+ 
+     std::ostringstream out2;
+-    
+-    FactionTemplateEntry const* requestFaction = sObjectMgr.GetFactionTemplateEntry(requester->GetFaction());
++
++    FactionTemplateEntry const* requestFaction = sObjectMgr.GetFactionTemplateEntry(requester->GetFactionId());
+     FactionTemplateEntry const* objectFaction = sObjectMgr.GetFactionTemplateEntry(guidP.GetGameObjectInfo()->faction);
+     FactionTemplateEntry const* humanFaction = sObjectMgr.GetFactionTemplateEntry(1);
+     FactionTemplateEntry const* orcFaction = sObjectMgr.GetFactionTemplateEntry(2);
+@@ -3558,7 +3507,7 @@ bool DebugAction::HandleFind(Event& event, Player* requester, const std::string&
+     uint32 entry = stoi(link);
+ 
+     Creature* creature = nullptr;
+-    MaNGOS::NearestCreatureEntryWithLiveStateInObjectRangeCheck creature_check(*bot, entry, true, false, 1000.0f, true);
++    MaNGOS::NearestCreatureEntryWithLiveStateInObjectRangeCheck creature_check(*bot, entry, true, 1000.0f);
+     MaNGOS::CreatureLastSearcher<MaNGOS::NearestCreatureEntryWithLiveStateInObjectRangeCheck> searcher(creature, creature_check);
+     Cell::VisitGridObjects(bot, searcher, 1000.0f);
+ 
+@@ -3595,7 +3544,15 @@ bool DebugAction::HandleItem(Event& event, Player* requester, const std::string&
+ 
+     uint32 itemId = *items.begin();
+ 
+-    Item* item = bot->GetItemByEntry(itemId);
++    Item* item = nullptr;
++    for (Item* inventoryItem : ai->GetInventoryItems())
++    {
++        if (inventoryItem && inventoryItem->GetEntry() == itemId)
++        {
++            item = inventoryItem;
++            break;
++        }
++    }
+ 
+     ItemQualifier qualifier;
+     ItemPrototype const* proto;
+@@ -3621,7 +3578,7 @@ bool DebugAction::HandleItem(Event& event, Player* requester, const std::string&
+     out << ",reqlev:" << proto->RequiredLevel << " ilev:" << proto->ItemLevel;
+ 
+     out << ") ";
+-    
++
+ 
+     ai->TellPlayerNoFacing(requester, out);
+ 
+@@ -3753,7 +3710,7 @@ bool DebugAction::HandleItem(Event& event, Player* requester, const std::string&
+ 
+ 
+     ai->TellPlayerNoFacing(requester, out3);
+-    
++
+     return true;
+ }
+ 
+@@ -4188,7 +4145,7 @@ bool DebugAction::HandleNC(Event& event, Player* requester, const std::string& t
+ 
+                         ai->TellPlayerNoFacing(requester, out.str(), PlayerbotSecurityLevel::PLAYERBOT_SECURITY_ALLOW_ALL, false, false);
+                     }
+-                    
++
+                 }
+                 NextAction::destroy(nextActions);
+             }
+@@ -4201,7 +4158,7 @@ bool DebugAction::HandleNC(Event& event, Player* requester, const std::string& t
+         }
+ 
+         triggerNodes.clear();
+-    }        
++    }
+ 
+     return true;
+ }
+@@ -4220,7 +4177,7 @@ bool DebugAction::HandleAddNode(Event& event, Player* requester, const std::stri
+     }
+ 
+     ai->TellPlayerNoFacing(requester, "Node " + name + " created.");
+-    
++
+     sTravelNodeMap.setHasToGen();
+ 
+     return true;
+@@ -4319,7 +4276,7 @@ bool DebugAction::HandleShowNode(Event& event, Player* requester, const std::str
+ 
+             for (auto p : ppath)
+             {
+-                Creature* wpCreature = bot->SummonCreature(2334, p.getX(), p.getY(), p.getZ(), 0, TEMPSPAWN_TIMED_DESPAWN, 20000.0f);
++                Creature* wpCreature = bot->SummonCreature(2334, p.getX(), p.getY(), p.getZ(), 0, TEMPSUMMON_TIMED_DESPAWN, 20000.0f);
+                 //addAura(246, wpCreature);
+                 units.push_back(wpCreature->GetObjectGuid());
+ 
+@@ -4327,7 +4284,7 @@ bool DebugAction::HandleShowNode(Event& event, Player* requester, const std::str
+                     ai->AddAura(wpCreature, 1130);
+                 else
+                     ai->AddAura(wpCreature, 246);
+-                    
++
+ 
+                 if (!start)
+                     start = wpCreature;
+@@ -4355,7 +4312,7 @@ bool DebugAction::HandleDSpell(Event& event, Player* requester, const std::strin
+         botPos.setY(botPos.getY() + sin(ang) * dist);
+         botPos.setZ(botPos.getHeight(bot->GetInstanceId()) + 2);
+ 
+-        Creature* wpCreature = bot->SummonCreature(2334, botPos.getX(), botPos.getY(), botPos.getZ(), 0, TEMPSPAWN_TIMED_DESPAWN, 10000.0f);
++        Creature* wpCreature = bot->SummonCreature(2334, botPos.getX(), botPos.getY(), botPos.getZ(), 0, TEMPSUMMON_TIMED_DESPAWN, 10000.0f);
+ 
+         FakeSpell(spellEffect, wpCreature, wpCreature, prev->GetObjectGuid(), {}, {}, botPos, botPos);
+ 
+@@ -4382,7 +4339,7 @@ bool DebugAction::HandleVSpell(Event& event, Player* requester, const std::strin
+         botPos.setY(botPos.getY() + sin(ang) * dist);
+         botPos.setZ(botPos.getHeight(bot->GetInstanceId()) + 2);
+ 
+-        Creature* wpCreature = bot->SummonCreature(2334, botPos.getX(), botPos.getY(), botPos.getZ(), 0, TEMPSPAWN_TIMED_DESPAWN, 10000.0f);            
++        Creature* wpCreature = bot->SummonCreature(2334, botPos.getX(), botPos.getY(), botPos.getZ(), 0, TEMPSUMMON_TIMED_DESPAWN, 10000.0f);
+ 
+         if (wpCreature)
+         {
+@@ -4414,7 +4371,7 @@ bool DebugAction::HandleASpell(Event& event, Player* requester, const std::strin
+         botPos.setY(botPos.getY() + sin(ang) * dist);
+         botPos.setZ(botPos.getHeight(bot->GetInstanceId()) + 2);
+ 
+-        Creature* wpCreature = bot->SummonCreature(2334, botPos.getX(), botPos.getY(), botPos.getZ(), 0, TEMPSPAWN_TIMED_DESPAWN, 5000.0f + i * 100.0f);
++        Creature* wpCreature = bot->SummonCreature(2334, botPos.getX(), botPos.getY(), botPos.getZ(), 0, TEMPSUMMON_TIMED_DESPAWN, 5000.0f + i * 100.0f);
+         wpCreature->SetObjectScale(0.5f);
+ 
+         if (wpCreature)
+@@ -4442,7 +4399,7 @@ bool DebugAction::HandleCSpell(Event& event, Player* requester, const std::strin
+         botPos.setY(botPos.getY() + sin(ang) * dist);
+         botPos.setZ(botPos.getHeight(bot->GetInstanceId()) + 2);
+ 
+-        Creature* wpCreature = bot->SummonCreature(2334, botPos.getX(), botPos.getY(), botPos.getZ(), 0, TEMPSPAWN_TIMED_DESPAWN, 10000.0f);
++        Creature* wpCreature = bot->SummonCreature(2334, botPos.getX(), botPos.getY(), botPos.getZ(), 0, TEMPSUMMON_TIMED_DESPAWN, 10000.0f);
+         units.push_back(wpCreature->GetObjectGuid());
+     }
+ 
+@@ -4470,7 +4427,7 @@ bool DebugAction::HandleFSpell(Event& event, Player* requester, const std::strin
+         data << uint32(0);
+         data << uint16(2);
+         data << requester->GetObjectGuid();
+-        bot->SendMessageToSet(data, true);
++        bot->SendMessageToSet(&data, true);
+     }
+ 
+     {
+@@ -4484,7 +4441,7 @@ bool DebugAction::HandleFSpell(Event& event, Player* requester, const std::strin
+         data << uint8(0);
+         data << uint16(2);
+         data << requester->GetObjectGuid();
+-        bot->SendMessageToSet(data, true);
++        bot->SendMessageToSet(&data, true);
+     }
+ 
+     return true;
+@@ -4493,7 +4450,10 @@ bool DebugAction::HandleFSpell(Event& event, Player* requester, const std::strin
+ bool DebugAction::HandleSpell(Event& event, Player* requester, const std::string& text)
+ {
+     uint32 spellEffect = stoi(text.substr(6));
+-    requester->GetSession()->SendPlaySpellVisual(bot->GetObjectGuid(), spellEffect);
++    WorldPacket data(SMSG_PLAY_SPELL_VISUAL, 8 + 4);
++    data << bot->GetObjectGuid();
++    data << uint32(spellEffect);
++    requester->GetSession()->SendPacket(&data);
+     return true;
+ }
+ 
+@@ -4511,7 +4471,7 @@ bool DebugAction::HandleTSpellMap(Event& event, Player* requester, const std::st
+             botPos.setY(botPos.getY() + (dy - 5) * 5);
+             botPos.setZ(botPos.getHeight(bot->GetInstanceId()));
+ 
+-            Creature* wpCreature = bot->SummonCreature(6, botPos.getX(), botPos.getY(), botPos.getZ(), 0, TEMPSPAWN_TIMED_DESPAWN, 10000.0f);
++            Creature* wpCreature = bot->SummonCreature(6, botPos.getX(), botPos.getY(), botPos.getZ(), 0, TEMPSUMMON_TIMED_DESPAWN, 10000.0f);
+ 
+             if (wpCreature)
+             {
+@@ -4542,7 +4502,7 @@ bool DebugAction::HandleUSpellMap(Event& event, Player* requester, const std::st
+             botPos.setY(botPos.getY() + (dy - 5) * 5);
+             botPos.setZ(botPos.getHeight(bot->GetInstanceId()));
+ 
+-            Creature* wpCreature = bot->SummonCreature(effect, botPos.getX(), botPos.getY(), botPos.getZ(), 0, TEMPSPAWN_TIMED_DESPAWN, 10000.0f);
++            Creature* wpCreature = bot->SummonCreature(effect, botPos.getX(), botPos.getY(), botPos.getZ(), 0, TEMPSUMMON_TIMED_DESPAWN, 10000.0f);
+         }
+     }
+     return true;
+@@ -4583,8 +4543,8 @@ bool DebugAction::HandleVSpellMap(Event& event, Player* requester, const std::st
+             botPos.setY(botPos.getY() + (dy - 5) * 5);
+             botPos.setZ(botPos.getHeight(bot->GetInstanceId()));
+ 
+-            Creature* wpCreature = bot->SummonCreature(2334, botPos.getX(), botPos.getY(), botPos.getZ(), 0, TEMPSPAWN_TIMED_DESPAWN, 10000.0f);
+-                                   
++            Creature* wpCreature = bot->SummonCreature(2334, botPos.getX(), botPos.getY(), botPos.getZ(), 0, TEMPSUMMON_TIMED_DESPAWN, 10000.0f);
++
+             if (wpCreature)
+             {
+                 WorldPacket data(SMSG_PLAY_SPELL_VISUAL, 8 + 4);        // visual effect on guid
+@@ -4603,12 +4563,12 @@ bool DebugAction::HandleVSpellMap(Event& event, Player* requester, const std::st
+     for (auto dat : datMap)
+     {
+         std::this_thread::sleep_for(std::chrono::milliseconds(20));
+-        bot->SendMessageToSet(dat, true);
++        bot->SendMessageToSet(&dat, true);
+     }
+     for (auto dat : datMap)
+     {
+         std::this_thread::sleep_for(std::chrono::milliseconds(20));
+-        bot->SendMessageToSet(dat, true);
++        bot->SendMessageToSet(&dat, true);
+     }
+ 
+     return true;
+@@ -4629,7 +4589,7 @@ bool DebugAction::HandleISpellMap(Event& event, Player* requester, const std::st
+             botPos.setY(botPos.getY() + (dy - 5) * 5);
+             botPos.setZ(botPos.getHeight(bot->GetInstanceId()));
+ 
+-            Creature* wpCreature = bot->SummonCreature(6, botPos.getX(), botPos.getY(), botPos.getZ(), 0, TEMPSPAWN_TIMED_DESPAWN, 10000.0f);
++            Creature* wpCreature = bot->SummonCreature(6, botPos.getX(), botPos.getY(), botPos.getZ(), 0, TEMPSUMMON_TIMED_DESPAWN, 10000.0f);
+ 
+             if (wpCreature)
+             {
+@@ -4647,12 +4607,12 @@ bool DebugAction::HandleISpellMap(Event& event, Player* requester, const std::st
+     for (auto dat : datMap)
+     {
+         std::this_thread::sleep_for(std::chrono::milliseconds(20));
+-        bot->SendMessageToSet(dat, true);
++        bot->SendMessageToSet(&dat, true);
+     }
+     for (auto dat : datMap)
+     {
+         std::this_thread::sleep_for(std::chrono::milliseconds(20));
+-        bot->SendMessageToSet(dat, true);
++        bot->SendMessageToSet(&dat, true);
+     }
+ 
+     return true;
+@@ -4674,7 +4634,7 @@ bool DebugAction::HandleCSpellMap(Event& event, Player* requester, const std::st
+             botPos.setY(botPos.getY() + (dy - 5) * 5);
+             botPos.setZ(botPos.getHeight(bot->GetInstanceId()));
+ 
+-            wpCreature = bot->SummonCreature(6, botPos.getX(), botPos.getY(), botPos.getZ(), 0, TEMPSPAWN_TIMED_DESPAWN, 10000.0f);
++            wpCreature = bot->SummonCreature(6, botPos.getX(), botPos.getY(), botPos.getZ(), 0, TEMPSUMMON_TIMED_DESPAWN, 10000.0f);
+ 
+             if (wpCreature && lCreature)
+             {
+@@ -4703,7 +4663,7 @@ bool DebugAction::HandleASpellMap(Event& event, Player* requester, const std::st
+             botPos.setY(botPos.getY() + (dy - 5) * 5);
+             botPos.setZ(botPos.getHeight(bot->GetInstanceId()));
+ 
+-            wpCreature = bot->SummonCreature(2334, botPos.getX(), botPos.getY(), botPos.getZ(), 0, TEMPSPAWN_TIMED_DESPAWN, 10000.0f);
++            wpCreature = bot->SummonCreature(2334, botPos.getX(), botPos.getY(), botPos.getZ(), 0, TEMPSUMMON_TIMED_DESPAWN, 10000.0f);
+ 
+             if (wpCreature)
+             {
+@@ -4737,7 +4697,7 @@ bool DebugAction::HandleGSpellMap(Event& event, Player* requester, const std::st
+             botPos.setY(botPos.getY() + (dy - 5) * 5);
+             botPos.setZ(botPos.getHeight(bot->GetInstanceId()));
+ 
+-            Creature* wpCreature = bot->SummonCreature(2334, botPos.getX(), botPos.getY(), botPos.getZ(), 0, TEMPSPAWN_TIMED_DESPAWN, 10000.0f);
++            Creature* wpCreature = bot->SummonCreature(2334, botPos.getX(), botPos.getY(), botPos.getZ(), 0, TEMPSUMMON_TIMED_DESPAWN, 10000.0f);
+ 
+             all_targets.push_back(wpCreature->GetObjectGuid());
+         }
+@@ -4815,7 +4775,7 @@ bool DebugAction::HandleMSpellMap(Event& event, Player* requester, const std::st
+             botPos.setY(botPos.getY() + (dy - 5) * 5);
+             botPos.setZ(botPos.getHeight(bot->GetInstanceId()));
+ 
+-            Creature* wpCreature = bot->SummonCreature(2334, botPos.getX(), botPos.getY(), botPos.getZ(), 0, TEMPSPAWN_TIMED_DESPAWN, 10000.0f);
++            Creature* wpCreature = bot->SummonCreature(2334, botPos.getX(), botPos.getY(), botPos.getZ(), 0, TEMPSUMMON_TIMED_DESPAWN, 10000.0f);
+ 
+             all_targets.push_back(wpCreature->GetObjectGuid());
+         }
+@@ -4870,7 +4830,10 @@ bool DebugAction::HandleMSpellMap(Event& event, Player* requester, const std::st
+                 if (!target)
+                     target = requester;
+ 
+-                requester->GetSession()->SendPlaySpellVisual(caster->GetObjectGuid(), 5036);
++                WorldPacket visual(SMSG_PLAY_SPELL_VISUAL, 8 + 4);
++                visual << caster->GetObjectGuid();
++                visual << uint32(5036);
++                requester->GetSession()->SendPacket(&visual);
+                 FakeSpell(effect, realCaster, caster, target->GetObjectGuid(), hits, miss, WorldPosition(caster), WorldPosition(target));
+ 
+                 std::this_thread::sleep_for(std::chrono::milliseconds(20));
+@@ -4893,7 +4856,7 @@ bool DebugAction::HandleSoundMap(Event& event, Player* requester, const std::str
+             botPos.setY(botPos.getY() + (dy - 5) * 5);
+             botPos.setZ(botPos.getHeight(bot->GetInstanceId()));
+ 
+-            Creature* wpCreature = bot->SummonCreature(6, botPos.getX(), botPos.getY(), botPos.getZ(), 0, TEMPSPAWN_TIMED_DESPAWN, 10000.0f);
++            Creature* wpCreature = bot->SummonCreature(6, botPos.getX(), botPos.getY(), botPos.getZ(), 0, TEMPSUMMON_TIMED_DESPAWN, 10000.0f);
+ 
+             wpCreature->PlayDistanceSound(effect);
+         }
+@@ -4978,8 +4941,8 @@ bool DebugAction::HandleStuck(Event& event, Player* requester, const std::string
+         if (travelTarget->GetPosition())
+         {
+             std::ostringstream ss2;
+-            ss2 << "Target: " << travelTarget->GetPosition()->getX() << "," 
+-                << travelTarget->GetPosition()->getY() << "," << travelTarget->GetPosition()->getZ() 
++            ss2 << "Target: " << travelTarget->GetPosition()->getX() << ","
++                << travelTarget->GetPosition()->getY() << "," << travelTarget->GetPosition()->getZ()
+                 << " (" << travelTarget->GetPosition()->getAreaName() << ")";
+             ai->TellPlayer(requester, ss2.str());
+ 
+@@ -5008,7 +4971,7 @@ bool DebugAction::HandleStuck(Event& event, Player* requester, const std::string
+     if (travelTarget && travelTarget->GetPosition())
+     {
+         ai->TellPlayer(requester, std::string("can free move to target: ") + (canFreeMove ? "true" : "FALSE!"));
+-        
++
+         bool differentMap = (travelTarget->GetPosition()->getMapId() != bot->GetMapId());
+         if (differentMap)
+         {
+@@ -5082,8 +5045,8 @@ bool DebugAction::HandleStuck(Event& event, Player* requester, const std::string
+     if (!pathEmpty)
+     {
+         ai->TellPlayer(requester, "lastPath points: " + std::to_string(lastMove.lastPath.getPath().size()));
+-        ai->TellPlayer(requester, "lastPath end: " + std::to_string(lastMove.lastPath.getBack().getX()) + "," + 
+-            std::to_string(lastMove.lastPath.getBack().getY()) + "," + 
++        ai->TellPlayer(requester, "lastPath end: " + std::to_string(lastMove.lastPath.getBack().getX()) + "," +
++            std::to_string(lastMove.lastPath.getBack().getY()) + "," +
+             std::to_string(lastMove.lastPath.getBack().getZ()));
+     }
+ 
+@@ -5134,7 +5097,7 @@ bool DebugAction::HandleCombat(Event& event, Player* requester, const std::strin
+     bool isInCombat = bot->IsInCombat();
+     ai->TellPlayer(requester, std::string("IsInCombat(): ") + (isInCombat ? "true" : "false"));
+ 
+-    ai->TellPlayer(requester, "CMaNGOS attackers: " + std::to_string(bot->getAttackers().size()));
++    ai->TellPlayer(requester, "CMaNGOS attackers: " + std::to_string(bot->GetAttackers().size()));
+ 
+     Unit* victim = bot->GetVictim();
+     ai->TellPlayer(requester, std::string("victim: ") + (victim ? victim->GetName() : "none"));
+@@ -5170,12 +5133,12 @@ bool DebugAction::HandleNodes(Event& event, Player* requester, const std::string
+     WorldPosition pos(bot);
+     ai->TellPlayer(requester, "=== Debug: getRoute Pathfinding Analysis ===");
+     ai->TellPlayer(requester, "Bot position: " + pos.print());
+-    
++
+     bool inCombat = bot->IsInCombat();
+     bool inWater = bot->IsInWater();
+     bool isUnderWater = bot->IsUnderwater();
+-    ai->TellPlayer(requester, "Bot state: combat=" + std::string(inCombat ? "YES" : "NO") + 
+-                   " water=" + std::string(inWater ? "YES" : "NO") + 
++    ai->TellPlayer(requester, "Bot state: combat=" + std::string(inCombat ? "YES" : "NO") +
++                   " water=" + std::string(inWater ? "YES" : "NO") +
+                    " underwater=" + std::string(isUnderWater ? "YES" : "NO"));
+ 
+     std::vector<TravelNode*> allNodes = sTravelNodeMap.getNodes(pos, -1.0f);
+@@ -5190,8 +5153,8 @@ bool DebugAction::HandleNodes(Event& event, Player* requester, const std::string
+     ai->TellPlayer(requester, "");
+     ai->TellPlayer(requester, "=== getRoute Step 1: Find START nodes (closest 5) ===");
+ 
+-    std::sort(allNodes.begin(), allNodes.end(), [pos](TravelNode* i, TravelNode* j) { 
+-        return i->getPosition()->sqDistance(pos) < j->getPosition()->sqDistance(pos); 
++    std::sort(allNodes.begin(), allNodes.end(), [pos](TravelNode* i, TravelNode* j) {
++        return i->getPosition()->sqDistance(pos) < j->getPosition()->sqDistance(pos);
+     });
+ 
+     std::vector<TravelNode*> startNodes;
+@@ -5205,22 +5168,22 @@ bool DebugAction::HandleNodes(Event& event, Player* requester, const std::string
+     for (uint32 i = 0; i < startNodes.size(); i++)
+     {
+         auto& node = startNodes[i];
+-        
++
+         TravelNodeMap::PathFindResult result = sTravelNodeMap.testPathToLoop(pos, *node->getPosition(), bot, 0, {}, "debug");
+-        
++
+         ai->TellPlayer(requester, "");
+         ai->TellPlayer(requester, "Start Node " + std::to_string(i+1) + ": " + node->getName());
+-        ai->TellPlayer(requester, "  Distance: " + std::to_string(pos.distance(*node->getPosition())) + "y, PathType: " + 
+-            (result.type == PATHFIND_NORMAL ? "NORMAL" : 
+-             result.type == PATHFIND_INCOMPLETE ? "INCOMPLETE" : 
++        ai->TellPlayer(requester, "  Distance: " + std::to_string(pos.distance(*node->getPosition())) + "y, PathType: " +
++            (result.type == PATHFIND_NORMAL ? "NORMAL" :
++             result.type == PATHFIND_INCOMPLETE ? "INCOMPLETE" :
+              result.type == PATHFIND_NOPATH ? "NOPATH" : "UNKNOWN"));
+-        
++
+         if (result.path.size() > 0)
+         {
+-            ai->TellPlayer(requester, "  Path points: " + std::to_string(result.path.size()) + ", stops " + 
++            ai->TellPlayer(requester, "  Path points: " + std::to_string(result.path.size()) + ", stops " +
+                 std::to_string(result.path.back().distance(bot)) + "y from bot");
+         }
+-        
++
+         if (node->getPosition()->isPathTo(result.path))
+         {
+             ai->TellPlayer(requester, "  >>> FULL PATH to node");
+@@ -5239,15 +5202,15 @@ bool DebugAction::HandleNodes(Event& event, Player* requester, const std::string
+     for (uint32 i = 0; i < startNodes.size(); i++)
+     {
+         auto& startNode = startNodes[i];
+-        
++
+         float dist = pos.distance(*startNode->getPosition());
+-        
++
+         std::unique_ptr<PathFinder> pathfinder = std::make_unique<PathFinder>(bot);
+         pathfinder->SetNavAreaCost(AREA_WATER, 10.0f);
+         pathfinder->SetNavAreaCost(PLAYERBOT_MMAP_AREA_AVOID, 5.0f);
+         pathfinder->SetNavAreaCost(PLAYERBOT_MMAP_AREA_DANGER, 20.0f);
+         pathfinder->calculate(pos.getVector3(), startNode->getPosition()->getVector3(), false);
+-        
++
+         PointsArray points = pathfinder->getPath();
+         bool hasFullPath = false;
+         if (!points.empty())
+@@ -5262,11 +5225,11 @@ bool DebugAction::HandleNodes(Event& event, Player* requester, const std::string
+             continue;
+ 
+         std::vector<TravelNode*> reachable = startNode->getNodeMap(false, {}, false);
+-        
++
+         ai->TellPlayer(requester, "");
+         ai->TellPlayer(requester, "Start: " + startNode->getName() + " (has path)");
+         ai->TellPlayer(requester, "  Can reach: " + std::to_string(reachable.size()) + " nodes in network");
+-        
++
+         if (reachable.size() > 0)
+         {
+             std::string nodeList;
+@@ -5281,7 +5244,7 @@ bool DebugAction::HandleNodes(Event& event, Player* requester, const std::string
+                 nodeList += "...";
+             ai->TellPlayer(requester, "  Nodes: " + nodeList);
+         }
+-        
++
+         if (reachable.size() > 10)
+         {
+             nodesWithRoute++;
+@@ -5297,8 +5260,8 @@ bool DebugAction::HandleNodes(Event& event, Player* requester, const std::string
+     ai->TellPlayer(requester, "=== getRoute Step 3: Try actual route (like bot uses) ===");
+ 
+     WorldPosition targetPos = pos;
+-    targetPos.coord_x += 100.0f;
+-    targetPos.coord_y += 100.0f;
++    targetPos.x += 100.0f;
++    targetPos.y += 100.0f;
+ 
+     std::vector<WorldPosition> beginPath, endPath;
+     TravelNodeRoute route = sTravelNodeMap.getRoute(pos, targetPos, beginPath, endPath, bot);
+@@ -5450,9 +5413,9 @@ bool DebugAction::HandleTransanal(Event& event, Player* requester, const std::st
+                             float hx = x, hy = y, hz = z - 50;
+ 
+ #ifndef MANGOSBOT_TWO
+-                            bool hasHit = map->GetHitPosition(testPos.getX(), testPos.getY(), testPos.getZ(), hx, hy, hz, 0.0f);
++                            bool hasHit = map->GetLosHitPosition(testPos.getX(), testPos.getY(), testPos.getZ(), hx, hy, hz, 0.0f);
+ #else
+-                            bool hasHit = map->GetHitPosition(testPos.getX(), testPos.getY(), testPos.getZ(), hx, hy, hz, 0, 0.0f);
++                            bool hasHit = map->GetLosHitPosition(testPos.getX(), testPos.getY(), testPos.getZ(), hx, hy, hz, 0, 0.0f);
+ #endif
+ 
+                             if (!hasHit)
+@@ -5496,17 +5459,14 @@ bool DebugAction::HandleTransanal(Event& event, Player* requester, const std::st
+                     0, LOCALE_enUS, "disconnected/bot", 0);
+ #endif
+ 
+-                    session->SetNoAnticheat();
+-
+                     Player* tempPlayer = new Player(session);
+ 
+                     tempPlayer->Create(sObjectMgr.GeneratePlayerLowGuid(), "test", 1, 1, 0,
+-                        0, // skinColor,
+-                        0,
+-                        0,
+-                        0, // hairColor,
+-                        0,
+-                        0);
++                        0, // skinColor
++                        0, // face
++                        0, // hairStyle
++                        0, // hairColor
++                        0); // facialHair
+                     tempPlayer->AddToWorld();
+                     tempPlayer->SetMap(map);
+                     tempPlayer->SetTransport(transport);
+@@ -5718,9 +5678,9 @@ bool DebugAction::HandleUpdownspace(Event& event, Player* requester, const std::
+     bool vmapHitDown = (vmapDestX_down != botX || vmapDestY_down != botY || fabs(vmapDestZ_down - (startZ - 50.0f)) > 0.1f);
+ 
+ #ifndef MANGOSBOT_TWO
+-    bool combinedHitDown = bot->GetMap()->GetHitPosition(botX, botY, startZ, destX_down, destY_down, destZ_down, 0);
++    bool combinedHitDown = bot->GetMap()->GetLosHitPosition(botX, botY, startZ, destX_down, destY_down, destZ_down, 0);
+ #else
+-    bool combinedHitDown = bot->GetMap()->GetHitPosition(botX, botY, startZ, destX_down, destY_down, destZ_down, 0, 0);
++    bool combinedHitDown = bot->GetMap()->GetLosHitPosition(botX, botY, startZ, destX_down, destY_down, destZ_down, 0, 0);
+ #endif
+ 
+     if (vmapHitDown)
+@@ -5744,9 +5704,9 @@ bool DebugAction::HandleUpdownspace(Event& event, Player* requester, const std::
+     bool vmapHitUp = (vmapDestX_up != botX || vmapDestY_up != botY || fabs(vmapDestZ_up - (startZ + 50.0f)) > 0.1f);
+ 
+ #ifndef MANGOSBOT_TWO
+-    bool combinedHitUp = bot->GetMap()->GetHitPosition(botX, botY, startZ, destX_up, destY_up, destZ_up, 0);
++    bool combinedHitUp = bot->GetMap()->GetLosHitPosition(botX, botY, startZ, destX_up, destY_up, destZ_up, 0);
+ #else
+-    bool combinedHitUp = bot->GetMap()->GetHitPosition(botX, botY, startZ, destX_up, destY_up, destZ_up, 0, 0);
++    bool combinedHitUp = bot->GetMap()->GetLosHitPosition(botX, botY, startZ, destX_up, destY_up, destZ_up, 0, 0);
+ #endif
+ 
+     if (vmapHitUp)
+@@ -5822,7 +5782,7 @@ bool DebugAction::HandlePatharound(Event& event, Player* requester, const std::s
+             //if (bot->GetTransport())
+             //    p.CalculatePassengerPosition(bot->GetTransport());
+ 
+-            Creature* wpCreature = bot->SummonCreature(2334, p.getX(), p.getY(), p.getZ(), 0, TEMPSPAWN_TIMED_DESPAWN, 10000.0f);
++            Creature* wpCreature = bot->SummonCreature(2334, p.getX(), p.getY(), p.getZ(), 0, TEMPSUMMON_TIMED_DESPAWN, 10000.0f);
+ 
+             ai->AddAura(wpCreature, 246);
+ 

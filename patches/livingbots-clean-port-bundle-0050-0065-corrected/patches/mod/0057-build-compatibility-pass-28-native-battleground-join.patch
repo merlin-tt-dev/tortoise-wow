@@ -1,0 +1,91 @@
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/BattleGroundJoinAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/BattleGroundJoinAction.cpp
+index 0eacfa5..047e3e5 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/BattleGroundJoinAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/BattleGroundJoinAction.cpp
+@@ -58,7 +58,7 @@ bool BGJoinAction::Execute(Event& event)
+             return false;
+ 
+ #ifndef MANGOSBOT_TWO
+-        bracketId = sBattleGroundMgr.GetBattleGroundBracketIdFromLevel(bgTypeId, bot->GetLevel());
++        bracketId = bot->GetBattleGroundBracketIdFromLevel(bgTypeId);
+ #endif
+ #ifdef MANGOSBOT_TWO
+         uint32 mapId = bg->GetMapId();
+@@ -331,7 +331,7 @@ bool BGJoinAction::canJoinBg(Player* player, BattleGroundQueueTypeId queueTypeId
+ 
+     // check bracket
+ #ifndef MANGOSBOT_TWO
+-    if (sBattleGroundMgr.GetBattleGroundBracketIdFromLevel(bgTypeId, bot->GetLevel()) != bracketId)
++    if (bot->GetBattleGroundBracketIdFromLevel(bgTypeId) != bracketId)
+         return false;
+ #endif
+ #ifdef MANGOSBOT_TWO
+@@ -489,7 +489,7 @@ bool BGJoinAction::shouldJoinBg(BattleGroundQueueTypeId queueTypeId, BattleGroun
+     if (!isArena && bot->GetGroup() && !bot->GetGroup()->IsLeader(bot->GetObjectGuid()))
+         return false;
+ 
+-    bool needBots = sRandomPlayerbotMgr.NeedBots[queueTypeId][bracketId][isArena ? isRated : GetTeamIndexByTeamId(bot->GetTeam())];
++    bool needBots = sRandomPlayerbotMgr.NeedBots[queueTypeId][bracketId][isArena ? isRated : BattleGround::GetTeamIndexByTeamId(bot->GetTeam())];
+ 
+     // add more bots if players are not invited or if 1st BG instance is full
+     if (needBots || (hasPlayers && BgCount > BracketSize && (BgCount % BracketSize) != 0))
+@@ -659,12 +659,12 @@ bool BGJoinAction::JoinQueue(uint32 type)
+     bracketId = pvpDiff->GetBracketId();
+ #endif
+ #ifndef MANGOSBOT_TWO
+-    bracketId = sBattleGroundMgr.GetBattleGroundBracketIdFromLevel(bgTypeId, bot->GetLevel());
++    bracketId = bot->GetBattleGroundBracketIdFromLevel(bgTypeId);
+ #endif
+ 
+     uint32 BracketSize = bg->GetMaxPlayers();
+     uint32 TeamSize = bg->GetMaxPlayersPerTeam();
+-    uint32 TeamId = GetTeamIndexByTeamId(bot->GetTeam());
++    uint32 TeamId = BattleGround::GetTeamIndexByTeamId(bot->GetTeam());
+ 
+     // check if already in queue
+     if (bot->InBattleGroundQueueForBattleGroundQueueType(queueTypeId))
+@@ -962,7 +962,7 @@ bool FreeBGJoinAction::shouldJoinBg(BattleGroundQueueTypeId queueTypeId, BattleG
+     //if (bot->GetGroup() && !bot->GetGroup()->IsLeader(bot->GetObjectGuid()))
+     //    return false;
+ 
+-    bool needBots = sRandomPlayerbotMgr.NeedBots[queueTypeId][bracketId][isArena ? isRated : GetTeamIndexByTeamId(bot->GetTeam())];
++    bool needBots = sRandomPlayerbotMgr.NeedBots[queueTypeId][bracketId][isArena ? isRated : BattleGround::GetTeamIndexByTeamId(bot->GetTeam())];
+ 
+     // add more bots if players are not invited or 1st BG instance is full
+     if (needBots/* || (hasPlayers && BgCount > BracketSize && (BgCount % BracketSize) != 0)*/)
+@@ -1062,7 +1062,7 @@ bool BGLeaveAction::Execute(Event& event)
+         bot->GetSession()->HandleLeaveBattlefieldOpcode(packet);
+     }
+     else
+-        bot->GetSession()->HandleBattlefieldPortOpcode(packet);
++        bot->GetSession()->HandleBattleFieldPortOpcode(packet);
+ 
+     if (sRandomPlayerbotMgr.IsFreeBot(bot))
+         ai->SetMaster(NULL);
+@@ -1198,7 +1198,7 @@ bool BGStatusAction::Execute(Event& event)
+     BattleGround* bg = sBattleGroundMgr.GetBattleGroundTemplate(_bgTypeId);
+     if (!bg)
+         return false;
+-    bracketId = sBattleGroundMgr.GetBattleGroundBracketIdFromLevel(_bgTypeId, bot->GetLevel());
++    bracketId = bot->GetBattleGroundBracketIdFromLevel(_bgTypeId);
+ #endif
+ #ifdef MANGOSBOT_TWO
+     BattleGround* bg = sBattleGroundMgr.GetBattleGroundTemplate(_bgTypeId);
+@@ -1376,7 +1376,7 @@ bool BGStatusAction::Execute(Event& event)
+ 
+         action = 0x1;
+         // bg started so players should get invites by now
+-        sRandomPlayerbotMgr.NeedBots[queueTypeId][bracketId][isArena ? isRated : GetTeamIndexByTeamId(bot->GetTeam())] = false;
++        sRandomPlayerbotMgr.NeedBots[queueTypeId][bracketId][isArena ? isRated : BattleGround::GetTeamIndexByTeamId(bot->GetTeam())] = false;
+ 
+         WorldPacket packet(CMSG_BATTLEFIELD_PORT, 20);
+ #ifdef MANGOSBOT_ZERO
+@@ -1407,7 +1407,7 @@ bool BGStatusAction::Execute(Event& event)
+             return false;
+         }
+ #endif
+-        bot->GetSession()->HandleBattlefieldPortOpcode(packet);
++        bot->GetSession()->HandleBattleFieldPortOpcode(packet);
+ 
+         ai->ResetStrategies(false);
+         context->GetValue<uint32>("bg role")->Set(urand(0, 9));

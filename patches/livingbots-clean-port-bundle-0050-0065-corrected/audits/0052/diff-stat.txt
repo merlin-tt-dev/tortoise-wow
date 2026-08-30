@@ -1,0 +1,3 @@
+ .../src/playerbot/strategy/rogue/RogueActions.h    | 23 +++++++++++++++-------
+ .../playerbot/strategy/warlock/WarlockActions.h    | 13 +++++++++---
+ 2 files changed, 26 insertions(+), 10 deletions(-)

@@ -1,0 +1,8 @@
+ .../strategy/actions/ChooseTargetActions.cpp       |  2 +-
+ .../playerbot/strategy/actions/PositionAction.cpp  |  4 +--
+ .../src/playerbot/strategy/values/AoeValues.cpp    |  5 ++--
+ .../playerbot/strategy/values/AttackersValue.cpp   | 12 ++++----
+ .../strategy/values/PartyMemberToHeal.cpp          |  9 +++---
+ .../strategy/values/PossibleTargetsValue.cpp       |  9 ++----
+ .../src/playerbot/strategy/values/ThreatValues.cpp | 33 ++++++++++++++++------
+ 7 files changed, 45 insertions(+), 29 deletions(-)
