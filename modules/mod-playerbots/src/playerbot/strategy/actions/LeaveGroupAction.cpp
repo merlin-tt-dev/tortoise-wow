@@ -31,8 +31,13 @@ namespace ai
             std::string member = bot->GetName();
             p << uint32(PARTY_OP_LEAVE) << member << uint32(0);
             bot->GetSession()->HandleGroupDisbandOpcode(p);
-            if (ai->HasRealPlayerMaster() && ai->GetMaster()->GetObjectGuid() != player->GetObjectGuid())
-                bot->Whisper("I left my group", LANG_UNIVERSAL, player->GetObjectGuid());
+            if (ai->HasRealPlayerMaster() && ai->GetMaster()->GetObjectGuid() != player->GetObjectGuid() && player->GetSession())
+            {
+                WorldPacket data;
+                ChatHandler::BuildChatPacket(data, CHAT_MSG_WHISPER, "I left my group", LANG_UNIVERSAL, bot->GetChatTag(),
+                    bot->GetObjectGuid(), bot->GetName(), player->GetObjectGuid(), player->GetName());
+                player->GetSession()->SendPacket(&data);
+            }
         }
 
         if (freeBot)
