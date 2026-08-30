@@ -6,6 +6,16 @@
 
 using namespace ai;
 
+namespace
+{
+uint32 GetMaxTalentPoints(Player const* bot)
+{
+    uint32 talentPointsForLevel = bot->GetLevel() < 10 ? 0 : bot->GetLevel() - 9;
+    talentPointsForLevel += bot->GetBonusTalentCount();
+    return uint32(talentPointsForLevel * sWorld.getConfig(CONFIG_FLOAT_RATE_TALENT));
+}
+}
+
 bool ChangeTalentsAction::Execute(Event& event)
 {
     Player* requester = event.getOwner() ? event.getOwner() : GetMaster();
@@ -293,7 +303,7 @@ bool ChangeTalentsAction::AutoSelectTalents(Player* bot, std::ostringstream* out
     }
 
     //Spec was not found or not sufficient
-    if (bot->CalculateTalentsPoints() > 0 || (!specNo && specLink.empty()))
+    if (GetMaxTalentPoints(bot) > 0 || (!specNo && specLink.empty()))
     {
         TalentSpec oldSpec(bot);
         int currentTree = oldSpec.highestTree();
@@ -304,7 +314,7 @@ bool ChangeTalentsAction::AutoSelectTalents(Player* bot, std::ostringstream* out
 
         if (paths.size() == 0) //No spec like the old one found. Pick any.
         {
-            if (bot->CalculateTalentsPoints() > 0)
+            if (GetMaxTalentPoints(bot) > 0)
                 *out << "No specs like the current spec found.";
 
             paths = getPremadePaths(bot->GetClass(), "", role);
@@ -386,7 +396,7 @@ TalentSpec* ChangeTalentsAction::GetBestPremadeSpec(Player* bot, int specId)
     TalentPath* path = getPremadePath(bot->GetClass(), specId);
     for (auto& spec : path->talentSpec)
     {
-        if (spec.points >= bot->CalculateTalentsPoints())
+        if (spec.points >= GetMaxTalentPoints(bot))
             return &spec;
     }
     if (path->talentSpec.size())
@@ -407,7 +417,7 @@ bool AutoSetTalentsAction::Execute(Event& event)
         return false;
     }
 
-    if (bot->CalculateTalentsPoints() <= 0)
+    if (GetMaxTalentPoints(bot) <= 0)
     {
         return false;
     }
