@@ -171,17 +171,14 @@ bool MoveToRpgTargetAction::Execute(Event& event)
 
     bool couldMove;
 
-    if (unit && unit->IsMoving() && bot->GetDistance(unit) < INTERACTION_DISTANCE * 2 && unit->GetMotionMaster()->GetCurrentMovementGeneratorType() != IDLE_MOTION_TYPE)
+    if (unit && unit->GetTypeId() == TYPEID_UNIT && unit->IsMoving() &&
+        bot->GetDistance(unit) < INTERACTION_DISTANCE * 2 &&
+        unit->GetMotionMaster()->GetCurrentMovementGeneratorType() != IDLE_MOTION_TYPE)
     {
-
-        Creature* creature = static_cast<Creature*>(unit);
-
-
-        if (creature)
-            if (uint32 pauseTimer = creature->GetInteractionPauseTimer())
-                creature->GetMotionMaster()->PauseWaypoints(pauseTimer);
+        static_cast<Creature*>(unit)->PauseOutOfCombatMovement();
     }
-        couldMove = MoveTo(mapId, x, y, z, false, false);
+
+    couldMove = MoveTo(mapId, x, y, z, false, false);
 
     if (!couldMove && movePos.distance(bot) > INTERACTION_DISTANCE)
     {
