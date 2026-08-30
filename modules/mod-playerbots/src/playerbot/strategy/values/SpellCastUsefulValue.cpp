@@ -19,15 +19,14 @@ bool SpellCastUsefulValue::Calculate()
 	if (!spellInfo)
 		return true; // there can be known alternatives
 
-	if (spellInfo->Attributes & SPELL_ATTR_ON_NEXT_SWING ||
-		spellInfo->Attributes & SPELL_ATTR_ON_NEXT_SWING_NO_DAMAGE)
+    if (spellInfo->Attributes & (SPELL_ATTR_ON_NEXT_SWING_1 | SPELL_ATTR_ON_NEXT_SWING_2))
 	{
 		Spell* spell = bot->GetCurrentSpell(CURRENT_MELEE_SPELL);
 #ifdef CMANGOS
-		if (spell && spell->m_spellInfo->Id == spellid && IsNextMeleeSwingSpell(spell->m_spellInfo) && bot->hasUnitState(UNIT_STAT_MELEE_ATTACKING))
+        if (spell && spell->m_spellInfo->Id == spellid && spell->IsNextMeleeSwingSpell() && bot->HasUnitState(UNIT_STAT_MELEE_ATTACKING))
 #endif
 #ifdef MANGOS
-		if (spell && spell->m_spellInfo->Id == spellid && spell->IsNextMeleeSwingSpell() && bot->hasUnitState(UNIT_STAT_MELEE_ATTACKING))
+        if (spell && spell->m_spellInfo->Id == spellid && spell->IsNextMeleeSwingSpell() && bot->HasUnitState(UNIT_STAT_MELEE_ATTACKING))
 #endif
 			return false;
 	}
@@ -42,7 +41,7 @@ bool SpellCastUsefulValue::Calculate()
         }
 	}
 
-    if (IsAutoRepeatRangedSpell(spellInfo) && bot->GetCurrentSpell(CURRENT_AUTOREPEAT_SPELL) &&
+    if (spellInfo->IsAutoRepeatRangedSpell() && bot->GetCurrentSpell(CURRENT_AUTOREPEAT_SPELL) &&
             bot->GetCurrentSpell(CURRENT_AUTOREPEAT_SPELL)->m_spellInfo->Id == spellid)
     {
         return false;
@@ -86,5 +85,5 @@ bool SpellReadyValue::Calculate()
     if (!spellid)
         return false;
 
-    return bot->IsSpellReady(spellid);
+    return sServerFacade.IsSpellReady(bot, spellid);
 }

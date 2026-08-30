@@ -95,7 +95,7 @@ class ServerFacade
         bool IsHostileTo(Unit* bot, Unit* to);
         bool IsHostileTo(WorldObject* bot, Unit* to);
 
-        bool IsSpellReady(Player* bot, uint32 spell, uint32 itemId = 0);
+        bool IsSpellReady(Unit* bot, uint32 spell, uint32 itemId = 0);
 
         bool IsUnderwater(Unit *unit);
         FactionTemplateEntry const* GetFactionTemplateEntry(Unit *unit);

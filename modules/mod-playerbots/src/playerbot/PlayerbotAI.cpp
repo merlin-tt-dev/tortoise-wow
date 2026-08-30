@@ -4979,7 +4979,7 @@ bool PlayerbotAI::CanCastVehicleSpell(uint32 spellId, Unit* target)
         return false;
 #endif
 #ifdef CMANGOS
-    if (!vehicle->IsSpellReady(spellId))
+    if (!sServerFacade.IsSpellReady(vehicle, spellId))
         return false;
 #endif
 

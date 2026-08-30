@@ -15,7 +15,7 @@ std::vector<uint32> CraftSpellsValue::Calculate()
     {
         uint32 spellId = spell.first;
 
-        if (spell.second.state == PLAYERSPELL_REMOVED || spell.second.disabled || IsPassiveSpell(spellId))
+        if (spell.second.state == PLAYERSPELL_REMOVED || spell.second.disabled || Spells::IsPassiveSpell(spellId))
             continue;
 
         const SpellEntry* pSpellInfo = sServerFacade.LookupSpellInfo(spellId);
@@ -23,7 +23,7 @@ std::vector<uint32> CraftSpellsValue::Calculate()
             continue;
 
 #ifdef MANGOSBOT_TWO
-        if (pSpellInfo->Effect[0] == SPELL_EFFECT_CREATE_ITEM_2 && spellId == 61288 && bot->IsSpellReady(61288)) //Todo handle other item_2 spells
+        if (pSpellInfo->Effect[0] == SPELL_EFFECT_CREATE_ITEM_2 && spellId == 61288 && sServerFacade.IsSpellReady(bot, 61288)) //Todo handle other item_2 spells
         {
             spellIds.push_back(spellId);
             continue;
@@ -56,7 +56,7 @@ std::vector<uint32> EnchantSpellsValue::Calculate()
     {
         uint32 spellId = spell.first;
 
-        if (spell.second.state == PLAYERSPELL_REMOVED || spell.second.disabled || IsPassiveSpell(spellId))
+        if (spell.second.state == PLAYERSPELL_REMOVED || spell.second.disabled || Spells::IsPassiveSpell(spellId))
             continue;
 
         const SpellEntry* pSpellInfo = sServerFacade.LookupSpellInfo(spellId);

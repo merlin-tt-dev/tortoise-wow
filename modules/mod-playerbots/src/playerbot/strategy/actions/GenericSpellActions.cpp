@@ -107,7 +107,7 @@ bool CastSpellAction::isPossible()
         float dist = bot->GetDistance(spellTarget, ai->IsRanged(bot) ? SizeFactor::CombatReach : SizeFactor::CombatReachWithMelee);
         if (range == ATTACK_DISTANCE) 
         {
-            canReach = bot->CanReachWithMeleeAttack(spellTarget);
+            canReach = bot->CanReachWithMeleeAutoAttack(spellTarget);
         }
         else 
         {
@@ -218,7 +218,7 @@ bool CastPetSpellAction::isPossible()
     if (pet && ai->IsSafe(pet))
     {
         const uint32& spellId = GetSpellID();
-        if (pet->HasSpell(spellId) && pet->IsSpellReady(spellId))
+        if (pet->HasSpell(spellId) && sServerFacade.IsSpellReady(pet, spellId))
         {
             // Check if the pet is not too far from the owner
             if (bot->GetDistance(pet) <= sPlayerbotAIConfig.sightDistance)
@@ -460,7 +460,7 @@ bool InterruptCurrentSpellAction::isUseful()
     for (int type = CURRENT_MELEE_SPELL; type < CURRENT_CHANNELED_SPELL; type++)
     {
         Spell* currentSpell = bot->GetCurrentSpell((CurrentSpellTypes)type);
-        if (currentSpell && currentSpell->CanBeInterrupted())
+        if (currentSpell && currentSpell->getState() != SPELL_STATE_FINISHED)
             return true;
     }
     return false;
@@ -472,10 +472,11 @@ bool InterruptCurrentSpellAction::Execute(Event& event)
     for (int type = CURRENT_MELEE_SPELL; type < CURRENT_CHANNELED_SPELL; type++)
     {
         Spell* currentSpell = bot->GetCurrentSpell((CurrentSpellTypes)type);
-        if (currentSpell && currentSpell->CanBeInterrupted())
+        if (currentSpell && currentSpell->getState() != SPELL_STATE_FINISHED)
         {
+            uint32 const spellId = currentSpell->m_spellInfo->Id;
             bot->InterruptSpell((CurrentSpellTypes)type);
-            ai->SpellInterrupted(currentSpell->m_spellInfo->Id);
+            ai->SpellInterrupted(spellId);
             interrupted = true;
         }
     }
@@ -515,7 +516,10 @@ bool CastSpellTargetAction::IsTargetValid(Unit* target)
     return target &&
            ai->IsSafe(target) &&
            (bot == target || sServerFacade.GetDistance2d(bot, target) < sPlayerbotAIConfig.sightDistance) &&
-           bot->IsInGroup(target) &&
+           ([&]() {
+               Player* targetPlayer = target->GetCharmerOrOwnerPlayerOrPlayerItself();
+               return targetPlayer && bot->GetGroup() && targetPlayer->GetGroup() == bot->GetGroup();
+           })() &&
            (!aliveCheck || !target->IsDead()) &&
            (!auraCheck || !ai->HasAura(GetSpellID(), target));
 }
@@ -567,7 +571,7 @@ bool CastItemTargetAction::isUseful()
         {
             for (int i = 0; i < MAX_ITEM_PROTO_SPELLS; ++i)
             {
-                const _Spell& spellData = proto->Spells[i];
+                const _ItemSpell& spellData = proto->Spells[i];
                 if (spellData.SpellId)
                 {
                     if (skipSpells.find(spellData.SpellId) != skipSpells.end())
@@ -605,7 +609,7 @@ bool CastItemTargetAction::isPossible()
 
     for (int i = 0; i < MAX_ITEM_PROTO_SPELLS; ++i)
     {
-        _Spell const& spellData = proto->Spells[i];
+        _ItemSpell const& spellData = proto->Spells[i];
 
         // no spell
         if (!spellData.SpellId)
@@ -666,7 +670,7 @@ bool CastItemTargetAction::Execute(Event& event)
 
     for (int i = 0; i < MAX_ITEM_PROTO_SPELLS; ++i)
     {
-        _Spell const& spellData = proto->Spells[i];
+        _ItemSpell const& spellData = proto->Spells[i];
 
         // no spell
         if (!spellData.SpellId)
@@ -696,10 +700,9 @@ bool CastItemTargetAction::Execute(Event& event)
         if (item)
         {
             spell->SetCastItem(item);
-            item->SetUsedInSpell(true);
         }
 
-        spell->m_clientCast = true;
+        spell->SetClientStarted(true);
 
         bool result = (spell->ForceSpellStart(&targets) == SPELL_CAST_OK);
 
@@ -710,8 +713,8 @@ bool CastItemTargetAction::Execute(Event& event)
         {
             if (!HasSpellCooldown(itemId))
             {
-                bot->RemoveSpellCooldown(*spellInfo, false);
-                bot->AddCooldown(*spellInfo, proto, false);
+                bot->RemoveSpellCooldown(spellInfo->Id, false);
+                bot->AddSpellAndCategoryCooldowns(spellInfo, proto->ItemId);
             }
         }
 

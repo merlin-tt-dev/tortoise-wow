@@ -93,7 +93,7 @@ bool ServerFacade::IsHostileTo(WorldObject* bot, Unit* to)
 }
 
 
-bool ServerFacade::IsSpellReady(Player* bot, uint32 spell, uint32 /*itemId*/)
+bool ServerFacade::IsSpellReady(Unit* bot, uint32 spell, uint32 /*itemId*/)
 {
     SpellEntry const* spellInfo = sSpellMgr.GetSpellEntry(spell);
     return spellInfo && !bot->HasSpellCooldown(spell) && !bot->HasSpellCategoryCooldown(spellInfo->Category);
