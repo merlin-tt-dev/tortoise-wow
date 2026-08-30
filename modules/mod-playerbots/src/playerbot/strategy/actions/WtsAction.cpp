@@ -49,7 +49,13 @@ bool WtsAction::Execute(Event& event)
         tell << "I'll buy " << chat->formatItem(proto) << " for " << chat->formatMoney(buyPrice);
 
         // ignore random bot chat filter
-        bot->Whisper(tell.str(), LANG_UNIVERSAL, owner->GetObjectGuid());
+        if (owner->GetSession())
+        {
+            WorldPacket data;
+            ChatHandler::BuildChatPacket(data, CHAT_MSG_WHISPER, tell.str(), LANG_UNIVERSAL, bot->GetChatTag(),
+                bot->GetObjectGuid(), bot->GetName(), owner->GetObjectGuid(), owner->GetName());
+            owner->GetSession()->SendPacket(&data);
+        }
     }
 
     return true;
