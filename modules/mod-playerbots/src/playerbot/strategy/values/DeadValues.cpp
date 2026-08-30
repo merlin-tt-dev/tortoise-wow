@@ -34,7 +34,7 @@ GuidPosition GraveyardValue::Calculate()
         }
     }
 
-    WorldSafeLocsEntry const* ClosestGrave = bot->GetMap()->GetGraveyardManager().GetClosestGraveYard(
+    WorldSafeLocsEntry const* ClosestGrave = sObjectMgr.GetClosestGraveYard(
         refPosition.getX(),
         refPosition.getY(),
         refPosition.getZ(),
@@ -73,9 +73,8 @@ WorldSafeLocsEntry const* GraveyardValue::GetAnotherAppropriateClosestGraveyard(
     uint32 botMapId = corpse->GetMapId();
     uint32 botZoneId = corpse->GetZoneId();
 
-    for (auto mapValues : sWorld.GetGraveyardManager().GetGraveyardMap())
+    for (auto const& mapValues : sObjectMgr.GetGraveYardMap())
     {
-        uint32 locId = mapValues.first;
         GraveYardData const& graveyardData = mapValues.second;
 
         //skip non-neutral or hostile graveyards

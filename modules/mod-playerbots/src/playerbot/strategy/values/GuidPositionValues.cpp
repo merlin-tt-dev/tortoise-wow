@@ -4,9 +4,34 @@
 #include "Maps/GridNotifiers.h"
 #include "Maps/GridNotifiersImpl.h"
 #include "Maps/CellImpl.h"
+#include "Maps/GridSearchers.h"
 
 using namespace ai;
 using namespace MaNGOS;
+
+namespace
+{
+bool HasSpawnedLinkedTrap(GameObject* go)
+{
+    if (!go)
+        return false;
+
+    uint32 trapEntry = go->GetGOInfo()->GetLinkedGameObjectEntry();
+    if (!trapEntry)
+        return false;
+
+    GameObjectInfo const* trapInfo = sObjectMgr.GetGameObjectInfo(trapEntry);
+    if (!trapInfo || trapInfo->type != GAMEOBJECT_TYPE_TRAP)
+        return false;
+
+    float range = 0.5f;
+    if (SpellEntry const* trapSpell = sSpellMgr.GetSpellEntry(trapInfo->trap.spellId))
+        range = Spells::GetSpellMaxRange(sSpellRangeStore.LookupEntry(trapSpell->rangeIndex));
+
+    GameObject* trap = GetClosestGameObjectWithEntry(go, trapEntry, range);
+    return trap && trap->isSpawned();
+}
+}
 
 std::list<GuidPosition> GameObjectsValue::Calculate()
 {
@@ -237,7 +262,7 @@ std::list<GuidPosition> GoTrappedFilterValue::Calculate()
             else
             {
                 GameObject* go = guid.GetGameObject(bot->GetInstanceId());
-                if (go && !go->GetLinkedTrap())
+                if (go && !HasSpawnedLinkedTrap(go))
                     result.push_back(guid);
             }
         }
