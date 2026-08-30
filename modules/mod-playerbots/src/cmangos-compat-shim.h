@@ -270,24 +270,10 @@ inline CmangosTaxiNodesStoreProxy sTaxiNodesStore;
 // Penqle uses GetLosHitPosition. The bot module's call sites were patched at
 // the source level (TravelMgr.cpp / WorldPosition.h).
 
-// === Free-function helpers (cmangos style) wrapping Penqle SpellEntry methods ===
-// cmangos exposes these as free functions; Penqle wraps them in SpellEntry::method.
-inline uint32 GetSpellCastTime(SpellEntry const* spellInfo, Spell const* spell = nullptr) {
-    return spellInfo ? spellInfo->GetCastTime(nullptr, const_cast<Spell*>(spell)) : 0;
-}
-// 3-arg form: cmangos signature is GetSpellCastTime(SpellEntry, caster, Spell).
-inline uint32 GetSpellCastTime(SpellEntry const* spellInfo, WorldObject* caster, Spell const* spell = nullptr) {
-    return spellInfo ? spellInfo->GetCastTime(caster, const_cast<Spell*>(spell)) : 0;
-}
+// === Remaining free-function compatibility helpers ===
 // IsNextMeleeSwingSpell: cmangos free function checking SPELL_ATTR_ON_NEXT_SWING_1/_2.
 inline bool IsNextMeleeSwingSpell(SpellEntry const* spellInfo) {
     return spellInfo && (spellInfo->Attributes & (SPELL_ATTR_ON_NEXT_SWING_1 | SPELL_ATTR_ON_NEXT_SWING_2));
-}
-inline int32 GetSpellDuration(SpellEntry const* spellInfo) {
-    return spellInfo ? spellInfo->GetDuration() : 0;
-}
-inline bool IsChanneledSpell(SpellEntry const* spellInfo) {
-    return spellInfo && spellInfo->IsChanneledSpell();
 }
 inline SpellSchoolMask GetSpellSchoolMask(SpellEntry const* spellInfo) {
     return spellInfo ? SpellSchoolMask(spellInfo->GetSpellSchoolMask()) : SpellSchoolMask(0);

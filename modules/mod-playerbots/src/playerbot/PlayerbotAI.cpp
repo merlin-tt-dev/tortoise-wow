@@ -4994,7 +4994,7 @@ bool PlayerbotAI::CanCastVehicleSpell(uint32 spellId, Unit* target)
     if (!(siegePos.isSet() || spellTarget != vehicle) && spellInfo->Targets & TARGET_FLAG_DEST_LOCATION)
         return false;
 
-    uint32 CastingTime = !IsChanneledSpell(spellInfo) ? GetSpellCastTime(spellInfo, vehicle) : GetSpellDuration(spellInfo);
+    uint32 CastingTime = !spellInfo->IsChanneledSpell() ? spellInfo->GetCastTime(vehicle) : spellInfo->GetDuration();
 
     if (CastingTime && vehicle->IsMoving())
         return false;
