@@ -1,0 +1,26 @@
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/UseMeetingStoneAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/UseMeetingStoneAction.cpp
+index 94c763b7f583660b1f7d8df6f9dd3d644c24d164..3dc74f3714284da6a9d2755c33a7b1e9ecad5938 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/UseMeetingStoneAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/UseMeetingStoneAction.cpp
+@@ -202,8 +202,10 @@ bool SummonAction::Teleport(Player* requester, Player *summoner, Player *player)
+ 
+                 if (player->IsTaxiFlying())
+                 {
+-                    player->TaxiFlightInterrupt();
+-                    player->GetMotionMaster()->MovementExpired();
++                    player->GetTaxi().ClearTaxiDestinations();
++                    while (player->GetMotionMaster()->GetCurrentMovementGeneratorType() == FLIGHT_MOTION_TYPE)
++                        player->GetMotionMaster()->MovementExpired(false);
++                    player->Unmount();
+                 }
+ 
+                 player->GetMotionMaster()->Clear();
+@@ -212,7 +214,7 @@ bool SummonAction::Teleport(Player* requester, Player *summoner, Player *player)
+                     player->SendHeartBeat();
+ 
+                 if (summoner->GetTransport())
+-                    summoner->GetTransport()->AddPassenger(player, false);
++                    summoner->GetTransport()->AddPassenger(player);
+                     
+                 if(ai->HasStrategy("stay", BotState::BOT_STATE_NON_COMBAT))
+                     SET_AI_VALUE2(PositionEntry, "pos", "stay", PositionEntry(x, y, z, mapId));

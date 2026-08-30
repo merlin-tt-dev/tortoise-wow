@@ -1,0 +1,1 @@
+6217b87307bc8772b2dcaed312b097c11739263373e8ec5e3effc7561b0a511f  patches/mod/0081-build-compatibility-pass-52-native-meeting-stone-taxi-transport.patch

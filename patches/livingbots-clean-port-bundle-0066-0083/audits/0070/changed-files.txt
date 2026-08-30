@@ -1,0 +1,2 @@
+modules/mod-playerbots/src/playerbot/strategy/actions/AttackAction.cpp
+modules/mod-playerbots/src/playerbot/strategy/actions/StayActions.cpp

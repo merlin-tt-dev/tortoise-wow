@@ -1,0 +1,41 @@
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/AttackAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/AttackAction.cpp
+index 86431a7209af6be85c0aa83e95b6a2ae29b068c6..6ccd86ce5f3f3819323b3ece66b7ece088240fd1 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/AttackAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/AttackAction.cpp
+@@ -106,7 +106,7 @@ bool AttackRTITargetAction::isUseful()
+ bool AttackAction::Attack(Player* requester, Unit* target)
+ {
+     MotionMaster &mm = *bot->GetMotionMaster();
+-	if (mm.GetCurrentMovementGeneratorType() == TAXI_MOTION_TYPE || (bot->IsFlying() && WorldPosition(bot).currentHeight() > 10.0f))
++    if (mm.GetCurrentMovementGeneratorType() == FLIGHT_MOTION_TYPE || (bot->IsFlying() && WorldPosition(bot).currentHeight() > 10.0f))
+     {
+         SC_LOG("attack-cmd FAIL bot=%s — taxi/flying", bot ? bot->GetName() : "(null)");
+         if (verbose)
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/StayActions.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/StayActions.cpp
+index b1fbbf0769fe22c2b5ef64eb7436f0c89691a691..d18272998bb0909654110735cc2df597d98910f9 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/StayActions.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/StayActions.cpp
+@@ -15,10 +15,10 @@ bool StayActionBase::Stay(Player* requester)
+ 
+     MotionMaster &mm = *bot->GetMotionMaster();
+ #ifdef CMANGOS
+-	if (mm.GetCurrentMovementGeneratorType() == TAXI_MOTION_TYPE || bot->IsTaxiFlying())
++    if (mm.GetCurrentMovementGeneratorType() == FLIGHT_MOTION_TYPE || bot->IsTaxiFlying())
+ #endif
+ #ifdef MANGOS
+-	if (mm.GetCurrentMovementGeneratorType() == FLIGHT_MOTION_TYPE || bot->IsFlying())
++    if (mm.GetCurrentMovementGeneratorType() == FLIGHT_MOTION_TYPE || bot->IsFlying())
+ #endif
+ 	{
+ 		if (verbose) ai->TellError(requester, "I can not stay, I'm flying!");
+@@ -38,8 +38,8 @@ bool StayActionBase::Stay(Player* requester)
+         return false;
+ 
+     ai->StopMoving();
+-	bot->clearUnitState(UNIT_STAT_CHASE);
+-	bot->clearUnitState(UNIT_STAT_FOLLOW);
++    bot->ClearUnitState(UNIT_STAT_CHASE);
++    bot->ClearUnitState(UNIT_STAT_FOLLOW);
+ 
+     return true;
+ }

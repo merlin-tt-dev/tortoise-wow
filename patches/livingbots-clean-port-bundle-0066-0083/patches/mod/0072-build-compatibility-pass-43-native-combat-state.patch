@@ -1,0 +1,22 @@
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/CombatActions.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/CombatActions.cpp
+index 8fd01b37b57513488aa4458e66b1f2d50c2b6bb5..37666d568ae2c13a9649462ec9608cdd693d2e93 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/CombatActions.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/CombatActions.cpp
+@@ -16,7 +16,7 @@ bool SwitchToMeleeAction::Execute(Event &event)
+ {
+     if (Unit* target = AI_VALUE(Unit*, "current target"))
+     {
+-        bot->MeleeAttackStart(target);
++        bot->Attack(target, true);
+         return ChangeCombatStrategyAction::Execute(event);
+     }
+     return false;
+@@ -32,7 +32,7 @@ bool SwitchToRangedAction::Execute(Event &event)
+ {
+     if (Unit* target = AI_VALUE(Unit*, "current target"))
+     {
+-        bot->MeleeAttackStop(target);
++        bot->AttackStop();
+         return ChangeCombatStrategyAction::Execute(event);
+     }
+     return false;

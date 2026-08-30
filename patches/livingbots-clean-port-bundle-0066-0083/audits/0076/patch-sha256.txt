@@ -1,0 +1,1 @@
+6ed14b1c2f678ccb4aa107d37d22e95b3ba444e4715802692ab3aef10618775d  patches/mod/0076-build-compatibility-pass-47-native-mail-master-player.patch

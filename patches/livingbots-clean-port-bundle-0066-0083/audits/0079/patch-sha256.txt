@@ -1,0 +1,1 @@
+8bdfe78e41e2a4fc46a09bd630f077818162b6b84821af1fc37da1e4bd8b44af  patches/mod/0079-build-compatibility-pass-50-native-skill-unlearn.patch

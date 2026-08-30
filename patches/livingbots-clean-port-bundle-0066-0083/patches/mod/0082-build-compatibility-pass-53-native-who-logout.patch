@@ -1,0 +1,13 @@
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/WhoAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/WhoAction.cpp
+index 1d2ee65be26ff446a7a4bf1259bf55ab7e4c9dcf..51f10c88bbf3ba8e4681a8ab91c7e21d9b94b2dd 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/WhoAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/WhoAction.cpp
+@@ -24,7 +24,7 @@ bool WhoAction::Execute(Event& event)
+     if (!owner->IsInWorld())
+         return false;
+ 
+-    if (owner->IsStunnedByLogout())
++    if (!owner->GetSession() || owner->GetSession()->isLogingOut())
+         return false;
+ 
+     if (!sObjectMgr.GetPlayer(owner->GetObjectGuid()))

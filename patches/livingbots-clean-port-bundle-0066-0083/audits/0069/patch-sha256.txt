@@ -1,0 +1,1 @@
+246933e1eae4b898cc3a88ee39faf21842ccf7b5feb08446cb7a1cedc8e1b8d4  patches/mod/0069-build-compatibility-pass-40-native-auction-stack-count.patch

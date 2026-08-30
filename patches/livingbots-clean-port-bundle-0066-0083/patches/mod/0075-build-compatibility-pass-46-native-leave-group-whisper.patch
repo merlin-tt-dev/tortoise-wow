@@ -1,0 +1,20 @@
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/LeaveGroupAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/LeaveGroupAction.cpp
+index f84757451768e2d4a8c75e300e37ffe0cd3020e6..cf50853ec4959061769bcd8a1cdda7e10308c01b 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/LeaveGroupAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/LeaveGroupAction.cpp
+@@ -31,8 +31,13 @@ namespace ai
+             std::string member = bot->GetName();
+             p << uint32(PARTY_OP_LEAVE) << member << uint32(0);
+             bot->GetSession()->HandleGroupDisbandOpcode(p);
+-            if (ai->HasRealPlayerMaster() && ai->GetMaster()->GetObjectGuid() != player->GetObjectGuid())
+-                bot->Whisper("I left my group", LANG_UNIVERSAL, player->GetObjectGuid());
++            if (ai->HasRealPlayerMaster() && ai->GetMaster()->GetObjectGuid() != player->GetObjectGuid() && player->GetSession())
++            {
++                WorldPacket data;
++                ChatHandler::BuildChatPacket(data, CHAT_MSG_WHISPER, "I left my group", LANG_UNIVERSAL, bot->GetChatTag(),
++                    bot->GetObjectGuid(), bot->GetName(), player->GetObjectGuid(), player->GetName());
++                player->GetSession()->SendPacket(&data);
++            }
+         }
+ 
+         if (freeBot)

@@ -1,0 +1,1 @@
+eed619510f43590b4e7590ad78dbf7c82e4ee47e49c84097affec781438d92fe  patches/mod/0071-build-compatibility-pass-42-native-checkmail-master-player.patch

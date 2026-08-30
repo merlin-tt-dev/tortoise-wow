@@ -1,0 +1,1 @@
+ead787979d3b4d76d0865e65595895861eefdacd6709d308ce721f6714b27bdc  patches/mod/0068-build-compatibility-pass-39-native-master-looter.patch

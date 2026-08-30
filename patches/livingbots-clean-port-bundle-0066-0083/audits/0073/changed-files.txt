@@ -1,0 +1,2 @@
+modules/mod-playerbots/src/playerbot/strategy/actions/GuildCraftOrderAction.cpp
+modules/mod-playerbots/src/playerbot/strategy/actions/GuildManagementActions.cpp

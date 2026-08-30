@@ -1,0 +1,1 @@
+dee473283c86e614a049b58d2165fecaa601ae8c90ebc7ff26c742a3df4eeb9e  patches/mod/0078-build-compatibility-pass-49-native-send-mail-whisper.patch

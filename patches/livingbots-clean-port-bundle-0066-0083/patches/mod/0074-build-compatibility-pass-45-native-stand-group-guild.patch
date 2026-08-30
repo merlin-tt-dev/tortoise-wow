@@ -1,0 +1,123 @@
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/ImbueAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/ImbueAction.cpp
+index c9eee7c91e84493aca8af51f527f463bde33203c..cbc3fee779dfa02433070ad7d5164f0a3ae73794 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/ImbueAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/ImbueAction.cpp
+@@ -17,7 +17,7 @@ bool ImbueWithStoneAction::Execute(Event& event)
+         bot->RemoveSpellsCausingAura(SPELL_AURA_MOD_STEALTH);
+ 
+     // hp check
+-    if (bot->getStandState() != UNIT_STAND_STATE_STAND)
++    if (bot->GetStandState() != UNIT_STAND_STATE_STAND)
+         bot->SetStandState(UNIT_STAND_STATE_STAND);
+ 
+     bool allowMainhand = true;
+@@ -161,7 +161,7 @@ bool ImbueWithOilAction::Execute(Event& event)
+         bot->RemoveSpellsCausingAura(SPELL_AURA_MOD_STEALTH);
+ 
+     // hp check
+-    if (bot->getStandState() != UNIT_STAND_STATE_STAND)
++    if (bot->GetStandState() != UNIT_STAND_STATE_STAND)
+         bot->SetStandState(UNIT_STAND_STATE_STAND);
+ 
+     // Search and apply oil to weapons
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/InviteToGroupAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/InviteToGroupAction.cpp
+index 6949ea9899bbc351f3827d141e64990de3076210..c66725c26e44f25a5f6f3cc54e3af12f25b46b50 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/InviteToGroupAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/InviteToGroupAction.cpp
+@@ -21,7 +21,7 @@ namespace ai
+         if (Group* group = inviter->GetGroup())
+         {
+             if(GetPlayerbotAI(player) && !GetPlayerbotAI(player)->IsRealPlayer())
+-                if (!group->IsRaidGroup() && group->GetMembersCount() > 4)
++                if (!group->isRaidGroup() && group->GetMembersCount() > 4)
+                     group->ConvertToRaid();
+         }
+ 
+@@ -50,7 +50,7 @@ namespace ai
+         {
+             if (group->IsFull())
+             {
+-                if(group->IsRaidGroup())
++                if(group->isRaidGroup())
+                     return false;
+ 
+                 if(event.getSource() == "create group")
+@@ -231,7 +231,7 @@ namespace ai
+         if (group)
+         {
+             //If no input use max raid for raid groups.
+-            if (param.empty() && group->IsRaidGroup())
++            if (param.empty() && group->isRaidGroup())
+ #ifdef MANGOSBOT_ZERO
+                 param = "40";
+ #else
+@@ -241,7 +241,7 @@ namespace ai
+ 
+             if (group->IsFull())
+             {
+-                if (param.empty() || param == "5" || group->IsRaidGroup())
++                if (param.empty() || param == "5" || group->isRaidGroup())
+                     return false; //Group or raid is full so stop trying.
+                 else
+                     group->ConvertToRaid(); //We want a raid but are in a group so convert and continue.
+@@ -327,7 +327,7 @@ namespace ai
+ 
+             Group* group = bot->GetGroup();
+ 
+-            if (player->isDND())
++            if (player->IsDND())
+                 continue;
+ 
+             if (player->IsBeingTeleported())
+@@ -351,13 +351,13 @@ namespace ai
+                 continue;
+ 
+             //When inviting the 5th member of the group convert to raid for future invites.
+-            if (group && ai->GetGrouperType() > GrouperType::LEADER_5 && !group->IsRaidGroup() && bot->GetGroup()->GetMembersCount() > 3)
++            if (group && ai->GetGrouperType() > GrouperType::LEADER_5 && !group->isRaidGroup() && bot->GetGroup()->GetMembersCount() > 3)
+                 group->ConvertToRaid();
+ 
+             Guild* guild = sGuildMgr.GetGuildById(bot->GetGuildId());
+             if (sPlayerbotAIConfig.inviteChat && (sRandomPlayerbotMgr.IsFreeBot(bot) || !ai->HasActivePlayerMaster()))
+             {
+-                if (guild && player && bot->IsInGuild(player->GetGuildId()))
++                if (guild && player && bot->GetGuildId() == player->GetGuildId())
+                 {
+                     BroadcastHelper::BroadcastGuildGroupOrRaidInvite(
+                         ai,
+@@ -373,7 +373,7 @@ namespace ai
+                     std::map<std::string, std::string> placeholders;
+                     placeholders["%player"] = player->GetName();
+ 
+-                    if (group && group->IsRaidGroup())
++                    if (group && group->isRaidGroup())
+                         bot->Say(BOT_TEXT2("join_raid", placeholders), (bot->GetTeam() == ALLIANCE ? LANG_COMMON : LANG_ORCISH));
+                     else
+                         bot->Say(BOT_TEXT2("join_group", placeholders), (bot->GetTeam() == ALLIANCE ? LANG_COMMON : LANG_ORCISH));
+@@ -406,7 +406,7 @@ namespace ai
+ 
+         if (group)
+         {
+-            if (group->IsRaidGroup() && group->IsFull())
++            if (group->isRaidGroup() && group->IsFull())
+                 return false;
+ 
+             if (ai->GetGroupMaster() != bot)
+@@ -451,7 +451,7 @@ namespace ai
+             if (player->GetGroup())
+                 continue;
+ 
+-            if (player->isDND())
++            if (player->IsDND())
+                 continue;
+ 
+             if (!sPlayerbotAIConfig.randomBotInvitePlayer && IsRealPlayer(player))
+@@ -496,7 +496,7 @@ namespace ai
+ 
+             Group* group = bot->GetGroup();
+             //When inviting the 5th member of the group convert to raid for future invites.
+-            if (group && ai->GetGrouperType() > GrouperType::LEADER_5 && !group->IsRaidGroup() && bot->GetGroup()->GetMembersCount() > 3)
++            if (group && ai->GetGrouperType() > GrouperType::LEADER_5 && !group->isRaidGroup() && bot->GetGroup()->GetMembersCount() > 3)
+             {
+                 group->ConvertToRaid();
+             }

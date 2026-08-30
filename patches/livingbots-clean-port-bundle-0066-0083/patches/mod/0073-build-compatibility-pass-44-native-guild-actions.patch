@@ -1,0 +1,37 @@
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/GuildCraftOrderAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/GuildCraftOrderAction.cpp
+index cf34e008850bcc83006e0da7401b831444e0dc24..1fd2acb3eaa1a9214581ea00c553f70654240822 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/GuildCraftOrderAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/GuildCraftOrderAction.cpp
+@@ -10,7 +10,7 @@ uint32 GuildCraftOrderAction::FindCraftSpell(uint32 itemId)
+ {
+     for (auto& [spellId, spellState] : bot->GetSpellMap())
+     {
+-        if (spellState.state == PLAYERSPELL_REMOVED || spellState.disabled || IsPassiveSpell(spellId))
++        if (spellState.state == PLAYERSPELL_REMOVED || spellState.disabled || Spells::IsPassiveSpell(spellId))
+             continue;
+ 
+         const SpellEntry* pSpellInfo = sServerFacade.LookupSpellInfo(spellId);
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/GuildManagementActions.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/GuildManagementActions.cpp
+index a62f6fcffe5860a021622d10bbfacaffc0ead5d6..32eb8ad41d5169678a9bbfa3a6258b32991abdff 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/GuildManagementActions.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/GuildManagementActions.cpp
+@@ -79,7 +79,7 @@ bool GuildManageNearbyAction::Execute(Event& event)
+         if (!player || bot == player)
+             continue;
+ 
+-        if (player->isDND())
++        if (player->IsDND())
+             continue;
+ 
+ 
+@@ -208,8 +208,8 @@ bool GuildManageNearbyAction::Execute(Event& event)
+                 if (sameGroup)
+                 {
+                     WorldPacket data;
+-                    ChatHandler::BuildChatPacket(data, bot->GetGroup()->IsRaidGroup() ? CHAT_MSG_RAID : CHAT_MSG_PARTY, line.c_str(), LANG_UNIVERSAL, CHAT_TAG_NONE, bot->GetObjectGuid(), bot->GetName());
+-                    bot->GetGroup()->BroadcastPacket(data,true);
++                    ChatHandler::BuildChatPacket(data, bot->GetGroup()->isRaidGroup() ? CHAT_MSG_RAID : CHAT_MSG_PARTY, line.c_str(), LANG_UNIVERSAL, CHAT_TAG_NONE, bot->GetObjectGuid(), bot->GetName());
++                    bot->GetGroup()->BroadcastPacket(&data, true);
+                 }
+                 else
+                     bot->Say(line, (bot->GetTeam() == ALLIANCE ? LANG_COMMON : LANG_ORCISH));

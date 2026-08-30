@@ -1,0 +1,1 @@
+e9e3a769249488e69cb550134ec464a3c9fb0dde692b5524e841852de30082ee  patches/mod/0082-build-compatibility-pass-53-native-who-logout.patch

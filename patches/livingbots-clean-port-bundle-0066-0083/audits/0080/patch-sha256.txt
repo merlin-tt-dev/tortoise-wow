@@ -1,0 +1,1 @@
+7b33b4338d6daa35ba6d340c64295a9056af1943b152dfbb961a831cb89bc110  patches/mod/0080-build-compatibility-pass-51-native-spell-timing.patch

@@ -1,0 +1,1 @@
+e36cee5044906ac35eb06d1c36216f936ccec0914c992f8469f73dcd21def86a  patches/mod/0077-build-compatibility-pass-48-native-rpg-movement-pause.patch

@@ -1,0 +1,6 @@
+ modules/mod-playerbots/src/cmangos-compat-shim.h         | 16 +---------------
+ modules/mod-playerbots/src/playerbot/PlayerbotAI.cpp     |  2 +-
+ .../playerbot/strategy/actions/TellCastFailedAction.cpp  |  6 +-----
+ .../src/playerbot/strategy/generic/CastTimeStrategy.cpp  |  2 +-
+ .../src/playerbot/strategy/generic/CombatStrategy.cpp    |  2 +-
+ 5 files changed, 5 insertions(+), 23 deletions(-)

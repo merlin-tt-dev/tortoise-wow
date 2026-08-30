@@ -1,0 +1,3 @@
+ .../src/playerbot/strategy/actions/GuildCraftOrderAction.cpp        | 2 +-
+ .../src/playerbot/strategy/actions/GuildManagementActions.cpp       | 6 +++---
+ 2 files changed, 4 insertions(+), 4 deletions(-)

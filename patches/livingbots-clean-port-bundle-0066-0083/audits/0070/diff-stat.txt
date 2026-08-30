@@ -1,0 +1,3 @@
+ .../src/playerbot/strategy/actions/AttackAction.cpp               | 2 +-
+ .../mod-playerbots/src/playerbot/strategy/actions/StayActions.cpp | 8 ++++----
+ 2 files changed, 5 insertions(+), 5 deletions(-)

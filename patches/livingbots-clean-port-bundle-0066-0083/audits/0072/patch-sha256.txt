@@ -1,0 +1,1 @@
+0443951fad78449694212c11071e8ce74d4c5f3f11ef9661cbf0c25f539593fa  patches/mod/0072-build-compatibility-pass-43-native-combat-state.patch

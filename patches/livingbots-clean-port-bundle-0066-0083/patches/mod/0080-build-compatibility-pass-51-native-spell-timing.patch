@@ -1,0 +1,87 @@
+diff --git a/modules/mod-playerbots/src/cmangos-compat-shim.h b/modules/mod-playerbots/src/cmangos-compat-shim.h
+index 8f0afe5b42087e39c8ef69f1fe46a34d1349611b..54f26a6a2e70b996f97dd956da16afaddb52c427 100644
+--- a/modules/mod-playerbots/src/cmangos-compat-shim.h
++++ b/modules/mod-playerbots/src/cmangos-compat-shim.h
+@@ -270,25 +270,11 @@ inline CmangosTaxiNodesStoreProxy sTaxiNodesStore;
+ // Penqle uses GetLosHitPosition. The bot module's call sites were patched at
+ // the source level (TravelMgr.cpp / WorldPosition.h).
+ 
+-// === Free-function helpers (cmangos style) wrapping Penqle SpellEntry methods ===
+-// cmangos exposes these as free functions; Penqle wraps them in SpellEntry::method.
+-inline uint32 GetSpellCastTime(SpellEntry const* spellInfo, Spell const* spell = nullptr) {
+-    return spellInfo ? spellInfo->GetCastTime(nullptr, const_cast<Spell*>(spell)) : 0;
+-}
+-// 3-arg form: cmangos signature is GetSpellCastTime(SpellEntry, caster, Spell).
+-inline uint32 GetSpellCastTime(SpellEntry const* spellInfo, WorldObject* caster, Spell const* spell = nullptr) {
+-    return spellInfo ? spellInfo->GetCastTime(caster, const_cast<Spell*>(spell)) : 0;
+-}
++// === Remaining free-function compatibility helpers ===
+ // IsNextMeleeSwingSpell: cmangos free function checking SPELL_ATTR_ON_NEXT_SWING_1/_2.
+ inline bool IsNextMeleeSwingSpell(SpellEntry const* spellInfo) {
+     return spellInfo && (spellInfo->Attributes & (SPELL_ATTR_ON_NEXT_SWING_1 | SPELL_ATTR_ON_NEXT_SWING_2));
+ }
+-inline int32 GetSpellDuration(SpellEntry const* spellInfo) {
+-    return spellInfo ? spellInfo->GetDuration() : 0;
+-}
+-inline bool IsChanneledSpell(SpellEntry const* spellInfo) {
+-    return spellInfo && spellInfo->IsChanneledSpell();
+-}
+ inline SpellSchoolMask GetSpellSchoolMask(SpellEntry const* spellInfo) {
+     return spellInfo ? SpellSchoolMask(spellInfo->GetSpellSchoolMask()) : SpellSchoolMask(0);
+ }
+diff --git a/modules/mod-playerbots/src/playerbot/PlayerbotAI.cpp b/modules/mod-playerbots/src/playerbot/PlayerbotAI.cpp
+index e9c3590ed906651c881e3218b317fae6073088f7..d0ad8451372841351e3d16c8c230be01f2ef582b 100644
+--- a/modules/mod-playerbots/src/playerbot/PlayerbotAI.cpp
++++ b/modules/mod-playerbots/src/playerbot/PlayerbotAI.cpp
+@@ -4994,7 +4994,7 @@ bool PlayerbotAI::CanCastVehicleSpell(uint32 spellId, Unit* target)
+     if (!(siegePos.isSet() || spellTarget != vehicle) && spellInfo->Targets & TARGET_FLAG_DEST_LOCATION)
+         return false;
+ 
+-    uint32 CastingTime = !IsChanneledSpell(spellInfo) ? GetSpellCastTime(spellInfo, vehicle) : GetSpellDuration(spellInfo);
++    uint32 CastingTime = !spellInfo->IsChanneledSpell() ? spellInfo->GetCastTime(vehicle) : spellInfo->GetDuration();
+ 
+     if (CastingTime && vehicle->IsMoving())
+         return false;
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/TellCastFailedAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/TellCastFailedAction.cpp
+index f58385f6dda55db4251630e1aace69eccc44a4e3..7b1b9479fb80b49e725fb11893743292af9503eb 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/TellCastFailedAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/TellCastFailedAction.cpp
+@@ -44,11 +44,7 @@ bool TellCastFailedAction::Execute(Event& event)
+     default:
+         out << "cannot cast";
+     }
+-    int32 castTime = GetSpellCastTime(pSpellInfo
+-#ifdef CMANGOS
+-            , bot
+-#endif
+-    );
++    int32 castTime = pSpellInfo ? int32(pSpellInfo->GetCastTime(bot)) : 0;
+     if (castTime >= 2000)
+         ai->TellError(requester, out.str());
+     return true;
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/generic/CastTimeStrategy.cpp b/modules/mod-playerbots/src/playerbot/strategy/generic/CastTimeStrategy.cpp
+index 20f1eb87900e739aa75851c54a5159181143e882..1f6425d61ae51a43a6917750cd4b6593cc1c57a6 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/generic/CastTimeStrategy.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/generic/CastTimeStrategy.cpp
+@@ -28,7 +28,7 @@ float CastTimeMultiplier::GetValue(Action* action)
+         else if (spellId && pSpellInfo->Targets & TARGET_FLAG_SOURCE_LOCATION)
+             return 1.0f;
+ 
+-        uint32 castTime = GetSpellCastTime(pSpellInfo, bot);
++        uint32 castTime = pSpellInfo->GetCastTime(bot);
+         if (spellId && castTime >= 3000)
+             return 0.0f;
+ 
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/generic/CombatStrategy.cpp b/modules/mod-playerbots/src/playerbot/strategy/generic/CombatStrategy.cpp
+index 39d8c24207cff937c979e97310f8fb72d5c45d82..67fcc5b51ff48df46a9d5b68cdd52643555d2ab3 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/generic/CombatStrategy.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/generic/CombatStrategy.cpp
+@@ -50,7 +50,7 @@ float AvoidAoeStrategyMultiplier::GetValue(Action* action)
+     else if (spellId && pSpellInfo->Targets & TARGET_FLAG_SOURCE_LOCATION)
+         return 1.0f;
+ 
+-    uint32 CastingTime = !IsChanneledSpell(pSpellInfo) ? GetSpellCastTime(pSpellInfo, bot) : GetSpellDuration(pSpellInfo);
++    uint32 CastingTime = !pSpellInfo->IsChanneledSpell() ? pSpellInfo->GetCastTime(bot) : pSpellInfo->GetDuration();
+ 
+     if (AI_VALUE2(bool, "has area debuff", "self target") && spellId && CastingTime > 0)
+     {

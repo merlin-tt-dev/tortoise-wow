@@ -1,0 +1,1 @@
+8dedd9c508e1b77099c0d7c31594d582a4c24d0c6bb08124c0b89f1fb34d255e  patches/mod/0067-build-compatibility-pass-38-native-quest-source-spell.patch

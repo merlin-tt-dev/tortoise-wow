@@ -1,0 +1,5 @@
+modules/mod-playerbots/src/cmangos-compat-shim.h
+modules/mod-playerbots/src/playerbot/PlayerbotAI.cpp
+modules/mod-playerbots/src/playerbot/strategy/actions/TellCastFailedAction.cpp
+modules/mod-playerbots/src/playerbot/strategy/generic/CastTimeStrategy.cpp
+modules/mod-playerbots/src/playerbot/strategy/generic/CombatStrategy.cpp

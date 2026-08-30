@@ -1,0 +1,52 @@
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/AcceptQuestAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/AcceptQuestAction.cpp
+index cf4fd562734d5dab77fd9338b87c218e3a79bc1e..23722ac9a18225e6fbeaae1ea58e56b48a615841 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/AcceptQuestAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/AcceptQuestAction.cpp
+@@ -130,14 +130,7 @@ bool AcceptQuestShareAction::Execute(Event& event)
+ 
+         if( qInfo->GetSrcSpell() > 0 )
+         {
+-            bot->CastSpell( bot, qInfo->GetSrcSpell(),
+-#ifdef MANGOS
+-                    true
+-#endif
+-#ifdef CMANGOS
+-                    (uint32)0
+-#endif
+-            );
++            bot->CastSpell(bot, qInfo->GetSrcSpell(), true);
+         }
+ 
+         ai->TellPlayer(requester, BOT_TEXT("quest_accept"), PlayerbotSecurityLevel::PLAYERBOT_SECURITY_ALLOW_ALL, false);
+@@ -175,14 +168,7 @@ bool ConfirmQuestAction::Execute(Event& event)
+ 
+         if( qInfo->GetSrcSpell() > 0 )
+         {
+-            bot->CastSpell( bot, qInfo->GetSrcSpell(),
+-#ifdef MANGOS
+-                    true
+-#endif
+-#ifdef CMANGOS
+-                    (uint32)0
+-#endif
+-            );
++            bot->CastSpell(bot, qInfo->GetSrcSpell(), true);
+         }
+ 
+         ai->TellPlayer(requester, BOT_TEXT("quest_accept"), PlayerbotSecurityLevel::PLAYERBOT_SECURITY_ALLOW_ALL, false);
+@@ -225,14 +211,7 @@ bool QuestDetailsAction::Execute(Event& event)
+ 
+         if (qInfo->GetSrcSpell() > 0)
+         {
+-            bot->CastSpell(bot, qInfo->GetSrcSpell(),
+-#ifdef MANGOS
+-                true
+-#endif
+-#ifdef CMANGOS
+-                (uint32)0
+-#endif
+-            );
++            bot->CastSpell(bot, qInfo->GetSrcSpell(), true);
+         }
+ 
+         ai->TellPlayer(requester, BOT_TEXT("quest_accept"), PlayerbotSecurityLevel::PLAYERBOT_SECURITY_ALLOW_ALL, false);

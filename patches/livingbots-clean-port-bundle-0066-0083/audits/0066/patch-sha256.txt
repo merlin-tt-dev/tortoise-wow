@@ -1,0 +1,1 @@
+011c978de1485c0292ef91f2d72b390e2211870c38cb3bf0f120b844cedba79a  patches/mod/0066-build-compatibility-pass-37-native-talent-points.patch
