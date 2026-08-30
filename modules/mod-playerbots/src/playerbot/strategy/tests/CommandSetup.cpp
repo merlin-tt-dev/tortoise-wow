@@ -21,7 +21,7 @@ TestResult CommandSetupTeleport::Execute(const std::string& params, Player* bot,
         return TestResult::IMPOSSIBLE;
     }
 
-    if (bot->TeleportTo(loc.mapid, loc.coord_x, loc.coord_y, loc.coord_z, bot->GetOrientation()))
+    if (bot->TeleportTo(loc.getMapId(), loc.getX(), loc.getY(), loc.getZ(), bot->GetOrientation()))
     {
         return TestResult::PASS;
     }
@@ -60,13 +60,13 @@ TestResult CommandSetupGM::Execute(const std::string& params, Player* bot, Playe
     }
     else if (params == "fly on")
     {
-        bot->SetCanFly(true);
+        bot->SetFly(true);
         bot->GetSession()->SendNotification(LANG_COMMAND_FLYMODE_STATUS);
         return TestResult::PASS;
     }
     else if (params == "fly off")
     {
-        bot->SetCanFly(false);
+        bot->SetFly(false);
         bot->GetSession()->SendNotification(LANG_COMMAND_FLYMODE_STATUS);
         return TestResult::PASS;
     }
