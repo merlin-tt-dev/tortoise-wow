@@ -116,7 +116,7 @@ bool MountValue::IsValidLocation(Player* bot)
         uint32 zone, area;
         bot->GetZoneAndAreaId(zone, area);
         uint32 v_map = GetVirtualMapForMapAndZone(bot->GetMapId(), zone);
-        MapEntry const* mapEntry = sMapStore.LookupEntry(v_map);
+        MapEntry const* mapEntry = sMapStorage.LookupEntry<MapEntry>(v_map);
         if (!mapEntry || mapEntry->addon < 1 || !mapEntry->IsContinent())
             return false;
 #endif

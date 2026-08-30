@@ -98,16 +98,6 @@ struct CmangosItemStorageProxy
 };
 inline CmangosItemStorageProxy sItemStorage;
 
-// Singleton-like wrapper for cmangos's sMapStore. Penqle uses sMapStorage (SQLStorage).
-struct MapEntry;  // defined in Maps/Map.h
-struct CmangosMapStoreProxy
-{
-    template<typename T = MapEntry>
-    T const* LookupEntry(uint32 id) const { return sMapStorage.LookupEntry<MapEntry>(id); }
-    uint32 GetNumRows() const { return sMapStorage.GetMaxEntry(); }
-};
-inline CmangosMapStoreProxy sMapStore;
-
 // Singleton-like wrapper for cmangos's sFactionTemplateStore.
 struct FactionTemplateEntry;  // defined in Database/DBCStructure.h
 struct CmangosFactionTemplateStoreProxy
@@ -282,23 +272,9 @@ inline bool IsNonCombatSpell(SpellEntry const* spellInfo) {
     return spellInfo && spellInfo->IsNonCombatSpell();
 }
 
-// === MeetingStoneInfo / MeetingStoneSet (cmangos LFG) ===
-// Definition lives in LFGMgr.h so both host (game.vcxproj) and bot module see the same type.
-typedef std::vector<MeetingStoneInfo> MeetingStoneSet;
-
-// === LFGQueue ===
-// Penqle has its own LFGQueue in src/game/LFG/LFGMgr.h with stub methods added.
-// World::GetLFGQueue() forwards to sLFGMgr. Bot module uses the existing types.
-
 // === GetSpellStore (cmangos) → sSpellMgr (Penqle) ===
 // cmangos exposes a global GetSpellStore() returning the DBC store as a POINTER.
 inline CmangosSpellTemplateProxy* GetSpellStore() { return &sSpellTemplate; }
-
-// === WORLD_SESSION_STATE_* hoisted into global scope ===
-constexpr WorldSession::WorldSessionState WORLD_SESSION_STATE_CREATED = WorldSession::WORLD_SESSION_STATE_CREATED;
-constexpr WorldSession::WorldSessionState WORLD_SESSION_STATE_READY = WorldSession::WORLD_SESSION_STATE_READY;
-constexpr WorldSession::WorldSessionState WORLD_SESSION_STATE_OFFLINE = WorldSession::WORLD_SESSION_STATE_OFFLINE;
-constexpr WorldSession::WorldSessionState WORLD_SESSION_STATE_REMOVING = WorldSession::WORLD_SESSION_STATE_REMOVING;
 
 // === GetApplicationStartTime (cmangos) — free function returning startup timestamp ===
 inline std::chrono::system_clock::time_point GetApplicationStartTime() {
@@ -311,11 +287,6 @@ inline std::chrono::system_clock::time_point GetApplicationStartTime() {
 inline BattleGroundTeamIndex GetTeamIndexByTeamId(Team team) {
     return team == ALLIANCE ? BG_TEAM_ALLIANCE : BG_TEAM_HORDE;
 }
-
-// === Loot status flags (cmangos LootMgr.h) ===
-// Bot's LootValues.cpp returns bitflags describing loot state. Penqle has no equivalent
-// (its Loot just exposes items/gold). Define as bitflags so bot computes a value (which
-#endif
 
 // === SPELL_ATTR_ON_NEXT_SWING aliases ===
 // cmangos has SPELL_ATTR_ON_NEXT_SWING / _NO_DAMAGE; Penqle has SPELL_ATTR_ON_NEXT_SWING_1/_2.

@@ -356,7 +356,7 @@ bool WorldPosition::canFly() const
 
 #ifdef MANGOSBOT_ONE
     uint32 v_map = GetVirtualMapForMapAndZone(getMapId(), zoneid);
-    MapEntry const* mapEntry = sMapStore.LookupEntry(v_map);
+    MapEntry const* mapEntry = sMapStorage.LookupEntry<MapEntry>(v_map);
     if (!mapEntry || mapEntry->addon < 1 || !mapEntry->IsContinent())
         return false;
 #endif
