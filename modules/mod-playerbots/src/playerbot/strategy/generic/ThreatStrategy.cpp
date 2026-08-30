@@ -6,6 +6,20 @@
 
 using namespace ai;
 
+namespace
+{
+    void SendPlaySpellVisual(WorldSession* session, ObjectGuid guid, uint32 visualId)
+    {
+        if (!session)
+            return;
+
+        WorldPacket data(SMSG_PLAY_SPELL_VISUAL, 8 + 4);
+        data << guid;
+        data << visualId;
+        session->SendPacket(&data);
+    }
+}
+
 float ThreatMultiplier::GetValue(Action* action)
 {
     if (action == NULL || action->getThreatType() == ActionThreatType::ACTION_THREAT_NONE)
@@ -28,11 +42,11 @@ float ThreatMultiplier::GetValue(Action* action)
         {
             if (AI_VALUE2(bool, "trigger active", "high threat"))
             {
-                ai->GetMaster()->GetSession()->SendPlaySpellVisual(ai->GetBot()->GetObjectGuid(), 6372);
+                SendPlaySpellVisual(ai->GetMaster()->GetSession(), ai->GetBot()->GetObjectGuid(), 6372);
             }
             else if (AI_VALUE2(bool, "trigger active", "medium threat"))
             {
-                ai->GetMaster()->GetSession()->SendPlaySpellVisual(ai->GetBot()->GetObjectGuid(), 5036);
+                SendPlaySpellVisual(ai->GetMaster()->GetSession(), ai->GetBot()->GetObjectGuid(), 5036);
             }
         }
     }
