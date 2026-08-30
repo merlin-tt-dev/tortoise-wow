@@ -1,0 +1,16 @@
+# Aktiviert DIscordBot:
+# -DUSE_DISCORD_BOT=ON
+
+
+rm -rf build-full-audit
+cmake -S . -B build-full-audit -G Ninja \
+  -DACE_ROOT=/usr \
+  -DMODULE_MOD_PLAYERBOTS=static \
+  -DUSE_PCH=OFF \
+  -DUSE_SCRIPTS=ON \
+  -DUSE_EXTRACTORS=OFF \
+  -DUSE_DISCORD_BOT=ON \
+  -DCMAKE_BUILD_TYPE=Debug \
+  -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+
+ninja -C build-full-audit -j8 2>&1 | tee build-full-audit/full-build.log
