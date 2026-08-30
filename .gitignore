@@ -1,6 +1,7 @@
 /samples/
 /data/
 /build/
+/build-full-audit/
 /.vscode/
 *.kate-swp
 *.exe
