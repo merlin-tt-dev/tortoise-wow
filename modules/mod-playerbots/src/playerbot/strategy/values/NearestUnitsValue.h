@@ -64,8 +64,8 @@ namespace ai
             return unit->HasAuraType(SPELL_AURA_MOD_STEALTH) || unit->HasAuraType(SPELL_AURA_MOD_INVISIBILITY);
 
             /*uint32 dispelMask = 0;
-            dispelMask |= GetDispellMask(DispelType(DISPEL_STEALTH));
-            dispelMask |= GetDispellMask(DispelType(DISPEL_INVISIBILITY));
+            dispelMask |= Spells::GetDispellMask(DispelType(DISPEL_STEALTH));
+            dispelMask |= Spells::GetDispellMask(DispelType(DISPEL_INVISIBILITY));
 
             return unit->HasMechanicMaskOrDispelMaskAura(dispelMask, 0, bot);*/
         }

@@ -26,16 +26,8 @@
 #include <chrono>
 #include <random>
 
-// === Spells namespace functions hoisted to global scope ===
-// cmangos's bot calls IsPositiveSpell / GetDispellMask without namespace.
-// Penqle wraps these in `namespace Spells`. Bring them into global scope
-// for the bot's consumption.
-using Spells::IsPositiveSpell;
-using Spells::GetDispellMask;
+// Temporary compatibility for remaining unqualified passive-spell call sites.
 using Spells::IsPassiveSpell;
-// SpellEntry* overload: bot passes spellInfo directly.
-inline bool IsPositiveSpell(SpellEntry const* spellInfo) { return spellInfo && spellInfo->IsPositiveSpell(); }
-inline bool IsPositiveSpell(SpellEntry const* spellInfo, WorldObject const* caster, WorldObject const* victim) { return spellInfo && spellInfo->IsPositiveSpell(caster, victim); }
 
 // === Helpers ===
 // strstri overload: bot's PlayerbotAI.cpp forward-declares strstri(std::string, std::string).
@@ -49,35 +41,5 @@ inline const char* strstr(std::string const& haystack, const char* needle) {
     return std::strstr(haystack.c_str(), needle);
 }
 
-// === BattleGroundMgr alias ===
-// Done via forwarder in Penqle's BattleGroundMgr.h (BgTemplateId → BGTemplateId).
-
-// === IsSpellAppliesAura / IsSpellHaveEffect / IsAreaAuraEffect (cmangos free functions) ===
-inline bool IsSpellAppliesAura(SpellEntry const* spellInfo, uint32 effectMask = 0xFFFFFFFF) {
-    return spellInfo && spellInfo->IsSpellAppliesAura(effectMask);
-}
-inline bool IsAreaAuraEffect(uint32 effect) {
-    return effect == SPELL_EFFECT_APPLY_AREA_AURA_PARTY || effect == SPELL_EFFECT_APPLY_AREA_AURA_FRIEND
-        || effect == SPELL_EFFECT_APPLY_AREA_AURA_ENEMY || effect == SPELL_EFFECT_APPLY_AREA_AURA_PET
-        || effect == SPELL_EFFECT_APPLY_AREA_AURA_OWNER;
-}
-
 // === LfgRoles (MANGOSBOT_TWO compatibility only) ===
 typedef ClassRoles LfgRoles;
-// === Remaining free-function compatibility helpers ===
-// IsNextMeleeSwingSpell: cmangos free function checking SPELL_ATTR_ON_NEXT_SWING_1/_2.
-inline bool IsNextMeleeSwingSpell(SpellEntry const* spellInfo) {
-    return spellInfo && (spellInfo->Attributes & (SPELL_ATTR_ON_NEXT_SWING_1 | SPELL_ATTR_ON_NEXT_SWING_2));
-}
-inline SpellSchoolMask GetSpellSchoolMask(SpellEntry const* spellInfo) {
-    return spellInfo ? SpellSchoolMask(spellInfo->GetSpellSchoolMask()) : SpellSchoolMask(0);
-}
-inline bool IsNonCombatSpell(SpellEntry const* spellInfo) {
-    return spellInfo && spellInfo->IsNonCombatSpell();
-}
-
-// === IsAutoRepeatRangedSpell (cmangos free function) ===
-// Penqle's SpellEntry has IsAutoRepeatRangedSpell as a method. Wrap as free fn.
-inline bool IsAutoRepeatRangedSpell(SpellEntry const* spellInfo) {
-    return spellInfo && (spellInfo->AttributesEx2 & SPELL_ATTR_EX2_AUTOREPEAT_FLAG);
-}
