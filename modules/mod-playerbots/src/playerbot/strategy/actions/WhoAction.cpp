@@ -24,7 +24,7 @@ bool WhoAction::Execute(Event& event)
     if (!owner->IsInWorld())
         return false;
 
-    if (owner->IsStunnedByLogout())
+    if (!owner->GetSession() || owner->GetSession()->isLogingOut())
         return false;
 
     if (!sObjectMgr.GetPlayer(owner->GetObjectGuid()))
