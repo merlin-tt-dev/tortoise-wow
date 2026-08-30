@@ -58,9 +58,6 @@
 
 using namespace ai;
 
-std::vector<std::string>& split(const std::string &s, char delim, std::vector<std::string> &elems);
-std::vector<std::string> split(const std::string &s, char delim);
-char * strstri (std::string str1, std::string str2);
 uint64 extractGuid(WorldPacket& packet);
 std::string &trim(std::string &s);
 

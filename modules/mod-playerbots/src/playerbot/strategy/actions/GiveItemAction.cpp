@@ -6,8 +6,6 @@
 
 using namespace ai;
 
-std::vector<std::string> split(const std::string &s, char delim);
-
 bool GiveItemAction::Execute(Event& event)
 {
     Player* requester = event.getOwner() ? event.getOwner() : GetMaster();

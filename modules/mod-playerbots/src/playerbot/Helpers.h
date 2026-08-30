@@ -1,5 +1,14 @@
 #pragma once
 
+#include <map>
+#include <string>
+#include <vector>
+
+void split(std::vector<std::string>& dest, std::string const& str, char const* delim);
+std::vector<std::string>& split(std::string const& s, char delim, std::vector<std::string>& elems);
+std::vector<std::string> split(std::string const& s, char delim);
+char* strstri(char const* haystack, char const* needle);
+
 template<typename T>
 std::map<int, T> filterList(std::vector<T> src, std::string filter)
 {

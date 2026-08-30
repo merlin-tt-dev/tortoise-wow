@@ -10,6 +10,7 @@
 #ifdef MANGOSBOT_TWO
 #include "LFG/LFGMgr.h"
 #include "LFG/LFG.h"
+using LfgRoles = ClassRoles;
 #endif
 #include "Battlegrounds/BattleGround.h"
 #include "Battlegrounds/BattleGroundMgr.h"

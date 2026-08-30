@@ -16,8 +16,6 @@ using namespace ai;
 
 constexpr std::string_view LOS_GOS_PARAM = "los gos";
 
-std::vector<std::string> split(const std::string& s, char delim);
-char* strstri(const char* haystack, const char* needle);
 
 bool GoAction::Execute(Event& event)
 {

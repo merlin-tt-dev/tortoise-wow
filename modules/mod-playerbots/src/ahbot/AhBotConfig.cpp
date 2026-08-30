@@ -2,7 +2,7 @@
 #include "AhBotConfig.h"
 #include "SystemConfig.h"
 #include "Log.h"
-std::vector<std::string> split(const std::string &s, char delim);
+#include "playerbot/Helpers.h"
 
 INSTANTIATE_SINGLETON_1(AhBotConfig);
 

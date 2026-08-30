@@ -383,8 +383,6 @@ bool ChooseTravelTargetAction::SetBestTarget(Player* requester, TravelTarget* ta
     return hasTarget;
 }
 
-std::vector<std::string> split(const std::string& s, char delim);
-char* strstri(const char* haystack, const char* needle);
 
 //Find a destination based on (part of) it's name. Includes zones, ncps and mobs. Picks the closest one that matches.
 DestinationList ChooseTravelTargetAction::FindDestination(PlayerTravelInfo info, std::string name, bool zones, bool npcs, bool quests, bool mobs, bool bosses, bool gather)

@@ -63,15 +63,6 @@ char *strstri(const char *haystack, const char *needle)
     return 0;
 }
 
-// PlayerbotAI.cpp forward-declares strstri(std::string, std::string).
-// Provide an implementation that forwards to the const char* version.
-char* strstri(std::string const& s1, std::string const& s2)
-{
-    return strstri(s1.c_str(), s2.c_str());
-}
-
-
-
 uint64 extractGuid(WorldPacket& packet)
 {
     uint8 mask;

@@ -16,6 +16,7 @@
 #include "Guild/Guild.h"
 
 #include "playerbotDefs.h"
+#include "playerbot/Helpers.h"
 #include "playerbot/PlayerbotHost.h"
 #include "playerbot/ProgressBar.h"
 #include "playerbot/PlayerbotAIAware.h"
@@ -28,8 +29,6 @@
 
 #define MANGOSBOT_VERSION 2
 
-std::vector<std::string> split(std::string const& s, char delim);
-void split(std::vector<std::string>& dest, std::string const& str, char const* delim);
 #ifndef WIN32
 int strcmpi(std::string s1, std::string s2);
 #endif

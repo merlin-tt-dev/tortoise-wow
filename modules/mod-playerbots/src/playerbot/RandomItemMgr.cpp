@@ -15,8 +15,6 @@
 
 #include "strategy/values/SharedValueContext.h"
 
-char * strstri (const char* str1, const char* str2);
-
 uint64 BotEquipKey::GetKey()
 {
     return level + 100 * clazz + 10000 * spec + 1000000 * slot + 100000000 * quality;

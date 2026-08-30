@@ -60,7 +60,7 @@ uint32 SpellIdValue::Calculate()
                 continue;
         }
 
-        if (itr->second.state == PLAYERSPELL_REMOVED || itr->second.disabled || IsPassiveSpell(spellId))
+        if (itr->second.state == PLAYERSPELL_REMOVED || itr->second.disabled || Spells::IsPassiveSpell(spellId))
             continue;
 
         const SpellEntry* pSpellInfo = sServerFacade.LookupSpellInfo(spellId);
@@ -94,7 +94,7 @@ uint32 SpellIdValue::Calculate()
     Pet* pet = bot->GetPet();
     if (spellIds.empty() && pet)
     {
-        for (PetSpellMap::const_iterator itr = pet->m_spells.begin(); itr != pet->m_spells.end(); ++itr)
+        for (PetSpellMap::const_iterator itr = pet->m_petSpells.begin(); itr != pet->m_petSpells.end(); ++itr)
         {
             uint32 spellId = itr->first;
             if (!ids.empty())
@@ -178,7 +178,7 @@ uint32 SpellIdValue::Calculate()
         for (std::set<uint32>::reverse_iterator i = spellIds.rbegin(); i != spellIds.rend(); ++i)
         {
             if (!highestSpellId) highestSpellId = *i;
-            if (sSpellMgr.IsSpellHigherRankOfSpell(*i, highestSpellId)) highestSpellId = *i;
+            if (sSpellMgr.IsHighRankOfSpell(*i, highestSpellId)) highestSpellId = *i;
             if (saveMana == rank) return *i;
             lowestSpellId = *i;
             rank++;
@@ -233,7 +233,7 @@ uint32 VehicleSpellIdValue::Calculate()
 
         if (spellId == 2)
             continue;
-        if (IsPassiveSpell(spellId))
+        if (Spells::IsPassiveSpell(spellId))
             continue;
         else
         {

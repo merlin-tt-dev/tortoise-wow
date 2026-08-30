@@ -5,8 +5,6 @@
 #include "playerbot/ServerFacade.h"
 using namespace ai;
 
-extern std::vector<std::string> split(const std::string &s, char delim);
-
 class PlayerWithoutAuraPredicate : public FindPlayerPredicate, public PlayerbotAIAware
 {
 public:

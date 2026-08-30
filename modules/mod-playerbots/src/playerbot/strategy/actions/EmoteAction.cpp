@@ -9,8 +9,6 @@ using namespace ai;
 
 std::map<std::string, uint32> EmoteActionBase::emotes;
 std::map<std::string, uint32> EmoteActionBase::textEmotes;
-char *strstri(const char *haystack, const char *needle);
-
 EmoteActionBase::EmoteActionBase(PlayerbotAI* ai, std::string name) : Action(ai, name)
 {
     if (emotes.empty()) InitEmotes();

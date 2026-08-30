@@ -14,9 +14,9 @@
 #include "AuctionHouse/AuctionHouseMgr.h"
 #include "ObjectMgr.h"
 
+#include "playerbot/Helpers.h"
 #include "playerbot/ProgressBar.h"
 using namespace ahbot;
-char * strstri (const char* str1, const char* str2);
 
 CategoryList CategoryList::instance;
 

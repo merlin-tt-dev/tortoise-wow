@@ -1,8 +1,7 @@
 #pragma once
+#include "playerbot/Helpers.h"
 #include "playerbot/ServerFacade.h"
 #include "values/ItemUsageValue.h"
-
-char * strstri (const char* str1, const char* str2);
 
 namespace ai
 {

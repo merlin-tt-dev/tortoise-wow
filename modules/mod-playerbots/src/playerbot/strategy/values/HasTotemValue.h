@@ -1,4 +1,5 @@
 #pragma once
+#include "playerbot/Helpers.h"
 #include "playerbot/strategy/Value.h"
 #include "TargetValue.h"
 #include "playerbot/LootObjectStack.h"

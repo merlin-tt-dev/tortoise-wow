@@ -32,8 +32,6 @@ bool GuildOrderValue::ParseOrderPrefix(const std::string& note, const std::strin
     return true;
 }
 
-char* strstri(const char* haystack, const char* needle);
-
 uint32 GuildOrderValue::FindItemByName(const std::string& name)
 {
     static std::unordered_map<std::string, uint32> s_cache;
