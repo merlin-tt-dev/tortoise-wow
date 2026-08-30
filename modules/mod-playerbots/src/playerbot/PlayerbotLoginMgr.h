@@ -1,5 +1,7 @@
 #include "WorldPosition.h"
 
+#include <future>
+
 namespace ai
 {
 	typedef std::map<uint32, Player*> RealPlayers;
