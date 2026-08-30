@@ -15,10 +15,10 @@ bool StayActionBase::Stay(Player* requester)
 
     MotionMaster &mm = *bot->GetMotionMaster();
 #ifdef CMANGOS
-	if (mm.GetCurrentMovementGeneratorType() == TAXI_MOTION_TYPE || bot->IsTaxiFlying())
+    if (mm.GetCurrentMovementGeneratorType() == FLIGHT_MOTION_TYPE || bot->IsTaxiFlying())
 #endif
 #ifdef MANGOS
-	if (mm.GetCurrentMovementGeneratorType() == FLIGHT_MOTION_TYPE || bot->IsFlying())
+    if (mm.GetCurrentMovementGeneratorType() == FLIGHT_MOTION_TYPE || bot->IsFlying())
 #endif
 	{
 		if (verbose) ai->TellError(requester, "I can not stay, I'm flying!");
@@ -38,8 +38,8 @@ bool StayActionBase::Stay(Player* requester)
         return false;
 
     ai->StopMoving();
-	bot->clearUnitState(UNIT_STAT_CHASE);
-	bot->clearUnitState(UNIT_STAT_FOLLOW);
+    bot->ClearUnitState(UNIT_STAT_CHASE);
+    bot->ClearUnitState(UNIT_STAT_FOLLOW);
 
     return true;
 }
