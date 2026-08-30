@@ -130,14 +130,7 @@ bool AcceptQuestShareAction::Execute(Event& event)
 
         if( qInfo->GetSrcSpell() > 0 )
         {
-            bot->CastSpell( bot, qInfo->GetSrcSpell(),
-#ifdef MANGOS
-                    true
-#endif
-#ifdef CMANGOS
-                    (uint32)0
-#endif
-            );
+            bot->CastSpell(bot, qInfo->GetSrcSpell(), true);
         }
 
         ai->TellPlayer(requester, BOT_TEXT("quest_accept"), PlayerbotSecurityLevel::PLAYERBOT_SECURITY_ALLOW_ALL, false);
@@ -175,14 +168,7 @@ bool ConfirmQuestAction::Execute(Event& event)
 
         if( qInfo->GetSrcSpell() > 0 )
         {
-            bot->CastSpell( bot, qInfo->GetSrcSpell(),
-#ifdef MANGOS
-                    true
-#endif
-#ifdef CMANGOS
-                    (uint32)0
-#endif
-            );
+            bot->CastSpell(bot, qInfo->GetSrcSpell(), true);
         }
 
         ai->TellPlayer(requester, BOT_TEXT("quest_accept"), PlayerbotSecurityLevel::PLAYERBOT_SECURITY_ALLOW_ALL, false);
@@ -225,14 +211,7 @@ bool QuestDetailsAction::Execute(Event& event)
 
         if (qInfo->GetSrcSpell() > 0)
         {
-            bot->CastSpell(bot, qInfo->GetSrcSpell(),
-#ifdef MANGOS
-                true
-#endif
-#ifdef CMANGOS
-                (uint32)0
-#endif
-            );
+            bot->CastSpell(bot, qInfo->GetSrcSpell(), true);
         }
 
         ai->TellPlayer(requester, BOT_TEXT("quest_accept"), PlayerbotSecurityLevel::PLAYERBOT_SECURITY_ALLOW_ALL, false);
