@@ -7,6 +7,20 @@
 
 using namespace ai;
 
+namespace
+{
+void SendPlaySpellVisual(WorldSession* session, ObjectGuid guid, uint32 visualId)
+{
+    if (!session)
+        return;
+
+    WorldPacket data(SMSG_PLAY_SPELL_VISUAL, 8 + 4);
+    data << guid;
+    data << visualId;
+    session->SendPacket(&data);
+}
+}
+
 bool RTSCAction::Execute(Event& event)
 {
 	std::string command = event.getParam();
@@ -22,7 +36,7 @@ bool RTSCAction::Execute(Event& event)
 
 	if (command != "reset" && !requester->HasSpell(RTSC_MOVE_SPELL))
 	{
-		requester->learnSpell(RTSC_MOVE_SPELL, false);
+        requester->LearnSpell(RTSC_MOVE_SPELL, false);
 		ai->TellPlayerNoFacing(requester, "RTS control enabled.");
 		ai->TellPlayerNoFacing(requester, "Aedm (Awesome energetic do move) spell trained.");
 	}
@@ -30,7 +44,7 @@ bool RTSCAction::Execute(Event& event)
 	{
 		if (requester->HasSpell(RTSC_MOVE_SPELL))
 		{
-			requester->removeSpell(RTSC_MOVE_SPELL);
+            requester->RemoveSpell(RTSC_MOVE_SPELL);
 			ai->TellPlayerNoFacing(requester, "RTS control spell removed.");
 		}
 
@@ -49,7 +63,7 @@ bool RTSCAction::Execute(Event& event)
 	if (command == "select" && !selected)
 	{
 		SET_AI_VALUE(bool, "RTSC selected", true);
-		requester->GetSession()->SendPlaySpellVisual(bot->GetObjectGuid(), 5036);
+        SendPlaySpellVisual(requester->GetSession(), bot->GetObjectGuid(), 5036);
 		return true;
 	}
 	else if (command == "cancel")
@@ -57,7 +71,7 @@ bool RTSCAction::Execute(Event& event)
 		RESET_AI_VALUE(bool, "RTSC selected");
 		RESET_AI_VALUE(std::string, "RTSC next spell action");
 		if(selected)
-			requester->GetSession()->SendPlaySpellVisual(bot->GetObjectGuid(), 6372);
+            SendPlaySpellVisual(requester->GetSession(), bot->GetObjectGuid(), 6372);
 		return true;
 	}
 	else if (command == "toggle")
@@ -65,12 +79,12 @@ bool RTSCAction::Execute(Event& event)
 		if (!selected)
 		{
 			SET_AI_VALUE(bool, "RTSC selected", true);
-			requester->GetSession()->SendPlaySpellVisual(bot->GetObjectGuid(), 5036);
+            SendPlaySpellVisual(requester->GetSession(), bot->GetObjectGuid(), 5036);
 		}
 		else
 		{
 			SET_AI_VALUE(bool, "RTSC selected", false);
-			requester->GetSession()->SendPlaySpellVisual(bot->GetObjectGuid(), 6372);
+            SendPlaySpellVisual(requester->GetSession(), bot->GetObjectGuid(), 6372);
 		}
 
 		return true;
@@ -82,7 +96,7 @@ bool RTSCAction::Execute(Event& event)
 		WorldPosition spellPosition(bot);
 		SET_AI_VALUE2(WorldPosition, "RTSC saved location", locationName, spellPosition);
 
-		Creature* wpCreature = bot->SummonCreature(15631, spellPosition.getX(), spellPosition.getY(), spellPosition.getZ(), spellPosition.getO(), TEMPSPAWN_TIMED_DESPAWN, 2000.0f);
+        Creature* wpCreature = bot->SummonCreature(15631, spellPosition.getX(), spellPosition.getY(), spellPosition.getZ(), spellPosition.getO(), TEMPSUMMON_TIMED_DESPAWN, 2000.0f);
 		wpCreature->SetObjectScale(0.5f);
 
 		return true;
@@ -275,7 +289,7 @@ bool RTSCAction::Execute(Event& event)
 
 		if (spellPosition)
 		{
-			Creature* wpCreature = bot->SummonCreature(15631, spellPosition.getX(), spellPosition.getY(), spellPosition.getZ(), spellPosition.getO(), TEMPSPAWN_TIMED_DESPAWN, 2000.0f);
+                Creature* wpCreature = bot->SummonCreature(15631, spellPosition.getX(), spellPosition.getY(), spellPosition.getZ(), spellPosition.getO(), TEMPSUMMON_TIMED_DESPAWN, 2000.0f);
 			wpCreature->SetObjectScale(0.5f);
 		}
 

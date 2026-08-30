@@ -9,8 +9,12 @@ bool WaitForAttackKeepSafeDistanceAction::Execute(Event& event)
 {
     Unit* target = AI_VALUE(Unit*, "current target");
 
-    if (target && !target->IsStopped() && target->GetTarget() && target->GetTarget()->IsStopped())
-        target = target->GetTarget();
+    if (target && !target->IsStopped() && !target->GetTargetGuid().IsEmpty())
+    {
+        Unit* selectedTarget = target->GetMap()->GetUnit(target->GetTargetGuid());
+        if (selectedTarget && selectedTarget->IsStopped())
+            target = selectedTarget;
+    }
 
 
     if (target && target->IsAlive())
@@ -46,7 +50,7 @@ const ai::WorldPosition WaitForAttackKeepSafeDistanceAction::GetBestPoint(Unit* 
         for (uint32 dist = 0; dist < distance; dist++)
         {
             WorldPosition point = targetPosition + WorldPosition(0, dist * cos(startAngle), dist * sin(startAngle), 1.0f);
-            Creature* wpCreature = bot->SummonCreature(1, point.getX(), point.getY(), point.getZ(), 0.0f, TEMPSPAWN_TIMED_DESPAWN, 1000.0f + dist * 100.0f);
+            Creature* wpCreature = bot->SummonCreature(1, point.getX(), point.getY(), point.getZ(), 0.0f, TEMPSUMMON_TIMED_DESPAWN, 1000.0f + dist * 100.0f);
         }
     }
 
@@ -63,7 +67,7 @@ const ai::WorldPosition WaitForAttackKeepSafeDistanceAction::GetBestPoint(Unit* 
 
             if (ai->HasStrategy("debug move", BotState::BOT_STATE_COMBAT))
             {
-                Creature* wpCreature = bot->SummonCreature(1, point.getX(), point.getY(), point.getZ(), 0.0f, TEMPSPAWN_TIMED_DESPAWN, 5000.0f + tryAngle * 1000.0f);
+                Creature* wpCreature = bot->SummonCreature(1, point.getX(), point.getY(), point.getZ(), 0.0f, TEMPSUMMON_TIMED_DESPAWN, 5000.0f + tryAngle * 1000.0f);
             }
 
             // Check if the target is visible from the point
@@ -80,7 +84,7 @@ const ai::WorldPosition WaitForAttackKeepSafeDistanceAction::GetBestPoint(Unit* 
 
             if (ai->HasStrategy("debug move", BotState::BOT_STATE_COMBAT))
             {
-                Creature* wpCreature = bot->SummonCreature(15631, point.getX(), point.getY(), point.getZ(), 0.0f, TEMPSPAWN_TIMED_DESPAWN, 5000.0f + tryAngle * 1000.0f);
+                Creature* wpCreature = bot->SummonCreature(15631, point.getX(), point.getY(), point.getZ(), 0.0f, TEMPSUMMON_TIMED_DESPAWN, 5000.0f + tryAngle * 1000.0f);
             }
 
             return point;
@@ -103,7 +107,7 @@ bool WaitForAttackKeepSafeDistanceAction::IsEnemyClose(const WorldPosition& poin
             if (enemy->IsWithinLOSInMap(bot))
             {
                 // If the enemy is not neutral
-                if (enemy->CanAttackOnSight(bot))
+                if (enemy->CanAttack(bot))
                 {
                     const float enemyAttackRange = sServerFacade.GetAggroDistance(enemy, bot) + ATTACK_DISTANCE;
                     const float distanceToPoint = WorldPosition(enemy).sqDistance(point);

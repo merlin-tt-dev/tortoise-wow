@@ -12,8 +12,8 @@ bool NetherspiteBeamsCheatNeedRefreshTrigger::IsActive()
 {
     //Checking that is portal phase
     std::list<Unit*> creatures;
-    MaNGOS::AllCreaturesOfEntryInRangeCheck u_check(bot, 17369, 100);
-    MaNGOS::UnitListSearcher<MaNGOS::AllCreaturesOfEntryInRangeCheck> searcher(creatures, u_check);
+    MaNGOS::AllCreaturesOfEntryInRange u_check(bot, 17369, 100);
+    MaNGOS::UnitListSearcher<MaNGOS::AllCreaturesOfEntryInRange> searcher(creatures, u_check);
     Cell::VisitAllObjects(bot, searcher, 100);
 
     if (creatures.empty())

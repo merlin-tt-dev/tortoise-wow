@@ -173,8 +173,8 @@ std::list<ObjectGuid> CloseToCreatureHazardTrigger::GetPossibleHazards()
     std::list<ObjectGuid> possibleHazards;
 
     std::list<Unit*> creatures;
-    MaNGOS::AllCreaturesOfEntryInRangeCheck u_check(bot, creatureID, hazardRadius);
-    MaNGOS::UnitListSearcher<MaNGOS::AllCreaturesOfEntryInRangeCheck> searcher(creatures, u_check);
+    MaNGOS::AllCreaturesOfEntryInRange u_check(bot, creatureID, hazardRadius);
+    MaNGOS::UnitListSearcher<MaNGOS::AllCreaturesOfEntryInRange> searcher(creatures, u_check);
     Cell::VisitAllObjects(bot, searcher, hazardRadius);
     for (Unit* unit : creatures)
     {
@@ -225,8 +225,8 @@ bool CloseToCreatureTrigger::IsActive()
 
         // Iterate through the near creatures
         std::list<Unit*> creatures;
-        MaNGOS::AllCreaturesOfEntryInRangeCheck u_check(bot, creatureID, range);
-        MaNGOS::UnitListSearcher<MaNGOS::AllCreaturesOfEntryInRangeCheck> searcher(creatures, u_check);
+        MaNGOS::AllCreaturesOfEntryInRange u_check(bot, creatureID, range);
+        MaNGOS::UnitListSearcher<MaNGOS::AllCreaturesOfEntryInRange> searcher(creatures, u_check);
         Cell::VisitAllObjects(bot, searcher, range);
         for (Unit* unit : creatures)
         {

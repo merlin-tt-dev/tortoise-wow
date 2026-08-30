@@ -63,7 +63,7 @@ bool MoveAwayFromHazard::Execute(Event& event)
                     {
                         if (ai->HasStrategy("debug move", BotState::BOT_STATE_COMBAT))
                         {
-                            bot->SummonCreature(15631, point.getX(), point.getY(), point.getZ(), 0.0f, TEMPSPAWN_TIMED_DESPAWN, 5000.0f);
+                            bot->SummonCreature(15631, point.getX(), point.getY(), point.getZ(), 0.0f, TEMPSUMMON_TIMED_DESPAWN, 5000.0f);
                         }
 
                         if (MoveTo(bot->GetMapId(), point.getX(), point.getY(), point.getZ(), false, IsReaction(), false, true))
@@ -80,7 +80,7 @@ bool MoveAwayFromHazard::Execute(Event& event)
 
                 if (ai->HasStrategy("debug move", BotState::BOT_STATE_COMBAT))
                 {
-                    bot->SummonCreature(1, point.getX(), point.getY(), point.getZ(), 0.0f, TEMPSPAWN_TIMED_DESPAWN, 5000.0f);
+                    bot->SummonCreature(1, point.getX(), point.getY(), point.getZ(), 0.0f, TEMPSUMMON_TIMED_DESPAWN, 5000.0f);
                 }
 
                 angle += angleIncrement;
@@ -126,8 +126,8 @@ bool MoveAwayFromCreature::Execute(Event& event)
 
     // Iterate through the near creatures
     std::list<Unit*> units;
-    MaNGOS::AllCreaturesOfEntryInRangeCheck u_check(bot, creatureID, range);
-    MaNGOS::UnitListSearcher<MaNGOS::AllCreaturesOfEntryInRangeCheck> searcher(units, u_check);
+    MaNGOS::AllCreaturesOfEntryInRange u_check(bot, creatureID, range);
+    MaNGOS::UnitListSearcher<MaNGOS::AllCreaturesOfEntryInRange> searcher(units, u_check);
     Cell::VisitAllObjects(bot, searcher, range);
     for (Unit* unit : units)
     {
@@ -196,7 +196,7 @@ bool MoveAwayFromCreature::Execute(Event& event)
         {
             if (ai->HasStrategy("debug move", BotState::BOT_STATE_COMBAT))
             {
-                bot->SummonCreature(15631, validPoint->getX(), validPoint->getY(), validPoint->getZ(), 0.0f, TEMPSPAWN_TIMED_DESPAWN, 5000.0f);
+                bot->SummonCreature(15631, validPoint->getX(), validPoint->getY(), validPoint->getZ(), 0.0f, TEMPSUMMON_TIMED_DESPAWN, 5000.0f);
             }
 
             if (MoveTo(bot->GetMapId(), validPoint->getX(), validPoint->getY(), validPoint->getZ(), false, IsReaction(), false, true))
@@ -212,8 +212,8 @@ bool MoveAwayFromCreature::Execute(Event& event)
 
         if (ai->HasStrategy("debug move", BotState::BOT_STATE_COMBAT))
         {
-            bot->SummonCreature(1, pointLeft.getX(), pointLeft.getY(), pointLeft.getZ(), 0.0f, TEMPSPAWN_TIMED_DESPAWN, 5000.0f);
-            bot->SummonCreature(1, pointRight.getX(), pointRight.getY(), pointRight.getZ(), 0.0f, TEMPSPAWN_TIMED_DESPAWN, 5000.0f);
+            bot->SummonCreature(1, pointLeft.getX(), pointLeft.getY(), pointLeft.getZ(), 0.0f, TEMPSUMMON_TIMED_DESPAWN, 5000.0f);
+            bot->SummonCreature(1, pointRight.getX(), pointRight.getY(), pointRight.getZ(), 0.0f, TEMPSUMMON_TIMED_DESPAWN, 5000.0f);
         }
 
         angleLeft += angleIncrement;

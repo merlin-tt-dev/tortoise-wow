@@ -128,28 +128,6 @@ inline CmangosFactionTemplateStoreProxy sFactionTemplateStore;
 // Penqle uses _ItemSpell (current naming). They're the same shape.
 typedef _ItemSpell _Spell;
 
-// cmangos has TEMPSPAWN_* enum values; Penqle has TEMPSUMMON_*. Map.
-#ifndef TEMPSPAWN_TIMED_DESPAWN
-#define TEMPSPAWN_TIMED_DESPAWN TEMPSUMMON_TIMED_DESPAWN
-#endif
-#ifndef TEMPSPAWN_TIMED_OR_DEAD_DESPAWN
-#define TEMPSPAWN_TIMED_OR_DEAD_DESPAWN TEMPSUMMON_TIMED_OR_DEAD_DESPAWN
-#endif
-#ifndef TEMPSPAWN_TIMED_OR_CORPSE_DESPAWN
-#define TEMPSPAWN_TIMED_OR_CORPSE_DESPAWN TEMPSUMMON_TIMED_OR_CORPSE_DESPAWN
-#endif
-#ifndef TEMPSPAWN_DEAD_DESPAWN
-#define TEMPSPAWN_DEAD_DESPAWN TEMPSUMMON_DEAD_DESPAWN
-#endif
-#ifndef TEMPSPAWN_CORPSE_DESPAWN
-#define TEMPSPAWN_CORPSE_DESPAWN TEMPSUMMON_CORPSE_DESPAWN
-#endif
-#ifndef TEMPSPAWN_CORPSE_TIMED_DESPAWN
-#define TEMPSPAWN_CORPSE_TIMED_DESPAWN TEMPSUMMON_CORPSE_TIMED_DESPAWN
-#endif
-#ifndef TEMPSPAWN_MANUAL_DESPAWN
-#define TEMPSPAWN_MANUAL_DESPAWN TEMPSUMMON_MANUAL_DESPAWN
-#endif
 
 // === Spells namespace functions hoisted to global scope ===
 // cmangos's bot calls IsPositiveSpell / GetDispellMask without namespace.
@@ -317,9 +295,6 @@ inline SpellSchoolMask GetSpellSchoolMask(SpellEntry const* spellInfo) {
 inline bool IsNonCombatSpell(SpellEntry const* spellInfo) {
     return spellInfo && spellInfo->IsNonCombatSpell();
 }
-inline bool IsPositiveEffect(SpellEntry const* spellInfo, SpellEffectIndex eff) {
-    return spellInfo && spellInfo->IsPositiveEffect(eff);
-}
 
 // === MeetingStoneInfo / MeetingStoneSet (cmangos LFG) ===
 // Definition lives in LFGMgr.h so both host (game.vcxproj) and bot module see the same type.
@@ -365,14 +340,6 @@ inline BattleGroundTeamIndex GetTeamIndexByTeamId(Team team) {
 #define SPELL_ATTR_ON_NEXT_SWING_NO_DAMAGE SPELL_ATTR_ON_NEXT_SWING_2
 #endif
 
-// === UNIT_FLAG_UNTARGETABLE / UNIT_FLAG_UNINTERACTIBLE (cmangos names) ===
-// Penqle uses UNIT_FLAG_NOT_SELECTABLE for both concepts.
-#ifndef UNIT_FLAG_UNTARGETABLE
-#define UNIT_FLAG_UNTARGETABLE UNIT_FLAG_NOT_SELECTABLE
-#endif
-#ifndef UNIT_FLAG_UNINTERACTIBLE
-#define UNIT_FLAG_UNINTERACTIBLE UNIT_FLAG_NOT_SELECTABLE
-#endif
 
 // === IsAutoRepeatRangedSpell (cmangos free function) ===
 // Penqle's SpellEntry has IsAutoRepeatRangedSpell as a method. Wrap as free fn.
