@@ -840,6 +840,7 @@ class ObjectMgr
         void RemoveGraveYardLink(uint32 id, uint32 zone, Team team, bool inDB = false);
         void LoadGraveyardZones();
         GraveYardData const* FindGraveYardData(uint32 id, uint32 zone) const;
+        GraveYardMap const& GetGraveYardMap() const { return m_GraveYardMap; }
         void LoadWorldSafeLocsFacing();
         float GetWorldSafeLocFacing(uint32 id) const;
         CustomCharacterSkinEntry const* GetCustomCharacterSkin(uint32 token_id);
