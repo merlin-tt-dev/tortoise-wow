@@ -1,0 +1,1 @@
+SHA256 verification is regenerated at bundle freeze. Final archive was also unpacked and verified after creation.

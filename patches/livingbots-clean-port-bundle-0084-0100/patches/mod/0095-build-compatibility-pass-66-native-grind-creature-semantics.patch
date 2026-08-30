@@ -1,0 +1,22 @@
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/GrindTargetValue.cpp b/modules/mod-playerbots/src/playerbot/strategy/values/GrindTargetValue.cpp
+index 72920766c960d743d6db370cebe4903f0c63e843..f3d94e1bcf9df50d4cdffc78f1b1f8a1230c6e08 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/GrindTargetValue.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/GrindTargetValue.cpp
+@@ -184,7 +184,7 @@ Unit* GrindTargetValue::FindTargetForGrinding(int assistCount)
+         }
+ 
+         Creature* creature = dynamic_cast<Creature*>(unit);
+-        if (creature && creature->GetCreatureInfo() && creature->GetCreatureInfo()->Rank > CREATURE_ELITE_NORMAL && !AI_VALUE(bool, "can fight elite") &&
++        if (creature && creature->GetCreatureInfo() && creature->GetCreatureInfo()->rank > CREATURE_ELITE_NORMAL && !AI_VALUE(bool, "can fight elite") &&
+             !AI_VALUE2(bool, "trigger active", "in vehicle"))
+         {
+             if (ai->HasStrategy("debug grind", BotState::BOT_STATE_NON_COMBAT))
+@@ -206,7 +206,7 @@ Unit* GrindTargetValue::FindTargetForGrinding(int assistCount)
+             continue;
+         }
+ 
+-        if (creature && creature->IsCritter() && urand(0, 10))
++        if (creature && creature->GetCreatureType() == CREATURE_TYPE_CRITTER && urand(0, 10))
+         {
+             if (ai->HasStrategy("debug grind", BotState::BOT_STATE_NON_COMBAT))
+                 ai->TellPlayer(GetMaster(), chat->formatWorldobject(unit) + " ignored (ignore critters).");

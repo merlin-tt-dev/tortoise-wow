@@ -1,0 +1,310 @@
+diff --git a/modules/mod-playerbots/src/ahbot/AhBotConfig.cpp b/modules/mod-playerbots/src/ahbot/AhBotConfig.cpp
+index d79c0c35f527d093d04f4592c9229fdad96bfbc0..dc265b786f9d16aee55f1f21e54ef4a6835077bc 100644
+--- a/modules/mod-playerbots/src/ahbot/AhBotConfig.cpp
++++ b/modules/mod-playerbots/src/ahbot/AhBotConfig.cpp
+@@ -2,7 +2,7 @@
+ #include "AhBotConfig.h"
+ #include "SystemConfig.h"
+ #include "Log.h"
+-std::vector<std::string> split(const std::string &s, char delim);
++#include "playerbot/Helpers.h"
+ 
+ INSTANTIATE_SINGLETON_1(AhBotConfig);
+ 
+diff --git a/modules/mod-playerbots/src/ahbot/ItemBag.cpp b/modules/mod-playerbots/src/ahbot/ItemBag.cpp
+index 8fdac417a91441425dfb79a1be97aa1fa4d660d8..b2bce5c2dde91c3e0147a3e7a64e38868e423242 100644
+--- a/modules/mod-playerbots/src/ahbot/ItemBag.cpp
++++ b/modules/mod-playerbots/src/ahbot/ItemBag.cpp
+@@ -14,9 +14,9 @@
+ #include "AuctionHouse/AuctionHouseMgr.h"
+ #include "ObjectMgr.h"
+ 
++#include "playerbot/Helpers.h"
+ #include "playerbot/ProgressBar.h"
+ using namespace ahbot;
+-char * strstri (const char* str1, const char* str2);
+ 
+ CategoryList CategoryList::instance;
+ 
+diff --git a/modules/mod-playerbots/src/botpch.h b/modules/mod-playerbots/src/botpch.h
+index 0d5b3f968ade356e7b4976a4fa2025fa48e0dab5..73fead7a7138e493b639ac2a76dd80f87854985b 100644
+--- a/modules/mod-playerbots/src/botpch.h
++++ b/modules/mod-playerbots/src/botpch.h
+@@ -35,11 +35,6 @@
+ #include "Maps/GridNotifiersImpl.h"
+ #include "Maps/CellImpl.h"
+ 
+-// cmangos -> Penqle compatibility shim. Must come AFTER Penqle's core headers
+-// (so the shim's proxy methods can inline-call sSpellMgr.GetSpellEntry(...) etc.)
+-// and BEFORE the bot module's own headers (which reference the shim's typedefs
+-// like ObjectGuidSet and Transport).
+-#include "cmangos-compat-shim.h"
+ #include "playerbot/PlayerbotHost.h"
+ 
+ // Boost headers (used across multiple files)
+diff --git a/modules/mod-playerbots/src/cmangos-compat-shim.h b/modules/mod-playerbots/src/cmangos-compat-shim.h
+deleted file mode 100644
+index eaf10be1fc1bdd510d6c8b1d7b601b49c908b18a..0000000000000000000000000000000000000000
+--- a/modules/mod-playerbots/src/cmangos-compat-shim.h
++++ /dev/null
+@@ -1,45 +0,0 @@
+-// cmangos/playerbots → Penqle/tortoise-wow compatibility shim.
+-//
+-// Provides the cmangos-side names/constants the vendored bot module references
+-// but Penqle either names differently or doesn't expose. Included by botpch.h
+-// as the first header in the PCH chain so all bot TUs see it.
+-//
+-// What's here:
+-//   - Type renames / typedef forwards
+-//   - Define mappings (cmangos constants → Penqle equivalents)
+-//   - Standard-library headers cmangos uses without explicit include
+-//
+-// What's NOT here (handled by per-call-site rewrites because they need
+-// contextual changes, not name remapping):
+-//   - DBC-store globals (sMapStore ↔ sMapStorage architecture)
+-//   - WorldPacket move-only assignment sites
+-//   - CreatureData::id (single field) vs Penqle's creature_id (array)
+-//   - PlayerbotAI internal signature mismatches
+-//   - GuidPosition diamond-inheritance ambiguity
+-
+-#pragma once
+-
+-// === Standard library headers the bot module uses without explicit includes ===
+-// PlayerbotAI.h declares methods taking std::future<...> but doesn't #include
+-// <future>. Penqle's botpch.h already pulls in many std headers but not this one.
+-#include <future>
+-#include <chrono>
+-#include <random>
+-
+-// Temporary compatibility for remaining unqualified passive-spell call sites.
+-using Spells::IsPassiveSpell;
+-
+-// === Helpers ===
+-// strstri overload: bot's PlayerbotAI.cpp forward-declares strstri(std::string, std::string).
+-// Penqle's playerbot/Helpers.cpp now provides the implementation (added).
+-// Re-declare here for visibility at all bot TUs.
+-char* strstri(std::string const& s1, std::string const& s2);
+-
+-// Overload of strstr taking std::string haystack — bot calls strstr(proto->Name1, "literal")
+-// where Name1 is std::string. Forward to libc strstr via .c_str().
+-inline const char* strstr(std::string const& haystack, const char* needle) {
+-    return std::strstr(haystack.c_str(), needle);
+-}
+-
+-// === LfgRoles (MANGOSBOT_TWO compatibility only) ===
+-typedef ClassRoles LfgRoles;
+diff --git a/modules/mod-playerbots/src/playerbot/Helpers.cpp b/modules/mod-playerbots/src/playerbot/Helpers.cpp
+index 16d2154694bd43e6eb7bf634299704707476ed0f..20962f31a8017bf273794c704fe2cf11b09bead4 100644
+--- a/modules/mod-playerbots/src/playerbot/Helpers.cpp
++++ b/modules/mod-playerbots/src/playerbot/Helpers.cpp
+@@ -63,15 +63,6 @@ char *strstri(const char *haystack, const char *needle)
+     return 0;
+ }
+ 
+-// PlayerbotAI.cpp forward-declares strstri(std::string, std::string).
+-// Provide an implementation that forwards to the const char* version.
+-char* strstri(std::string const& s1, std::string const& s2)
+-{
+-    return strstri(s1.c_str(), s2.c_str());
+-}
+-
+-
+-
+ uint64 extractGuid(WorldPacket& packet)
+ {
+     uint8 mask;
+diff --git a/modules/mod-playerbots/src/playerbot/Helpers.h b/modules/mod-playerbots/src/playerbot/Helpers.h
+index 569db73bc0b7d68ff251e25da053e3f4d28e8243..93e10538dbdeb07822b933577f2fded9200d4507 100644
+--- a/modules/mod-playerbots/src/playerbot/Helpers.h
++++ b/modules/mod-playerbots/src/playerbot/Helpers.h
+@@ -1,5 +1,14 @@
+ #pragma once
+ 
++#include <map>
++#include <string>
++#include <vector>
++
++void split(std::vector<std::string>& dest, std::string const& str, char const* delim);
++std::vector<std::string>& split(std::string const& s, char delim, std::vector<std::string>& elems);
++std::vector<std::string> split(std::string const& s, char delim);
++char* strstri(char const* haystack, char const* needle);
++
+ template<typename T>
+ std::map<int, T> filterList(std::vector<T> src, std::string filter)
+ {
+diff --git a/modules/mod-playerbots/src/playerbot/PlayerbotAI.cpp b/modules/mod-playerbots/src/playerbot/PlayerbotAI.cpp
+index d0ad8451372841351e3d16c8c230be01f2ef582b..a2a50b7ccf418d110faa73af8fcf55fe2046b3d5 100644
+--- a/modules/mod-playerbots/src/playerbot/PlayerbotAI.cpp
++++ b/modules/mod-playerbots/src/playerbot/PlayerbotAI.cpp
+@@ -58,9 +58,6 @@
+ 
+ using namespace ai;
+ 
+-std::vector<std::string>& split(const std::string &s, char delim, std::vector<std::string> &elems);
+-std::vector<std::string> split(const std::string &s, char delim);
+-char * strstri (std::string str1, std::string str2);
+ uint64 extractGuid(WorldPacket& packet);
+ std::string &trim(std::string &s);
+ 
+diff --git a/modules/mod-playerbots/src/playerbot/RandomItemMgr.cpp b/modules/mod-playerbots/src/playerbot/RandomItemMgr.cpp
+index bd70e260f7c7c8f9818f1f272a96eb359a9d8ff5..4046049d53d76c1b822407c69271968cef083b12 100644
+--- a/modules/mod-playerbots/src/playerbot/RandomItemMgr.cpp
++++ b/modules/mod-playerbots/src/playerbot/RandomItemMgr.cpp
+@@ -15,8 +15,6 @@
+ 
+ #include "strategy/values/SharedValueContext.h"
+ 
+-char * strstri (const char* str1, const char* str2);
+-
+ uint64 BotEquipKey::GetKey()
+ {
+     return level + 100 * clazz + 10000 * spec + 1000000 * slot + 100000000 * quality;
+diff --git a/modules/mod-playerbots/src/playerbot/playerbot.h b/modules/mod-playerbots/src/playerbot/playerbot.h
+index 4ad3f0e631c19ab9311cec401bcb4c0b8d93d639..a8286356e675d101febd393177ec5b98ef489243 100644
+--- a/modules/mod-playerbots/src/playerbot/playerbot.h
++++ b/modules/mod-playerbots/src/playerbot/playerbot.h
+@@ -16,6 +16,7 @@
+ #include "Guild/Guild.h"
+ 
+ #include "playerbotDefs.h"
++#include "playerbot/Helpers.h"
+ #include "playerbot/PlayerbotHost.h"
+ #include "playerbot/ProgressBar.h"
+ #include "playerbot/PlayerbotAIAware.h"
+@@ -28,8 +29,6 @@
+ 
+ #define MANGOSBOT_VERSION 2
+ 
+-std::vector<std::string> split(std::string const& s, char delim);
+-void split(std::vector<std::string>& dest, std::string const& str, char const* delim);
+ #ifndef WIN32
+ int strcmpi(std::string s1, std::string s2);
+ #endif
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/ItemVisitors.h b/modules/mod-playerbots/src/playerbot/strategy/ItemVisitors.h
+index 20d182d99f18141662a32908912bfc83732c79a3..af85296a08c7191d314f88e0456ce17bacff7cd4 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/ItemVisitors.h
++++ b/modules/mod-playerbots/src/playerbot/strategy/ItemVisitors.h
+@@ -1,9 +1,8 @@
+ #pragma once
++#include "playerbot/Helpers.h"
+ #include "playerbot/ServerFacade.h"
+ #include "values/ItemUsageValue.h"
+ 
+-char * strstri (const char* str1, const char* str2);
+-
+ namespace ai
+ {
+     class IterateItemsVisitor
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/ChooseTravelTargetAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/ChooseTravelTargetAction.cpp
+index 939b07e3fd1f24fedaeba5cee94826e3f11b9164..de2792a6faa33a87f55f1fe0fffa73c95386297c 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/ChooseTravelTargetAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/ChooseTravelTargetAction.cpp
+@@ -383,8 +383,6 @@ bool ChooseTravelTargetAction::SetBestTarget(Player* requester, TravelTarget* ta
+     return hasTarget;
+ }
+ 
+-std::vector<std::string> split(const std::string& s, char delim);
+-char* strstri(const char* haystack, const char* needle);
+ 
+ //Find a destination based on (part of) it's name. Includes zones, ncps and mobs. Picks the closest one that matches.
+ DestinationList ChooseTravelTargetAction::FindDestination(PlayerTravelInfo info, std::string name, bool zones, bool npcs, bool quests, bool mobs, bool bosses, bool gather)
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/EmoteAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/EmoteAction.cpp
+index 4816f22dbbc75e3cf2d4fb95c4c7a67bb858f983..54a97e3fbf2d6da1e6dfc1316716c42c0af00386 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/EmoteAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/EmoteAction.cpp
+@@ -9,8 +9,6 @@ using namespace ai;
+ 
+ std::map<std::string, uint32> EmoteActionBase::emotes;
+ std::map<std::string, uint32> EmoteActionBase::textEmotes;
+-char *strstri(const char *haystack, const char *needle);
+-
+ EmoteActionBase::EmoteActionBase(PlayerbotAI* ai, std::string name) : Action(ai, name)
+ {
+     if (emotes.empty()) InitEmotes();
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/GiveItemAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/GiveItemAction.cpp
+index deaaee49fd782cf0cf2cf4b878011551dd3e9be8..8cb15e7c0f0331ce13cba0ca0861d694e4df47f0 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/GiveItemAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/GiveItemAction.cpp
+@@ -6,8 +6,6 @@
+ 
+ using namespace ai;
+ 
+-std::vector<std::string> split(const std::string &s, char delim);
+-
+ bool GiveItemAction::Execute(Event& event)
+ {
+     Player* requester = event.getOwner() ? event.getOwner() : GetMaster();
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/GoAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/GoAction.cpp
+index 3b4733682256d607d6485abf14b61defdf637d13..2cb76ce293fd68bf8358a5bcd2ec3c89190a5199 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/GoAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/GoAction.cpp
+@@ -16,8 +16,6 @@ using namespace ai;
+ 
+ constexpr std::string_view LOS_GOS_PARAM = "los gos";
+ 
+-std::vector<std::string> split(const std::string& s, char delim);
+-char* strstri(const char* haystack, const char* needle);
+ 
+ bool GoAction::Execute(Event& event)
+ {
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/LfgActions.h b/modules/mod-playerbots/src/playerbot/strategy/actions/LfgActions.h
+index 4176415ce8205cf96f9f92e999dc4a782cff36b1..56d479b3423bc7fb9aed2cf900b6d932151f4bf1 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/LfgActions.h
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/LfgActions.h
+@@ -10,6 +10,7 @@
+ #ifdef MANGOSBOT_TWO
+ #include "LFG/LFGMgr.h"
+ #include "LFG/LFG.h"
++using LfgRoles = ClassRoles;
+ #endif
+ #include "Battlegrounds/BattleGround.h"
+ #include "Battlegrounds/BattleGroundMgr.h"
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/UnequipAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/UnequipAction.cpp
+index a8ceeef2acfd5bcfaae0bc0d81932afa9c4b5a57..3970c9c5d3958014120eaeaa9a33b1ac430e0f32 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/UnequipAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/UnequipAction.cpp
+@@ -6,8 +6,6 @@
+ 
+ using namespace ai;
+ 
+-std::vector<std::string> split(const std::string &s, char delim);
+-
+ bool UnequipAction::Execute(Event& event)
+ {
+     Player* requester = event.getOwner() ? event.getOwner() : GetMaster();
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/GuildValues.cpp b/modules/mod-playerbots/src/playerbot/strategy/values/GuildValues.cpp
+index 86a182f5bacc454e2f1a1eaab1a6c12549d3fc2b..51f29ada051aa76000db5e5bcc56fb3dc24b5508 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/GuildValues.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/GuildValues.cpp
+@@ -32,8 +32,6 @@ bool GuildOrderValue::ParseOrderPrefix(const std::string& note, const std::strin
+     return true;
+ }
+ 
+-char* strstri(const char* haystack, const char* needle);
+-
+ uint32 GuildOrderValue::FindItemByName(const std::string& name)
+ {
+     static std::unordered_map<std::string, uint32> s_cache;
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/HasTotemValue.h b/modules/mod-playerbots/src/playerbot/strategy/values/HasTotemValue.h
+index 80ea72811d514bb621abb1e9ce67e45546fe8fdf..d447aa67e1389c9881b0918bb51682b142392f65 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/HasTotemValue.h
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/HasTotemValue.h
+@@ -1,4 +1,5 @@
+ #pragma once
++#include "playerbot/Helpers.h"
+ #include "playerbot/strategy/Value.h"
+ #include "TargetValue.h"
+ #include "playerbot/LootObjectStack.h"
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/PartyMemberWithoutAuraValue.cpp b/modules/mod-playerbots/src/playerbot/strategy/values/PartyMemberWithoutAuraValue.cpp
+index 446b67f454e535e3dd24773532f40610eb03f893..490f5d76ca6d7364298940dc79d26060611e0f48 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/PartyMemberWithoutAuraValue.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/PartyMemberWithoutAuraValue.cpp
+@@ -5,8 +5,6 @@
+ #include "playerbot/ServerFacade.h"
+ using namespace ai;
+ 
+-extern std::vector<std::string> split(const std::string &s, char delim);
+-
+ class PlayerWithoutAuraPredicate : public FindPlayerPredicate, public PlayerbotAIAware
+ {
+ public:

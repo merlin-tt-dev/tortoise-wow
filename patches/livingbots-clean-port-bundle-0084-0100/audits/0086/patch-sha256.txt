@@ -1,0 +1,1 @@
+ed05c6c793b05651ca20b83edef1e67dc9a9d7af0e14335e2358ddedc98ec21e  patches/mod/0086-build-compatibility-pass-57-native-wsg-flag-carrier-team-indices.patch

@@ -1,0 +1,4 @@
+modules/mod-playerbots/src/cmangos-compat-shim.h
+modules/mod-playerbots/src/playerbot/WorldPosition.cpp
+modules/mod-playerbots/src/playerbot/strategy/actions/CheckMountStateAction.cpp
+modules/mod-playerbots/src/playerbot/strategy/values/MountValues.cpp

@@ -1,0 +1,1 @@
+af03e352f5a5781ac851a4ed7ed8537a13f241fea6c040f9edb00d135134b8b5  patches/mod/0099-build-compatibility-pass-70-native-vendor-template-id.patch

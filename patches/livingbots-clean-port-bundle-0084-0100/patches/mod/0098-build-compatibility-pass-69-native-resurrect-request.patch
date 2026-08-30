@@ -1,0 +1,13 @@
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/PartyMemberToResurrect.cpp b/modules/mod-playerbots/src/playerbot/strategy/values/PartyMemberToResurrect.cpp
+index 45b918096ef654f5db063ecd9d3bff986b686304..b0ab2be3264ba14c3d81e6b1c65ae789f040e7a1 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/PartyMemberToResurrect.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/PartyMemberToResurrect.cpp
+@@ -37,7 +37,7 @@ public:
+ 				return false;
+ 		}
+ 
+-        return player && !player->isRessurectRequested() && sServerFacade.GetDistance2d(ai->GetBot(), player) <= ai->GetRange("spell") && sServerFacade.GetDeathState(player) == CORPSE && !value->IsTargetOfSpellCast(player, predicate);
++        return player && !player->IsRessurectRequested() && sServerFacade.GetDistance2d(ai->GetBot(), player) <= ai->GetRange("spell") && sServerFacade.GetDeathState(player) == CORPSE && !value->IsTargetOfSpellCast(player, predicate);
+     }
+ 
+ private:

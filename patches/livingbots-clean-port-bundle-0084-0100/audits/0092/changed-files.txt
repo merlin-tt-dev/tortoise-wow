@@ -1,0 +1,7 @@
+modules/mod-playerbots/src/cmangos-compat-stubs/LFG/LFGDefines.h
+modules/mod-playerbots/src/cmangos-compat-stubs/LFG/LFGQueue.h
+modules/mod-playerbots/src/cmangos-compat-stubs/Spells/SpellEffectDefines.h
+modules/mod-playerbots/src/cmangos-compat-stubs/World/WorldState.h
+modules/mod-playerbots/src/playerbot/PlayerbotAIConfig.cpp
+modules/mod-playerbots/src/playerbot/PlayerbotAIConfig.h
+modules/mod-playerbots/src/playerbot/strategy/actions/TravelAction.cpp

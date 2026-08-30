@@ -1,0 +1,4 @@
+modules/mod-playerbots/src/cmangos-compat-shim.h
+modules/mod-playerbots/src/playerbot/strategy/actions/BattleGroundTactics.cpp
+modules/mod-playerbots/src/playerbot/strategy/triggers/PvpTriggers.cpp
+modules/mod-playerbots/src/playerbot/strategy/values/PvpValues.cpp

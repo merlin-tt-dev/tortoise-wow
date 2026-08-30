@@ -1,0 +1,1 @@
+9625113b2cf92abd3a5e2dfdcf1a9bc267a845935fcdf9f38401b60cde4398c7  patches/mod/0098-build-compatibility-pass-69-native-resurrect-request.patch

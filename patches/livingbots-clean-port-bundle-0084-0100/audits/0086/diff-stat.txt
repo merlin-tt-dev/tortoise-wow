@@ -1,0 +1,5 @@
+ modules/mod-playerbots/src/cmangos-compat-shim.h       | 18 ------------------
+ .../playerbot/strategy/actions/BattleGroundTactics.cpp |  6 +++---
+ .../src/playerbot/strategy/triggers/PvpTriggers.cpp    | 12 ++++++------
+ .../src/playerbot/strategy/values/PvpValues.cpp        |  8 ++++----
+ 4 files changed, 13 insertions(+), 31 deletions(-)

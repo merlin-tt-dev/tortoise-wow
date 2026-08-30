@@ -1,0 +1,2 @@
+ .../strategy/actions/GuildShareAhBuyAction.cpp     | 36 +++++++++++++++++-----
+ 1 file changed, 28 insertions(+), 8 deletions(-)

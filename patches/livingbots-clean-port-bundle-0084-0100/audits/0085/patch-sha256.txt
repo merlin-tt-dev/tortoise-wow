@@ -1,0 +1,1 @@
+18d56b7817987eb573aed8ac991364861b4b544cc909c939fd0d3405d146c7e3  patches/mod/0085-build-compatibility-pass-56-native-map-storage.patch

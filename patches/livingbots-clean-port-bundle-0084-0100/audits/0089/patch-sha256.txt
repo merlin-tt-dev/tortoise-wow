@@ -1,0 +1,1 @@
+a9986b4fffdf93e0705031a4e43f855aa87f909a00a9578dc6a36d2d2dd4b7b5  patches/mod/0089-build-compatibility-pass-60-native-guild-share-auction-buyout.patch

@@ -1,0 +1,1 @@
+e377eb10a2baf0382261171cb857650f028c6cdf61fb86f1da61d6570baf567d  patches/mod/0097-build-compatibility-pass-68-native-maintenance-mail.patch

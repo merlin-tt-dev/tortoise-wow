@@ -1,0 +1,1 @@
+89f5c6bf2e034f0457467d84860da96ff0d390a0088f73a1b12e400db77a66dd  patches/mod/0096-build-compatibility-pass-67-native-linked-gameobject-trap.patch

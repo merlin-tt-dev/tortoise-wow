@@ -1,0 +1,41 @@
+diff --git a/modules/mod-playerbots/src/cmangos-compat-shim.h b/modules/mod-playerbots/src/cmangos-compat-shim.h
+index 54f26a6a2e70b996f97dd956da16afaddb52c427..1e0ee9538bdad25cb03ad469b03a5da8a702e429 100644
+--- a/modules/mod-playerbots/src/cmangos-compat-shim.h
++++ b/modules/mod-playerbots/src/cmangos-compat-shim.h
+@@ -282,24 +282,10 @@ inline bool IsNonCombatSpell(SpellEntry const* spellInfo) {
+     return spellInfo && spellInfo->IsNonCombatSpell();
+ }
+ 
+-// === MeetingStoneInfo / MeetingStoneSet (cmangos LFG) ===
+-// Definition lives in LFGMgr.h so both host (game.vcxproj) and bot module see the same type.
+-typedef std::vector<MeetingStoneInfo> MeetingStoneSet;
+-
+-// === LFGQueue ===
+-// Penqle has its own LFGQueue in src/game/LFG/LFGMgr.h with stub methods added.
+-// World::GetLFGQueue() forwards to sLFGMgr. Bot module uses the existing types.
+-
+ // === GetSpellStore (cmangos) → sSpellMgr (Penqle) ===
+ // cmangos exposes a global GetSpellStore() returning the DBC store as a POINTER.
+ inline CmangosSpellTemplateProxy* GetSpellStore() { return &sSpellTemplate; }
+ 
+-// === WORLD_SESSION_STATE_* hoisted into global scope ===
+-constexpr WorldSession::WorldSessionState WORLD_SESSION_STATE_CREATED = WorldSession::WORLD_SESSION_STATE_CREATED;
+-constexpr WorldSession::WorldSessionState WORLD_SESSION_STATE_READY = WorldSession::WORLD_SESSION_STATE_READY;
+-constexpr WorldSession::WorldSessionState WORLD_SESSION_STATE_OFFLINE = WorldSession::WORLD_SESSION_STATE_OFFLINE;
+-constexpr WorldSession::WorldSessionState WORLD_SESSION_STATE_REMOVING = WorldSession::WORLD_SESSION_STATE_REMOVING;
+-
+ // === GetApplicationStartTime (cmangos) — free function returning startup timestamp ===
+ inline std::chrono::system_clock::time_point GetApplicationStartTime() {
+     static auto s_start = std::chrono::system_clock::now();
+@@ -312,11 +298,6 @@ inline BattleGroundTeamIndex GetTeamIndexByTeamId(Team team) {
+     return team == ALLIANCE ? BG_TEAM_ALLIANCE : BG_TEAM_HORDE;
+ }
+ 
+-// === Loot status flags (cmangos LootMgr.h) ===
+-// Bot's LootValues.cpp returns bitflags describing loot state. Penqle has no equivalent
+-// (its Loot just exposes items/gold). Define as bitflags so bot computes a value (which
+-#endif
+-
+ // === SPELL_ATTR_ON_NEXT_SWING aliases ===
+ // cmangos has SPELL_ATTR_ON_NEXT_SWING / _NO_DAMAGE; Penqle has SPELL_ATTR_ON_NEXT_SWING_1/_2.
+ #ifndef SPELL_ATTR_ON_NEXT_SWING

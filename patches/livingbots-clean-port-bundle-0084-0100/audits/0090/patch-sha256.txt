@@ -1,0 +1,1 @@
+ed07211b156c1d4f9afdc5baa75f60f3a9dd58ef5647a86d321637e46319eb41  patches/mod/0090-build-compatibility-pass-61-native-pet-spellbook-rank.patch

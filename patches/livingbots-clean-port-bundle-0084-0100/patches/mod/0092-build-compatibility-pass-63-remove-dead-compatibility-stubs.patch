@@ -1,0 +1,115 @@
+diff --git a/modules/mod-playerbots/src/cmangos-compat-stubs/LFG/LFGDefines.h b/modules/mod-playerbots/src/cmangos-compat-stubs/LFG/LFGDefines.h
+deleted file mode 100644
+index eedc6bd9eea9a663502057da4f8e6dba0c5f6dd6..0000000000000000000000000000000000000000
+--- a/modules/mod-playerbots/src/cmangos-compat-stubs/LFG/LFGDefines.h
++++ /dev/null
+@@ -1,5 +0,0 @@
+-#pragma once
+-
+-// Intentionally empty. cmangos's vendored bot module #includes "LFGDefines.h"
+-// for queue-state constants; Penqle's LFGMgr.h owns that data directly. This
+-// stub lets the include resolve so the surrounding TUs compile.
+diff --git a/modules/mod-playerbots/src/cmangos-compat-stubs/LFG/LFGQueue.h b/modules/mod-playerbots/src/cmangos-compat-stubs/LFG/LFGQueue.h
+deleted file mode 100644
+index 5e120a312fd82cee686c383499ed84c1c0440763..0000000000000000000000000000000000000000
+--- a/modules/mod-playerbots/src/cmangos-compat-stubs/LFG/LFGQueue.h
++++ /dev/null
+@@ -1,5 +0,0 @@
+-#pragma once
+-
+-// Intentionally empty. cmangos has a separate LFGQueue class; Penqle's LFGMgr
+-// owns the queue state directly. The bot module's LFGQueue references resolve
+-// through this empty header to no-op stubs in the compat shim.
+diff --git a/modules/mod-playerbots/src/cmangos-compat-stubs/Spells/SpellEffectDefines.h b/modules/mod-playerbots/src/cmangos-compat-stubs/Spells/SpellEffectDefines.h
+deleted file mode 100644
+index a4db4b7bb9461bf8bb39f221b31511958a9a0514..0000000000000000000000000000000000000000
+--- a/modules/mod-playerbots/src/cmangos-compat-stubs/Spells/SpellEffectDefines.h
++++ /dev/null
+@@ -1,5 +0,0 @@
+-#pragma once
+-
+-// Intentionally empty. cmangos exposes spell-effect symbolic names from a
+-// dedicated header; Penqle keeps the same data in SharedDefines.h/SpellMgr.h.
+-// The ahbot module's TradeCategory.cpp pulls this include under #ifdef CMANGOS.
+diff --git a/modules/mod-playerbots/src/cmangos-compat-stubs/World/WorldState.h b/modules/mod-playerbots/src/cmangos-compat-stubs/World/WorldState.h
+deleted file mode 100644
+index 64d70b8f002f8c7ff4e01cb64923062e0c9b7553..0000000000000000000000000000000000000000
+--- a/modules/mod-playerbots/src/cmangos-compat-stubs/World/WorldState.h
++++ /dev/null
+@@ -1,6 +0,0 @@
+-#pragma once
+-
+-// Intentionally empty. cmangos uses WorldState as a per-tick state registry;
+-// Penqle keeps the equivalent in World.cpp + GameEventMgr. PlayerbotAIConfig.cpp
+-// and RandomPlayerbotMgr.cpp #include this unconditionally; the call sites
+-// resolve against substitutes in the compat shim.
+diff --git a/modules/mod-playerbots/src/playerbot/PlayerbotAIConfig.cpp b/modules/mod-playerbots/src/playerbot/PlayerbotAIConfig.cpp
+index 6b4477f1b308726e3ea963ad96919695904cf4ae..e2e62b811ce32b715c564c7837a18a0260342ec2 100644
+--- a/modules/mod-playerbots/src/playerbot/PlayerbotAIConfig.cpp
++++ b/modules/mod-playerbots/src/playerbot/PlayerbotAIConfig.cpp
+@@ -5,7 +5,6 @@
+ #include "AccountMgr.h"
+ #include "playerbot/PlayerbotFactory.h"
+ #include "RandomItemMgr.h"
+-#include "WorldState.h"
+ #include "playerbot/PlayerbotHelpMgr.h"
+ #include "playerbot/strategy/actions/CheatAction.h"
+ 
+@@ -20,22 +19,6 @@
+ #include <sstream>
+ #include "PlayerbotLoginMgr.h"
+ 
+-std::vector<std::string> ConfigAccess::GetValues(const std::string& name) const
+-{
+-    // The original cmangos implementation iterates m_entries
+-    // (unordered_map populated by cmangos's own Config parser). Penqle's Config (which
+-    // ConfigAccess is reinterpret_cast'd onto) has a totally different layout — that
+-    // map doesn't exist at this offset, and iterating it segfaults.
+-    //
+-    // Bot uses GetValues for multi-value keys: LoginCriteria, WorldBuff. Both
+-    // downstream call sites handle an empty result by skipping the optional feature.
+-    // Returning empty here is safe; full multi-value parsing against Penqle's Config
+-    // is a future enhancement (would need to iterate the underlying ACE_Configuration_Heap
+-    // and pattern-match on the key prefix).
+-    (void)name;
+-    return {};
+-}
+-
+ namespace
+ {
+ std::vector<std::string> GetConfigKeysContaining(Config& config, const std::string& name)
+diff --git a/modules/mod-playerbots/src/playerbot/PlayerbotAIConfig.h b/modules/mod-playerbots/src/playerbot/PlayerbotAIConfig.h
+index c83a04fd658bd33ed2f3e712954573f2d66b9a5f..8e7a10c86036022f6fd602c5985be3b2716c3958 100644
+--- a/modules/mod-playerbots/src/playerbot/PlayerbotAIConfig.h
++++ b/modules/mod-playerbots/src/playerbot/PlayerbotAIConfig.h
+@@ -64,18 +64,6 @@ enum class BotLoginCriteriaType : uint8
+ 
+ #define MAX_GEAR_PROGRESSION_LEVEL 6
+ 
+-class ConfigAccess
+-{
+-private:
+-    std::string m_filename;
+-    std::string m_envVarPrefix;
+-    std::unordered_map<std::string, std::string> m_entries; // keys are converted to lower case.  values cannot be.
+-
+-public:
+-    std::vector<std::string> GetValues(const std::string& name) const;
+-    std::mutex m_configLock;
+-};
+-
+ struct ParsedUrl {
+     std::string hostname;
+     std::string path;
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/TravelAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/TravelAction.cpp
+index f8e10ab29e525bc1dc899ecb9c8ce2beb5c572e6..b0e4674ead399c462df54995c0322221a7719420 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/TravelAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/TravelAction.cpp
+@@ -6,7 +6,6 @@
+ #include "Maps/GridNotifiers.h"
+ #include "Maps/GridNotifiersImpl.h"
+ #include "Maps/CellImpl.h"
+-#include "WorldState.h"
+ #include "playerbot/TravelMgr.h"
+ 
+ 

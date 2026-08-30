@@ -1,0 +1,3 @@
+modules/mod-playerbots/src/cmangos-compat-shim.h
+modules/mod-playerbots/src/playerbot/strategy/values/NearestUnitsValue.h
+modules/mod-playerbots/src/playerbot/strategy/values/RuneForgeValues.cpp

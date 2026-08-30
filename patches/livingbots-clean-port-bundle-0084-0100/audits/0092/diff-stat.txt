@@ -1,0 +1,8 @@
+ .../src/cmangos-compat-stubs/LFG/LFGDefines.h           |  5 -----
+ .../src/cmangos-compat-stubs/LFG/LFGQueue.h             |  5 -----
+ .../cmangos-compat-stubs/Spells/SpellEffectDefines.h    |  5 -----
+ .../src/cmangos-compat-stubs/World/WorldState.h         |  6 ------
+ .../mod-playerbots/src/playerbot/PlayerbotAIConfig.cpp  | 17 -----------------
+ .../mod-playerbots/src/playerbot/PlayerbotAIConfig.h    | 12 ------------
+ .../src/playerbot/strategy/actions/TravelAction.cpp     |  1 -
+ 7 files changed, 51 deletions(-)

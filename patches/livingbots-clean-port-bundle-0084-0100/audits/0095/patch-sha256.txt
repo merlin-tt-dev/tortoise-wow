@@ -1,0 +1,1 @@
+0db7d34245f5ce0078a5a248f8245758e4f3d98e4d94d54df70a04a679396fe8  patches/mod/0095-build-compatibility-pass-66-native-grind-creature-semantics.patch

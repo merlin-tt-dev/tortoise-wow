@@ -1,0 +1,1 @@
+08a18489ac8b05261222c605aed1859fbaae71f57212c50ebfc1a6bf0ef51d94  patches/mod/0092-build-compatibility-pass-63-remove-dead-compatibility-stubs.patch

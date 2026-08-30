@@ -1,0 +1,86 @@
+diff --git a/modules/mod-playerbots/src/cmangos-compat-shim.h b/modules/mod-playerbots/src/cmangos-compat-shim.h
+index 8aeb486e55695a2d6fc109a7f6f5bcddf9e0212e..eaf10be1fc1bdd510d6c8b1d7b601b49c908b18a 100644
+--- a/modules/mod-playerbots/src/cmangos-compat-shim.h
++++ b/modules/mod-playerbots/src/cmangos-compat-shim.h
+@@ -26,16 +26,8 @@
+ #include <chrono>
+ #include <random>
+ 
+-// === Spells namespace functions hoisted to global scope ===
+-// cmangos's bot calls IsPositiveSpell / GetDispellMask without namespace.
+-// Penqle wraps these in `namespace Spells`. Bring them into global scope
+-// for the bot's consumption.
+-using Spells::IsPositiveSpell;
+-using Spells::GetDispellMask;
++// Temporary compatibility for remaining unqualified passive-spell call sites.
+ using Spells::IsPassiveSpell;
+-// SpellEntry* overload: bot passes spellInfo directly.
+-inline bool IsPositiveSpell(SpellEntry const* spellInfo) { return spellInfo && spellInfo->IsPositiveSpell(); }
+-inline bool IsPositiveSpell(SpellEntry const* spellInfo, WorldObject const* caster, WorldObject const* victim) { return spellInfo && spellInfo->IsPositiveSpell(caster, victim); }
+ 
+ // === Helpers ===
+ // strstri overload: bot's PlayerbotAI.cpp forward-declares strstri(std::string, std::string).
+@@ -49,35 +41,5 @@ inline const char* strstr(std::string const& haystack, const char* needle) {
+     return std::strstr(haystack.c_str(), needle);
+ }
+ 
+-// === BattleGroundMgr alias ===
+-// Done via forwarder in Penqle's BattleGroundMgr.h (BgTemplateId → BGTemplateId).
+-
+-// === IsSpellAppliesAura / IsSpellHaveEffect / IsAreaAuraEffect (cmangos free functions) ===
+-inline bool IsSpellAppliesAura(SpellEntry const* spellInfo, uint32 effectMask = 0xFFFFFFFF) {
+-    return spellInfo && spellInfo->IsSpellAppliesAura(effectMask);
+-}
+-inline bool IsAreaAuraEffect(uint32 effect) {
+-    return effect == SPELL_EFFECT_APPLY_AREA_AURA_PARTY || effect == SPELL_EFFECT_APPLY_AREA_AURA_FRIEND
+-        || effect == SPELL_EFFECT_APPLY_AREA_AURA_ENEMY || effect == SPELL_EFFECT_APPLY_AREA_AURA_PET
+-        || effect == SPELL_EFFECT_APPLY_AREA_AURA_OWNER;
+-}
+-
+ // === LfgRoles (MANGOSBOT_TWO compatibility only) ===
+ typedef ClassRoles LfgRoles;
+-// === Remaining free-function compatibility helpers ===
+-// IsNextMeleeSwingSpell: cmangos free function checking SPELL_ATTR_ON_NEXT_SWING_1/_2.
+-inline bool IsNextMeleeSwingSpell(SpellEntry const* spellInfo) {
+-    return spellInfo && (spellInfo->Attributes & (SPELL_ATTR_ON_NEXT_SWING_1 | SPELL_ATTR_ON_NEXT_SWING_2));
+-}
+-inline SpellSchoolMask GetSpellSchoolMask(SpellEntry const* spellInfo) {
+-    return spellInfo ? SpellSchoolMask(spellInfo->GetSpellSchoolMask()) : SpellSchoolMask(0);
+-}
+-inline bool IsNonCombatSpell(SpellEntry const* spellInfo) {
+-    return spellInfo && spellInfo->IsNonCombatSpell();
+-}
+-
+-// === IsAutoRepeatRangedSpell (cmangos free function) ===
+-// Penqle's SpellEntry has IsAutoRepeatRangedSpell as a method. Wrap as free fn.
+-inline bool IsAutoRepeatRangedSpell(SpellEntry const* spellInfo) {
+-    return spellInfo && (spellInfo->AttributesEx2 & SPELL_ATTR_EX2_AUTOREPEAT_FLAG);
+-}
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/NearestUnitsValue.h b/modules/mod-playerbots/src/playerbot/strategy/values/NearestUnitsValue.h
+index 2923d4ecc26be9ed95211ee48233a9fd16d8085d..815716ab4c8d2076916d01caa65cedd8f9c7c4d8 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/NearestUnitsValue.h
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/NearestUnitsValue.h
+@@ -64,8 +64,8 @@ namespace ai
+             return unit->HasAuraType(SPELL_AURA_MOD_STEALTH) || unit->HasAuraType(SPELL_AURA_MOD_INVISIBILITY);
+ 
+             /*uint32 dispelMask = 0;
+-            dispelMask |= GetDispellMask(DispelType(DISPEL_STEALTH));
+-            dispelMask |= GetDispellMask(DispelType(DISPEL_INVISIBILITY));
++            dispelMask |= Spells::GetDispellMask(DispelType(DISPEL_STEALTH));
++            dispelMask |= Spells::GetDispellMask(DispelType(DISPEL_INVISIBILITY));
+ 
+             return unit->HasMechanicMaskOrDispelMaskAura(dispelMask, 0, bot);*/
+         }
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/RuneForgeValues.cpp b/modules/mod-playerbots/src/playerbot/strategy/values/RuneForgeValues.cpp
+index 43f4b0b22a245b2f571b8daa102fdea903810cde..2d4f7cd41a8636b01f29c473c2536587868b9831 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/RuneForgeValues.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/RuneForgeValues.cpp
+@@ -17,7 +17,7 @@ std::vector<uint32> RuneForgeSpellsValue::Calculate() {
+     for (auto& spell : spellMap) {
+         uint32 spellId = spell.first;
+ 
+-        if (spell.second.state == PLAYERSPELL_REMOVED || spell.second.disabled || IsPassiveSpell(spellId))
++        if (spell.second.state == PLAYERSPELL_REMOVED || spell.second.disabled || Spells::IsPassiveSpell(spellId))
+             continue;
+ 
+         SkillLineAbilityMapBounds bounds = sSpellMgr.GetSkillLineAbilityMapBoundsBySpellId(spellId);

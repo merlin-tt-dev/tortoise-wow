@@ -1,0 +1,1 @@
+0299fb46660f37d83857a7ff1db09d0e8a9bb3d2087b03528483f8dba9bc1dbb  patches/mod/0088-build-compatibility-pass-59-native-spell-helper-namespaces.patch

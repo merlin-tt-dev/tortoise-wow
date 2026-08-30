@@ -1,0 +1,20 @@
+ modules/mod-playerbots/src/ahbot/AhBotConfig.cpp   |  2 +-
+ modules/mod-playerbots/src/ahbot/ItemBag.cpp       |  2 +-
+ modules/mod-playerbots/src/botpch.h                |  5 ---
+ modules/mod-playerbots/src/cmangos-compat-shim.h   | 45 ----------------------
+ modules/mod-playerbots/src/playerbot/Helpers.cpp   |  9 -----
+ modules/mod-playerbots/src/playerbot/Helpers.h     |  9 +++++
+ .../mod-playerbots/src/playerbot/PlayerbotAI.cpp   |  3 --
+ .../mod-playerbots/src/playerbot/RandomItemMgr.cpp |  2 -
+ modules/mod-playerbots/src/playerbot/playerbot.h   |  3 +-
+ .../src/playerbot/strategy/ItemVisitors.h          |  3 +-
+ .../strategy/actions/ChooseTravelTargetAction.cpp  |  2 -
+ .../src/playerbot/strategy/actions/EmoteAction.cpp |  2 -
+ .../playerbot/strategy/actions/GiveItemAction.cpp  |  2 -
+ .../src/playerbot/strategy/actions/GoAction.cpp    |  2 -
+ .../src/playerbot/strategy/actions/LfgActions.h    |  1 +
+ .../playerbot/strategy/actions/UnequipAction.cpp   |  2 -
+ .../src/playerbot/strategy/values/GuildValues.cpp  |  2 -
+ .../src/playerbot/strategy/values/HasTotemValue.h  |  1 +
+ .../values/PartyMemberWithoutAuraValue.cpp         |  2 -
+ 19 files changed, 15 insertions(+), 84 deletions(-)

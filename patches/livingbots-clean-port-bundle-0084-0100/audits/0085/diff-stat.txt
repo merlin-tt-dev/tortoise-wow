@@ -1,0 +1,5 @@
+ modules/mod-playerbots/src/cmangos-compat-shim.h               | 10 ----------
+ modules/mod-playerbots/src/playerbot/WorldPosition.cpp         |  2 +-
+ .../src/playerbot/strategy/actions/CheckMountStateAction.cpp   |  2 +-
+ .../src/playerbot/strategy/values/MountValues.cpp              |  2 +-
+ 4 files changed, 3 insertions(+), 13 deletions(-)

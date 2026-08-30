@@ -1,0 +1,1 @@
+efd28585e2eaa7fbff81932c77c1b57a06da80277fdae8dd03b4278196b83cdd  patches/core/core-0012-native-graveyard-map-readonly.patch

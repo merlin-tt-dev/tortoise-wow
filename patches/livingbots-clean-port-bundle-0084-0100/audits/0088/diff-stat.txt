@@ -1,0 +1,4 @@
+ modules/mod-playerbots/src/cmangos-compat-shim.h   | 40 +---------------------
+ .../playerbot/strategy/values/NearestUnitsValue.h  |  4 +--
+ .../playerbot/strategy/values/RuneForgeValues.cpp  |  2 +-
+ 3 files changed, 4 insertions(+), 42 deletions(-)

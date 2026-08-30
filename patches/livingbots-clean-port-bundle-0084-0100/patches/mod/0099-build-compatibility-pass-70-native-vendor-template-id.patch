@@ -1,0 +1,22 @@
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/VendorValues.cpp b/modules/mod-playerbots/src/playerbot/strategy/values/VendorValues.cpp
+index f379be47477a83126eea0f5779e9f0527a7b71d1..9617046989e6a4f569d1d07a6b6f029130ad7c56 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/VendorValues.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/VendorValues.cpp
+@@ -24,7 +24,7 @@ VendorMap* VendorMapValue::Calculate()
+                 if (!vItem->maxcount) //Ignore limited amount items.
+                     vendorpMap->insert(std::make_pair(vItem->item, entry));
+ 
+-        uint32 vendorId = cInfo->VendorTemplateId;
++        uint32 vendorId = cInfo->vendor_id;
+         if (vendorId)
+         {
+             vItems = sObjectMgr.GetNpcVendorTemplateItemList(vendorId);
+@@ -70,7 +70,7 @@ bool VendorHasUsefulItemValue::Calculate()
+         for (auto vItem : vItems->m_items)
+                 vendorItems.push_back(vItem);
+ 
+-    uint32 vendorId = cInfo->VendorTemplateId;
++    uint32 vendorId = cInfo->vendor_id;
+ 
+     if (vendorId)
+     {

@@ -1,0 +1,142 @@
+diff --git a/modules/mod-playerbots/src/cmangos-compat-shim.h b/modules/mod-playerbots/src/cmangos-compat-shim.h
+index 009099da12efe6d1e88d3caebac863faec128357..5095a36d4945d8dbf6dfaf49ba8cfc7ca05dbc4c 100644
+--- a/modules/mod-playerbots/src/cmangos-compat-shim.h
++++ b/modules/mod-playerbots/src/cmangos-compat-shim.h
+@@ -160,18 +160,6 @@ inline const char* strstr(std::string const& haystack, const char* needle) {
+ // === BattleGroundMgr alias ===
+ // Done via forwarder in Penqle's BattleGroundMgr.h (BgTemplateId → BGTemplateId).
+ 
+-// === TEAM_INDEX_ aliases (cmangos) ===
+-// Penqle uses BG_TEAM_ALLIANCE/BG_TEAM_HORDE. cmangos uses TEAM_INDEX_ALLIANCE/HORDE/NEUTRAL.
+-#ifndef TEAM_INDEX_ALLIANCE
+-#define TEAM_INDEX_ALLIANCE BG_TEAM_ALLIANCE
+-#endif
+-#ifndef TEAM_INDEX_HORDE
+-#define TEAM_INDEX_HORDE BG_TEAM_HORDE
+-#endif
+-#ifndef TEAM_INDEX_NEUTRAL
+-#define TEAM_INDEX_NEUTRAL 2
+-#endif
+-
+ // === IsAutocastable (cmangos free function) ===
+ // Penqle's native pet-autocast opcode accepts any known, non-passive pet spell.
+ // Mirror that host rule instead of disabling autocast through a false stub.
+@@ -282,12 +270,6 @@ inline std::chrono::system_clock::time_point GetApplicationStartTime() {
+     return s_start;
+ }
+ 
+-// === GetTeamIndexByTeamId (cmangos) → BattleGround static method ===
+-// Provide free-function forwarder. (BattleGround.h has it as a static.)
+-inline BattleGroundTeamIndex GetTeamIndexByTeamId(Team team) {
+-    return team == ALLIANCE ? BG_TEAM_ALLIANCE : BG_TEAM_HORDE;
+-}
+-
+ // === SPELL_ATTR_ON_NEXT_SWING aliases ===
+ // cmangos has SPELL_ATTR_ON_NEXT_SWING / _NO_DAMAGE; Penqle has SPELL_ATTR_ON_NEXT_SWING_1/_2.
+ #ifndef SPELL_ATTR_ON_NEXT_SWING
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/BattleGroundTactics.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/BattleGroundTactics.cpp
+index b4c585e203b3862386c58b3e1d23f66009650e61..c60cac4d9c006a6c1b3b6926a09c793ce1496ea6 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/BattleGroundTactics.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/BattleGroundTactics.cpp
+@@ -3246,7 +3246,7 @@ bool BGTactics::selectObjective(bool reset)
+     case BATTLEGROUND_EY: //Role < 4: Defender, else Attacker. In the beginning split for all points. Afterwards pick random strategies
+     {
+         //Variables
+-        uint8 rootTeamIndex = TEAM_INDEX_NEUTRAL;
++        uint8 rootTeamIndex = BG_TEAMS_COUNT;
+         uint32 role = context->GetValue<uint32>("bg role")->Get();
+ 
+         uint32 attackObjectivesFront[2];
+@@ -3263,7 +3263,7 @@ bool BGTactics::selectObjective(bool reset)
+             attackObjectivesFront[1] = EY_AttackObjectives[1];
+             attackObjectivesBack[0] = EY_AttackObjectives[2];
+             attackObjectivesBack[1] = EY_AttackObjectives[3];
+-            rootTeamIndex = TEAM_INDEX_HORDE;
++            rootTeamIndex = BG_TEAM_HORDE;
+         }
+         else if (rootTeam == ALLIANCE)
+         {
+@@ -3271,7 +3271,7 @@ bool BGTactics::selectObjective(bool reset)
+             attackObjectivesFront[1] = EY_AttackObjectives[3];
+             attackObjectivesBack[0] = EY_AttackObjectives[0];
+             attackObjectivesBack[1] = EY_AttackObjectives[1];
+-            rootTeamIndex = TEAM_INDEX_ALLIANCE;
++            rootTeamIndex = BG_TEAM_ALLIANCE;
+         }
+ 
+         WorldObject* BgObjective = nullptr;
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/triggers/PvpTriggers.cpp b/modules/mod-playerbots/src/playerbot/strategy/triggers/PvpTriggers.cpp
+index 7dab68c30729a9c9ebed382f06e4000792e1c3bb..d50165e73b381b5183061e5de91eb99654b5e142 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/triggers/PvpTriggers.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/triggers/PvpTriggers.cpp
+@@ -42,7 +42,7 @@ bool PlayerHasNoFlag::IsActive()
+             BattleGroundWS *bg = (BattleGroundWS*)ai->GetBot()->GetBattleGround();
+             if (!(bg->GetFlagState(bg->GetOtherTeam(bot->GetTeam())) == BG_WS_FLAG_STATE_ON_PLAYER))
+                 return true;
+-            if (bot->GetObjectGuid() == bg->GetAllianceFlagCarrierGuid() || bot->GetObjectGuid() == bg->GetHordeFlagCarrierGuid())
++            if (bot->GetObjectGuid() == bg->GetAllianceFlagPickerGuid() || bot->GetObjectGuid() == bg->GetHordeFlagPickerGuid())
+             {
+                 return false;
+             }
+@@ -131,7 +131,7 @@ bool PlayerIsInBattlegroundWithoutFlag::IsActive()
+             BattleGroundWS *bg = (BattleGroundWS*)ai->GetBot()->GetBattleGround();
+             if (!(bg->GetFlagState(bg->GetOtherTeam(bot->GetTeam())) == BG_WS_FLAG_STATE_ON_PLAYER))
+                 return true;
+-            if (bot->GetGUIDLow() == bg->GetAllianceFlagCarrierGuid() || bot->GetGUIDLow() == bg->GetHordeFlagCarrierGuid())
++            if (bot->GetObjectGuid() == bg->GetAllianceFlagPickerGuid() || bot->GetObjectGuid() == bg->GetHordeFlagPickerGuid())
+             {
+                 return false;
+             }
+@@ -157,7 +157,7 @@ bool PlayerHasFlag::IsActive()
+             if (!bg)
+                 return false;
+ 
+-            if (bot->GetObjectGuid() == bg->GetFlagCarrierGuid(TEAM_INDEX_ALLIANCE) || bot->GetObjectGuid() == bg->GetFlagCarrierGuid(TEAM_INDEX_HORDE))
++            if (bot->GetObjectGuid() == bg->GetAllianceFlagPickerGuid() || bot->GetObjectGuid() == bg->GetHordeFlagPickerGuid())
+             {
+                 return true;
+             }
+@@ -183,7 +183,7 @@ bool TeamHasFlag::IsActive()
+         {
+             BattleGroundWS *bg = (BattleGroundWS*)ai->GetBot()->GetBattleGround();
+ 
+-            if (bot->GetObjectGuid() == bg->GetAllianceFlagCarrierGuid() || bot->GetObjectGuid() == bg->GetHordeFlagCarrierGuid())
++            if (bot->GetObjectGuid() == bg->GetAllianceFlagPickerGuid() || bot->GetObjectGuid() == bg->GetHordeFlagPickerGuid())
+             {
+                 return false;
+             }
+@@ -210,12 +210,12 @@ bool EnemyTeamHasFlag::IsActive()
+ 
+             if (bot->GetTeam() == HORDE)
+             {
+-                if (!bg->GetFlagCarrierGuid(TEAM_INDEX_HORDE).IsEmpty())
++                if (!bg->GetHordeFlagPickerGuid().IsEmpty())
+                     return true;
+             }
+             else
+             {
+-                if (!bg->GetFlagCarrierGuid(TEAM_INDEX_ALLIANCE).IsEmpty())
++                if (!bg->GetAllianceFlagPickerGuid().IsEmpty())
+                     return true;
+             }
+         }
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/PvpValues.cpp b/modules/mod-playerbots/src/playerbot/strategy/values/PvpValues.cpp
+index 10ef91463a5f84d3bb7e083ed71369e33ea920bf..06b9199dfb7e9fbbd805c4c6f873c6062f7c4449 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/PvpValues.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/PvpValues.cpp
+@@ -176,11 +176,11 @@ Unit* FlagCarrierValue::Calculate()
+             if (!bg)
+                 return nullptr;
+ 
+-            if ((!sameTeam && bot->GetTeam() == HORDE || (sameTeam && bot->GetTeam() == ALLIANCE)) && !bg->GetFlagCarrierGuid(TEAM_INDEX_HORDE).IsEmpty())
+-                carrier = bg->GetBgMap()->GetPlayer(bg->GetFlagCarrierGuid(TEAM_INDEX_HORDE));
++            if ((!sameTeam && bot->GetTeam() == HORDE || (sameTeam && bot->GetTeam() == ALLIANCE)) && !bg->GetHordeFlagPickerGuid().IsEmpty())
++                carrier = bg->GetBgMap()->GetPlayer(bg->GetHordeFlagPickerGuid());
+ 
+-            if ((!sameTeam && bot->GetTeam() == ALLIANCE || (sameTeam && bot->GetTeam() == HORDE)) && !bg->GetFlagCarrierGuid(TEAM_INDEX_ALLIANCE).IsEmpty())
+-                carrier = bg->GetBgMap()->GetPlayer(bg->GetFlagCarrierGuid(TEAM_INDEX_ALLIANCE));
++            if ((!sameTeam && bot->GetTeam() == ALLIANCE || (sameTeam && bot->GetTeam() == HORDE)) && !bg->GetAllianceFlagPickerGuid().IsEmpty())
++                carrier = bg->GetBgMap()->GetPlayer(bg->GetAllianceFlagPickerGuid());
+ 
+             if (carrier)
+             {

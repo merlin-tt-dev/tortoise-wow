@@ -1,0 +1,1 @@
+modules/mod-playerbots/src/cmangos-compat-shim.h

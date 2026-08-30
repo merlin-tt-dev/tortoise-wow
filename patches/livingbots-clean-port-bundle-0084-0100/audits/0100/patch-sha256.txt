@@ -1,0 +1,1 @@
+5003380514338effe57f99e54f084141012f363b7b386ed5e3d4200dea111ac8  patches/mod/0100-build-compatibility-pass-71-native-threat-debug-spell-visual.patch

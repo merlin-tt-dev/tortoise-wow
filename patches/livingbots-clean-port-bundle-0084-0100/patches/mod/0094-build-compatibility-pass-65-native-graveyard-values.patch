@@ -1,0 +1,24 @@
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/DeadValues.cpp b/modules/mod-playerbots/src/playerbot/strategy/values/DeadValues.cpp
+index 6ec975cc528faaf76982be40e44d9c95b30151b6..ad8933f0a7f4af1830ced6f1e99d66bfd371f7b3 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/DeadValues.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/DeadValues.cpp
+@@ -34,7 +34,7 @@ GuidPosition GraveyardValue::Calculate()
+         }
+     }
+ 
+-    WorldSafeLocsEntry const* ClosestGrave = bot->GetMap()->GetGraveyardManager().GetClosestGraveYard(
++    WorldSafeLocsEntry const* ClosestGrave = sObjectMgr.GetClosestGraveYard(
+         refPosition.getX(),
+         refPosition.getY(),
+         refPosition.getZ(),
+@@ -73,9 +73,8 @@ WorldSafeLocsEntry const* GraveyardValue::GetAnotherAppropriateClosestGraveyard(
+     uint32 botMapId = corpse->GetMapId();
+     uint32 botZoneId = corpse->GetZoneId();
+ 
+-    for (auto mapValues : sWorld.GetGraveyardManager().GetGraveyardMap())
++    for (auto const& mapValues : sObjectMgr.GetGraveYardMap())
+     {
+-        uint32 locId = mapValues.first;
+         GraveYardData const& graveyardData = mapValues.second;
+ 
+         //skip non-neutral or hostile graveyards

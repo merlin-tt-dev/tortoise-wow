@@ -1,0 +1,2 @@
+ modules/mod-playerbots/src/cmangos-compat-shim.h | 19 -------------------
+ 1 file changed, 19 deletions(-)

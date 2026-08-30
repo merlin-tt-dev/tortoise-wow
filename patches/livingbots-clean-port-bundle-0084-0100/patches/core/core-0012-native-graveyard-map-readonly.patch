@@ -1,0 +1,12 @@
+diff --git a/src/game/ObjectMgr.h b/src/game/ObjectMgr.h
+index 409f9bd1adff473ea48aff22b4efb549426a33a0..e4d04be80f44726582d4ebaacfdb54529c913e79 100644
+--- a/src/game/ObjectMgr.h
++++ b/src/game/ObjectMgr.h
+@@ -840,6 +840,7 @@ class ObjectMgr
+         void RemoveGraveYardLink(uint32 id, uint32 zone, Team team, bool inDB = false);
+         void LoadGraveyardZones();
+         GraveYardData const* FindGraveYardData(uint32 id, uint32 zone) const;
++        GraveYardMap const& GetGraveYardMap() const { return m_GraveYardMap; }
+         void LoadWorldSafeLocsFacing();
+         float GetWorldSafeLocFacing(uint32 id) const;
+         CustomCharacterSkinEntry const* GetCustomCharacterSkin(uint32 token_id);

@@ -1,0 +1,60 @@
+diff --git a/modules/mod-playerbots/src/cmangos-compat-shim.h b/modules/mod-playerbots/src/cmangos-compat-shim.h
+index 1e0ee9538bdad25cb03ad469b03a5da8a702e429..009099da12efe6d1e88d3caebac863faec128357 100644
+--- a/modules/mod-playerbots/src/cmangos-compat-shim.h
++++ b/modules/mod-playerbots/src/cmangos-compat-shim.h
+@@ -98,16 +98,6 @@ struct CmangosItemStorageProxy
+ };
+ inline CmangosItemStorageProxy sItemStorage;
+ 
+-// Singleton-like wrapper for cmangos's sMapStore. Penqle uses sMapStorage (SQLStorage).
+-struct MapEntry;  // defined in Maps/Map.h
+-struct CmangosMapStoreProxy
+-{
+-    template<typename T = MapEntry>
+-    T const* LookupEntry(uint32 id) const { return sMapStorage.LookupEntry<MapEntry>(id); }
+-    uint32 GetNumRows() const { return sMapStorage.GetMaxEntry(); }
+-};
+-inline CmangosMapStoreProxy sMapStore;
+-
+ // Singleton-like wrapper for cmangos's sFactionTemplateStore.
+ struct FactionTemplateEntry;  // defined in Database/DBCStructure.h
+ struct CmangosFactionTemplateStoreProxy
+diff --git a/modules/mod-playerbots/src/playerbot/WorldPosition.cpp b/modules/mod-playerbots/src/playerbot/WorldPosition.cpp
+index 465e348645e870346cc5a93f3589f74d8ec7f440..307e6755edf11023ed46e1e8ac3a2c6a160a4e80 100644
+--- a/modules/mod-playerbots/src/playerbot/WorldPosition.cpp
++++ b/modules/mod-playerbots/src/playerbot/WorldPosition.cpp
+@@ -356,7 +356,7 @@ bool WorldPosition::canFly() const
+ 
+ #ifdef MANGOSBOT_ONE
+     uint32 v_map = GetVirtualMapForMapAndZone(getMapId(), zoneid);
+-    MapEntry const* mapEntry = sMapStore.LookupEntry(v_map);
++    MapEntry const* mapEntry = sMapStorage.LookupEntry<MapEntry>(v_map);
+     if (!mapEntry || mapEntry->addon < 1 || !mapEntry->IsContinent())
+         return false;
+ #endif
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/actions/CheckMountStateAction.cpp b/modules/mod-playerbots/src/playerbot/strategy/actions/CheckMountStateAction.cpp
+index 76db42f2d1c8f7830ab54150908a369e9c3f3556..35cc765cbc087fae845bb4c51e5e081b40365fa0 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/actions/CheckMountStateAction.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/actions/CheckMountStateAction.cpp
+@@ -320,7 +320,7 @@ bool CheckMountStateAction::CanFly() const
+     uint32 zone, area;
+     bot->GetZoneAndAreaId(zone, area);
+     uint32 v_map = GetVirtualMapForMapAndZone(bot->GetMapId(), zone);
+-    MapEntry const* mapEntry = sMapStore.LookupEntry(v_map);
++    MapEntry const* mapEntry = sMapStorage.LookupEntry<MapEntry>(v_map);
+     if (!mapEntry || mapEntry->addon < 1 || !mapEntry->IsContinent())
+         return false;
+ #endif
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/values/MountValues.cpp b/modules/mod-playerbots/src/playerbot/strategy/values/MountValues.cpp
+index 884d2fe7f8a1612e7430d9f94d61e5541e31481a..f2029bc40edcc2aaaa3efa6864bb1ce63a593386 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/values/MountValues.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/values/MountValues.cpp
+@@ -116,7 +116,7 @@ bool MountValue::IsValidLocation(Player* bot)
+         uint32 zone, area;
+         bot->GetZoneAndAreaId(zone, area);
+         uint32 v_map = GetVirtualMapForMapAndZone(bot->GetMapId(), zone);
+-        MapEntry const* mapEntry = sMapStore.LookupEntry(v_map);
++        MapEntry const* mapEntry = sMapStorage.LookupEntry<MapEntry>(v_map);
+         if (!mapEntry || mapEntry->addon < 1 || !mapEntry->IsContinent())
+             return false;
+ #endif

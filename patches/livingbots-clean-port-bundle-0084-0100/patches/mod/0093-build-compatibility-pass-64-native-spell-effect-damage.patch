@@ -1,0 +1,13 @@
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/triggers/HealthTriggers.cpp b/modules/mod-playerbots/src/playerbot/strategy/triggers/HealthTriggers.cpp
+index 4816f46321ad738e86c7d6de518886403178eea7..8a78b2f39c265d90fad680184bf59a1a57e871f5 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/triggers/HealthTriggers.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/triggers/HealthTriggers.cpp
+@@ -76,7 +76,7 @@ bool HealTargetFullHealthTrigger::IsActive()
+                 bool hpFull = pTarget->GetHealth() == pTarget->GetMaxHealth();
+                 if (!hpFull && (pTarget->GetHealthPercent() > 90.f))
+                 {
+-                    uint32 healValue = currentSpell->GetDamage();
++                    uint32 healValue = static_cast<uint32>(currentSpell->damage);
+                     uint32 needHeal = pTarget->GetMaxHealth() - pTarget->GetHealth();
+                     if (healValue > needHeal && float((needHeal * 100.0f) / healValue) < 50.0f)
+                     {

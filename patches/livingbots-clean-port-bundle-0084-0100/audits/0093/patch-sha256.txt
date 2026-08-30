@@ -1,0 +1,1 @@
+7ac434528ff105df6e7bfaf0ee7e42293be6a4fb9727983ced47352b21f156f9  patches/mod/0093-build-compatibility-pass-64-native-spell-effect-damage.patch
