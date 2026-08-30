@@ -5,6 +5,7 @@
 #include "PlayerbotAI.h"
 #include "ChatHelper.h"
 #include "playerbot/ServerFacade.h"
+#include "LFG/LFGMgr.h"
 
 PlayerbotSecurity::PlayerbotSecurity(Player* const bot) : bot(bot), account(0)
 {
@@ -82,7 +83,7 @@ PlayerbotSecurityLevel PlayerbotSecurity::LevelFor(Player* from, DenyReason* rea
         if (GetPlayerbotAI(bot)->HasRealPlayerMaster() && bot->GetSession()->m_lfgInfo.queued)
 #endif
 #ifdef MANGOSBOT_ZERO
-        if (sWorld.GetLFGQueue().IsPlayerInQueue(bot->GetObjectGuid()))
+        if (sLFGMgr.IsPlayerInQueue(bot->GetObjectGuid()))
 #endif
 #ifdef MANGOSBOT_TWO
         if (false/*sLFGMgr.GetQueueInfo(bot->GetObjectGuid())*/)
@@ -254,7 +255,13 @@ bool PlayerbotSecurity::CheckLevelFor(PlayerbotSecurityLevel level, bool silent,
     if (!lastSaid || (time(0) - lastSaid) >= sPlayerbotAIConfig.repeatDelay / 1000)
     {
         whispers[guid][text] = time(0);
-        bot->Whisper(text, LANG_UNIVERSAL, ObjectGuid(guid));
+        if (from->GetSession())
+        {
+            WorldPacket data;
+            ChatHandler::BuildChatPacket(data, CHAT_MSG_WHISPER, text, LANG_UNIVERSAL, bot->GetChatTag(),
+                bot->GetObjectGuid(), bot->GetName(), from->GetObjectGuid(), from->GetName());
+            from->GetSession()->SendPacket(&data);
+        }
     }
     return false;
 }
