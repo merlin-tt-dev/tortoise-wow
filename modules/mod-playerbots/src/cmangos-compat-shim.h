@@ -26,99 +26,6 @@
 #include <chrono>
 #include <random>
 
-// === Type renames ===
-// cmangos's Transport class is called GenericTransport in WotLK builds and
-// Transport in Classic. Penqle uses Transport. Provide both names.
-class Transport;
-typedef Transport GenericTransport;
-
-// cmangos uses GuidSet typedef. Penqle uses ObjectGuidSet.
-// Pull ObjectGuid header transitively to ensure the typedef target is visible
-// before the alias is used.
-#include "ObjectGuid.h"
-typedef ObjectGuidSet GuidSet;
-
-// === Define mappings ===
-// cmangos's ItemClass enum has ITEM_CLASS_JUNK at value 15. Penqle renamed
-// this to ITEM_CLASS_JUNK (also at 15). The bot module's ahbot/Category.h
-// uses the cmangos name.
-#ifndef ITEM_CLASS_JUNK
-#define ITEM_CLASS_JUNK ITEM_CLASS_JUNK
-#endif
-
-// cmangos defines DEFAULT_MAX_LEVEL per-expansion (60 for Classic). The bot
-// module's PlayerbotAIConfig.h and PlayerbotLoginMgr.h use this for array
-// sizing. Penqle uses MAX_LEVEL/STRONG_MAX_LEVEL but not this exact name.
-#ifndef DEFAULT_MAX_LEVEL
-#define DEFAULT_MAX_LEVEL 60
-#endif
-
-// cmangos's Team enum has TEAM_BOTH_ALLOWED for queries that span both factions.
-// Penqle's Team enum has TEAM_NONE=0 (used as "no faction filter" sentinel).
-// Map TEAM_BOTH_ALLOWED to TEAM_NONE so default-arg conversions work.
-#ifndef TEAM_BOTH_ALLOWED
-#define TEAM_BOTH_ALLOWED TEAM_NONE
-#endif
-
-// Progress reporting is implemented by playerbot/ProgressBar.h, not by a compatibility shim.
-
-// === DBC store aliases ===
-// cmangos accesses spell DBC via `sSpellTemplate.LookupEntry<SpellEntry>(id)`.
-// Penqle uses `sSpellMgr.GetSpellEntry(id)`. The bot's `sSpellTemplate` is used
-// in 600+ call sites; rather than rewrite each, provide a header-only wrapper
-// object that exposes a templated LookupEntry() forwarding to Penqle's API.
-//
-// The forward-decls below need ObjectMgr / SpellMgr access. Because this header
-// is included EARLY in botpch.h (before SpellMgr.h), we declare the proxy class
-// inline-only — its methods get instantiated at the call sites, after Penqle's
-// SpellMgr/ObjectMgr are already in scope via later botpch.h includes.
-
-// Note: this shim is included AFTER Penqle's SpellMgr.h / ObjectMgr.h /
-// SpellEntry / ItemPrototype headers in botpch.h, so we can call those APIs
-// directly in inline bodies.
-
-// Singleton-like wrapper for cmangos's sSpellTemplate. Inline LookupEntry<>()
-// forwards to Penqle's sSpellMgr.GetSpellEntry().
-struct CmangosSpellTemplateProxy
-{
-    template<typename T = SpellEntry>
-    T const* LookupEntry(uint32 id) const { return sSpellMgr.GetSpellEntry(id); }
-    // cmangos's DBCStorage exposes GetMaxEntry. Bot uses it to iterate spells.
-    // Penqle's sSpellMgr exposes GetMaxSpellId() — same purpose.
-    uint32 GetMaxEntry() const { return sSpellMgr.GetMaxSpellId(); }
-};
-inline CmangosSpellTemplateProxy sSpellTemplate;
-
-// Singleton-like wrapper for cmangos's sItemStorage. Direct lookups forward to
-// sObjectMgr.GetItemPrototype(); full-store scans use Penqle's native map.
-struct CmangosItemStorageProxy
-{
-    template<typename T = ItemPrototype>
-    T const* LookupEntry(uint32 id) const { return sObjectMgr.GetItemPrototype(id); }
-};
-inline CmangosItemStorageProxy sItemStorage;
-
-// Singleton-like wrapper for cmangos's sFactionTemplateStore.
-struct FactionTemplateEntry;  // defined in Database/DBCStructure.h
-struct CmangosFactionTemplateStoreProxy
-{
-    template<typename T = FactionTemplateEntry>
-    T const* LookupEntry(uint32 id) const { return sObjectMgr.GetFactionTemplateEntry(id); }
-};
-inline CmangosFactionTemplateStoreProxy sFactionTemplateStore;
-
-// === Other defines ===
-// cmangos has ITEM_FLAG_HAS_LOOT (lootable item). Penqle uses ITEM_FLAG_HAS_LOOT or ITEM_FLAG_OPENABLE.
-#ifndef ITEM_FLAG_HAS_LOOT
-#define ITEM_FLAG_HAS_LOOT ITEM_FLAG_LOOTABLE
-#endif
-
-// === Type renames (cmangos→Penqle struct name diffs) ===
-// cmangos's ItemPrototype has _Spell substruct (older naming);
-// Penqle uses _ItemSpell (current naming). They're the same shape.
-typedef _ItemSpell _Spell;
-
-
 // === Spells namespace functions hoisted to global scope ===
 // cmangos's bot calls IsPositiveSpell / GetDispellMask without namespace.
 // Penqle wraps these in `namespace Spells`. Bring them into global scope
@@ -129,21 +36,6 @@ using Spells::IsPassiveSpell;
 // SpellEntry* overload: bot passes spellInfo directly.
 inline bool IsPositiveSpell(SpellEntry const* spellInfo) { return spellInfo && spellInfo->IsPositiveSpell(); }
 inline bool IsPositiveSpell(SpellEntry const* spellInfo, WorldObject const* caster, WorldObject const* victim) { return spellInfo && spellInfo->IsPositiveSpell(caster, victim); }
-
-// === TimePoint (cmangos using; not in Penqle) ===
-// Bot uses TimePoint for loot creation timestamps.
-#include <chrono>
-using TimePoint = std::chrono::system_clock::time_point;
-
-// === Additional cmangos-only DBC store proxies ===
-// sFactionStore (faction.dbc) — distinct from sFactionTemplateStore (factiontemplate.dbc).
-struct FactionEntry;  // defined in DBCStructure.h
-struct CmangosFactionStoreProxy
-{
-    template<typename T = FactionEntry>
-    T const* LookupEntry(uint32 id) const { return sObjectMgr.GetFactionEntry(id); }
-};
-inline CmangosFactionStoreProxy sFactionStore;
 
 // === Helpers ===
 // strstri overload: bot's PlayerbotAI.cpp forward-declares strstri(std::string, std::string).
@@ -160,34 +52,9 @@ inline const char* strstr(std::string const& haystack, const char* needle) {
 // === BattleGroundMgr alias ===
 // Done via forwarder in Penqle's BattleGroundMgr.h (BgTemplateId → BGTemplateId).
 
-// === TEAM_INDEX_ aliases (cmangos) ===
-// Penqle uses BG_TEAM_ALLIANCE/BG_TEAM_HORDE. cmangos uses TEAM_INDEX_ALLIANCE/HORDE/NEUTRAL.
-#ifndef TEAM_INDEX_ALLIANCE
-#define TEAM_INDEX_ALLIANCE BG_TEAM_ALLIANCE
-#endif
-#ifndef TEAM_INDEX_HORDE
-#define TEAM_INDEX_HORDE BG_TEAM_HORDE
-#endif
-#ifndef TEAM_INDEX_NEUTRAL
-#define TEAM_INDEX_NEUTRAL 2
-#endif
-
-// === IsAutocastable (cmangos free function) ===
-// Penqle's native pet-autocast opcode accepts any known, non-passive pet spell.
-// Mirror that host rule instead of disabling autocast through a false stub.
-inline bool IsAutocastable(SpellEntry const* spellInfo) { return spellInfo && !spellInfo->IsPassiveSpell(); }
-inline bool IsAutocastable(uint32 spellId) { return IsAutocastable(sSpellMgr.GetSpellEntry(spellId)); }
-
 // === IsSpellAppliesAura / IsSpellHaveEffect / IsAreaAuraEffect (cmangos free functions) ===
 inline bool IsSpellAppliesAura(SpellEntry const* spellInfo, uint32 effectMask = 0xFFFFFFFF) {
     return spellInfo && spellInfo->IsSpellAppliesAura(effectMask);
-}
-inline bool IsSpellHaveEffect(SpellEntry const* spellInfo, uint32 effect) {
-    if (!spellInfo) return false;
-    for (int i = 0; i < MAX_EFFECT_INDEX; ++i) {
-        if (spellInfo->Effect[i] == effect) return true;
-    }
-    return false;
 }
 inline bool IsAreaAuraEffect(uint32 effect) {
     return effect == SPELL_EFFECT_APPLY_AREA_AURA_PARTY || effect == SPELL_EFFECT_APPLY_AREA_AURA_FRIEND
@@ -195,71 +62,8 @@ inline bool IsAreaAuraEffect(uint32 effect) {
         || effect == SPELL_EFFECT_APPLY_AREA_AURA_OWNER;
 }
 
-// === MINIMUM_LOOTING_TIME ===
-#ifndef MINIMUM_LOOTING_TIME
-#define MINIMUM_LOOTING_TIME 1000
-#endif
-
-// === SPELL_RANGE_FLAG_MELEE / RANGED (cmangos defines on SpellRangeEntry::Flags) ===
-#ifndef SPELL_RANGE_FLAG_MELEE
-#define SPELL_RANGE_FLAG_MELEE 1
-#endif
-#ifndef SPELL_RANGE_FLAG_RANGED
-#define SPELL_RANGE_FLAG_RANGED 2
-#endif
-
-// === TAXI_MOTION_TYPE (cmangos) → FLIGHT_MOTION_TYPE (Penqle) ===
-#ifndef TAXI_MOTION_TYPE
-#define TAXI_MOTION_TYPE FLIGHT_MOTION_TYPE
-#endif
-
-// === LfgRoles / LfgRolePriority (cmangos) — bot module's own ClassRoles is similar ===
+// === LfgRoles (MANGOSBOT_TWO compatibility only) ===
 typedef ClassRoles LfgRoles;
-typedef RolesPriority LfgRolePriority;
-
-// === Other small defines ===
-#ifndef LOOT_SLOT_NORMAL
-#define LOOT_SLOT_NORMAL 0
-#endif
-#ifndef SPELL_STATE_TARGETING
-#define SPELL_STATE_TARGETING 0
-#endif
-
-// === SkillLineAbility store proxy ===
-// cmangos exposes sSkillLineAbilityStore (DBCStorage<SkillLineAbilityEntry>);
-// Penqle exposes sObjectMgr.GetSkillLineAbility(id).
-struct SkillLineAbilityEntry;
-struct CmangosSkillLineAbilityStoreProxy
-{
-    template<typename T = SkillLineAbilityEntry>
-    T const* LookupEntry(uint32 id) const { return sObjectMgr.GetSkillLineAbility(id); }
-    uint32 GetMaxEntry() const { return sObjectMgr.GetMaxSkillLineAbilityId(); }
-    uint32 GetNumRows() const { return GetMaxEntry(); }
-};
-inline CmangosSkillLineAbilityStoreProxy sSkillLineAbilityStore;
-
-// === sGOStorage (cmangos) → sObjectMgr.GetGameObjectInfo ===
-struct CmangosGOStorageProxy
-{
-    template<typename T = GameObjectInfo>
-    T const* LookupEntry(uint32 id) const { return sObjectMgr.GetGameObjectInfo(id); }
-};
-inline CmangosGOStorageProxy sGOStorage;
-
-// === sTaxiNodesStore (cmangos) → sObjectMgr.GetTaxiNodeEntry ===
-struct TaxiNodesEntry;
-struct CmangosTaxiNodesStoreProxy
-{
-    template<typename T = TaxiNodesEntry>
-    T const* LookupEntry(uint32 id) const { return sObjectMgr.GetTaxiNodeEntry(id); }
-    uint32 GetNumRows() const { return sObjectMgr.GetMaxTaxiNodeId(); }
-};
-inline CmangosTaxiNodesStoreProxy sTaxiNodesStore;
-
-// === Map::GetHitPosition forwarder (cmangos name) ===
-// Penqle uses GetLosHitPosition. The bot module's call sites were patched at
-// the source level (TravelMgr.cpp / WorldPosition.h).
-
 // === Remaining free-function compatibility helpers ===
 // IsNextMeleeSwingSpell: cmangos free function checking SPELL_ATTR_ON_NEXT_SWING_1/_2.
 inline bool IsNextMeleeSwingSpell(SpellEntry const* spellInfo) {
@@ -271,32 +75,6 @@ inline SpellSchoolMask GetSpellSchoolMask(SpellEntry const* spellInfo) {
 inline bool IsNonCombatSpell(SpellEntry const* spellInfo) {
     return spellInfo && spellInfo->IsNonCombatSpell();
 }
-
-// === GetSpellStore (cmangos) → sSpellMgr (Penqle) ===
-// cmangos exposes a global GetSpellStore() returning the DBC store as a POINTER.
-inline CmangosSpellTemplateProxy* GetSpellStore() { return &sSpellTemplate; }
-
-// === GetApplicationStartTime (cmangos) — free function returning startup timestamp ===
-inline std::chrono::system_clock::time_point GetApplicationStartTime() {
-    static auto s_start = std::chrono::system_clock::now();
-    return s_start;
-}
-
-// === GetTeamIndexByTeamId (cmangos) → BattleGround static method ===
-// Provide free-function forwarder. (BattleGround.h has it as a static.)
-inline BattleGroundTeamIndex GetTeamIndexByTeamId(Team team) {
-    return team == ALLIANCE ? BG_TEAM_ALLIANCE : BG_TEAM_HORDE;
-}
-
-// === SPELL_ATTR_ON_NEXT_SWING aliases ===
-// cmangos has SPELL_ATTR_ON_NEXT_SWING / _NO_DAMAGE; Penqle has SPELL_ATTR_ON_NEXT_SWING_1/_2.
-#ifndef SPELL_ATTR_ON_NEXT_SWING
-#define SPELL_ATTR_ON_NEXT_SWING SPELL_ATTR_ON_NEXT_SWING_1
-#endif
-#ifndef SPELL_ATTR_ON_NEXT_SWING_NO_DAMAGE
-#define SPELL_ATTR_ON_NEXT_SWING_NO_DAMAGE SPELL_ATTR_ON_NEXT_SWING_2
-#endif
-
 
 // === IsAutoRepeatRangedSpell (cmangos free function) ===
 // Penqle's SpellEntry has IsAutoRepeatRangedSpell as a method. Wrap as free fn.

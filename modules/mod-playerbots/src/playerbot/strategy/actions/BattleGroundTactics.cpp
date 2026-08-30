@@ -3246,7 +3246,7 @@ bool BGTactics::selectObjective(bool reset)
     case BATTLEGROUND_EY: //Role < 4: Defender, else Attacker. In the beginning split for all points. Afterwards pick random strategies
     {
         //Variables
-        uint8 rootTeamIndex = TEAM_INDEX_NEUTRAL;
+        uint8 rootTeamIndex = BG_TEAMS_COUNT;
         uint32 role = context->GetValue<uint32>("bg role")->Get();
 
         uint32 attackObjectivesFront[2];
@@ -3263,7 +3263,7 @@ bool BGTactics::selectObjective(bool reset)
             attackObjectivesFront[1] = EY_AttackObjectives[1];
             attackObjectivesBack[0] = EY_AttackObjectives[2];
             attackObjectivesBack[1] = EY_AttackObjectives[3];
-            rootTeamIndex = TEAM_INDEX_HORDE;
+            rootTeamIndex = BG_TEAM_HORDE;
         }
         else if (rootTeam == ALLIANCE)
         {
@@ -3271,7 +3271,7 @@ bool BGTactics::selectObjective(bool reset)
             attackObjectivesFront[1] = EY_AttackObjectives[3];
             attackObjectivesBack[0] = EY_AttackObjectives[0];
             attackObjectivesBack[1] = EY_AttackObjectives[1];
-            rootTeamIndex = TEAM_INDEX_ALLIANCE;
+            rootTeamIndex = BG_TEAM_ALLIANCE;
         }
 
         WorldObject* BgObjective = nullptr;
