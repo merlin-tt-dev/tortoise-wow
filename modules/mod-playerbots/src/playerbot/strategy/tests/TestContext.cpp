@@ -1,5 +1,6 @@
 #include "TestContext.h"
 #include "playerbot/PlayerbotMgr.h"
+#include "playerbot/RandomPlayerbotMgr.h"
 
 using namespace ai;
 
@@ -24,7 +25,7 @@ void TestContext::Reset()
     {
         if (guid && guid.IsPlayer())
         {
-            sRandomPlayerbotMgr.DeleteBot(guid, true);
+            RandomPlayerbotMgr::instance().DeleteBot(guid, true);
         }
     }
     spawnedBots.clear();
