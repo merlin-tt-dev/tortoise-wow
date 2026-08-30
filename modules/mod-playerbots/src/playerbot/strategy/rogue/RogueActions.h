@@ -6,7 +6,7 @@ namespace ai
 {
     BUFF_ACTION(CastColdBloodAction, "cold blood");
 
-    BUFF_ACTION_U(CastPreparationAction, "preparation", !bot->IsSpellReady(14177) || !bot->IsSpellReady(2983) || !bot->IsSpellReady(2094));
+    BUFF_ACTION_U(CastPreparationAction, "preparation", !sServerFacade.IsSpellReady(bot, 14177) || !sServerFacade.IsSpellReady(bot, 2983) || !sServerFacade.IsSpellReady(bot, 2094));
 
     class CastShadowstepAction : public CastSpellAction 
     {
@@ -17,7 +17,7 @@ namespace ai
 
         virtual bool isUseful() override
         {
-            return bot->HasSpell(36554) && bot->IsSpellReady(36554);
+            return bot->HasSpell(36554) && sServerFacade.IsSpellReady(bot, 36554);
         }
 
         virtual bool Execute(Event& event) override
@@ -411,19 +411,19 @@ namespace ai
                         int count = 0;
                         for (int i = 0; i < MAX_ITEM_PROTO_SPELLS; ++i)
                         {
-                            const _Spell& spellData = poisonProto->Spells[i];
+                            const _ItemSpell& spellData = poisonProto->Spells[i];
                             if (spellData.SpellId)
                             {
                                 const SpellEntry* spellInfo = sSpellMgr.GetSpellEntry(spellData.SpellId);
                                 if (spellInfo)
                                 {
                                     BotUseItemSpell* spell = new BotUseItemSpell(bot, spellInfo, count > 0);
-                                    spell->m_clientCast = true;
+                                    spell->SetClientStarted(true);
 
                                     if (spell->ForceSpellStart(&targets) == SPELL_CAST_OK)
                                     {
-                                        bot->RemoveSpellCooldown(*spellInfo, false);
-                                        bot->AddCooldown(*spellInfo, poisonProto, false);
+                                        bot->RemoveSpellCooldown(spellInfo->Id, false);
+                                        bot->AddSpellAndCategoryCooldowns(spellInfo, poisonProto->ItemId);
                                         SetDuration(3000);
                                     }
                                     else
@@ -441,7 +441,16 @@ namespace ai
                 }
                 else
                 {
-                    Item* poisonItem = bot->GetItemByEntry(poisonItemId);
+                    Item* poisonItem = nullptr;
+                    for (Item* item : ai->GetInventoryItems())
+                    {
+                        if (item && item->GetEntry() == poisonItemId)
+                        {
+                            poisonItem = item;
+                            break;
+                        }
+                    }
+
                     if (poisonItem)
                     {
                         ai->ImbueItem(poisonItem, weaponSlot);
