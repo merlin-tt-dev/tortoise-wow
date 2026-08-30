@@ -58,7 +58,7 @@ bool EnemyPlayersValue::IsValid(Unit* target, Player* player)
             // Check that the target is not a mind controlled ally
             if (target->HasAuraType(SPELL_AURA_MOD_CHARM) || target->HasAuraType(SPELL_AURA_MOD_POSSESS))
             {
-                if (player && player->IsInGroup(target))
+                if (player && target->IsPlayer() && player->IsInSameGroupWith(static_cast<Player*>(target)))
                 {
                     return false;
                 }
@@ -186,7 +186,7 @@ float EnemyPlayerValue::GetMaxAttackDistance(Player* bot)
         if (!bg)
             return 40.0f;
 
-        BattleGroundTypeId bgType = bg->GetTypeId();
+        BattleGroundTypeId bgType = bg->GetTypeID();
 
 #ifdef MANGOSBOT_TWO
         if (bgType == BATTLEGROUND_RB)

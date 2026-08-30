@@ -6,6 +6,16 @@
 
 using namespace std::placeholders;
 
+namespace
+{
+uint32 GetMaxTalentPoints(Player const* bot)
+{
+    uint32 talentPointsForLevel = bot->GetLevel() < 10 ? 0 : bot->GetLevel() - 9;
+    talentPointsForLevel += bot->GetBonusTalentCount();
+    return uint32(talentPointsForLevel * sWorld.getConfig(CONFIG_FLOAT_RATE_TALENT));
+}
+}
+
 //Checks a talent link on basic validity.
 bool TalentSpec::CheckTalentLink(std::string link, std::ostringstream* out) {
 
@@ -118,11 +128,11 @@ void TalentSpec::ApplyTalents(Player* bot, std::ostringstream* out)
 
             if (bot->HasSpell(spellId) && entry.rank - 1 != rank)
             {
-                bot->removeSpell(spellId, false, false);
+                bot->RemoveSpell(spellId, false, false);
             }
             else if (!bot->HasSpell(spellId) && entry.rank - 1 == rank)
             {
-                bot->learnSpell(spellId, false);
+                bot->LearnSpell(spellId, false);
             }
         }
 
@@ -379,7 +389,8 @@ std::string TalentSpec::formatSpec(uint8 cls)
 //Removes talentpoints to match the level
 void TalentSpec::CropTalents(Player* bot)
 {
-    if (points <= bot->CalculateTalentsPoints())
+    uint32 const maxTalentPoints = GetMaxTalentPoints(bot);
+    if (points <= maxTalentPoints)
         return;
 
     SortTalents(talents, SORT_BY_POINTS_TREE);
@@ -388,8 +399,8 @@ void TalentSpec::CropTalents(Player* bot)
 
     for (auto& entry : talents)
     {
-        if (points + entry.rank > (int)bot->CalculateTalentsPoints())
-            entry.rank = std::max(0, (int)(bot->CalculateTalentsPoints() - points));
+        if (points + entry.rank > (int)maxTalentPoints)
+            entry.rank = std::max(0, (int)(maxTalentPoints - points));
         points += entry.rank;
     }
 
@@ -429,7 +440,8 @@ bool TalentSpec::isEarlierVersionOf(TalentSpec& newSpec)
 void TalentSpec::ShiftTalents(TalentSpec* currentSpec, Player* bot)
 {    
 
-    if (points >= bot->CalculateTalentsPoints()) //We have no more points to spend. Better reset and crop
+    uint32 const maxTalentPoints = GetMaxTalentPoints(bot);
+    if (points >= maxTalentPoints) //We have no more points to spend. Better reset and crop
     {
         CropTalents(bot);
         return;
@@ -453,8 +465,8 @@ void TalentSpec::ShiftTalents(TalentSpec* currentSpec, Player* bot)
 
     for (auto& entry : deltaList)
     {
-        if (entry.rank + points > bot->CalculateTalentsPoints()) //Running out of points. Only apply what we have left.
-            entry.rank = std::max(0, int(bot->CalculateTalentsPoints() - points));
+        if (entry.rank + points > maxTalentPoints) //Running out of points. Only apply what we have left.
+            entry.rank = std::max(0, int(maxTalentPoints - points));
 
         for (auto& subentry : talents)
             if (entry.entry == subentry.entry)
