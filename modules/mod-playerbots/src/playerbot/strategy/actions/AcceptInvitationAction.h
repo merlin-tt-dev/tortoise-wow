@@ -28,7 +28,7 @@ namespace ai
                 return false;
             }
             
-            if (bot->isAFK())
+            if (bot->IsAFK())
                 bot->ToggleAFK();
 
             WorldPacket p;
@@ -70,7 +70,7 @@ namespace ai
 
                     Guild* guild = sGuildMgr.GetGuildById(bot->GetGuildId());
 
-                    if (guild && master->IsInGuild(bot->GetGuildId()))
+                    if (guild && master->GetGuildId() == bot->GetGuildId())
                         guild->BroadcastToGuild(bot->GetSession(), reply, LANG_UNIVERSAL);
                     else if (sServerFacade.GetDistance2d(bot, master) < sPlayerbotAIConfig.spellDistance * 1.5)
                         bot->Say(reply, (bot->GetTeam() == ALLIANCE ? LANG_COMMON : LANG_ORCISH));
