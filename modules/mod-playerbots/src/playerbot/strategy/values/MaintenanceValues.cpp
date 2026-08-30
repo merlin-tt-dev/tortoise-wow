@@ -1,6 +1,7 @@
 
 #include "MaintenanceValues.h"
 #include "Mail/Mail.h"
+#include "MapNodes/MasterPlayer.h"
 #include "playerbot/strategy/values/GuildValues.h"
 
 using namespace ai;
@@ -60,9 +61,13 @@ bool CanGetMailValue::Calculate() {
     if (AI_VALUE(bool, "should sell"))
         return false;
 
+    MasterPlayer* masterPlayer = bot->GetSession() ? bot->GetSession()->GetMasterPlayer() : nullptr;
+    if (!masterPlayer)
+        return false;
+
     time_t cur_time = time(0);
 
-    for (PlayerMails::iterator itr = bot->GetMailBegin(); itr != bot->GetMailEnd(); ++itr)
+    for (PlayerMails::iterator itr = masterPlayer->GetMailBegin(); itr != masterPlayer->GetMailEnd(); ++itr)
     {
         if ((*itr)->state == MAIL_STATE_DELETED || cur_time < (*itr)->deliver_time)
             continue;
@@ -77,11 +82,15 @@ bool CanGetMailValue::Calculate() {
 }
 
 bool ShouldGetMailValue::Calculate() {
+    MasterPlayer* masterPlayer = bot->GetSession() ? bot->GetSession()->GetMasterPlayer() : nullptr;
+    if (!masterPlayer)
+        return false;
+
     time_t cur_time = time(0);
 
     bool hasGuildShareList = !AI_VALUE(std::vector<GuildShareItemEntry>, "guild share list").empty();
 
-    for (PlayerMails::iterator itr = bot->GetMailBegin(); itr != bot->GetMailEnd(); ++itr)
+    for (PlayerMails::iterator itr = masterPlayer->GetMailBegin(); itr != masterPlayer->GetMailEnd(); ++itr)
     {
         if ((*itr)->state == MAIL_STATE_DELETED || cur_time < (*itr)->deliver_time)
             continue;
