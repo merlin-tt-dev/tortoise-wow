@@ -1,0 +1,14 @@
+./APPLY_ORDER.txt: OK
+./MANIFEST.txt: OK
+./README.md: OK
+./audits/FINAL-COMPILE-API-AUDIT.md: OK
+./audits/byte-compare.txt: OK
+./audits/fresh-apply.log: OK
+./audits/reapply.log: OK
+./audits/reverse.log: OK
+./patches/core/.gitkeep: OK
+./patches/mod/0101-build-compatibility-pass-72-native-warlock-player-selection.patch: OK
+./patches/mod/0102-build-compatibility-pass-73-native-honor-xp-target.patch: OK
+./patches/mod/0103-build-compatibility-pass-74-native-test-setup-position-fly.patch: OK
+./patches/mod/0104-build-compatibility-pass-75-native-test-context-manager-access.patch: OK
+./patches/mod/0105-build-compatibility-pass-76-native-test-gametele-position.patch: OK

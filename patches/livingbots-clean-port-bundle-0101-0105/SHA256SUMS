@@ -1,0 +1,14 @@
+a49b80a225de1231824a317f1487d45eec51f565f5b47ea72c49fe0db1f22f21  ./APPLY_ORDER.txt
+b16309cffcc86632547876e44dc83d7bb381dce1385b43b1f4c13de4d8441242  ./MANIFEST.txt
+f058690bdee1260906391681c7bc103eb48a85c29cfd5b81161a7949329aceec  ./README.md
+ac71def9ef7a11e14fc54b5f6fa6b55bd70ad95e32433bf6449785c0350a7330  ./audits/FINAL-COMPILE-API-AUDIT.md
+0d7a4f88e396fbaec256168b33eac05e87ac5f2aeac882e940efafe36d542214  ./audits/byte-compare.txt
+55f1626ca47838a9f09a1ed35ba9badedbfa89901bb65097bee0ee14fce51f7a  ./audits/fresh-apply.log
+55f1626ca47838a9f09a1ed35ba9badedbfa89901bb65097bee0ee14fce51f7a  ./audits/reapply.log
+88fb68f640ae1887f32d1dba6304905009c5155ab617df015b8438720abc47ff  ./audits/reverse.log
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  ./patches/core/.gitkeep
+f8acbf59ae5e5fb7caec7acade43839d5a0c96dea07f8c4c9a70fde82aa4da85  ./patches/mod/0101-build-compatibility-pass-72-native-warlock-player-selection.patch
+028e9b0bc0e8577d27894ed5a14427c0a788eae555cfad28de91d8a4003bb04c  ./patches/mod/0102-build-compatibility-pass-73-native-honor-xp-target.patch
+77e818f113da37f9ddc403889dd66f1de3f20fb596586b6d7c9fbe017226693b  ./patches/mod/0103-build-compatibility-pass-74-native-test-setup-position-fly.patch
+1bbd3d34ec0ee735955775789648637580c095800a839a8cc857c752b58e0701  ./patches/mod/0104-build-compatibility-pass-75-native-test-context-manager-access.patch
+6408874a4fd305833dc1b22af047851613506f2bb9d8a311463623cf68513882  ./patches/mod/0105-build-compatibility-pass-76-native-test-gametele-position.patch

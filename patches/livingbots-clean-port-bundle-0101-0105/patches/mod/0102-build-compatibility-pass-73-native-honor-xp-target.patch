@@ -1,0 +1,25 @@
+From 8a5eadcd0d5284231c1acaea7af68a5590eacfd7 Mon Sep 17 00:00:00 2001
+From: audit <audit@local>
+Date: Sun, 30 Aug 2026 18:08:21 +0000
+Subject: [PATCH] Build/Compile Audit: Native Honor XP Target
+
+---
+ .../src/playerbot/strategy/deathknight/DKActions.cpp            | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/deathknight/DKActions.cpp b/modules/mod-playerbots/src/playerbot/strategy/deathknight/DKActions.cpp
+index 622d923..04fda3a 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/deathknight/DKActions.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/deathknight/DKActions.cpp
+@@ -22,7 +22,7 @@ bool CastRaiseDeadAction::isPossible()
+ 		if (creature->GetCreatureType() != CREATURE_TYPE_HUMANOID)
+ 			continue;
+ 
+-		if (!bot->isHonorOrXPTarget(creature))
++        if (!bot->IsHonorOrXPTarget(creature))
+ 			continue;
+ 
+ 		return true;
+-- 
+2.47.3
+

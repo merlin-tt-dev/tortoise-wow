@@ -1,0 +1,5 @@
+PASS 0105-build-compatibility-pass-76-native-test-gametele-position.patch
+PASS 0104-build-compatibility-pass-75-native-test-context-manager-access.patch
+PASS 0103-build-compatibility-pass-74-native-test-setup-position-fly.patch
+PASS 0102-build-compatibility-pass-73-native-honor-xp-target.patch
+PASS 0101-build-compatibility-pass-72-native-warlock-player-selection.patch

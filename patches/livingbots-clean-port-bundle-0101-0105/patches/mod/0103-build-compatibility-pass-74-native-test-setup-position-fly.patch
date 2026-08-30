@@ -1,0 +1,41 @@
+From d256c38595fe9e5d21faa56bf28bdc0ccf274b8e Mon Sep 17 00:00:00 2001
+From: audit <audit@local>
+Date: Sun, 30 Aug 2026 18:54:52 +0000
+Subject: [PATCH] Build/Compile Audit: Native Test Setup Position Fly
+
+---
+ .../src/playerbot/strategy/tests/CommandSetup.cpp           | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/tests/CommandSetup.cpp b/modules/mod-playerbots/src/playerbot/strategy/tests/CommandSetup.cpp
+index 10aece7..161d73e 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/tests/CommandSetup.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/tests/CommandSetup.cpp
+@@ -21,7 +21,7 @@ TestResult CommandSetupTeleport::Execute(const std::string& params, Player* bot,
+         return TestResult::IMPOSSIBLE;
+     }
+ 
+-    if (bot->TeleportTo(loc.mapid, loc.coord_x, loc.coord_y, loc.coord_z, bot->GetOrientation()))
++    if (bot->TeleportTo(loc.getMapId(), loc.getX(), loc.getY(), loc.getZ(), bot->GetOrientation()))
+     {
+         return TestResult::PASS;
+     }
+@@ -60,13 +60,13 @@ TestResult CommandSetupGM::Execute(const std::string& params, Player* bot, Playe
+     }
+     else if (params == "fly on")
+     {
+-        bot->SetCanFly(true);
++        bot->SetFly(true);
+         bot->GetSession()->SendNotification(LANG_COMMAND_FLYMODE_STATUS);
+         return TestResult::PASS;
+     }
+     else if (params == "fly off")
+     {
+-        bot->SetCanFly(false);
++        bot->SetFly(false);
+         bot->GetSession()->SendNotification(LANG_COMMAND_FLYMODE_STATUS);
+         return TestResult::PASS;
+     }
+-- 
+2.47.3
+

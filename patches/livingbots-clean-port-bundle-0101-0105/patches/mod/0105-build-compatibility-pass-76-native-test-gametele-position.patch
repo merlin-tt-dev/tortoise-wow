@@ -1,0 +1,25 @@
+From 4cec6538a5bfd3a99c4332ea2676127067ed104e Mon Sep 17 00:00:00 2001
+From: audit <audit@local>
+Date: Sun, 30 Aug 2026 18:58:07 +0000
+Subject: [PATCH] Build/Compile Audit: Native Test GameTele Position
+
+---
+ .../src/playerbot/strategy/tests/TestRegistry.cpp               | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/tests/TestRegistry.cpp b/modules/mod-playerbots/src/playerbot/strategy/tests/TestRegistry.cpp
+index d442174..4cd30fd 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/tests/TestRegistry.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/tests/TestRegistry.cpp
+@@ -30,7 +30,7 @@ static void InitTeleLocations()
+ {
+     for (auto const& [id, tele] : sObjectMgr.GetGameTeleMap())
+     {
+-        GuidPosition pos(ObjectGuid(), WorldPosition(tele.mapId, tele.position_x, tele.position_y, tele.position_z, tele.orientation));
++        GuidPosition pos(ObjectGuid(), WorldPosition(tele.mapId, tele.x, tele.y, tele.z, tele.o));
+         sTeleLocations.push_back({ tele.name, pos });
+     }
+ }
+-- 
+2.47.3
+

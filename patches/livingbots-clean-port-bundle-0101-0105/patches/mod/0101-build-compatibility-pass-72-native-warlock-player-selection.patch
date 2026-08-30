@@ -1,0 +1,25 @@
+From 8ed40461130807fe5295c6df3737926d62e8864e Mon Sep 17 00:00:00 2001
+From: audit <audit@local>
+Date: Sun, 30 Aug 2026 18:05:13 +0000
+Subject: [PATCH] Build/Compile Audit: Native Warlock Player Selection
+
+---
+ .../src/playerbot/strategy/warlock/WarlockTriggers.cpp          | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/warlock/WarlockTriggers.cpp b/modules/mod-playerbots/src/playerbot/strategy/warlock/WarlockTriggers.cpp
+index dd85d6d..f2a98ff 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/warlock/WarlockTriggers.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/warlock/WarlockTriggers.cpp
+@@ -140,7 +140,7 @@ bool FearPvpTrigger::IsActive()
+         if (health <= sPlayerbotAIConfig.lowHealth)
+         {
+ 			// Check if targeting bot
+-			if (target->GetSelectionGuid() == bot->GetObjectGuid())
++            if (static_cast<Player*>(target)->GetSelectionGuid() == bot->GetObjectGuid())
+ 			{
+                 // Check if the bot has feared anyone
+                 bool alreadyFeared = false;
+-- 
+2.47.3
+

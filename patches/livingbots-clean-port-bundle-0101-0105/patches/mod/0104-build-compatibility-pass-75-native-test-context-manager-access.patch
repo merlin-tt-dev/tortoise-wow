@@ -1,0 +1,32 @@
+From c777d209c3dee743c37a5007df921f34308719a0 Mon Sep 17 00:00:00 2001
+From: audit <audit@local>
+Date: Sun, 30 Aug 2026 18:57:27 +0000
+Subject: [PATCH] Build/Compile Audit: Native Test Context Manager Access
+
+---
+ .../src/playerbot/strategy/tests/TestContext.cpp               | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/modules/mod-playerbots/src/playerbot/strategy/tests/TestContext.cpp b/modules/mod-playerbots/src/playerbot/strategy/tests/TestContext.cpp
+index 7ce6088..4b5eacf 100644
+--- a/modules/mod-playerbots/src/playerbot/strategy/tests/TestContext.cpp
++++ b/modules/mod-playerbots/src/playerbot/strategy/tests/TestContext.cpp
+@@ -1,5 +1,6 @@
+ #include "TestContext.h"
+ #include "playerbot/PlayerbotMgr.h"
++#include "playerbot/RandomPlayerbotMgr.h"
+ 
+ using namespace ai;
+ 
+@@ -24,7 +25,7 @@ void TestContext::Reset()
+     {
+         if (guid && guid.IsPlayer())
+         {
+-            sRandomPlayerbotMgr.DeleteBot(guid, true);
++            RandomPlayerbotMgr::instance().DeleteBot(guid, true);
+         }
+     }
+     spawnedBots.clear();
+-- 
+2.47.3
+

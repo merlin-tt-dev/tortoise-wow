@@ -1,0 +1,4 @@
+Baseline remote HEAD: 1f2db9e808d7120a0a6ecf49f3df610c579824b1
+Mod patches: 5 (0101-0105)
+Core patches: 0
+Scope: final class/test compatibility findings and final Playerbot C++ compile/API audit
