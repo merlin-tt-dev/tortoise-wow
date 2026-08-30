@@ -35,7 +35,7 @@ bool MonitorMovementDistance::IsConditionMet(const std::string& monitorStr, Play
     if (!TestRegistry::ParseLocation(name, loc))
         return false;
 
-    const float dist = bot->GetDistance(loc.coord_x, loc.coord_y, loc.coord_z);
+    const float dist = bot->GetDistance(loc.getX(), loc.getY(), loc.getZ());
     if (op == '<')
         return dist < threshold;
 
@@ -117,7 +117,7 @@ bool MonitorMovementSpeed::IsConditionMet(const std::string& monitorStr, Player*
         lastPositions[guid] = WorldPosition(bot);
         lastTimes[guid] = WorldTimer::getMSTime();
         lastOnTransport[guid] = bot->GetTransport() != nullptr;
-        lastOnTaxi[guid] = bot->IsTaxiDebug();
+        lastOnTaxi[guid] = bot->IsTaxiFlying();
         return false;
     }
 
@@ -143,7 +143,7 @@ bool MonitorMovementSpeed::IsConditionMet(const std::string& monitorStr, Player*
         return false;
     }
 
-    if (wasOnTaxi && bot->IsTaxiDebug())
+    if (wasOnTaxi && bot->IsTaxiFlying())
     {
         lastPositions[guid] = currentPos;
         lastTimes[guid] = now;
@@ -167,7 +167,7 @@ bool MonitorMovementSpeed::IsConditionMet(const std::string& monitorStr, Player*
     lastPositions[guid] = currentPos;
     lastTimes[guid] = now;
     lastOnTransport[guid] = bot->GetTransport() != nullptr;
-    lastOnTaxi[guid] = bot->IsTaxiDebug();
+    lastOnTaxi[guid] = bot->IsTaxiFlying();
 
     if (speed > expectedSpeed * 3.0f)
         return true;
