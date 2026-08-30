@@ -3,6 +3,7 @@
 #include "PartyMemberToHeal.h"
 #include "playerbot/PlayerbotAIConfig.h"
 #include "playerbot/ServerFacade.h"
+#include "AI/CreatureAI.h"
 
 using namespace ai;
 
@@ -18,8 +19,8 @@ public:
 uint32 getIncomingdamage(Unit const* pTarget)
 {
     uint32 damage = 0;
-    for (auto const& pAttacker : pTarget->getAttackers())
-        if (pAttacker->CanReachWithMeleeAttack(pTarget))
+    for (auto const& pAttacker : pTarget->GetAttackers())
+        if (pAttacker->CanReachWithMeleeAutoAttack(pTarget))
             damage += uint32((pAttacker->GetFloatValue(UNIT_FIELD_MINDAMAGE) + pAttacker->GetFloatValue(UNIT_FIELD_MAXDAMAGE)) / 2);
 
     return damage;
@@ -109,7 +110,7 @@ Unit* PartyMemberToHeal::Calculate()
                 }
             }
 
-            if (isTank && bot->IsInGroup(player))
+            if (isTank && bot->IsInSameGroupWith(player))
             {
                 tankTargets.push_back(player);
             }
@@ -204,7 +205,7 @@ std::vector<Player*> PartyMemberToHeal::GetPartyMembers()
         for(const ObjectGuid& focusHealTarget : focusHealTargets)
         {
             Player* player = (Player*)ai->GetUnit(focusHealTarget);
-            if (player && player->IsInGroup(bot) && ai->IsSafe(player))
+            if (player && player->IsInSameGroupWith(bot) && ai->IsSafe(player))
             {
                 partyMembers.push_back(player);
             }

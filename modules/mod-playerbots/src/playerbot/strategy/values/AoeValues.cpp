@@ -1,6 +1,7 @@
 
 #include "playerbot/playerbot.h"
 #include "AoeValues.h"
+#include "Objects/DynamicObject.h"
 
 #include "playerbot/PlayerbotAIConfig.h"
 #include "playerbot/ServerFacade.h"
@@ -112,10 +113,10 @@ bool HasAreaDebuffValue::Calculate()
         if (!spellProto)
             continue;
 
-        if (IsPositiveEffect(spellProto, go->GetEffIndex()))
+        if (spellProto->IsPositiveEffect(go->GetEffIndex()))
             continue;
 
-        if (go->IsAffecting(checkTarget))
+        if (checkTarget->GetSpellAuraHolder(go->GetSpellId(), go->GetCasterGuid()))
             return true;
     }
 

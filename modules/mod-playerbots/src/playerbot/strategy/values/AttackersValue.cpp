@@ -249,7 +249,7 @@ void AttackersValue::AddTargetsOf(Player* player, std::set<Unit*>& targets, std:
         }
 
         // Get the current attackers of the player
-        for (Unit* attacker : player->getAttackers())
+        for (Unit* attacker : player->GetAttackers())
         {
             units.insert(attacker);
         }
@@ -266,7 +266,7 @@ void AttackersValue::AddTargetsOf(Player* player, std::set<Unit*>& targets, std:
         Pet* pet = player->GetPet();
         if (pet && sServerFacade.GetDistance2d(bot, pet) <= GetRange())
         {
-            for (Unit* attacker : pet->getAttackers())
+            for (Unit* attacker : pet->GetAttackers())
             {
                 units.insert(attacker);
             }
@@ -310,7 +310,7 @@ void AttackersValue::AddTargetsOf(Player* player, std::set<Unit*>& targets, std:
 bool AttackersValue::InCombat(Unit* target, Player* player, bool checkPullTargets)
 {
     // Check if the the target is attacking the player
-    bool inCombat = (target->getThreatManager().getThreat(player) > 0.0f) ||
+    bool inCombat = (target->GetThreatManager().getThreat(player) > 0.0f) ||
                     (target->GetVictim() && (target->GetVictim() == player));
 
     // Check if the target is attacking the player's pet
@@ -319,7 +319,7 @@ bool AttackersValue::InCombat(Unit* target, Player* player, bool checkPullTarget
         Pet* pet = player->GetPet();
         if (pet)
         {
-            inCombat = (target->getThreatManager().getThreat(pet) > 0.0f) ||
+            inCombat = (target->GetThreatManager().getThreat(pet) > 0.0f) ||
                        (target->GetVictim() && (target->GetVictim() == pet));
         }
     }
@@ -400,7 +400,7 @@ bool AttackersValue::IsValid(Unit* target, Player* player, Player* owner, bool c
         const Creature* creature = dynamic_cast<Creature*>(target);
         if (creature)
         {
-            if (creature->GetCombatManager().IsInEvadeMode())
+            if (creature->IsInEvadeMode())
             {
                 return false;
             }
@@ -516,7 +516,7 @@ std::list<ObjectGuid> AttackersTargetingMeValue::Calculate()
     for (const ObjectGuid& attackerGuid : attackers)
     {
         Unit* attacker = ai->GetUnit(attackerGuid);
-        if (attacker && (attacker->GetTarget() == bot || attacker->GetVictim() == bot))
+        if (attacker && (attacker->GetTargetGuid() == bot->GetObjectGuid() || attacker->GetVictim() == bot))
         {
             result.push_back(attackerGuid);
         }

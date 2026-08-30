@@ -53,7 +53,7 @@ bool PossibleTargetsValue::AcceptUnit(Unit* unit)
 
 void PossibleTargetsValue::FindPossibleTargets(Player* player, std::list<Unit*>& targets, float range)
 {
-    MaNGOS::AnyUnfriendlyUnitInObjectRangeCheck u_check(player, range);
+    MaNGOS::AnyUnfriendlyUnitInObjectRangeCheck u_check(player, player, range);
     MaNGOS::UnitListSearcher<MaNGOS::AnyUnfriendlyUnitInObjectRangeCheck> searcher(targets, u_check);
     Cell::VisitAllObjects(player, searcher, range);
 }
@@ -84,10 +84,7 @@ bool PossibleTargetsValue::IsFriendly(Unit* target, Player* player)
 
 bool PossibleTargetsValue::IsAttackable(Unit* target, Player* player)
 {
-    const bool inVehicle = GetPlayerbotAI(player) && GetPlayerbotAI(player)->IsInVehicle();
-    return !target->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_ATTACKABLE_1) &&
-           !target->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_UNTARGETABLE) &&
-           (inVehicle || !target->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_UNINTERACTIBLE)) &&
+    return target->IsTargetable(true, player->IsCharmerOrOwnerPlayerOrPlayerItself()) &&
            !target->HasAuraType(SPELL_AURA_SPIRIT_OF_REDEMPTION);
 }
 
@@ -115,7 +112,7 @@ bool PossibleTargetsValue::IsValid(Unit* target, Player* player, bool ignoreLos)
         }
 
         bool isInCombatWithTarget = target->GetVictim() == player || 
-                                     target->getThreatManager().getThreat(player) > 0.0f ||
+                                     target->GetThreatManager().getThreat(player) > 0.0f ||
                                      player->IsInCombat();
 
         if (!ignoreLos && !isInCombatWithTarget)
