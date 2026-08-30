@@ -3,6 +3,7 @@
 //And yes I used chat-gpt to write most of this. LLM for LLM code is what I call fitting.
 
 #include "PlayerbotLLMInterface.h"
+#include "Policies/SingletonImp.h"
 
 // Penqle's Singleton<> requires an explicit instantiation in a .cpp file.
 INSTANTIATE_SINGLETON_1(PlayerbotLLMInterface);
