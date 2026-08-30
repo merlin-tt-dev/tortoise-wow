@@ -21,7 +21,7 @@ namespace ai
         if (Group* group = inviter->GetGroup())
         {
             if(GetPlayerbotAI(player) && !GetPlayerbotAI(player)->IsRealPlayer())
-                if (!group->IsRaidGroup() && group->GetMembersCount() > 4)
+                if (!group->isRaidGroup() && group->GetMembersCount() > 4)
                     group->ConvertToRaid();
         }
 
@@ -50,7 +50,7 @@ namespace ai
         {
             if (group->IsFull())
             {
-                if(group->IsRaidGroup())
+                if(group->isRaidGroup())
                     return false;
 
                 if(event.getSource() == "create group")
@@ -231,7 +231,7 @@ namespace ai
         if (group)
         {
             //If no input use max raid for raid groups.
-            if (param.empty() && group->IsRaidGroup())
+            if (param.empty() && group->isRaidGroup())
 #ifdef MANGOSBOT_ZERO
                 param = "40";
 #else
@@ -241,7 +241,7 @@ namespace ai
 
             if (group->IsFull())
             {
-                if (param.empty() || param == "5" || group->IsRaidGroup())
+                if (param.empty() || param == "5" || group->isRaidGroup())
                     return false; //Group or raid is full so stop trying.
                 else
                     group->ConvertToRaid(); //We want a raid but are in a group so convert and continue.
@@ -327,7 +327,7 @@ namespace ai
 
             Group* group = bot->GetGroup();
 
-            if (player->isDND())
+            if (player->IsDND())
                 continue;
 
             if (player->IsBeingTeleported())
@@ -351,13 +351,13 @@ namespace ai
                 continue;
 
             //When inviting the 5th member of the group convert to raid for future invites.
-            if (group && ai->GetGrouperType() > GrouperType::LEADER_5 && !group->IsRaidGroup() && bot->GetGroup()->GetMembersCount() > 3)
+            if (group && ai->GetGrouperType() > GrouperType::LEADER_5 && !group->isRaidGroup() && bot->GetGroup()->GetMembersCount() > 3)
                 group->ConvertToRaid();
 
             Guild* guild = sGuildMgr.GetGuildById(bot->GetGuildId());
             if (sPlayerbotAIConfig.inviteChat && (sRandomPlayerbotMgr.IsFreeBot(bot) || !ai->HasActivePlayerMaster()))
             {
-                if (guild && player && bot->IsInGuild(player->GetGuildId()))
+                if (guild && player && bot->GetGuildId() == player->GetGuildId())
                 {
                     BroadcastHelper::BroadcastGuildGroupOrRaidInvite(
                         ai,
@@ -373,7 +373,7 @@ namespace ai
                     std::map<std::string, std::string> placeholders;
                     placeholders["%player"] = player->GetName();
 
-                    if (group && group->IsRaidGroup())
+                    if (group && group->isRaidGroup())
                         bot->Say(BOT_TEXT2("join_raid", placeholders), (bot->GetTeam() == ALLIANCE ? LANG_COMMON : LANG_ORCISH));
                     else
                         bot->Say(BOT_TEXT2("join_group", placeholders), (bot->GetTeam() == ALLIANCE ? LANG_COMMON : LANG_ORCISH));
@@ -406,7 +406,7 @@ namespace ai
 
         if (group)
         {
-            if (group->IsRaidGroup() && group->IsFull())
+            if (group->isRaidGroup() && group->IsFull())
                 return false;
 
             if (ai->GetGroupMaster() != bot)
@@ -451,7 +451,7 @@ namespace ai
             if (player->GetGroup())
                 continue;
 
-            if (player->isDND())
+            if (player->IsDND())
                 continue;
 
             if (!sPlayerbotAIConfig.randomBotInvitePlayer && IsRealPlayer(player))
@@ -496,7 +496,7 @@ namespace ai
 
             Group* group = bot->GetGroup();
             //When inviting the 5th member of the group convert to raid for future invites.
-            if (group && ai->GetGrouperType() > GrouperType::LEADER_5 && !group->IsRaidGroup() && bot->GetGroup()->GetMembersCount() > 3)
+            if (group && ai->GetGrouperType() > GrouperType::LEADER_5 && !group->isRaidGroup() && bot->GetGroup()->GetMembersCount() > 3)
             {
                 group->ConvertToRaid();
             }
