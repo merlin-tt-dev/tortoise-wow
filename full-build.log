@@ -1,0 +1,52 @@
+ninja: Entering directory `build-full-audit'
+[0/2] Re-checking globbed directories...
+[1/1094] Linking CXX static library src/shared/libshared.a
+[2/1094] Building CXX object src/game/CMakeFiles/game.dir/PerformanceMonitor.cpp.o
+[3/1094] Building CXX object src/game/CMakeFiles/game.dir/CustomMerchantMgr.cpp.o
+FAILED: [code=1] src/game/CMakeFiles/game.dir/CustomMerchantMgr.cpp.o 
+/usr/bin/c++ -DALLOW_TURTLE_ADDONS -DDO_MYSQL -DFMT_HEADER_ONLY -DMANGOS_DEBUG -DSYSCONFDIR=\"/home/damodara/Git-projects/merlin-tt-dev/server/etc/\" -DTW_MODULE_CONFIG_LIST=\"ahbot.conf,aiplayerbot.conf\" -DTW_SOURCE_MODULES_DIR=\"/home/damodara/Git-projects/merlin-tt-dev/tortoise-wow/modules\" -DUSE_ANTICHEAT -DUSE_STANDARD_MALLOC -D_DEBUG -I/home/damodara/Git-projects/merlin-tt-dev/tortoise-wow/src/game -I/home/damodara/Git-projects/merlin-tt-dev/tortoise-wow/src/game/AI -I/home/damodara/Git-projects/merlin-tt-dev/tortoise-wow/src/game/Anticheat -I/home/damodara/Git-projects/merlin-tt-dev/tortoise-wow/src/game/AuctionHouse -I/home/damodara/Git-projects/merlin-tt-dev/tortoise-wow/src/game/Battlegrounds -I/home/damodara/Git-projects/merlin-tt-dev/tortoise-wow/src/game/Chat -I/home/damodara/Git-projects/merlin-tt-dev/tortoise-wow/src/game/Commands -I/home/damodara/Git-projects/merlin-tt-dev/tortoise-wow/src/game/Database -I/home/damodara/Git-projects/merlin-tt-dev/tortoise-wow/src/game/Group -I/home/damodara/Git-projects/merlin-tt-dev/tortoise-wow/src/game/Guild -I/home/damodara/Git-projects/merlin-tt-dev/tortoise-wow/src/game/Handlers -I/home/damodara/Git-projects/merlin-tt-dev/tortoise-wow/src/game/LFG -I/home/damodara/Git-projects/merlin-tt-dev/tortoise-wow/src/game/LFT -I/home/damodara/Git-projects/merlin-tt-dev/tortoise-wow/src/game/Mail -I/home/damodara/Git-projects/merlin-tt-dev/tortoise-wow/src/game/MapNodes -I/home/damodara/Git-projects/merlin-tt-dev/tortoise-wow/src/game/MapNodes/Handlers -I/home/damodara/Git-projects/merlin-tt-dev/tortoise-wow/src/game/MapNodes/Serializers -I/home/damodara/Git-projects/merlin-tt-dev/tortoise-wow/src/game/Maps -I/home/damodara/Git-projects/merlin-tt-dev/tortoise-wow/src/game/Maps/Pool -I/home/damodara/Git-projects/merlin-tt-dev/tortoise-wow/src/game/Movement -I/home/damodara/Git-projects/merlin-tt-dev/tortoise-wow/src/game/Movement/spline -I/home/damodara/Git-projects/merlin-tt-dev/tortoise-wow/src/game/Objects -I/home/damodara/Git-projects/merlin-tt-dev/tortoise-wow/src/game/OutdoorPvP -I/home/damodara/Git-projects/merlin-tt-dev/tortoise-wow/src/game/PacketBroadcast -I/home/damodara/Git-projects/merlin-tt-dev/tortoise-wow/src/game/PlayerBots -I/home/damodara/Git-projects/merlin-tt-dev/tortoise-wow/src/game/Protocol -I/home/damodara/Git-projects/merlin-tt-dev/tortoise-wow/src/game/Spells -I/home/damodara/Git-projects/merlin-tt-dev/tortoise-wow/src/game/Threat -I/home/damodara/Git-projects/merlin-tt-dev/tortoise-wow/src/game/Transports -I/home/damodara/Git-projects/merlin-tt-dev/tortoise-wow/src/game/vmap -I/home/damodara/Git-projects/merlin-tt-dev/tortoise-wow/src/scripts -I/home/damodara/Git-projects/merlin-tt-dev/tortoise-wow/dep/include/g3dlite -I/home/damodara/Git-projects/merlin-tt-dev/tortoise-wow/dep/recastnavigation/Detour -I/home/damodara/Git-projects/merlin-tt-dev/tortoise-wow/dep/recastnavigation -I/home/damodara/Git-projects/merlin-tt-dev/tortoise-wow/dep/include -I/home/damodara/Git-projects/merlin-tt-dev/tortoise-wow/dep/libdeflate -I/home/damodara/Git-projects/merlin-tt-dev/tortoise-wow/src/framework -I/home/damodara/Git-projects/merlin-tt-dev/tortoise-wow/src/framework/Network -I/home/damodara/Git-projects/merlin-tt-dev/tortoise-wow/src/shared -I/home/damodara/Git-projects/merlin-tt-dev/tortoise-wow/build-full-audit -I/home/damodara/Git-projects/merlin-tt-dev/tortoise-wow/build-full-audit/src/shared -I/usr/include/mysql -I/usr/include/openssl -I/home/damodara/Git-projects/merlin-tt-dev/tortoise-wow/dep/re2 -I/home/damodara/Git-projects/merlin-tt-dev/tortoise-wow/dep/fmt/include -I/home/damodara/Git-projects/merlin-tt-dev/tortoise-wow/dep/fmt -std=c++17 -g  -g --no-warnings -fexceptions -fnon-call-exceptions -march=native -O3 -pipe  -std=gnu++17 -MD -MT src/game/CMakeFiles/game.dir/CustomMerchantMgr.cpp.o -MF src/game/CMakeFiles/game.dir/CustomMerchantMgr.cpp.o.d -o src/game/CMakeFiles/game.dir/CustomMerchantMgr.cpp.o -c /home/damodara/Git-projects/merlin-tt-dev/tortoise-wow/src/game/CustomMerchantMgr.cpp
+In file included from /home/damodara/Git-projects/merlin-tt-dev/tortoise-wow/src/game/CustomMerchantMgr.cpp:4:
+/home/damodara/Git-projects/merlin-tt-dev/tortoise-wow/src/game/Conditions.h:326:16: error: »WorldObject« wurde nicht deklariert
+  326 |     bool Meets(WorldObject const* target, Map const* map, WorldObject const* source, ConditionSource conditionSourceType) const;
+      |                ^~~~~~~~~~~
+/home/damodara/Git-projects/merlin-tt-dev/tortoise-wow/src/game/Conditions.h:326:43: error: »Map« wurde nicht deklariert
+  326 |     bool Meets(WorldObject const* target, Map const* map, WorldObject const* source, ConditionSource conditionSourceType) const;
+      |                                           ^~~
+/home/damodara/Git-projects/merlin-tt-dev/tortoise-wow/src/game/Conditions.h:326:59: error: »WorldObject« wurde nicht deklariert
+  326 |     bool Meets(WorldObject const* target, Map const* map, WorldObject const* source, ConditionSource conditionSourceType) const;
+      |                                                           ^~~~~~~~~~~
+/home/damodara/Git-projects/merlin-tt-dev/tortoise-wow/src/game/Conditions.h:334:33: error: »WorldObject« wurde nicht deklariert
+  334 |     bool CheckParamRequirements(WorldObject const* target, Map const* map, WorldObject const* source) const;
+      |                                 ^~~~~~~~~~~
+/home/damodara/Git-projects/merlin-tt-dev/tortoise-wow/src/game/Conditions.h:334:60: error: »Map« wurde nicht deklariert
+  334 |     bool CheckParamRequirements(WorldObject const* target, Map const* map, WorldObject const* source) const;
+      |                                                            ^~~
+/home/damodara/Git-projects/merlin-tt-dev/tortoise-wow/src/game/Conditions.h:334:76: error: »WorldObject« wurde nicht deklariert
+  334 |     bool CheckParamRequirements(WorldObject const* target, Map const* map, WorldObject const* source) const;
+      |                                                                            ^~~~~~~~~~~
+/home/damodara/Git-projects/merlin-tt-dev/tortoise-wow/src/game/Conditions.h:335:26: error: »WorldObject« wurde nicht deklariert
+  335 |     bool inline Evaluate(WorldObject const* target, Map const* map, WorldObject const* source, ConditionSource conditionSourceType) const;
+      |                          ^~~~~~~~~~~
+/home/damodara/Git-projects/merlin-tt-dev/tortoise-wow/src/game/Conditions.h:335:53: error: »Map« wurde nicht deklariert
+  335 |     bool inline Evaluate(WorldObject const* target, Map const* map, WorldObject const* source, ConditionSource conditionSourceType) const;
+      |                                                     ^~~
+/home/damodara/Git-projects/merlin-tt-dev/tortoise-wow/src/game/Conditions.h:335:69: error: »WorldObject« wurde nicht deklariert
+  335 |     bool inline Evaluate(WorldObject const* target, Map const* map, WorldObject const* source, ConditionSource conditionSourceType) const;
+      |                                                                     ^~~~~~~~~~~
+/home/damodara/Git-projects/merlin-tt-dev/tortoise-wow/src/game/Conditions.h:346:47: error: »WorldObject« wurde nicht deklariert
+  346 | bool IsConditionSatisfied(uint32 conditionId, WorldObject const* target, Map const* map, WorldObject const* source, ConditionSource conditionSourceType);
+      |                                               ^~~~~~~~~~~
+/home/damodara/Git-projects/merlin-tt-dev/tortoise-wow/src/game/Conditions.h:346:74: error: »Map« wurde nicht deklariert
+  346 | bool IsConditionSatisfied(uint32 conditionId, WorldObject const* target, Map const* map, WorldObject const* source, ConditionSource conditionSourceType);
+      |                                                                          ^~~
+/home/damodara/Git-projects/merlin-tt-dev/tortoise-wow/src/game/Conditions.h:346:90: error: »WorldObject« wurde nicht deklariert
+  346 | bool IsConditionSatisfied(uint32 conditionId, WorldObject const* target, Map const* map, WorldObject const* source, ConditionSource conditionSourceType);
+      |                                                                                          ^~~~~~~~~~~
+[4/1094] Building CXX object src/game/CMakeFiles/game.dir/ItemEnchantmentMgr.cpp.o
+[5/1094] Building CXX object src/game/CMakeFiles/game.dir/GossipDef.cpp.o
+[6/1094] Building CXX object src/game/CMakeFiles/game.dir/HonorMgr.cpp.o
+[7/1094] Building CXX object src/game/CMakeFiles/game.dir/ObjectAccessor.cpp.o
+[8/1094] Building CXX object src/game/CMakeFiles/game.dir/HardcodedEvents.cpp.o
+[9/1094] Building CXX object src/game/CMakeFiles/game.dir/LootMgr.cpp.o
+[10/1094] Building CXX object src/game/CMakeFiles/game.dir/ObjectGridLoader.cpp.o
+ninja: build stopped: subcommand failed.
