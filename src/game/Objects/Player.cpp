@@ -3805,12 +3805,15 @@ void Player::GiveLevel(uint32 level)
     if (HasChallenge(CHALLENGE_CRAFTMASTER) && level == PLAYER_MAX_LEVEL)
         AwardTitle(TITLE_CRAFTMASTER);
 
+<<<<<<< HEAD
     if (HasChallenge(CHALLENGE_BREWMASTER) && level == PLAYER_MAX_LEVEL)
     {
         AwardTitle(TITLE_BREWMASTER);
         MailBrewmasterModeRewards();
     }
 
+=======
+>>>>>>> 53042f0 (Enforce Traveling Craftmaster equipment rules)
     if (HasChallenge(CHALLENGE_BOARING_MODE))
     {
         if (level == PLAYER_MAX_LEVEL)
@@ -11688,6 +11691,14 @@ InventoryResult Player::CanEquipItem(uint8 slot, uint16 &dest, ItemPrototype con
 
             if (IsInCombat() && pProto->Class == ITEM_CLASS_WEAPON && m_weaponChangeTimer != 0)
                 return EQUIP_ERR_CANT_DO_RIGHT_NOW;         // maybe exist better err
+
+            if (HasChallenge(CHALLENGE_CRAFTMASTER) && GetLevel() < PLAYER_MAX_LEVEL &&
+                pProto->InventoryType != INVTYPE_TABARD &&
+                (!pItem || pItem->GetGuidValue(ITEM_FIELD_CREATOR) != GetObjectGuid()))
+            {
+                GetSession()->SendNotification("You can only equip items you crafted yourself in the Traveling Craftmaster challenge.");
+                return EQUIP_ERR_CANT_DO_RIGHT_NOW;
+            }
 
             if (HasChallenge(CHALLENGE_VAGRANT_MODE) && GetLevel() < PLAYER_MAX_LEVEL)
             {
@@ -25533,12 +25544,15 @@ bool Player::HasEarnedTitle(uint8 titleId)
             return true;
         break;
     }
+<<<<<<< HEAD
     case TITLE_BREWMASTER:
     {
         if (GetLevel() == PLAYER_MAX_LEVEL && HasChallenge(CHALLENGE_BREWMASTER))
             return true;
         break;
     }
+=======
+>>>>>>> 53042f0 (Enforce Traveling Craftmaster equipment rules)
     case TITLE_SWINE_SLAYER:
     {
         if (GetLevel() == PLAYER_MAX_LEVEL && HasChallenge(CHALLENGE_BOARING_MODE))
