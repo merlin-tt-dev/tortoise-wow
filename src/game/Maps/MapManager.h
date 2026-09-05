@@ -91,11 +91,20 @@ class MapManager : public MaNGOS::Singleton<MapManager, MaNGOS::ClassLevelLockab
         uint32 GetContinentInstanceId(uint32 mapId, float x, float y, bool* transitionArea = nullptr);
         Map* CreateMap(uint32 mapId, const WorldObject* obj);
         Map* CreateBgMap(uint32 mapId, BattleGround* bg);
+        DungeonMap* CreateUnboundDungeonMap(uint32 mapId);
+        bool TeleportPlayerToUnboundDungeon(Player* player, DungeonMap* targetMap, float x, float y, float z, float orientation, uint32 options = 0);
+        bool IsUnboundDungeonTransfer(Player const* player, uint32 mapId = 0, uint32 instanceId = 0) const;
+        uint32 GetUnboundDungeonTransferInstanceId(Player const* player, uint32 mapId = 0) const;
+        void CancelUnboundDungeonTransfer(Player* player);
         Map* CreateTestMap(uint32 mapId, bool instanced, float posX, float posY);
         void DeleteTestMap(Map* map);
         Map* FindMap(uint32 mapId, uint32 instanceId = 0) const;
         void ScheduleNewWorldOnFarTeleport(Player* pPlayer);
-        void CancelInstanceCreationForPlayer(Player* pPlayer) { m_scheduledNewInstancesForPlayers.erase(pPlayer); }
+        void CancelInstanceCreationForPlayer(Player* pPlayer)
+        {
+            m_scheduledNewInstancesForPlayers.erase(pPlayer);
+            m_unboundDungeonTransfers.erase(pPlayer);
+        }
 
         void UpdateGridState(grid_state_t state, Map& map, NGridType& ngrid, GridInfo& ginfo, const uint32 &x, const uint32 &y, const uint32 &t_diff);
 
@@ -197,6 +206,12 @@ class MapManager : public MaNGOS::Singleton<MapManager, MaNGOS::ClassLevelLockab
         bool waitContinentUpdateFinishedUntil(std::chrono::high_resolution_clock::time_point time) const;
     private:
 
+        struct UnboundDungeonTransfer
+        {
+            uint32 mapId;
+            uint32 instanceId;
+        };
+
         // debugging code, should be deleted some day
         GridState* si_GridStates[MAX_GRID_STATE];
         int i_GridStateErrorCount = 0;
@@ -240,6 +255,8 @@ class MapManager : public MaNGOS::Singleton<MapManager, MaNGOS::ClassLevelLockab
         void CreateNewInstancesForPlayers();
         void CreateNewInstancesForPlayersSync();
         std::unordered_set<Player*> m_scheduledNewInstancesForPlayers;
+
+        std::map<Player const*, UnboundDungeonTransfer> m_unboundDungeonTransfers;
 
         std::mutex m_scheduledFarTeleportsLock;
         typedef std::map<Player*, ScheduledTeleportData*> ScheduledTeleportMap;
