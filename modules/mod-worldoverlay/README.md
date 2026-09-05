@@ -12,6 +12,14 @@ The first implementation target is a named singleton overlay on map 36 (`tele_ci
 
 The current documentation intentionally describes a larger long-term architecture than the bootstrap schema implements. The next code milestone remains a narrow runtime proof before the broader feature set is added.
 
+## Client baseline
+
+The relevant client for this project is the **Turtle client (1.8 generation)**, not a stock TBC 2.4.3 client.
+
+WorldOverlay's core design remains server-side and must not depend on unverified client features. However, Turtle contains custom client work, so potential map/terrain/phase-like capabilities must be audited against the actual Turtle client before being accepted or rejected.
+
+A dedicated research track now documents the idea of combining WorldOverlay with verified Turtle client geometry/map switching capabilities if such support exists. Older generic references to stock 2.4.3 limitations are superseded by that client-baseline rule.
+
 ## Core idea
 
 A named overlay has a stable logical identity such as:
@@ -52,7 +60,9 @@ Teleport resolution is only one consumer of the overlay identity. The design now
 - spawn groups, pools and later formations;
 - access rules and schedules;
 - clone/export/diff tooling;
-- a later `base_spawn_policy=NONE` mode for clean geometry-template reuse.
+- a later `base_spawn_policy=NONE` mode for clean geometry-template reuse;
+- a future continent-overlay mode for Kalimdor/Eastern Kingdoms;
+- an optional client-assisted geometry-variant path, but only if the Turtle client audit proves a safe capability.
 
 The roadmap deliberately stages these features so they do not obscure the first instance-lifecycle proof.
 
@@ -60,7 +70,7 @@ The roadmap deliberately stages these features so they do not obscure the first 
 
 Modern Retail can switch a player between logical versions of a place using player phase state and, in newer clients, visible-map/terrain-swap systems.
 
-WorldOverlay does not assume those modern client facilities exist in the 2.4.3 client.
+WorldOverlay does not assume equivalent facilities exist in the Turtle client, but it also must not reject them merely because a stock Vanilla/TBC client lacked them. The actual Turtle 1.8 client implementation is the source of truth.
 
 Instead:
 
@@ -71,11 +81,14 @@ same terrain, different content
 different named server-side world on an existing instanced map
     -> WorldOverlay runtime instance
 
-truly different terrain/assets
-    -> still requires client-side geometry/assets if the 2.4.3 client does not already contain them
+verified Turtle client geometry/map variant
+    -> optional WorldOverlay client-assisted geometry policy
+
+truly different terrain/assets with no usable client support
+    -> still requires client-side geometry/assets
 ```
 
-This gives a Zidormi-like player-facing concept for many server-side use cases without depending on modern PhaseShift/TerrainSwap support.
+This gives a Zidormi-like player-facing concept for many server-side use cases while leaving a clean path for richer geometry variants if Turtle's client capabilities support them.
 
 ## Safety invariants
 
@@ -86,6 +99,7 @@ This gives a Zidormi-like player-facing concept for many server-side use cases w
 - A named overlay must be resolvable independently of player/group dungeon binds.
 - Initial implementation supports inherited base spawns plus overlay spawns. A clean/no-base-spawn mode requires a verified spawn-loading hook.
 - Module policy remains in `mod-worldoverlay`; any required core adapter should be generic and minimal.
+- Client-assisted geometry features remain optional research until verified against the actual Turtle client and synchronized with server collision/navigation data.
 
 ## Command namespace
 
@@ -109,6 +123,7 @@ See [`docs/COMMANDS.md`](docs/COMMANDS.md).
 - [`docs/ROADMAP.md`](docs/ROADMAP.md) - staged feature roadmap, testing criteria, allocation/state/trigger/variant design and long-term direction
 - [`docs/PRIOR_ART.md`](docs/PRIOR_ART.md) - researched precedents: Tortoise instance state, Garrison-style ownership, guild houses, spawn groups/pools, waypoints and Retail Zidormi/phasing concepts
 - [`docs/COMMANDS.md`](docs/COMMANDS.md) - current and planned `.wo` / `.woverlay` command surface
+- [`docs/TURTLE_CLIENT_OVERLAY_IDEAS.md`](docs/TURTLE_CLIENT_OVERLAY_IDEAS.md) - Turtle 1.8 client audit track, continent overlays and optional geometry-variant ideas
 
 ## Data model
 
