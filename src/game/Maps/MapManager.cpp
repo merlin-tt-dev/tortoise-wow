@@ -29,6 +29,7 @@
 #include "CellImpl.h"
 #include "Corpse.h"
 #include "ObjectMgr.h"
+#include "Player.h"
 #include "ScriptObjects.h"
 #include "ZoneScriptMgr.h"
 #include "Map.h"
@@ -40,6 +41,37 @@
 typedef MaNGOS::ClassLevelLockable<MapManager, std::recursive_mutex> MapManagerLock;
 INSTANTIATE_SINGLETON_2(MapManager, MapManagerLock);
 INSTANTIATE_CLASS_MUTEX(MapManager, std::recursive_mutex);
+
+namespace
+{
+    class UnboundDungeonMap final : public DungeonMap
+    {
+    public:
+        UnboundDungeonMap(uint32 id, time_t expiry, uint32 instanceId)
+            : DungeonMap(id, expiry, instanceId)
+        {
+        }
+
+        bool Add(Player* player) override
+        {
+            if (!CanEnter(player))
+            {
+                sMapMgr.CancelUnboundDungeonTransfer(player);
+                return false;
+            }
+
+            SetResetSchedule(false);
+            m_unloadTimer = 0;
+
+            DETAIL_LOG("MAP: Player '%s' is entering unbound instance '%u' of map '%s'",
+                player->GetName(), GetInstanceId(), GetMapName());
+
+            bool const added = Map::Add(player);
+            sMapMgr.CancelUnboundDungeonTransfer(player);
+            return added;
+        }
+    };
+}
 
 MapManager::MapManager()
     :
@@ -193,6 +225,91 @@ Map* MapManager::CreateBgMap(uint32 mapid, BattleGround* bg)
     return CreateBattleGroundMap(mapid, sMapMgr.GenerateInstanceId(), bg);
 }
 
+DungeonMap* MapManager::CreateUnboundDungeonMap(uint32 mapId)
+{
+    const MapEntry* entry = sMapStorage.LookupEntry<MapEntry>(mapId);
+    if (!entry || !entry->IsDungeon() || entry->IsBattleGround())
+    {
+        sLog.outError("CreateUnboundDungeonMap: map %u is not a dungeon map", mapId);
+        return nullptr;
+    }
+
+    sTerrainMgr.LoadTerrain(mapId);
+    Guard guard(*this);
+
+    uint32 instanceId = GenerateInstanceId();
+    while (FindMap(mapId, instanceId))
+        instanceId = GenerateInstanceId();
+
+    DungeonMap* map = new UnboundDungeonMap(mapId, i_gridCleanUpDelay, instanceId);
+    map->CreateInstanceData(false);
+    map->SpawnActiveObjects();
+    i_maps[MapID(mapId, instanceId)] = map;
+
+    ScriptRegistry<AllMapScript>::ForEach([&](AllMapScript* script)
+    {
+        script->OnCreateMap(map);
+    });
+
+    return map;
+}
+
+bool MapManager::TeleportPlayerToUnboundDungeon(Player* player, DungeonMap* targetMap, float x, float y, float z, float orientation, uint32 options)
+{
+    if (!player || !targetMap)
+        return false;
+
+    if (!IsValidMapCoord(targetMap->GetId(), x, y, z, orientation))
+        return false;
+
+    Guard guard(*this);
+    if (FindMap(targetMap->GetId(), targetMap->GetInstanceId()) != targetMap)
+        return false;
+
+    if (!targetMap->CanEnter(player))
+        return false;
+
+    m_unboundDungeonTransfers[player] = { targetMap->GetId(), targetMap->GetInstanceId() };
+
+    bool const result = player->TeleportTo(targetMap->GetId(), x, y, z, orientation, options | TELE_TO_FORCE_MAP_CHANGE);
+    if (!result)
+        m_unboundDungeonTransfers.erase(player);
+
+    return result;
+}
+
+bool MapManager::IsUnboundDungeonTransfer(Player const* player, uint32 mapId, uint32 instanceId) const
+{
+    Guard guard(*this);
+    auto const itr = m_unboundDungeonTransfers.find(player);
+    if (itr == m_unboundDungeonTransfers.end())
+        return false;
+
+    if (mapId && itr->second.mapId != mapId)
+        return false;
+    if (instanceId && itr->second.instanceId != instanceId)
+        return false;
+
+    return true;
+}
+
+uint32 MapManager::GetUnboundDungeonTransferInstanceId(Player const* player, uint32 mapId) const
+{
+    Guard guard(*this);
+    auto const itr = m_unboundDungeonTransfers.find(player);
+    if (itr == m_unboundDungeonTransfers.end())
+        return 0;
+    if (mapId && itr->second.mapId != mapId)
+        return 0;
+    return itr->second.instanceId;
+}
+
+void MapManager::CancelUnboundDungeonTransfer(Player* player)
+{
+    Guard guard(*this);
+    m_unboundDungeonTransfers.erase(player);
+}
+
 Map* MapManager::FindMap(uint32 mapid, uint32 instanceId) const
 {
     Guard guard(*this);
@@ -235,13 +352,17 @@ bool MapManager::CanPlayerEnter(uint32 mapid, Player* player)
                 }
             }
         }
-        DungeonPersistentState* state = player->GetBoundInstanceSaveForSelfOrGroup(mapid);
-        uint32 instanceId = state ? state->GetInstanceId() : 0;
-        if (!player->CheckInstanceCount(instanceId) && !player->IsGameMaster())
+
+        if (!IsUnboundDungeonTransfer(player, mapid))
         {
-            DEBUG_LOG("MAP: Player '%s' can't enter instance %u on map %u. Has already entered too many instances.", player->GetName(), instanceId, mapid);
-            player->SendTransferAborted(TRANSFER_ABORT_TOO_MANY_INSTANCES);
-            return false;
+            DungeonPersistentState* state = player->GetBoundInstanceSaveForSelfOrGroup(mapid);
+            uint32 instanceId = state ? state->GetInstanceId() : 0;
+            if (!player->CheckInstanceCount(instanceId) && !player->IsGameMaster())
+            {
+                DEBUG_LOG("MAP: Player '%s' can't enter instance %u on map %u. Has already entered too many instances.", player->GetName(), instanceId, mapid);
+                player->SendTransferAborted(TRANSFER_ABORT_TOO_MANY_INSTANCES);
+                return false;
+            }
         }
     }
 
@@ -275,6 +396,22 @@ void MapManager::ScheduleNewWorldOnFarTeleport(Player* pPlayer)
     WorldLocation const& dest = pPlayer->GetTeleportDest();
     MapEntry const* pMapEntry = sMapStorage.LookupEntry<MapEntry>(dest.mapId);
     MANGOS_ASSERT(pMapEntry);
+
+    if (uint32 instanceId = GetUnboundDungeonTransferInstanceId(pPlayer, dest.mapId))
+    {
+        Map* targetMap = FindMap(dest.mapId, instanceId);
+        if (targetMap && targetMap->CanEnter(pPlayer))
+        {
+            pPlayer->SendNewWorld();
+            return;
+        }
+
+        CancelUnboundDungeonTransfer(pPlayer);
+        WorldLocation oldLoc;
+        pPlayer->GetPosition(oldLoc);
+        pPlayer->HandleReturnOnTeleportFail(oldLoc);
+        return;
+    }
 
     if (pMapEntry->IsDungeon())
     {
@@ -555,6 +692,14 @@ Map* MapManager::CreateInstance(uint32 id, Player * player)
     bool newlyGeneratedInstanceId = false;
     const MapEntry* entry = sMapStorage.LookupEntry<MapEntry>(id);
 
+    if (uint32 unboundInstanceId = GetUnboundDungeonTransferInstanceId(player, id))
+    {
+        map = FindMap(id, unboundInstanceId);
+        if (!map)
+            CancelUnboundDungeonTransfer(player);
+        return map;
+    }
+
     if (entry->IsBattleGround())
     {
         // find existing bg map for player
@@ -785,7 +930,6 @@ std::vector<std::pair<float, float>> MapManager::GetBorderPoints(uint32 mapId)
         };
 
         return points;
-
     }
     return {};
 }
