@@ -107,6 +107,7 @@ See [`docs/COMMANDS.md`](docs/COMMANDS.md).
 
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) - current architecture contract and implementation constraints
 - [`docs/ROADMAP.md`](docs/ROADMAP.md) - staged feature roadmap, testing criteria, allocation/state/trigger/variant design and long-term direction
+- [`docs/PRIOR_ART.md`](docs/PRIOR_ART.md) - researched precedents: Tortoise instance state, Garrison-style ownership, guild houses, spawn groups/pools, waypoints and Retail Zidormi/phasing concepts
 - [`docs/COMMANDS.md`](docs/COMMANDS.md) - current and planned `.wo` / `.woverlay` command surface
 
 ## Data model
