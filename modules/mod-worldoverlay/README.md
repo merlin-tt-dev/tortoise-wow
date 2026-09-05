@@ -1,14 +1,16 @@
 # mod-worldoverlay
 
-`mod-worldoverlay` is a server-side map and teleport overlay module for Tortoise.
+`mod-worldoverlay` is a server-side map, instance, content and teleport overlay module for Tortoise.
 
-The module treats an existing instanced client map as reusable geometry and places a named, server-managed world layer on top of a dedicated runtime instance. The original dungeon/raid behavior remains available in parallel.
+The module treats an existing instanced client map as reusable geometry and places one or more named, server-managed world layers on top of dedicated runtime instances. The original dungeon/raid behavior remains available in parallel.
 
 ## Status
 
 Design and schema bootstrap. No runtime code is implemented yet.
 
-The first implementation target is a named overlay on map 36 (`tele_city`) without modifying normal Deadmines entry, exits, player/group instance binds, or base spawn tables.
+The first implementation target is a named singleton overlay on map 36 (`tele_city`) without modifying normal Deadmines entry, exits, player/group instance binds, or base spawn tables.
+
+The current documentation intentionally describes a larger long-term architecture than the bootstrap schema implements. The next code milestone remains a narrow runtime proof before the broader feature set is added.
 
 ## Core idea
 
@@ -28,8 +30,52 @@ Map 36
 |- normal Deadmines instance B
 |- overlay: tele_city
 |- overlay: bot_lab
-`- overlay: event_world
+|- overlay: event_world
+`- overlay template: player_house/<owner>
 ```
+
+Long-term, an overlay definition may use different allocation policies such as one singleton world, one instance per player, one per group, or an ephemeral scenario instance.
+
+## WorldOverlay is more than a teleport module
+
+Teleport resolution is only one consumer of the overlay identity. The design now covers a staged path toward:
+
+- named runtime instances;
+- overlay-only GameObject and creature spawns;
+- reusable teleport destinations and source bindings;
+- allocation policies (`SINGLETON`, `PER_PLAYER`, `PER_GROUP`, `EPHEMERAL`);
+- overlay state variables;
+- content variants/phases on unchanged client geometry;
+- server-side trigger volumes;
+- entry/exit/graveyard anchors;
+- overlay-owned NPC waypoints;
+- spawn groups, pools and later formations;
+- access rules and schedules;
+- clone/export/diff tooling;
+- a later `base_spawn_policy=NONE` mode for clean geometry-template reuse.
+
+The roadmap deliberately stages these features so they do not obscure the first instance-lifecycle proof.
+
+## Retail phasing / Zidormi comparison
+
+Modern Retail can switch a player between logical versions of a place using player phase state and, in newer clients, visible-map/terrain-swap systems.
+
+WorldOverlay does not assume those modern client facilities exist in the 2.4.3 client.
+
+Instead:
+
+```text
+same terrain, different content
+    -> WorldOverlay state / content variant
+
+different named server-side world on an existing instanced map
+    -> WorldOverlay runtime instance
+
+truly different terrain/assets
+    -> still requires client-side geometry/assets if the 2.4.3 client does not already contain them
+```
+
+This gives a Zidormi-like player-facing concept for many server-side use cases without depending on modern PhaseShift/TerrainSwap support.
 
 ## Safety invariants
 
@@ -38,7 +84,8 @@ Map 36
 - Builder commands must never silently write overlay objects into base spawn tables.
 - Runtime instance ids are implementation details and must not be used as persistent content identifiers.
 - A named overlay must be resolvable independently of player/group dungeon binds.
-- Phase 1 supports inherited base spawns plus overlay spawns. A clean/no-base-spawn mode is planned but requires a verified spawn-loading hook.
+- Initial implementation supports inherited base spawns plus overlay spawns. A clean/no-base-spawn mode requires a verified spawn-loading hook.
+- Module policy remains in `mod-worldoverlay`; any required core adapter should be generic and minimal.
 
 ## Command namespace
 
@@ -56,6 +103,12 @@ Long alias:
 
 See [`docs/COMMANDS.md`](docs/COMMANDS.md).
 
+## Documentation
+
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) - current architecture contract and implementation constraints
+- [`docs/ROADMAP.md`](docs/ROADMAP.md) - staged feature roadmap, testing criteria, allocation/state/trigger/variant design and long-term direction
+- [`docs/COMMANDS.md`](docs/COMMANDS.md) - current and planned `.wo` / `.woverlay` command surface
+
 ## Data model
 
 Initial world DB tables:
@@ -66,7 +119,9 @@ Initial world DB tables:
 - `worldoverlay_creature` - overlay-only creature spawns
 - `worldoverlay_teleport_binding` - source entry to destination bindings
 
-See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and `data/sql/world/`.
+The bootstrap schema is intentionally smaller than the roadmap. Future migrations may add allocation, state, variants, triggers, anchors, waypoints, groups, pools and access rules only when the corresponding runtime phase is implemented.
+
+See `data/sql/world/`.
 
 ## Compatibility model
 
