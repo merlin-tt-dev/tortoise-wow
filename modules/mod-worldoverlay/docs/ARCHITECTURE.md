@@ -15,7 +15,7 @@ runtime instance id
 logical overlay key
 ```
 
-Only the logical overlay key is persistent module content.
+Only the logical overlay key is persistent module content in the initial singleton model. Later allocation policies extend the persistent identity with an explicit owner/scope key.
 
 ## 2. Tortoise facts this design builds on
 
@@ -26,6 +26,8 @@ Normal dungeon instance creation is bind-driven: an existing player/group persis
 `Player::SwitchInstance(uint32)` exists for switching to another instance of the same map, but its existing usage is not a complete cross-instance teleport API because destination coordinates and dungeon lifecycle/binding semantics still need to be handled correctly.
 
 `MapManager::CreateTestMap()` can create an instanced map with a generated id, but it is explicitly a test/debug API and must not be adopted as the production lifecycle path without review.
+
+`MapPersistentState` already contains map-copy-specific runtime data including creature/GameObject respawn times, pool state and dynamic grid object membership. This is useful precedent for instance-scoped runtime content, but it is not by itself a persistent WorldOverlay identity layer.
 
 Therefore the implementation must first verify whether the module can create and enter a named dungeon instance entirely through existing public APIs. If not, the preferred fallback is one narrow, generic core adapter rather than WorldOverlay-specific policy in the core.
 
@@ -38,7 +40,9 @@ WorldOverlay must not:
 - repurpose random native spells to select an instance;
 - persist a runtime instance id as the identity of an overlay;
 - store overlay-only builders' objects in base `creature` or `gameobject` rows;
-- require a client patch merely to create a separate server-side world layer.
+- require a client patch merely to create a separate server-side world layer;
+- pretend that the 2.4.3 client supports modern Retail PhaseShift/TerrainSwap features;
+- clone the entire world template database into module-owned equivalents.
 
 ## 4. Named overlay lifecycle
 
@@ -56,7 +60,7 @@ The intended lifecycle is:
 1. Load overlay metadata from `worldoverlay_overlay`.
 2. Keep the overlay logical-only until first use unless configured for eager creation.
 3. On first entry, allocate or resolve a runtime instance for the map.
-4. Associate `overlay_key -> (map_id, runtime_instance_id)` in memory.
+4. Associate `overlay_key -> (map_id, runtime_instance_id)` in memory for the initial singleton model.
 5. Create/load the map through a production-safe map-manager path.
 6. Load overlay-owned creature and gameobject spawns into that map only.
 7. Teleport the player to a destination that resolves to the named overlay.
@@ -95,7 +99,7 @@ A row is addressed by `overlay_key` plus a module-owned spawn id.
 
 The module-owned spawn id is a database identity only. Runtime creature/gameobject GUID allocation must use the core's supported object/GUID allocation path; table primary keys must not be blindly reused as live ObjectGuids.
 
-Objects are materialized only into the runtime map associated with the matching overlay key.
+Objects are materialized only into the runtime map associated with the matching overlay key/scope.
 
 This gives the required isolation:
 
@@ -106,9 +110,11 @@ map 36 / tele_city         : Tele City overlay spawns present
 map 36 / bot_lab           : only bot_lab overlay spawns present
 ```
 
+Normal `creature_template`, `gameobject_template`, vendors, trainers and similar base template data should be referenced rather than copied. Per-spawn overrides may later modify presentation/behavior locally without rewriting the global template.
+
 ## 7. Destinations and teleport resolution
 
-A destination has a stable key and one of three phase-1 instance policies:
+A destination has a stable key and one of three initial instance policies:
 
 ```text
 AUTO     - use normal Tortoise map/instance resolution
@@ -156,8 +162,8 @@ A builder operation that adds/moves/deletes overlay content must require an acti
 
 Safety properties:
 
-- `.wo go add` writes only `worldoverlay_gameobject`.
-- `.wo npc add` writes only `worldoverlay_creature`.
+- `.wo go add` writes only WorldOverlay GO data.
+- `.wo npc add` writes only WorldOverlay creature data.
 - `.wo go delete` must reject base-world gameobjects.
 - `.wo npc delete` must reject base-world creatures.
 - ordinary `.gobject add` / `.npc add` keep their original semantics and are not intercepted.
@@ -176,7 +182,7 @@ No normal AreaTrigger rows need to be changed for this feature.
 
 ## 11. Persistence and reset policy
 
-Phase 1 distinguishes logical persistence from map-object lifetime.
+Initial design distinguishes logical persistence from map-object lifetime.
 
 `PERSISTENT` means the overlay definition and content persist indefinitely, while its runtime instance may be recreated after restart or unload.
 
@@ -204,7 +210,7 @@ modules/mod-worldoverlay/
   src/                  # added with runtime implementation
 ```
 
-Planned runtime components:
+Planned runtime components begin with:
 
 ```text
 WorldOverlayManager
@@ -212,6 +218,8 @@ WorldOverlaySpawnManager
 WorldOverlayTeleportManager
 WorldOverlayCommandScript
 ```
+
+Later components are introduced only when their roadmap phase is implemented.
 
 If a core change is required, it should expose only a generic map/instance operation. Overlay naming, DB schema, builder commands and policy stay inside the module.
 
@@ -226,3 +234,248 @@ Before writing the full runtime:
 5. Enter Deadmines normally and verify the overlay GO is absent.
 
 Only after these five checks should the builder surface expand.
+
+## 14. Allocation policies and reusable map templates
+
+The initial `tele_city` design is a singleton:
+
+```text
+SINGLETON
+tele_city -> one logical shared world
+```
+
+The long-term model generalizes allocation:
+
+```text
+SINGLETON
+PER_PLAYER
+PER_GROUP
+EPHEMERAL
+MANUAL
+```
+
+Examples:
+
+```text
+tele_city         -> SINGLETON
+player_house      -> PER_PLAYER
+party_scenario    -> PER_GROUP
+dream_sequence    -> EPHEMERAL
+```
+
+For multi-instance allocation the stable identity becomes conceptually:
+
+```text
+(overlay_key, allocation_scope)
+```
+
+Examples:
+
+```text
+(player_house, player-guid)
+(guild_hall, guild-id)       # possible later scope
+(party_scenario, group-id)
+```
+
+The allocation scope is stable logical metadata. The runtime instance id remains ephemeral.
+
+This is the architectural point at which an instanced map becomes reusable server-side geometry/template infrastructure rather than only a dungeon-copy mechanism.
+
+## 15. Overlay state
+
+WorldOverlay should eventually provide generic logical state comparable in purpose to dungeon `InstanceScript` data, but data-driven and explicitly scoped.
+
+Examples:
+
+```text
+market_active = 1
+story_stage = 3
+tower_door_open = 0
+season = halloween
+```
+
+Potential state scopes:
+
+```text
+OVERLAY
+ALLOCATION
+PLAYER_VIEW
+```
+
+The implementation must never mix scopes implicitly. A state change intended for one player's view must not accidentally become global, and an allocation-local event must not mutate every instance created from the template.
+
+State can later drive:
+
+- spawn groups;
+- trigger behavior;
+- content variants;
+- script actions;
+- access conditions;
+- scheduled events.
+
+## 16. Content variants / server-side phases
+
+A content variant changes server-side content while retaining the same client geometry.
+
+Example:
+
+```text
+tele_city/default
+tele_city/halloween
+tele_city/attacked
+```
+
+A variant may select or alter:
+
+- creatures;
+- GameObjects;
+- spawn groups;
+- triggers;
+- destinations;
+- script behavior.
+
+This creates a Zidormi-like concept for content changes that do not require different client terrain.
+
+A variant is not necessarily another runtime instance. Depending on scope, variants may be overlay-wide, allocation-local or eventually player-view-specific.
+
+Player-view-specific variants require careful visibility/update design and are not a v1 requirement.
+
+## 17. Retail phasing and terrain-swap boundary
+
+Modern Retail can present old/new versions of places through player phasing and, when terrain itself differs, newer visible-map/terrain-swap mechanisms.
+
+WorldOverlay must not conflate these mechanisms with TBC client capabilities.
+
+The intended distinction is:
+
+```text
+same client geometry + different server-side content
+  -> WorldOverlay content variant/state
+
+separate logical world using an already available instanced map
+  -> WorldOverlay named runtime instance
+
+truly different terrain/assets not present in the TBC client
+  -> requires client-side geometry/assets; WorldOverlay alone cannot create them
+```
+
+A Zidormi-style NPC is therefore a useful interaction model, but the implementation on Tortoise should use WorldOverlay state/variant/instance resolution rather than pretending modern Retail PhaseShift packets exist.
+
+## 18. Trigger volumes and anchors
+
+WorldOverlay should eventually support module-owned server-side trigger volumes.
+
+Initial geometry should stay small and familiar:
+
+```text
+SPHERE
+BOX
+```
+
+This mirrors established AreaTrigger geometry concepts without modifying ordinary dungeon AreaTriggers.
+
+Potential trigger actions:
+
+```text
+TELEPORT
+SET_STATE
+SET_VARIANT
+ENABLE_GROUP
+DISABLE_GROUP
+RUN_SCRIPT
+MESSAGE
+```
+
+This also provides a clean server-side replacement for fragile custom spell/trap hacks when only invisible proximity behavior is required.
+
+Named world anchors should provide canonical positions such as:
+
+```text
+ENTRY
+EXIT
+GRAVEYARD
+FALLBACK
+```
+
+These anchors are logical destinations and never persist the current runtime instance id.
+
+## 19. Waypoints, groups, pools and formations
+
+Overlay NPC movement should be overlay-owned rather than writing paths for module spawns into unrelated global waypoint records.
+
+Planned concepts:
+
+```text
+worldoverlay_waypoint_path
+worldoverlay_waypoint
+```
+
+Spawn groups provide logical composition:
+
+```text
+tele_city_market
+|- vendor A
+|- vendor B
+|- tent
+|- crates
+`- fire
+```
+
+They can be enabled by state, variant, schedule or trigger.
+
+Pools provide controlled random alternatives and should align with existing server pool semantics where possible. Tortoise already keeps pool spawn state per map copy, making the existing pool subsystem especially relevant to integration research.
+
+Formations are a later extension and should be designed after waypoint/group semantics stabilize.
+
+## 20. Long-term tooling and composition
+
+Useful administrative/content-authoring features include:
+
+```text
+access rules
+schedules
+clone
+export
+validate
+diff
+overlay inheritance
+```
+
+Possible inheritance:
+
+```text
+tele_city
+  `- tele_city_halloween
+```
+
+Inheritance should be deferred until spawn identity, variants and group semantics are stable. Otherwise deletion/override behavior becomes ambiguous.
+
+Export should target reproducible module-owned SQL/data suitable for code review and version control rather than exporting volatile runtime instance ids.
+
+## 21. Architecture influences and prior art
+
+WorldOverlay combines established ideas rather than assuming they are novel individually:
+
+- normal `(mapId, instanceId)` dungeon isolation;
+- Tortoise `MapPersistentState` map-copy-specific runtime state;
+- `InstanceScript`-style per-instance logical state;
+- owner-bound/Garrison-style map instances;
+- phased/private guild-house systems;
+- waypoint editors;
+- spawn groups;
+- pools;
+- Retail Zidormi/phasing as a player-facing world-version interaction model.
+
+No reviewed implementation currently provides the exact generic combination targeted here.
+
+See [`PRIOR_ART.md`](PRIOR_ART.md) for detailed notes and cautions.
+
+## 22. Roadmap contract
+
+The expanded architecture is intentionally larger than the bootstrap SQL schema.
+
+Do not add tables merely to reserve every future concept. Schema migrations should accompany the runtime phase that actually needs them.
+
+Implementation order and acceptance tests are defined in [`ROADMAP.md`](ROADMAP.md).
+
+The immediate milestone remains the exact runtime instance-allocation/transfer spike, not variants, pools, housing or other later features.
