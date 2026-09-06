@@ -18,6 +18,21 @@ if [[ ! -f "${ACE_ROOT}/include/ace/Basic_Types.h" ]]; then
     exit 2
 fi
 
+ace_library_available() {
+    if command -v ldconfig >/dev/null 2>&1 && \
+       ldconfig -p 2>/dev/null | grep -qE 'libACE\.so([.[:space:]]|$)'; then
+        return 0
+    fi
+
+    compgen -G "${ACE_ROOT}/lib/libACE.so*" >/dev/null ||
+    compgen -G "${ACE_ROOT}/lib64/libACE.so*" >/dev/null ||
+    compgen -G "${ACE_ROOT}/lib/*/libACE.so*" >/dev/null
+}
+
+if ! ace_library_available; then
+    echo "WARNING: ACE library not found in the linker cache or below ${ACE_ROOT}/lib{,64} (including multiarch subdirectories)."
+fi
+
 if ! command -v cmake >/dev/null || ! command -v ninja >/dev/null; then
     echo "ERROR: cmake and ninja must be installed." >&2
     exit 2
