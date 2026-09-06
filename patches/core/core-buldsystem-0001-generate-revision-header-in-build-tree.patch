@@ -1,7 +1,8 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 0cb9cbc..73ca247 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -28,10 +28,16 @@ else()
+@@ -27,10 +27,19 @@ else()
      set(rev_date "1970-01-01 00:00:00 +0000")
      set(rev_hash "unknown")
    endif()
@@ -9,59 +10,30 @@ diff --git a/CMakeLists.txt b/CMakeLists.txt
 -  configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/revision.h.cmake ${CMAKE_CURRENT_SOURCE_DIR}/src/shared/revision.h)
  endif()
  
-+file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/src/shared")
-+
++# Keep generated revision metadata out of the tracked source tree.
++# The generated include directory is placed first so <revision.h>
++# resolves to this build-specific header rather than src/shared/revision.h.
++file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/generated")
 +configure_file(
 +  "${CMAKE_CURRENT_SOURCE_DIR}/cmake/revision.h.cmake"
-+  "${CMAKE_BINARY_DIR}/src/shared/revision.h"
++  "${CMAKE_BINARY_DIR}/generated/revision.h"
 +  @ONLY
 +)
++include_directories(BEFORE "${CMAKE_BINARY_DIR}/generated")
 +
  message(STATUS "")
  message(STATUS "Core revision: ${rev_hash} ${rev_date} ")
  message(STATUS "Install server to: ${CMAKE_INSTALL_PREFIX}")
-diff --git a/src/shared/CMakeLists.txt b/src/shared/CMakeLists.txt
---- a/src/shared/CMakeLists.txt
-+++ b/src/shared/CMakeLists.txt
-@@ -8,7 +8,6 @@ set (shared_SRCS
-     httplib.h
-     PerfStats.h
-     PosixDaemon.h
--    revision.h
-     SystemConfig.h
-     ThreadPool.h
-     Timer.h
-@@ -18,7 +17,6 @@ if(WIN32)
-   list(REMOVE_ITEM shared_SRCS
-     PosixDaemon.h
-     PosixDaemon.cpp
--    revision.h
-   )
-   
- 	if (ENABLE_PROFILING)
-@@ -29,7 +27,6 @@ else()
-     WheatyExceptionReport.h
-     ServiceWin32.cpp
-     ServiceWin32.h
--    revision.h
-   )
- endif()
+diff --git a/src/shared/SystemConfig.h b/src/shared/SystemConfig.h
+index 7875aab..de2bafb 100644
+--- a/src/shared/SystemConfig.h
++++ b/src/shared/SystemConfig.h
+@@ -2,7 +2,7 @@
+ #define MANGOS_SYSTEMCONFIG_H
  
-@@ -39,6 +36,7 @@ include_directories(
-   ${CMAKE_SOURCE_DIR}/dep/libdeflate
-   ${CMAKE_SOURCE_DIR}/src/framework
-   ${CMAKE_BINARY_DIR}
-+  ${CMAKE_BINARY_DIR}/src/shared
-   ${ACE_INCLUDE_DIR}
-   ${MYSQL_INCLUDE_DIR} 
-   ${OPENSSL_INCLUDE_DIR}
-diff --git a/src/shared/revision.h b/src/shared/revision.h
-deleted file mode 100644
---- a/src/shared/revision.h
-+++ /dev/null
-@@ -1,5 +0,0 @@
--#ifndef __REVISION_DATA_H__
--#define __REVISION_DATA_H__
-- #define REVISION_HASH                      "c348c2852ba3546f2969"
-- #define REVISION_DATE                      "2026-08-31 00:07:22 +0200"
--#endif // __REVISION_DATA_H__
+ #include "Platform/Define.h"
+-#include "revision.h"
++#include <revision.h>
+ 
+ // Format is YYYYMMDDRR where RR is the change in the conf file
+ // for that day.
