@@ -12,15 +12,28 @@ Long alias:
 .woverlay
 ```
 
-All commands in this document are a design contract, not yet implemented. Commands are grouped by roadmap phase; later sections must not be interpreted as v1 implementation requirements.
+The command document contains both the implemented Phase-0 diagnostic surface and later design-contract commands. Later sections must not be interpreted as current implementation requirements.
 
-## General
+## Phase-0 commands implemented now
 
 ```text
 .wo list
 .wo info
 .wo where
-.wo reload [overlay-key]
+.wo enter <overlay-key> [destination-key]
+.wo runtime <overlay-key>
+.wo reload
+```
+
+`.woverlay` is an alias for the same command surface. Phase-0 commands currently require developer security.
+
+`enter` resolves its destination through the internal WorldRouting subsystem. If no destination key is supplied, the first enabled `OVERLAY` destination for that overlay by `destination_id` is used as the temporary Phase-0 entry convention. A future explicit ENTRY route/anchor model will replace that convention.
+
+`reload` is refused while an overlay runtime is active.
+
+## General / planned diagnostics
+
+```text
 .wo validate <overlay-key>
 ```
 

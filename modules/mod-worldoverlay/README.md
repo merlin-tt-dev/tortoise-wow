@@ -6,11 +6,9 @@ The module treats an existing instanced client map as reusable geometry and plac
 
 ## Status
 
-Design and schema bootstrap. No runtime code is implemented yet.
+Phase 0 runtime spike is implemented. The current code can allocate a named singleton dungeon runtime, transfer a player into that exact runtime without a normal player/group dungeon bind, and materialize module-owned GameObjects only in that runtime.
 
-The first implementation target is a named singleton overlay on map 36 (`tele_city`) without modifying normal Deadmines entry, exits, player/group instance binds, or base spawn tables.
-
-The current documentation intentionally describes a larger long-term architecture than the bootstrap schema implements. The next code milestone remains a narrow runtime proof before the broader feature set is added.
+The first validation target remains map 36 (`tele_city`) without modifying normal Deadmines entry, exits, player/group instance binds, or base spawn tables. The broader builder/state/allocation feature set remains deferred until the five Phase-0 runtime checks pass in-game.
 
 ## Client baseline
 
@@ -65,6 +63,34 @@ Teleport resolution is only one consumer of the overlay identity. The design now
 - an optional client-assisted geometry-variant path, but only if the Turtle client audit proves a safe capability.
 
 The roadmap deliberately stages these features so they do not obscure the first instance-lifecycle proof.
+
+
+## Internal WorldRouting subsystem
+
+Teleport, destination and binding logic stays inside `mod-worldoverlay` for now, but it is deliberately separated from overlay runtime management.
+
+```text
+Item / GameObject / NPC / Trigger / Command
+                |
+                v
+          Teleport Binding
+                |
+                v
+         Destination Resolver
+                |
+                v
+         Teleport Executor
+                |
+                +--> AUTO: normal Tortoise teleport
+                +--> CURRENT: keep current runtime on the same map
+                `--> OVERLAY: resolve overlay_key -> runtime instance
+```
+
+`WorldOverlayManager` answers which concrete runtime belongs to a logical `overlay_key`. `WorldRouting` answers how a stable `destination_key` is resolved and executed. No Tele-City-specific destination logic belongs in the executor.
+
+Phase 0 implements direct (`OWN`) destination coordinates. Resolver kinds for `SPELL_TARGET_POSITION` and `AREATRIGGER_TELEPORT` are reserved in the data/class model but intentionally return an explicit not-implemented result until their source-table semantics are audited.
+
+The existing `worldoverlay_teleport_binding` table is loaded by the internal `TeleportBindingManager`; generic item/GO/NPC teleporter scripts are intentionally deferred until the runtime spike passes. Existing custom portals, including entry `4000011`, are not migrated or changed.
 
 ## Retail phasing / Zidormi comparison
 
@@ -151,10 +177,12 @@ WorldOverlay teleport:
 
 ```text
 Chronostone / overlay portal / command
+    -> teleport binding (when source-bound)
     -> destination key
-    -> overlay key
-    -> named runtime instance
-    -> destination coordinates
+    -> DestinationResolver
+    -> TeleportExecutor
+    -> OVERLAY policy asks WorldOverlayManager for overlay_key runtime
+    -> exact named runtime instance
 ```
 
 The two paths are intentionally independent.
@@ -167,7 +195,7 @@ The repository contains a non-migration example for the existing Tele City build
 examples/tele_city.sql
 ```
 
-It defines the logical overlay and Moonwell destination only. It does not create or alter the existing normal Deadmines portals.
+It defines the logical overlay, Moonwell destination and one passive module-owned Phase-0 marker GO. It does not create or alter the existing normal Deadmines portals.
 
 ## Branch
 

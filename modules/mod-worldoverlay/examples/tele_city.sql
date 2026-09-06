@@ -31,3 +31,18 @@ ON DUPLICATE KEY UPDATE
     `overlay_key` = VALUES(`overlay_key`),
     `enabled` = VALUES(`enabled`),
     `comment` = VALUES(`comment`);
+
+
+-- Phase-0 isolation marker. This references an existing passive Turtle
+-- gameobject_template (2011108, FancyDesk01) and is materialized only into the
+-- tele_city WorldOverlay runtime. It never writes to the core gameobject table.
+INSERT INTO `worldoverlay_gameobject`
+    (`overlay_key`, `entry`, `position_x`, `position_y`, `position_z`, `orientation`,
+     `rotation0`, `rotation1`, `rotation2`, `rotation3`, `spawntimesecs`, `animprogress`, `state`, `enabled`, `comment`)
+SELECT
+    'tele_city', 2011108, -1540.800049, 731.000000, 8.554760, 5.803740,
+    0.0, 0.0, 0.237433, -0.971404, 0, 100, 1, 1, 'Phase-0 WorldOverlay isolation marker'
+WHERE NOT EXISTS (
+    SELECT 1 FROM `worldoverlay_gameobject`
+    WHERE `overlay_key` = 'tele_city' AND `comment` = 'Phase-0 WorldOverlay isolation marker'
+);

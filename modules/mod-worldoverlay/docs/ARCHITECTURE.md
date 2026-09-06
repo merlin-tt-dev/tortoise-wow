@@ -78,7 +78,9 @@ Two logical modes are planned:
 
 The named instance receives normal map spawns plus overlay-owned spawns.
 
-This is the phase-1 target because it preserves the existing map-loading model and is suitable for Tele City, whose construction is in a separate area of map 36.
+This is the only base-spawn policy accepted by the Phase-0 runtime. Overlay definitions using another policy are rejected during definition loading instead of silently inheriting base spawns.
+
+It preserves the existing map-loading model and is suitable for Tele City, whose construction is in a separate area of map 36.
 
 ### NONE
 
@@ -112,37 +114,85 @@ map 36 / bot_lab           : only bot_lab overlay spawns present
 
 Normal `creature_template`, `gameobject_template`, vendors, trainers and similar base template data should be referenced rather than copied. Per-spawn overrides may later modify presentation/behavior locally without rewriting the global template.
 
-## 7. Destinations and teleport resolution
+## 7. Internal WorldRouting: destinations and teleport resolution
 
-A destination has a stable key and one of three initial instance policies:
+Teleport routing remains inside `mod-worldoverlay` for the current architecture, but it is a separate internal subsystem rather than a responsibility of `WorldOverlayManager`.
+
+The dependency direction is:
+
+```text
+source (item / GO / NPC / trigger / command)
+        |
+        v
+TeleportBindingManager
+        |
+        v
+DestinationRegistry / DestinationResolver
+        |
+        v
+TeleportExecutor
+        |
+        +--> AUTO    -> normal Tortoise teleport path
+        +--> CURRENT -> same runtime when already on the target map
+        `--> OVERLAY -> WorldOverlayManager -> exact runtime instance
+```
+
+The responsibility boundary is strict:
+
+```text
+WorldOverlayManager:
+    overlay_key -> concrete runtime world
+
+WorldRouting:
+    destination_key -> resolved target -> safe teleport execution
+```
+
+`TeleportExecutor` contains no Tele-City-specific switch and no content coordinates. Destination and binding rows are content; teleport mechanics are engine behavior.
+
+A destination has a stable key and one of these instance policies:
 
 ```text
 AUTO     - use normal Tortoise map/instance resolution
-CURRENT  - keep the current instance when already on the destination map
-OVERLAY  - resolve a named WorldOverlay instance
+CURRENT  - when already on the destination map, keep the current runtime instance
+OVERLAY  - resolve a named WorldOverlay runtime and transfer to that exact map copy
 ```
 
-`OVERLAY` is the important WorldOverlay path.
+`EXPLICIT_INSTANCE` is reserved in the C++ model for later admin/debug use only. Runtime instance ids must never become persistent content identity.
 
 Example:
 
 ```text
 destination_key = tele_city_moonwell
 map_id          = 36
-overlay_key      = tele_city
-instance_policy  = OVERLAY
-x/y/z/o          = Moonwell coordinates
+overlay_key     = tele_city
+instance_policy = OVERLAY
+x/y/z/o         = Moonwell coordinates
 ```
 
-The manager resolves the logical overlay to its current runtime instance, then performs an instance-aware teleport.
+Destination source resolution is deliberately extensible. Phase 0 implements:
 
-A production-safe `TeleportToInstance(player, mapId, instanceId, x, y, z, o)` behavior is an implementation requirement. It must not be simulated by changing persistent player/group dungeon binds just to reach an overlay.
+```text
+OWN = coordinates stored directly in worldoverlay_destination
+```
+
+The model already reserves:
+
+```text
+SPELL_TARGET_POSITION
+AREATRIGGER_TELEPORT
+```
+
+Those two resolver types are not executed in Phase 0. They exist so later routing can reuse native Tortoise destination data without redesigning the registry/resolver/executor boundary.
+
+For `CURRENT`, same-map movement uses the core near-teleport path so the player's current runtime instance remains selected. A `CURRENT` destination on another map falls back to ordinary Tortoise map transfer rather than inventing an arbitrary instance id.
+
+For `OVERLAY`, `TeleportExecutor` validates that the destination map matches the overlay definition, asks `WorldOverlayManager` for the current singleton runtime, then uses the generic core unbound-dungeon transfer adapter. It does not create or mutate player/group dungeon binds.
 
 ## 8. Teleport bindings
 
-`worldoverlay_teleport_binding` provides a generic mapping from a source entry to a destination key.
+`worldoverlay_teleport_binding` maps one stable source identity to one `destination_key`. The source never stores destination coordinates.
 
-Initial source types are intentionally small:
+Initial source types are:
 
 ```text
 1 = ITEM
@@ -150,9 +200,11 @@ Initial source types are intentionally small:
 3 = CREATURE
 ```
 
-This is sufficient for a Chronostone, overlay portal/orb, or NPC interaction while keeping destination logic centralized.
+The C++ model leaves room for later source types such as trigger, command, gossip action and script. Multi-destination gossip is explicitly not represented by this one-to-one table; it should receive separate menu/option tables later.
 
-More complex gossip menus with multiple destinations should use a later menu/action table instead of overloading this simple one-to-one binding.
+The Phase-0 runtime loads bindings into `TeleportBindingManager`, but does not yet register generic `item_db_teleporter`, `go_db_teleporter` or `npc_db_teleporter` scripts. That wiring is deferred until the runtime-isolation spike passes.
+
+Existing custom portals and Turtle teleport-orb content are not migrated or modified as part of Phase 0.
 
 ## 9. Builder safety
 
@@ -199,29 +251,33 @@ Dungeon reset semantics must be audited before any overlay is allowed to inherit
 
 ## 12. Module boundaries
 
-Preferred module layout:
+Current Phase-0 source layout:
 
 ```text
-modules/mod-worldoverlay/
-  README.md
-  docs/
-  data/sql/world/
-  examples/
-  src/                  # added with runtime implementation
+modules/mod-worldoverlay/src/
+  overlay/
+    WorldOverlayManager
+    RuntimeInstanceRegistry
+  routing/
+    DestinationRegistry
+    DestinationResolver
+    TeleportBindingManager
+    TeleportExecutor
+    WorldRouting
+  spawn/
+    OverlayGameObjectSpawner
+  builder/
+    WorldOverlayCommandScript
+  module.cpp
 ```
 
-Planned runtime components begin with:
+`WorldOverlayManager` does not own destination tables and does not execute teleports. `TeleportExecutor` may depend on `WorldOverlayManager` only for the `OVERLAY` policy's runtime resolution. The reverse dependency is forbidden.
 
-```text
-WorldOverlayManager
-WorldOverlaySpawnManager
-WorldOverlayTeleportManager
-WorldOverlayCommandScript
-```
+Later allocation/lifecycle components can be added under `overlay/` without changing routing's content-to-engine boundary. Generic source scripts can be added under `routing/` after Phase 0 without adding per-destination C++ switches.
 
-Later components are introduced only when their roadmap phase is implemented.
+If the destination/resolver/executor system later becomes broadly useful outside WorldOverlay, `routing/` can be extracted to `mod-worldrouting` or `mod-teleport`. That extraction is explicitly not part of the current phase.
 
-If a core change is required, it should expose only a generic map/instance operation. Overlay naming, DB schema, builder commands and policy stay inside the module.
+Any required core change must expose only a generic map/instance operation. Overlay naming, routing content, builder commands and policy stay inside the module.
 
 ## 13. First implementation spike
 
