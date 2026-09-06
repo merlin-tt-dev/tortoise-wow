@@ -1,0 +1,2369 @@
+diff --git a/modules/mod-worldoverlay/README.md b/modules/mod-worldoverlay/README.md
+index cf856f98477d70c3379247b5b1e2f9d53d37ccf6..ca95d1dc38a340149d2ba477b11e08d9801d9560 100644
+--- a/modules/mod-worldoverlay/README.md
++++ b/modules/mod-worldoverlay/README.md
+@@ -6,11 +6,9 @@ The module treats an existing instanced client map as reusable geometry and plac
+ 
+ ## Status
+ 
+-Design and schema bootstrap. No runtime code is implemented yet.
++Phase 0 runtime spike is implemented. The current code can allocate a named singleton dungeon runtime, transfer a player into that exact runtime without a normal player/group dungeon bind, and materialize module-owned GameObjects only in that runtime.
+ 
+-The first implementation target is a named singleton overlay on map 36 (`tele_city`) without modifying normal Deadmines entry, exits, player/group instance binds, or base spawn tables.
+-
+-The current documentation intentionally describes a larger long-term architecture than the bootstrap schema implements. The next code milestone remains a narrow runtime proof before the broader feature set is added.
++The first validation target remains map 36 (`tele_city`) without modifying normal Deadmines entry, exits, player/group instance binds, or base spawn tables. The broader builder/state/allocation feature set remains deferred until the five Phase-0 runtime checks pass in-game.
+ 
+ ## Client baseline
+ 
+@@ -66,6 +64,34 @@ Teleport resolution is only one consumer of the overlay identity. The design now
+ 
+ The roadmap deliberately stages these features so they do not obscure the first instance-lifecycle proof.
+ 
++
++## Internal WorldRouting subsystem
++
++Teleport, destination and binding logic stays inside `mod-worldoverlay` for now, but it is deliberately separated from overlay runtime management.
++
++```text
++Item / GameObject / NPC / Trigger / Command
++                |
++                v
++          Teleport Binding
++                |
++                v
++         Destination Resolver
++                |
++                v
++         Teleport Executor
++                |
++                +--> AUTO: normal Tortoise teleport
++                +--> CURRENT: keep current runtime on the same map
++                `--> OVERLAY: resolve overlay_key -> runtime instance
++```
++
++`WorldOverlayManager` answers which concrete runtime belongs to a logical `overlay_key`. `WorldRouting` answers how a stable `destination_key` is resolved and executed. No Tele-City-specific destination logic belongs in the executor.
++
++Phase 0 implements direct (`OWN`) destination coordinates. Resolver kinds for `SPELL_TARGET_POSITION` and `AREATRIGGER_TELEPORT` are reserved in the data/class model but intentionally return an explicit not-implemented result until their source-table semantics are audited.
++
++The existing `worldoverlay_teleport_binding` table is loaded by the internal `TeleportBindingManager`; generic item/GO/NPC teleporter scripts are intentionally deferred until the runtime spike passes. Existing custom portals, including entry `4000011`, are not migrated or changed.
++
+ ## Retail phasing / Zidormi comparison
+ 
+ Modern Retail can switch a player between logical versions of a place using player phase state and, in newer clients, visible-map/terrain-swap systems.
+@@ -151,10 +177,12 @@ WorldOverlay teleport:
+ 
+ ```text
+ Chronostone / overlay portal / command
++    -> teleport binding (when source-bound)
+     -> destination key
+-    -> overlay key
+-    -> named runtime instance
+-    -> destination coordinates
++    -> DestinationResolver
++    -> TeleportExecutor
++    -> OVERLAY policy asks WorldOverlayManager for overlay_key runtime
++    -> exact named runtime instance
+ ```
+ 
+ The two paths are intentionally independent.
+@@ -167,7 +195,7 @@ The repository contains a non-migration example for the existing Tele City build
+ examples/tele_city.sql
+ ```
+ 
+-It defines the logical overlay and Moonwell destination only. It does not create or alter the existing normal Deadmines portals.
++It defines the logical overlay, Moonwell destination and one passive module-owned Phase-0 marker GO. It does not create or alter the existing normal Deadmines portals.
+ 
+ ## Branch
+ 
+diff --git a/modules/mod-worldoverlay/data/sql/world/2026_09_05_01_worldoverlay_routing.sql b/modules/mod-worldoverlay/data/sql/world/2026_09_05_01_worldoverlay_routing.sql
+new file mode 100644
+index 0000000000000000000000000000000000000000..15e04f5aea204f3133888e242cf0281304e70588
+--- /dev/null
++++ b/modules/mod-worldoverlay/data/sql/world/2026_09_05_01_worldoverlay_routing.sql
+@@ -0,0 +1,9 @@
++-- mod-worldoverlay: future-ready WorldRouting destination resolution metadata.
++--
++-- Phase 0 implements resolver_type=0 (OWN) only. Values 1 and 2 are reserved so
++-- later destinations can reuse existing Tortoise routing data without changing
++-- the Destination/Binding/Executor architecture.
++
++ALTER TABLE `worldoverlay_destination`
++  ADD COLUMN `resolver_type` TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '0=OWN, 1=SPELL_TARGET_POSITION, 2=AREATRIGGER_TELEPORT' AFTER `destination_key`,
++  ADD COLUMN `resolver_ref` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Resolver-specific stable source id; unused for OWN' AFTER `resolver_type`;
+diff --git a/modules/mod-worldoverlay/docs/ARCHITECTURE.md b/modules/mod-worldoverlay/docs/ARCHITECTURE.md
+index 04f9d544ed56c2e4c89bf004e52372fe101d1f34..19e516e2926df65174e531de89141b8a2cd5195e 100644
+--- a/modules/mod-worldoverlay/docs/ARCHITECTURE.md
++++ b/modules/mod-worldoverlay/docs/ARCHITECTURE.md
+@@ -78,7 +78,9 @@ Two logical modes are planned:
+ 
+ The named instance receives normal map spawns plus overlay-owned spawns.
+ 
+-This is the phase-1 target because it preserves the existing map-loading model and is suitable for Tele City, whose construction is in a separate area of map 36.
++This is the only base-spawn policy accepted by the Phase-0 runtime. Overlay definitions using another policy are rejected during definition loading instead of silently inheriting base spawns.
++
++It preserves the existing map-loading model and is suitable for Tele City, whose construction is in a separate area of map 36.
+ 
+ ### NONE
+ 
+@@ -112,37 +114,85 @@ map 36 / bot_lab           : only bot_lab overlay spawns present
+ 
+ Normal `creature_template`, `gameobject_template`, vendors, trainers and similar base template data should be referenced rather than copied. Per-spawn overrides may later modify presentation/behavior locally without rewriting the global template.
+ 
+-## 7. Destinations and teleport resolution
++## 7. Internal WorldRouting: destinations and teleport resolution
++
++Teleport routing remains inside `mod-worldoverlay` for the current architecture, but it is a separate internal subsystem rather than a responsibility of `WorldOverlayManager`.
++
++The dependency direction is:
++
++```text
++source (item / GO / NPC / trigger / command)
++        |
++        v
++TeleportBindingManager
++        |
++        v
++DestinationRegistry / DestinationResolver
++        |
++        v
++TeleportExecutor
++        |
++        +--> AUTO    -> normal Tortoise teleport path
++        +--> CURRENT -> same runtime when already on the target map
++        `--> OVERLAY -> WorldOverlayManager -> exact runtime instance
++```
++
++The responsibility boundary is strict:
++
++```text
++WorldOverlayManager:
++    overlay_key -> concrete runtime world
++
++WorldRouting:
++    destination_key -> resolved target -> safe teleport execution
++```
++
++`TeleportExecutor` contains no Tele-City-specific switch and no content coordinates. Destination and binding rows are content; teleport mechanics are engine behavior.
+ 
+-A destination has a stable key and one of three initial instance policies:
++A destination has a stable key and one of these instance policies:
+ 
+ ```text
+ AUTO     - use normal Tortoise map/instance resolution
+-CURRENT  - keep the current instance when already on the destination map
+-OVERLAY  - resolve a named WorldOverlay instance
++CURRENT  - when already on the destination map, keep the current runtime instance
++OVERLAY  - resolve a named WorldOverlay runtime and transfer to that exact map copy
+ ```
+ 
+-`OVERLAY` is the important WorldOverlay path.
++`EXPLICIT_INSTANCE` is reserved in the C++ model for later admin/debug use only. Runtime instance ids must never become persistent content identity.
+ 
+ Example:
+ 
+ ```text
+ destination_key = tele_city_moonwell
+ map_id          = 36
+-overlay_key      = tele_city
+-instance_policy  = OVERLAY
+-x/y/z/o          = Moonwell coordinates
++overlay_key     = tele_city
++instance_policy = OVERLAY
++x/y/z/o         = Moonwell coordinates
+ ```
+ 
+-The manager resolves the logical overlay to its current runtime instance, then performs an instance-aware teleport.
++Destination source resolution is deliberately extensible. Phase 0 implements:
+ 
+-A production-safe `TeleportToInstance(player, mapId, instanceId, x, y, z, o)` behavior is an implementation requirement. It must not be simulated by changing persistent player/group dungeon binds just to reach an overlay.
++```text
++OWN = coordinates stored directly in worldoverlay_destination
++```
++
++The model already reserves:
++
++```text
++SPELL_TARGET_POSITION
++AREATRIGGER_TELEPORT
++```
++
++Those two resolver types are not executed in Phase 0. They exist so later routing can reuse native Tortoise destination data without redesigning the registry/resolver/executor boundary.
++
++For `CURRENT`, same-map movement uses the core near-teleport path so the player's current runtime instance remains selected. A `CURRENT` destination on another map falls back to ordinary Tortoise map transfer rather than inventing an arbitrary instance id.
++
++For `OVERLAY`, `TeleportExecutor` validates that the destination map matches the overlay definition, asks `WorldOverlayManager` for the current singleton runtime, then uses the generic core unbound-dungeon transfer adapter. It does not create or mutate player/group dungeon binds.
+ 
+ ## 8. Teleport bindings
+ 
+-`worldoverlay_teleport_binding` provides a generic mapping from a source entry to a destination key.
++`worldoverlay_teleport_binding` maps one stable source identity to one `destination_key`. The source never stores destination coordinates.
+ 
+-Initial source types are intentionally small:
++Initial source types are:
+ 
+ ```text
+ 1 = ITEM
+@@ -150,9 +200,11 @@ Initial source types are intentionally small:
+ 3 = CREATURE
+ ```
+ 
+-This is sufficient for a Chronostone, overlay portal/orb, or NPC interaction while keeping destination logic centralized.
++The C++ model leaves room for later source types such as trigger, command, gossip action and script. Multi-destination gossip is explicitly not represented by this one-to-one table; it should receive separate menu/option tables later.
+ 
+-More complex gossip menus with multiple destinations should use a later menu/action table instead of overloading this simple one-to-one binding.
++The Phase-0 runtime loads bindings into `TeleportBindingManager`, but does not yet register generic `item_db_teleporter`, `go_db_teleporter` or `npc_db_teleporter` scripts. That wiring is deferred until the runtime-isolation spike passes.
++
++Existing custom portals and Turtle teleport-orb content are not migrated or modified as part of Phase 0.
+ 
+ ## 9. Builder safety
+ 
+@@ -199,29 +251,33 @@ Dungeon reset semantics must be audited before any overlay is allowed to inherit
+ 
+ ## 12. Module boundaries
+ 
+-Preferred module layout:
++Current Phase-0 source layout:
+ 
+ ```text
+-modules/mod-worldoverlay/
+-  README.md
+-  docs/
+-  data/sql/world/
+-  examples/
+-  src/                  # added with runtime implementation
++modules/mod-worldoverlay/src/
++  overlay/
++    WorldOverlayManager
++    RuntimeInstanceRegistry
++  routing/
++    DestinationRegistry
++    DestinationResolver
++    TeleportBindingManager
++    TeleportExecutor
++    WorldRouting
++  spawn/
++    OverlayGameObjectSpawner
++  builder/
++    WorldOverlayCommandScript
++  module.cpp
+ ```
+ 
+-Planned runtime components begin with:
++`WorldOverlayManager` does not own destination tables and does not execute teleports. `TeleportExecutor` may depend on `WorldOverlayManager` only for the `OVERLAY` policy's runtime resolution. The reverse dependency is forbidden.
+ 
+-```text
+-WorldOverlayManager
+-WorldOverlaySpawnManager
+-WorldOverlayTeleportManager
+-WorldOverlayCommandScript
+-```
++Later allocation/lifecycle components can be added under `overlay/` without changing routing's content-to-engine boundary. Generic source scripts can be added under `routing/` after Phase 0 without adding per-destination C++ switches.
+ 
+-Later components are introduced only when their roadmap phase is implemented.
++If the destination/resolver/executor system later becomes broadly useful outside WorldOverlay, `routing/` can be extracted to `mod-worldrouting` or `mod-teleport`. That extraction is explicitly not part of the current phase.
+ 
+-If a core change is required, it should expose only a generic map/instance operation. Overlay naming, DB schema, builder commands and policy stay inside the module.
++Any required core change must expose only a generic map/instance operation. Overlay naming, routing content, builder commands and policy stay inside the module.
+ 
+ ## 13. First implementation spike
+ 
+diff --git a/modules/mod-worldoverlay/docs/COMMANDS.md b/modules/mod-worldoverlay/docs/COMMANDS.md
+index f8e0e269be27b0e1caea0e6011ed384fdbf1f579..af7b3b7ce5dfafa2de88dab4f2e33f07dd823088 100644
+--- a/modules/mod-worldoverlay/docs/COMMANDS.md
++++ b/modules/mod-worldoverlay/docs/COMMANDS.md
+@@ -12,15 +12,28 @@ Long alias:
+ .woverlay
+ ```
+ 
+-All commands in this document are a design contract, not yet implemented. Commands are grouped by roadmap phase; later sections must not be interpreted as v1 implementation requirements.
++The command document contains both the implemented Phase-0 diagnostic surface and later design-contract commands. Later sections must not be interpreted as current implementation requirements.
+ 
+-## General
++## Phase-0 commands implemented now
+ 
+ ```text
+ .wo list
+ .wo info
+ .wo where
+-.wo reload [overlay-key]
++.wo enter <overlay-key> [destination-key]
++.wo runtime <overlay-key>
++.wo reload
++```
++
++`.woverlay` is an alias for the same command surface. Phase-0 commands currently require developer security.
++
++`enter` resolves its destination through the internal WorldRouting subsystem. If no destination key is supplied, the first enabled `OVERLAY` destination for that overlay by `destination_id` is used as the temporary Phase-0 entry convention. A future explicit ENTRY route/anchor model will replace that convention.
++
++`reload` is refused while an overlay runtime is active.
++
++## General / planned diagnostics
++
++```text
+ .wo validate <overlay-key>
+ ```
+ 
+diff --git a/modules/mod-worldoverlay/examples/tele_city.sql b/modules/mod-worldoverlay/examples/tele_city.sql
+index b1a6184be3604800e441ee7bc370c415f685ba27..c2f8af0356a5adda56d6ff416885dc121b2d21cc 100644
+--- a/modules/mod-worldoverlay/examples/tele_city.sql
++++ b/modules/mod-worldoverlay/examples/tele_city.sql
+@@ -31,3 +31,18 @@ ON DUPLICATE KEY UPDATE
+     `overlay_key` = VALUES(`overlay_key`),
+     `enabled` = VALUES(`enabled`),
+     `comment` = VALUES(`comment`);
++
++
++-- Phase-0 isolation marker. This references an existing passive Turtle
++-- gameobject_template (2011108, FancyDesk01) and is materialized only into the
++-- tele_city WorldOverlay runtime. It never writes to the core gameobject table.
++INSERT INTO `worldoverlay_gameobject`
++    (`overlay_key`, `entry`, `position_x`, `position_y`, `position_z`, `orientation`,
++     `rotation0`, `rotation1`, `rotation2`, `rotation3`, `spawntimesecs`, `animprogress`, `state`, `enabled`, `comment`)
++SELECT
++    'tele_city', 2011108, -1540.800049, 731.000000, 8.554760, 5.803740,
++    0.0, 0.0, 0.237433, -0.971404, 0, 100, 1, 1, 'Phase-0 WorldOverlay isolation marker'
++WHERE NOT EXISTS (
++    SELECT 1 FROM `worldoverlay_gameobject`
++    WHERE `overlay_key` = 'tele_city' AND `comment` = 'Phase-0 WorldOverlay isolation marker'
++);
+diff --git a/modules/mod-worldoverlay/src/builder/WorldOverlayCommandScript.cpp b/modules/mod-worldoverlay/src/builder/WorldOverlayCommandScript.cpp
+new file mode 100644
+index 0000000000000000000000000000000000000000..cb49088e7b7d242dfa04d4d7ac8942115418d740
+--- /dev/null
++++ b/modules/mod-worldoverlay/src/builder/WorldOverlayCommandScript.cpp
+@@ -0,0 +1,205 @@
++#include "builder/WorldOverlayCommandScript.h"
++
++#include "Chat.h"
++#include "Player.h"
++#include "ScriptObjects.h"
++#include "WorldSession.h"
++#include "overlay/WorldOverlayManager.h"
++#include "routing/WorldRouting.h"
++
++#include <cstring>
++#include <sstream>
++#include <string>
++
++namespace WorldOverlay
++{
++    namespace
++    {
++        class WorldOverlayCommandScript final : public AllCommandScript
++        {
++        public:
++            WorldOverlayCommandScript() : AllCommandScript("mod_worldoverlay_commands") {}
++
++            bool CanExecuteCommand(ChatHandler* handler, char const* command, char const* args) override
++            {
++                if (!command || (std::strcmp(command, "wo") != 0 && std::strcmp(command, "woverlay") != 0))
++                    return true;
++
++                if (!handler || !handler->GetSession() || !handler->GetPlayer())
++                    return false;
++
++                if (handler->GetSession()->GetSecurity() < SEC_DEVELOPER)
++                {
++                    handler->SendSysMessage("WorldOverlay commands require developer security.");
++                    return false;
++                }
++
++                std::istringstream input(args ? args : "");
++                std::string subcommand;
++                input >> subcommand;
++
++                if (subcommand.empty())
++                {
++                    handler->SendSysMessage("WorldOverlay Phase 0: .wo list | .wo info | .wo where | .wo enter <overlay> [destination] | .wo runtime <overlay> | .wo reload");
++                    return false;
++                }
++
++                if (subcommand == "list")
++                {
++                    auto overlays = WorldOverlayManager::Instance().GetOverlays();
++                    if (overlays.empty())
++                    {
++                        handler->SendSysMessage("WorldOverlay: no enabled Phase-0 overlays loaded.");
++                        return false;
++                    }
++
++                    handler->SendSysMessage("WorldOverlay overlays:");
++                    for (OverlayDefinition const& overlay : overlays)
++                    {
++                        RuntimeDefinition runtime;
++                        if (WorldOverlayManager::Instance().GetRuntime(overlay.key, runtime))
++                        {
++                            handler->PSendSysMessage("  %s: map %u, runtime %u, GO %u", overlay.key.c_str(),
++                                overlay.mapId, runtime.instanceId, runtime.gameObjectCount);
++                        }
++                        else
++                            handler->PSendSysMessage("  %s: map %u, runtime inactive", overlay.key.c_str(), overlay.mapId);
++                    }
++                    return false;
++                }
++
++                if (subcommand == "info")
++                {
++                    Player* player = handler->GetPlayer();
++                    std::string overlayKey;
++                    RuntimeDefinition runtime;
++                    if (!WorldOverlayManager::Instance().FindRuntimeForLocation(
++                            player->GetMapId(), player->GetInstanceId(), overlayKey, runtime))
++                    {
++                        handler->PSendSysMessage("WorldOverlay: none (current map %u, instance %u).",
++                            player->GetMapId(), player->GetInstanceId());
++                        return false;
++                    }
++
++                    OverlayDefinition overlay;
++                    WorldOverlayManager::Instance().GetOverlay(overlayKey, overlay);
++                    handler->PSendSysMessage("WorldOverlay: %s", overlayKey.c_str());
++                    handler->PSendSysMessage("Map: %u", runtime.mapId);
++                    handler->PSendSysMessage("Runtime instance: %u", runtime.instanceId);
++                    handler->PSendSysMessage("Base spawns: %s",
++                        overlay.baseSpawnPolicy == OverlayBaseSpawnPolicy::Inherit ? "INHERIT" : "NONE");
++                    handler->PSendSysMessage("Overlay GO spawns: %u", runtime.gameObjectCount);
++                    return false;
++                }
++
++                if (subcommand == "where")
++                {
++                    Player* player = handler->GetPlayer();
++                    std::string overlayKey;
++                    RuntimeDefinition runtime;
++                    if (WorldOverlayManager::Instance().FindRuntimeForLocation(
++                            player->GetMapId(), player->GetInstanceId(), overlayKey, runtime))
++                    {
++                        handler->PSendSysMessage("WorldOverlay: current map %u, instance %u, overlay %s.",
++                            player->GetMapId(), player->GetInstanceId(), overlayKey.c_str());
++                    }
++                    else
++                    {
++                        handler->PSendSysMessage("WorldOverlay: current map %u, instance %u, no overlay runtime.",
++                            player->GetMapId(), player->GetInstanceId());
++                    }
++                    return false;
++                }
++
++                if (subcommand == "runtime")
++                {
++                    std::string overlayKey;
++                    input >> overlayKey;
++                    if (overlayKey.empty())
++                    {
++                        handler->SendSysMessage("Usage: .wo runtime <overlay>");
++                        return false;
++                    }
++
++                    OverlayDefinition overlay;
++                    if (!WorldOverlayManager::Instance().GetOverlay(overlayKey, overlay))
++                    {
++                        handler->PSendSysMessage("WorldOverlay: unknown overlay '%s'.", overlayKey.c_str());
++                        return false;
++                    }
++
++                    RuntimeDefinition runtime;
++                    if (!WorldOverlayManager::Instance().GetRuntime(overlayKey, runtime))
++                    {
++                        handler->PSendSysMessage("WorldOverlay: %s has no active runtime instance.", overlayKey.c_str());
++                        return false;
++                    }
++
++                    handler->PSendSysMessage("WorldOverlay: %s -> map %u, runtime instance %u, overlay GO count %u.",
++                        overlayKey.c_str(), runtime.mapId, runtime.instanceId, runtime.gameObjectCount);
++                    return false;
++                }
++
++                if (subcommand == "enter")
++                {
++                    std::string overlayKey;
++                    std::string destinationKey;
++                    input >> overlayKey >> destinationKey;
++                    if (overlayKey.empty())
++                    {
++                        handler->SendSysMessage("Usage: .wo enter <overlay> [destination]");
++                        return false;
++                    }
++
++                    OverlayDefinition overlay;
++                    if (!WorldOverlayManager::Instance().GetOverlay(overlayKey, overlay))
++                    {
++                        handler->PSendSysMessage("WorldOverlay: unknown or disabled overlay '%s'.", overlayKey.c_str());
++                        return false;
++                    }
++
++                    std::string resolvedDestinationKey;
++                    std::string error;
++                    if (!WorldRouting::Instance().TeleportToOverlayDestination(handler->GetPlayer(), overlayKey,
++                            destinationKey, resolvedDestinationKey, error))
++                    {
++                        handler->PSendSysMessage("WorldOverlay: %s.", error.c_str());
++                        return false;
++                    }
++
++                    RuntimeDefinition runtime;
++                    if (WorldOverlayManager::Instance().GetRuntime(overlayKey, runtime))
++                    {
++                        handler->PSendSysMessage("WorldOverlay: entering %s via %s -> map %u, runtime instance %u, overlay GO count %u.",
++                            overlayKey.c_str(), resolvedDestinationKey.c_str(), runtime.mapId, runtime.instanceId, runtime.gameObjectCount);
++                    }
++                    return false;
++                }
++
++                if (subcommand == "reload")
++                {
++                    if (WorldOverlayManager::Instance().HasActiveRuntimes())
++                    {
++                        handler->SendSysMessage("WorldOverlay: reload refused while an overlay runtime is active.");
++                        return false;
++                    }
++
++                    WorldOverlayManager::Instance().ClearRuntimes();
++                    WorldOverlayManager::Instance().LoadDefinitions();
++                    WorldRouting::Instance().Load();
++                    handler->PSendSysMessage("WorldOverlay: definitions reloaded (%u destinations, %u bindings).",
++                        WorldRouting::Instance().DestinationCount(), WorldRouting::Instance().BindingCount());
++                    return false;
++                }
++
++                handler->PSendSysMessage("WorldOverlay: unknown subcommand '%s'.", subcommand.c_str());
++                return false;
++            }
++        };
++    }
++
++    void RegisterWorldOverlayCommandScript()
++    {
++        new WorldOverlayCommandScript();
++    }
++}
+diff --git a/modules/mod-worldoverlay/src/builder/WorldOverlayCommandScript.h b/modules/mod-worldoverlay/src/builder/WorldOverlayCommandScript.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..96f83e20368a061ae947be46b94b6a8a551119df
+--- /dev/null
++++ b/modules/mod-worldoverlay/src/builder/WorldOverlayCommandScript.h
+@@ -0,0 +1,9 @@
++#ifndef MOD_WORLDOVERLAY_COMMAND_SCRIPT_H
++#define MOD_WORLDOVERLAY_COMMAND_SCRIPT_H
++
++namespace WorldOverlay
++{
++    void RegisterWorldOverlayCommandScript();
++}
++
++#endif
+diff --git a/modules/mod-worldoverlay/src/module.cpp b/modules/mod-worldoverlay/src/module.cpp
+index 545c95f8ca6fc322c006aa19abaf803f4f6ec4fb..f49144cad01f9681106622b1a90e8aa21501ce1b 100644
+--- a/modules/mod-worldoverlay/src/module.cpp
++++ b/modules/mod-worldoverlay/src/module.cpp
+@@ -1,579 +1,58 @@
+ #include "ScriptObjects.h"
+ 
+-#include "Database/DatabaseEnv.h"
+-#include "GameObject.h"
+ #include "Log.h"
+ #include "MapManager.h"
+-#include "ObjectMgr.h"
+-#include "Player.h"
+-#include "WorldSession.h"
++#include "builder/WorldOverlayCommandScript.h"
++#include "overlay/WorldOverlayManager.h"
++#include "routing/WorldRouting.h"
+ 
+-#include <cstring>
+-#include <map>
+-#include <mutex>
+-#include <sstream>
+-#include <string>
+-
+-namespace
++namespace WorldOverlay
+ {
+-    struct OverlayDefinition
+-    {
+-        uint32 overlayId = 0;
+-        std::string key;
+-        uint32 mapId = 0;
+-        uint8 baseSpawnPolicy = 0;
+-        uint8 lifecyclePolicy = 0;
+-    };
+-
+-    struct DestinationDefinition
+-    {
+-        uint32 destinationId = 0;
+-        std::string key;
+-        uint32 mapId = 0;
+-        float x = 0.0f;
+-        float y = 0.0f;
+-        float z = 0.0f;
+-        float o = 0.0f;
+-        uint8 instancePolicy = 0;
+-        std::string overlayKey;
+-    };
+-
+-    struct RuntimeDefinition
++    namespace
+     {
+-        uint32 mapId = 0;
+-        uint32 instanceId = 0;
+-        uint32 gameObjectCount = 0;
+-    };
+-
+-    class WorldOverlayManager
+-    {
+-    public:
+-        static WorldOverlayManager& Instance()
+-        {
+-            static WorldOverlayManager instance;
+-            return instance;
+-        }
+-
+-        void LoadDefinitions()
+-        {
+-            std::lock_guard<std::recursive_mutex> guard(m_mutex);
+-
+-            m_overlays.clear();
+-            m_destinations.clear();
+-            m_defaultDestinations.clear();
+-
+-            QueryResult* overlayResult = WorldDatabase.Query(
+-                "SELECT overlay_id, overlay_key, map_id, base_spawn_policy, lifecycle_policy "
+-                "FROM worldoverlay_overlay WHERE enabled = 1 ORDER BY overlay_id");
+-
+-            if (overlayResult)
+-            {
+-                do
+-                {
+-                    Field* fields = overlayResult->Fetch();
+-                    OverlayDefinition definition;
+-                    definition.overlayId = fields[0].GetUInt32();
+-                    definition.key = fields[1].GetCppString();
+-                    definition.mapId = fields[2].GetUInt32();
+-                    definition.baseSpawnPolicy = fields[3].GetUInt8();
+-                    definition.lifecyclePolicy = fields[4].GetUInt8();
+-
+-                    if (definition.key.empty())
+-                    {
+-                        sLog.outError("[WorldOverlay] Ignoring overlay %u with empty overlay_key.", definition.overlayId);
+-                        continue;
+-                    }
+-
+-                    MapEntry const* mapEntry = sMapStorage.LookupEntry<MapEntry>(definition.mapId);
+-                    if (!mapEntry || !mapEntry->IsDungeon() || mapEntry->IsBattleGround())
+-                    {
+-                        sLog.outError("[WorldOverlay] Overlay '%s' uses unsupported Phase-0 map %u.",
+-                            definition.key.c_str(), definition.mapId);
+-                        continue;
+-                    }
+-
+-                    m_overlays[definition.key] = definition;
+-                }
+-                while (overlayResult->NextRow());
+-
+-                delete overlayResult;
+-            }
+-
+-            QueryResult* destinationResult = WorldDatabase.Query(
+-                "SELECT destination_id, destination_key, map_id, position_x, position_y, position_z, orientation, "
+-                "instance_policy, overlay_key FROM worldoverlay_destination "
+-                "WHERE enabled = 1 ORDER BY destination_id");
+-
+-            if (destinationResult)
+-            {
+-                do
+-                {
+-                    Field* fields = destinationResult->Fetch();
+-                    DestinationDefinition destination;
+-                    destination.destinationId = fields[0].GetUInt32();
+-                    destination.key = fields[1].GetCppString();
+-                    destination.mapId = fields[2].GetUInt32();
+-                    destination.x = fields[3].GetFloat();
+-                    destination.y = fields[4].GetFloat();
+-                    destination.z = fields[5].GetFloat();
+-                    destination.o = fields[6].GetFloat();
+-                    destination.instancePolicy = fields[7].GetUInt8();
+-                    destination.overlayKey = fields[8].GetCppString();
+-
+-                    if (destination.key.empty() || destination.overlayKey.empty())
+-                        continue;
+-
+-                    if (destination.instancePolicy != 2)
+-                        continue;
+-
+-                    auto const overlayItr = m_overlays.find(destination.overlayKey);
+-                    if (overlayItr == m_overlays.end())
+-                        continue;
+-
+-                    if (destination.mapId != overlayItr->second.mapId)
+-                    {
+-                        sLog.outError("[WorldOverlay] Destination '%s' map %u does not match overlay '%s' map %u.",
+-                            destination.key.c_str(), destination.mapId, destination.overlayKey.c_str(), overlayItr->second.mapId);
+-                        continue;
+-                    }
+-
+-                    if (!MapManager::IsValidMapCoord(destination.mapId, destination.x, destination.y, destination.z, destination.o))
+-                    {
+-                        sLog.outError("[WorldOverlay] Destination '%s' has invalid coordinates.", destination.key.c_str());
+-                        continue;
+-                    }
+-
+-                    m_destinations[destination.key] = destination;
+-                    if (!m_defaultDestinations.count(destination.overlayKey))
+-                        m_defaultDestinations[destination.overlayKey] = destination.key;
+-                }
+-                while (destinationResult->NextRow());
+-
+-                delete destinationResult;
+-            }
+-
+-            sLog.outString("[WorldOverlay] Loaded %u overlay definition(s) and %u overlay destination(s).",
+-                uint32(m_overlays.size()), uint32(m_destinations.size()));
+-        }
+-
+-        void OnMapDestroyed(Map* map)
+-        {
+-            if (!map)
+-                return;
+-
+-            std::lock_guard<std::recursive_mutex> guard(m_mutex);
+-            for (auto itr = m_runtimes.begin(); itr != m_runtimes.end();)
+-            {
+-                if (itr->second.mapId == map->GetId() && itr->second.instanceId == map->GetInstanceId())
+-                {
+-                    sLog.outString("[WorldOverlay] Runtime '%s' released map %u instance %u.",
+-                        itr->first.c_str(), itr->second.mapId, itr->second.instanceId);
+-                    itr = m_runtimes.erase(itr);
+-                }
+-                else
+-                    ++itr;
+-            }
+-        }
+-
+-        void ClearRuntimes()
+-        {
+-            std::lock_guard<std::recursive_mutex> guard(m_mutex);
+-            m_runtimes.clear();
+-        }
+-
+-        bool Enter(ChatHandler* handler, Player* player, std::string const& overlayKey, std::string const& destinationKey)
+-        {
+-            if (!handler || !player)
+-                return false;
+-
+-            std::lock_guard<std::recursive_mutex> guard(m_mutex);
+-
+-            auto const overlayItr = m_overlays.find(overlayKey);
+-            if (overlayItr == m_overlays.end())
+-            {
+-                handler->PSendSysMessage("WorldOverlay: unknown or disabled overlay '%s'.", overlayKey.c_str());
+-                return false;
+-            }
+-
+-            DestinationDefinition const* destination = ResolveDestination(overlayItr->second, destinationKey);
+-            if (!destination)
+-            {
+-                if (destinationKey.empty())
+-                    handler->PSendSysMessage("WorldOverlay: overlay '%s' has no enabled OVERLAY destination.", overlayKey.c_str());
+-                else
+-                    handler->PSendSysMessage("WorldOverlay: destination '%s' does not belong to overlay '%s'.",
+-                        destinationKey.c_str(), overlayKey.c_str());
+-                return false;
+-            }
+-
+-            RuntimeDefinition* runtime = EnsureRuntime(overlayItr->second, handler);
+-            if (!runtime)
+-                return false;
+-
+-            DungeonMap* map = static_cast<DungeonMap*>(sMapMgr.FindMap(runtime->mapId, runtime->instanceId));
+-            if (!map)
+-            {
+-                handler->PSendSysMessage("WorldOverlay: runtime '%s' disappeared before transfer.", overlayKey.c_str());
+-                m_runtimes.erase(overlayKey);
+-                return false;
+-            }
+-
+-            if (!sMapMgr.TeleportPlayerToUnboundDungeon(player, map,
+-                    destination->x, destination->y, destination->z, destination->o))
+-            {
+-                handler->PSendSysMessage("WorldOverlay: transfer to '%s' failed.", overlayKey.c_str());
+-                return false;
+-            }
+-
+-            handler->PSendSysMessage("WorldOverlay: entering %s -> map %u, runtime instance %u, overlay GO count %u.",
+-                overlayKey.c_str(), runtime->mapId, runtime->instanceId, runtime->gameObjectCount);
+-            return true;
+-        }
+-
+-        void List(ChatHandler* handler)
+-        {
+-            if (!handler)
+-                return;
+-
+-            std::lock_guard<std::recursive_mutex> guard(m_mutex);
+-            if (m_overlays.empty())
+-            {
+-                handler->SendSysMessage("WorldOverlay: no enabled Phase-0 overlays loaded.");
+-                return;
+-            }
+-
+-            handler->SendSysMessage("WorldOverlay overlays:");
+-            for (auto const& pair : m_overlays)
+-            {
+-                auto const runtimeItr = m_runtimes.find(pair.first);
+-                if (runtimeItr == m_runtimes.end() ||
+-                    !sMapMgr.FindMap(runtimeItr->second.mapId, runtimeItr->second.instanceId))
+-                {
+-                    handler->PSendSysMessage("  %s: map %u, runtime inactive", pair.first.c_str(), pair.second.mapId);
+-                }
+-                else
+-                {
+-                    handler->PSendSysMessage("  %s: map %u, runtime %u, GO %u", pair.first.c_str(),
+-                        pair.second.mapId, runtimeItr->second.instanceId, runtimeItr->second.gameObjectCount);
+-                }
+-            }
+-        }
+-
+-        void Info(ChatHandler* handler, Player* player)
+-        {
+-            if (!handler || !player)
+-                return;
+-
+-            std::lock_guard<std::recursive_mutex> guard(m_mutex);
+-            for (auto const& pair : m_runtimes)
+-            {
+-                RuntimeDefinition const& runtime = pair.second;
+-                if (runtime.mapId == player->GetMapId() && runtime.instanceId == player->GetInstanceId())
+-                {
+-                    auto const definitionItr = m_overlays.find(pair.first);
+-                    handler->PSendSysMessage("WorldOverlay: %s", pair.first.c_str());
+-                    handler->PSendSysMessage("Map: %u", runtime.mapId);
+-                    handler->PSendSysMessage("Runtime instance: %u", runtime.instanceId);
+-                    if (definitionItr != m_overlays.end())
+-                        handler->PSendSysMessage("Base spawns: %s", definitionItr->second.baseSpawnPolicy == 1 ? "INHERIT" : "NONE");
+-                    handler->PSendSysMessage("Overlay GO spawns: %u", runtime.gameObjectCount);
+-                    return;
+-                }
+-            }
+-
+-            handler->PSendSysMessage("WorldOverlay: none (current map %u, instance %u).",
+-                player->GetMapId(), player->GetInstanceId());
+-        }
+-
+-        void RuntimeInfo(ChatHandler* handler, std::string const& overlayKey)
++        class WorldOverlayWorldScript final : public WorldScript
+         {
+-            if (!handler)
+-                return;
+-
+-            std::lock_guard<std::recursive_mutex> guard(m_mutex);
+-            auto const definitionItr = m_overlays.find(overlayKey);
+-            if (definitionItr == m_overlays.end())
++        public:
++            WorldOverlayWorldScript()
++                : WorldScript("mod_worldoverlay_world", { WORLDHOOK_ON_STARTUP, WORLDHOOK_ON_AFTER_UNLOAD_ALL_MAPS })
+             {
+-                handler->PSendSysMessage("WorldOverlay: unknown overlay '%s'.", overlayKey.c_str());
+-                return;
+             }
+ 
+-            auto runtimeItr = m_runtimes.find(overlayKey);
+-            if (runtimeItr != m_runtimes.end() &&
+-                !sMapMgr.FindMap(runtimeItr->second.mapId, runtimeItr->second.instanceId))
+-            {
+-                m_runtimes.erase(runtimeItr);
+-                runtimeItr = m_runtimes.end();
+-            }
+-
+-            if (runtimeItr == m_runtimes.end())
+-            {
+-                handler->PSendSysMessage("WorldOverlay: %s has no active runtime instance.", overlayKey.c_str());
+-                return;
+-            }
+-
+-            handler->PSendSysMessage("WorldOverlay: %s -> map %u, runtime instance %u, overlay GO count %u.",
+-                overlayKey.c_str(), runtimeItr->second.mapId, runtimeItr->second.instanceId,
+-                runtimeItr->second.gameObjectCount);
+-        }
+-
+-        bool Reload(ChatHandler* handler)
+-        {
+-            std::lock_guard<std::recursive_mutex> guard(m_mutex);
+-            for (auto const& pair : m_runtimes)
++            void OnStartup() override
+             {
+-                if (sMapMgr.FindMap(pair.second.mapId, pair.second.instanceId))
+-                {
+-                    if (handler)
+-                        handler->SendSysMessage("WorldOverlay: reload refused while an overlay runtime is active.");
+-                    return false;
+-                }
++                WorldOverlayManager::Instance().LoadDefinitions();
++                WorldRouting::Instance().Load();
++                sLog.outString("[WorldOverlay] Phase-0 runtime loaded with internal WorldRouting.");
+             }
+ 
+-            m_runtimes.clear();
+-            LoadDefinitions();
+-            if (handler)
+-                handler->SendSysMessage("WorldOverlay: definitions reloaded.");
+-            return true;
+-        }
+-
+-    private:
+-        DestinationDefinition const* ResolveDestination(OverlayDefinition const& overlay, std::string const& requestedKey) const
+-        {
+-            std::string key = requestedKey;
+-            if (key.empty())
++            void OnAfterUnloadAllMaps() override
+             {
+-                auto const defaultItr = m_defaultDestinations.find(overlay.key);
+-                if (defaultItr == m_defaultDestinations.end())
+-                    return nullptr;
+-                key = defaultItr->second;
++                WorldOverlayManager::Instance().ClearRuntimes();
+             }
++        };
+ 
+-            auto const itr = m_destinations.find(key);
+-            if (itr == m_destinations.end())
+-                return nullptr;
+-
+-            if (itr->second.overlayKey != overlay.key || itr->second.mapId != overlay.mapId || itr->second.instancePolicy != 2)
+-                return nullptr;
+-
+-            return &itr->second;
+-        }
+-
+-        RuntimeDefinition* EnsureRuntime(OverlayDefinition const& overlay, ChatHandler* handler)
++        class WorldOverlayMapScript final : public AllMapScript
+         {
+-            auto runtimeItr = m_runtimes.find(overlay.key);
+-            if (runtimeItr != m_runtimes.end())
+-            {
+-                Map* existing = sMapMgr.FindMap(runtimeItr->second.mapId, runtimeItr->second.instanceId);
+-                if (existing && existing->IsDungeon() && existing->GetId() == overlay.mapId)
+-                    return &runtimeItr->second;
+-
+-                m_runtimes.erase(runtimeItr);
+-            }
++        public:
++            WorldOverlayMapScript() : AllMapScript("mod_worldoverlay_maps") {}
+ 
+-            DungeonMap* map = sMapMgr.CreateUnboundDungeonMap(overlay.mapId);
+-            if (!map)
++            void OnDestroyMap(Map* map) override
+             {
+-                if (handler)
+-                    handler->PSendSysMessage("WorldOverlay: failed to allocate dungeon runtime for '%s'.", overlay.key.c_str());
+-                return nullptr;
++                WorldOverlayManager::Instance().OnMapDestroyed(map);
+             }
++        };
+ 
+-            RuntimeDefinition runtime;
+-            runtime.mapId = overlay.mapId;
+-            runtime.instanceId = map->GetInstanceId();
+-            runtime.gameObjectCount = MaterializeGameObjects(overlay, map);
+-
+-            auto inserted = m_runtimes.emplace(overlay.key, runtime);
+-            sLog.outString("[WorldOverlay] Runtime '%s' allocated map %u instance %u with %u overlay GO(s).",
+-                overlay.key.c_str(), runtime.mapId, runtime.instanceId, runtime.gameObjectCount);
+-            return &inserted.first->second;
+-        }
+-
+-        uint32 MaterializeGameObjects(OverlayDefinition const& overlay, DungeonMap* map)
+-        {
+-            std::string escapedKey = overlay.key;
+-            WorldDatabase.escape_string(escapedKey);
+-
+-            QueryResult* result = WorldDatabase.PQuery(
+-                "SELECT spawn_id, entry, position_x, position_y, position_z, orientation, "
+-                "rotation0, rotation1, rotation2, rotation3 "
+-                "FROM worldoverlay_gameobject WHERE overlay_key = '%s' AND enabled = 1 ORDER BY spawn_id",
+-                escapedKey.c_str());
+-
+-            if (!result)
+-                return 0;
+-
+-            uint32 count = 0;
+-            do
+-            {
+-                Field* fields = result->Fetch();
+-                uint64 const spawnId = fields[0].GetUInt64();
+-                uint32 const entry = fields[1].GetUInt32();
+-                float const x = fields[2].GetFloat();
+-                float const y = fields[3].GetFloat();
+-                float const z = fields[4].GetFloat();
+-                float const o = fields[5].GetFloat();
+-                float const r0 = fields[6].GetFloat();
+-                float const r1 = fields[7].GetFloat();
+-                float const r2 = fields[8].GetFloat();
+-                float const r3 = fields[9].GetFloat();
+-
+-                if (!sObjectMgr.GetGameObjectInfo(entry))
+-                {
+-                    sLog.outError("[WorldOverlay] GO spawn " UI64FMTD " in '%s' references missing gameobject_template %u.",
+-                        spawnId, overlay.key.c_str(), entry);
+-                    continue;
+-                }
+-
+-                if (!MapManager::IsValidMapCoord(overlay.mapId, x, y, z, o))
+-                {
+-                    sLog.outError("[WorldOverlay] GO spawn " UI64FMTD " in '%s' has invalid coordinates.",
+-                        spawnId, overlay.key.c_str());
+-                    continue;
+-                }
+-
+-                // Phase 0 keeps materialized overlay objects alive for the lifetime of the runtime map.
+-                // Persistent respawn semantics remain module policy for a later phase.
+-                GameObject* object = map->SummonGameObject(entry, x, y, z, o, r0, r1, r2, r3, 0, WORLD_DEFAULT_OBJECT);
+-                if (!object)
+-                {
+-                    sLog.outError("[WorldOverlay] Failed to materialize GO spawn " UI64FMTD " (entry %u) in '%s'.",
+-                        spawnId, entry, overlay.key.c_str());
+-                    continue;
+-                }
+-
+-                ++count;
+-            }
+-            while (result->NextRow());
+-
+-            delete result;
+-            return count;
+-        }
+-
+-        std::recursive_mutex m_mutex;
+-        std::map<std::string, OverlayDefinition> m_overlays;
+-        std::map<std::string, DestinationDefinition> m_destinations;
+-        std::map<std::string, std::string> m_defaultDestinations;
+-        std::map<std::string, RuntimeDefinition> m_runtimes;
+-    };
+-
+-    class WorldOverlayWorldScript final : public WorldScript
+-    {
+-    public:
+-        WorldOverlayWorldScript()
+-            : WorldScript("mod_worldoverlay_world", { WORLDHOOK_ON_STARTUP, WORLDHOOK_ON_AFTER_UNLOAD_ALL_MAPS })
+-        {
+-        }
+-
+-        void OnStartup() override
+-        {
+-            WorldOverlayManager::Instance().LoadDefinitions();
+-            sLog.outString("[WorldOverlay] Phase-0 runtime loaded.");
+-        }
+-
+-        void OnAfterUnloadAllMaps() override
+-        {
+-            WorldOverlayManager::Instance().ClearRuntimes();
+-        }
+-    };
++    }
+ 
+-    class WorldOverlayMapScript final : public AllMapScript
++    void RegisterWorldOverlayRuntimeScripts()
+     {
+-    public:
+-        WorldOverlayMapScript() : AllMapScript("mod_worldoverlay_maps") {}
+-
+-        void OnDestroyMap(Map* map) override
+-        {
+-            WorldOverlayManager::Instance().OnMapDestroyed(map);
+-        }
+-    };
+-
+-    class WorldOverlayCommandScript final : public AllCommandScript
+-    {
+-    public:
+-        WorldOverlayCommandScript() : AllCommandScript("mod_worldoverlay_commands") {}
+-
+-        bool CanExecuteCommand(ChatHandler* handler, char const* command, char const* args) override
+-        {
+-            if (!command || (std::strcmp(command, "wo") != 0 && std::strcmp(command, "woverlay") != 0))
+-                return true;
+-
+-            if (!handler || !handler->GetSession() || !handler->GetPlayer())
+-                return false;
+-
+-            if (handler->GetSession()->GetSecurity() < SEC_DEVELOPER)
+-            {
+-                handler->SendSysMessage("WorldOverlay commands require developer security.");
+-                return false;
+-            }
+-
+-            std::istringstream input(args ? args : "");
+-            std::string subcommand;
+-            input >> subcommand;
+-
+-            if (subcommand.empty())
+-            {
+-                handler->SendSysMessage("WorldOverlay Phase 0: .wo list | .wo info | .wo where | .wo enter <overlay> [destination] | .wo runtime <overlay> | .wo reload");
+-                return false;
+-            }
+-
+-            if (subcommand == "list")
+-            {
+-                WorldOverlayManager::Instance().List(handler);
+-                return false;
+-            }
+-
+-            if (subcommand == "info" || subcommand == "where")
+-            {
+-                WorldOverlayManager::Instance().Info(handler, handler->GetPlayer());
+-                return false;
+-            }
+-
+-            if (subcommand == "enter")
+-            {
+-                std::string overlayKey;
+-                std::string destinationKey;
+-                input >> overlayKey >> destinationKey;
+-                if (overlayKey.empty())
+-                {
+-                    handler->SendSysMessage("Usage: .wo enter <overlay> [destination]");
+-                    return false;
+-                }
+-
+-                WorldOverlayManager::Instance().Enter(handler, handler->GetPlayer(), overlayKey, destinationKey);
+-                return false;
+-            }
+-
+-            if (subcommand == "runtime")
+-            {
+-                std::string overlayKey;
+-                input >> overlayKey;
+-                if (overlayKey.empty())
+-                {
+-                    handler->SendSysMessage("Usage: .wo runtime <overlay>");
+-                    return false;
+-                }
+-
+-                WorldOverlayManager::Instance().RuntimeInfo(handler, overlayKey);
+-                return false;
+-            }
+-
+-            if (subcommand == "reload")
+-            {
+-                WorldOverlayManager::Instance().Reload(handler);
+-                return false;
+-            }
+-
+-            handler->PSendSysMessage("WorldOverlay Phase 0: unknown subcommand '%s'.", subcommand.c_str());
+-            return false;
+-        }
+-    };
++        new WorldOverlayWorldScript();
++        new WorldOverlayMapScript();
++    }
+ }
+ 
+ void Addmod_worldoverlayScripts()
+ {
+-    new WorldOverlayWorldScript();
+-    new WorldOverlayMapScript();
+-    new WorldOverlayCommandScript();
++    WorldOverlay::RegisterWorldOverlayRuntimeScripts();
++    WorldOverlay::RegisterWorldOverlayCommandScript();
+ }
+diff --git a/modules/mod-worldoverlay/src/overlay/RuntimeInstanceRegistry.cpp b/modules/mod-worldoverlay/src/overlay/RuntimeInstanceRegistry.cpp
+new file mode 100644
+index 0000000000000000000000000000000000000000..52b5eafac43863d60689cac5c0d4929b1c778057
+--- /dev/null
++++ b/modules/mod-worldoverlay/src/overlay/RuntimeInstanceRegistry.cpp
+@@ -0,0 +1,129 @@
++#include "overlay/RuntimeInstanceRegistry.h"
++
++#include "Log.h"
++#include "Map.h"
++#include "MapManager.h"
++
++namespace WorldOverlay
++{
++    bool RuntimeInstanceRegistry::GetActive(std::string const& overlayKey, RuntimeDefinition& runtime)
++    {
++        RuntimeDefinition candidate;
++        {
++            std::lock_guard<std::mutex> guard(m_mutex);
++            auto const itr = m_runtimes.find(overlayKey);
++            if (itr == m_runtimes.end())
++                return false;
++            candidate = itr->second;
++        }
++
++        Map* map = sMapMgr.FindMap(candidate.mapId, candidate.instanceId);
++        if (map && map->IsDungeon())
++        {
++            runtime = candidate;
++            return true;
++        }
++
++        std::lock_guard<std::mutex> guard(m_mutex);
++        auto const itr = m_runtimes.find(overlayKey);
++        if (itr != m_runtimes.end() && itr->second.mapId == candidate.mapId && itr->second.instanceId == candidate.instanceId)
++            m_runtimes.erase(itr);
++        return false;
++    }
++
++    bool RuntimeInstanceRegistry::FindByLocation(uint32 mapId, uint32 instanceId, std::string& overlayKey, RuntimeDefinition& runtime)
++    {
++        std::string candidateKey;
++        RuntimeDefinition candidate;
++        {
++            std::lock_guard<std::mutex> guard(m_mutex);
++            for (auto const& pair : m_runtimes)
++            {
++                if (pair.second.mapId == mapId && pair.second.instanceId == instanceId)
++                {
++                    candidateKey = pair.first;
++                    candidate = pair.second;
++                    break;
++                }
++            }
++        }
++
++        if (candidateKey.empty())
++            return false;
++
++        Map* map = sMapMgr.FindMap(candidate.mapId, candidate.instanceId);
++        if (map && map->IsDungeon())
++        {
++            overlayKey = candidateKey;
++            runtime = candidate;
++            return true;
++        }
++
++        std::lock_guard<std::mutex> guard(m_mutex);
++        auto const itr = m_runtimes.find(candidateKey);
++        if (itr != m_runtimes.end() &&
++            itr->second.mapId == candidate.mapId && itr->second.instanceId == candidate.instanceId)
++            m_runtimes.erase(itr);
++
++        return false;
++    }
++
++    std::vector<std::pair<std::string, RuntimeDefinition>> RuntimeInstanceRegistry::Snapshot() const
++    {
++        std::lock_guard<std::mutex> guard(m_mutex);
++        return { m_runtimes.begin(), m_runtimes.end() };
++    }
++
++    void RuntimeInstanceRegistry::Store(std::string const& overlayKey, RuntimeDefinition const& runtime)
++    {
++        std::lock_guard<std::mutex> guard(m_mutex);
++        m_runtimes[overlayKey] = runtime;
++    }
++
++    void RuntimeInstanceRegistry::Erase(std::string const& overlayKey)
++    {
++        std::lock_guard<std::mutex> guard(m_mutex);
++        m_runtimes.erase(overlayKey);
++    }
++
++    void RuntimeInstanceRegistry::OnMapDestroyed(Map const* map)
++    {
++        if (!map)
++            return;
++
++        std::lock_guard<std::mutex> guard(m_mutex);
++        for (auto itr = m_runtimes.begin(); itr != m_runtimes.end();)
++        {
++            if (itr->second.mapId == map->GetId() && itr->second.instanceId == map->GetInstanceId())
++            {
++                sLog.outString("[WorldOverlay] Runtime '%s' released map %u instance %u.",
++                    itr->first.c_str(), itr->second.mapId, itr->second.instanceId);
++                itr = m_runtimes.erase(itr);
++            }
++            else
++                ++itr;
++        }
++    }
++
++    void RuntimeInstanceRegistry::Clear()
++    {
++        std::lock_guard<std::mutex> guard(m_mutex);
++        m_runtimes.clear();
++    }
++
++    bool RuntimeInstanceRegistry::HasActiveRuntimes()
++    {
++        for (auto const& pair : Snapshot())
++        {
++            if (sMapMgr.FindMap(pair.second.mapId, pair.second.instanceId))
++                return true;
++
++            std::lock_guard<std::mutex> guard(m_mutex);
++            auto const itr = m_runtimes.find(pair.first);
++            if (itr != m_runtimes.end() && itr->second.mapId == pair.second.mapId && itr->second.instanceId == pair.second.instanceId)
++                m_runtimes.erase(itr);
++        }
++
++        return false;
++    }
++}
+diff --git a/modules/mod-worldoverlay/src/overlay/RuntimeInstanceRegistry.h b/modules/mod-worldoverlay/src/overlay/RuntimeInstanceRegistry.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..2823eaa12a9ac2af2c584159088b50463447eba3
+--- /dev/null
++++ b/modules/mod-worldoverlay/src/overlay/RuntimeInstanceRegistry.h
+@@ -0,0 +1,35 @@
++#ifndef MOD_WORLDOVERLAY_RUNTIME_INSTANCE_REGISTRY_H
++#define MOD_WORLDOVERLAY_RUNTIME_INSTANCE_REGISTRY_H
++
++#include "overlay/WorldOverlayTypes.h"
++
++#include <map>
++#include <mutex>
++#include <string>
++#include <utility>
++#include <vector>
++
++class Map;
++
++namespace WorldOverlay
++{
++    class RuntimeInstanceRegistry
++    {
++    public:
++        bool GetActive(std::string const& overlayKey, RuntimeDefinition& runtime);
++        bool FindByLocation(uint32 mapId, uint32 instanceId, std::string& overlayKey, RuntimeDefinition& runtime);
++        std::vector<std::pair<std::string, RuntimeDefinition>> Snapshot() const;
++
++        void Store(std::string const& overlayKey, RuntimeDefinition const& runtime);
++        void Erase(std::string const& overlayKey);
++        void OnMapDestroyed(Map const* map);
++        void Clear();
++        bool HasActiveRuntimes();
++
++    private:
++        mutable std::mutex m_mutex;
++        std::map<std::string, RuntimeDefinition> m_runtimes;
++    };
++}
++
++#endif
+diff --git a/modules/mod-worldoverlay/src/overlay/WorldOverlayManager.cpp b/modules/mod-worldoverlay/src/overlay/WorldOverlayManager.cpp
+new file mode 100644
+index 0000000000000000000000000000000000000000..23eff846bf2f4b3c61abc8ad01f5d50b25325a03
+--- /dev/null
++++ b/modules/mod-worldoverlay/src/overlay/WorldOverlayManager.cpp
+@@ -0,0 +1,157 @@
++#include "overlay/WorldOverlayManager.h"
++
++#include "Database/DatabaseEnv.h"
++#include "Database/DBCStores.h"
++#include "Log.h"
++#include "Map.h"
++#include "MapManager.h"
++
++namespace WorldOverlay
++{
++    WorldOverlayManager& WorldOverlayManager::Instance()
++    {
++        static WorldOverlayManager instance;
++        return instance;
++    }
++
++    void WorldOverlayManager::LoadDefinitions()
++    {
++        std::map<std::string, OverlayDefinition> loaded;
++
++        QueryResult* result = WorldDatabase.Query(
++            "SELECT overlay_id, overlay_key, map_id, base_spawn_policy, lifecycle_policy "
++            "FROM worldoverlay_overlay WHERE enabled = 1 ORDER BY overlay_id");
++
++        if (result)
++        {
++            do
++            {
++                Field* fields = result->Fetch();
++                OverlayDefinition definition;
++                definition.overlayId = fields[0].GetUInt32();
++                definition.key = fields[1].GetCppString();
++                definition.mapId = fields[2].GetUInt32();
++                definition.baseSpawnPolicy = static_cast<OverlayBaseSpawnPolicy>(fields[3].GetUInt8());
++                definition.lifecyclePolicy = fields[4].GetUInt8();
++
++                if (definition.key.empty())
++                {
++                    sLog.outError("[WorldOverlay] Ignoring overlay %u with empty overlay_key.", definition.overlayId);
++                    continue;
++                }
++
++                MapEntry const* mapEntry = sMapStorage.LookupEntry<MapEntry>(definition.mapId);
++                if (!mapEntry || !mapEntry->IsDungeon() || mapEntry->IsBattleGround())
++                {
++                    sLog.outError("[WorldOverlay] Overlay '%s' uses unsupported Phase-0 map %u.",
++                        definition.key.c_str(), definition.mapId);
++                    continue;
++                }
++
++                if (definition.baseSpawnPolicy != OverlayBaseSpawnPolicy::Inherit)
++                {
++                    sLog.outError("[WorldOverlay] Overlay '%s' uses base_spawn_policy %u; Phase 0 supports INHERIT only.",
++                        definition.key.c_str(), fields[3].GetUInt8());
++                    continue;
++                }
++
++                loaded[definition.key] = definition;
++            }
++            while (result->NextRow());
++
++            delete result;
++        }
++
++        uint32 const loadedCount = uint32(loaded.size());
++        {
++            std::lock_guard<std::mutex> guard(m_mutex);
++            m_overlays.swap(loaded);
++        }
++
++        sLog.outString("[WorldOverlay] Loaded %u overlay definition(s).", loadedCount);
++    }
++
++    bool WorldOverlayManager::GetOverlay(std::string const& overlayKey, OverlayDefinition& definition) const
++    {
++        std::lock_guard<std::mutex> guard(m_mutex);
++        auto const itr = m_overlays.find(overlayKey);
++        if (itr == m_overlays.end())
++            return false;
++
++        definition = itr->second;
++        return true;
++    }
++
++    std::vector<OverlayDefinition> WorldOverlayManager::GetOverlays() const
++    {
++        std::lock_guard<std::mutex> guard(m_mutex);
++        std::vector<OverlayDefinition> overlays;
++        overlays.reserve(m_overlays.size());
++        for (auto const& pair : m_overlays)
++            overlays.push_back(pair.second);
++        return overlays;
++    }
++
++    DungeonMap* WorldOverlayManager::ResolveRuntime(std::string const& overlayKey, RuntimeDefinition& runtime, std::string& error)
++    {
++        OverlayDefinition overlay;
++        if (!GetOverlay(overlayKey, overlay))
++        {
++            error = "unknown or disabled overlay '" + overlayKey + "'";
++            return nullptr;
++        }
++
++        // Serialize singleton allocation without holding the overlay-definition lock across MapManager calls.
++        std::lock_guard<std::mutex> allocationGuard(m_runtimeAllocationMutex);
++
++        if (m_runtimeRegistry.GetActive(overlayKey, runtime))
++        {
++            Map* existing = sMapMgr.FindMap(runtime.mapId, runtime.instanceId);
++            if (existing && existing->IsDungeon() && existing->GetId() == overlay.mapId)
++                return static_cast<DungeonMap*>(existing);
++
++            m_runtimeRegistry.Erase(overlayKey);
++        }
++
++        DungeonMap* map = sMapMgr.CreateUnboundDungeonMap(overlay.mapId);
++        if (!map)
++        {
++            error = "failed to allocate dungeon runtime for overlay '" + overlayKey + "'";
++            return nullptr;
++        }
++
++        runtime.mapId = overlay.mapId;
++        runtime.instanceId = map->GetInstanceId();
++        runtime.gameObjectCount = m_gameObjectSpawner.Materialize(overlay.key, overlay.mapId, map);
++        m_runtimeRegistry.Store(overlay.key, runtime);
++
++        sLog.outString("[WorldOverlay] Runtime '%s' allocated map %u instance %u with %u overlay GO(s).",
++            overlay.key.c_str(), runtime.mapId, runtime.instanceId, runtime.gameObjectCount);
++        return map;
++    }
++
++    bool WorldOverlayManager::GetRuntime(std::string const& overlayKey, RuntimeDefinition& runtime)
++    {
++        return m_runtimeRegistry.GetActive(overlayKey, runtime);
++    }
++
++    bool WorldOverlayManager::FindRuntimeForLocation(uint32 mapId, uint32 instanceId, std::string& overlayKey, RuntimeDefinition& runtime)
++    {
++        return m_runtimeRegistry.FindByLocation(mapId, instanceId, overlayKey, runtime);
++    }
++
++    bool WorldOverlayManager::HasActiveRuntimes()
++    {
++        return m_runtimeRegistry.HasActiveRuntimes();
++    }
++
++    void WorldOverlayManager::OnMapDestroyed(Map const* map)
++    {
++        m_runtimeRegistry.OnMapDestroyed(map);
++    }
++
++    void WorldOverlayManager::ClearRuntimes()
++    {
++        m_runtimeRegistry.Clear();
++    }
++}
+diff --git a/modules/mod-worldoverlay/src/overlay/WorldOverlayManager.h b/modules/mod-worldoverlay/src/overlay/WorldOverlayManager.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..7a9e47cf93881fd1301cbd4574058c93ee461623
+--- /dev/null
++++ b/modules/mod-worldoverlay/src/overlay/WorldOverlayManager.h
+@@ -0,0 +1,46 @@
++#ifndef MOD_WORLDOVERLAY_WORLD_OVERLAY_MANAGER_H
++#define MOD_WORLDOVERLAY_WORLD_OVERLAY_MANAGER_H
++
++#include "overlay/RuntimeInstanceRegistry.h"
++#include "overlay/WorldOverlayTypes.h"
++#include "spawn/OverlayGameObjectSpawner.h"
++
++#include <map>
++#include <mutex>
++#include <string>
++#include <vector>
++
++class DungeonMap;
++class Map;
++
++namespace WorldOverlay
++{
++    class WorldOverlayManager
++    {
++    public:
++        static WorldOverlayManager& Instance();
++
++        void LoadDefinitions();
++        bool GetOverlay(std::string const& overlayKey, OverlayDefinition& definition) const;
++        std::vector<OverlayDefinition> GetOverlays() const;
++
++        DungeonMap* ResolveRuntime(std::string const& overlayKey, RuntimeDefinition& runtime, std::string& error);
++        bool GetRuntime(std::string const& overlayKey, RuntimeDefinition& runtime);
++        bool FindRuntimeForLocation(uint32 mapId, uint32 instanceId, std::string& overlayKey, RuntimeDefinition& runtime);
++        bool HasActiveRuntimes();
++
++        void OnMapDestroyed(Map const* map);
++        void ClearRuntimes();
++
++    private:
++        WorldOverlayManager() = default;
++
++        mutable std::mutex m_mutex;
++        std::map<std::string, OverlayDefinition> m_overlays;
++        std::mutex m_runtimeAllocationMutex;
++        RuntimeInstanceRegistry m_runtimeRegistry;
++        OverlayGameObjectSpawner m_gameObjectSpawner;
++    };
++}
++
++#endif
+diff --git a/modules/mod-worldoverlay/src/overlay/WorldOverlayTypes.h b/modules/mod-worldoverlay/src/overlay/WorldOverlayTypes.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..a83d3b6243a7e7fd144d977d7b52e7d0bdce4aff
+--- /dev/null
++++ b/modules/mod-worldoverlay/src/overlay/WorldOverlayTypes.h
+@@ -0,0 +1,33 @@
++#ifndef MOD_WORLDOVERLAY_WORLD_OVERLAY_TYPES_H
++#define MOD_WORLDOVERLAY_WORLD_OVERLAY_TYPES_H
++
++#include "Common.h"
++
++#include <string>
++
++namespace WorldOverlay
++{
++    enum class OverlayBaseSpawnPolicy : uint8
++    {
++        None = 0,
++        Inherit = 1
++    };
++
++    struct OverlayDefinition
++    {
++        uint32 overlayId = 0;
++        std::string key;
++        uint32 mapId = 0;
++        OverlayBaseSpawnPolicy baseSpawnPolicy = OverlayBaseSpawnPolicy::None;
++        uint8 lifecyclePolicy = 0;
++    };
++
++    struct RuntimeDefinition
++    {
++        uint32 mapId = 0;
++        uint32 instanceId = 0;
++        uint32 gameObjectCount = 0;
++    };
++}
++
++#endif
+diff --git a/modules/mod-worldoverlay/src/routing/DestinationRegistry.cpp b/modules/mod-worldoverlay/src/routing/DestinationRegistry.cpp
+new file mode 100644
+index 0000000000000000000000000000000000000000..0186fa4990dd7795bcdbf5f13112d319271cf2e5
+--- /dev/null
++++ b/modules/mod-worldoverlay/src/routing/DestinationRegistry.cpp
+@@ -0,0 +1,122 @@
++#include "routing/DestinationRegistry.h"
++
++#include "Database/DatabaseEnv.h"
++#include "Log.h"
++#include "MapManager.h"
++
++namespace WorldOverlay
++{
++    void DestinationRegistry::Load()
++    {
++        std::map<std::string, DestinationDefinition> loaded;
++
++        QueryResult* result = WorldDatabase.Query(
++            "SELECT destination_id, destination_key, resolver_type, resolver_ref, map_id, "
++            "position_x, position_y, position_z, orientation, instance_policy, overlay_key "
++            "FROM worldoverlay_destination WHERE enabled = 1 ORDER BY destination_id");
++
++        if (result)
++        {
++            do
++            {
++                Field* fields = result->Fetch();
++                DestinationDefinition destination;
++                destination.destinationId = fields[0].GetUInt32();
++                destination.key = fields[1].GetCppString();
++                destination.resolverType = static_cast<DestinationResolverType>(fields[2].GetUInt8());
++                destination.resolverRef = fields[3].GetUInt32();
++                destination.mapId = fields[4].GetUInt32();
++                destination.x = fields[5].GetFloat();
++                destination.y = fields[6].GetFloat();
++                destination.z = fields[7].GetFloat();
++                destination.o = fields[8].GetFloat();
++                destination.instancePolicy = static_cast<DestinationInstancePolicy>(fields[9].GetUInt8());
++                destination.overlayKey = fields[10].GetCppString();
++
++                if (destination.key.empty())
++                {
++                    sLog.outError("[WorldRouting] Ignoring destination %u with empty destination_key.", destination.destinationId);
++                    continue;
++                }
++
++                uint8 const resolverType = static_cast<uint8>(destination.resolverType);
++                if (resolverType > static_cast<uint8>(DestinationResolverType::AreaTriggerTeleport))
++                {
++                    sLog.outError("[WorldRouting] Destination '%s' has unknown resolver_type %u.",
++                        destination.key.c_str(), resolverType);
++                    continue;
++                }
++
++                uint8 const instancePolicy = static_cast<uint8>(destination.instancePolicy);
++                if (instancePolicy > static_cast<uint8>(DestinationInstancePolicy::ExplicitInstance))
++                {
++                    sLog.outError("[WorldRouting] Destination '%s' has unknown instance_policy %u.",
++                        destination.key.c_str(), instancePolicy);
++                    continue;
++                }
++
++                if (destination.resolverType == DestinationResolverType::Own &&
++                    !MapManager::IsValidMapCoord(destination.mapId, destination.x, destination.y, destination.z, destination.o))
++                {
++                    sLog.outError("[WorldRouting] Destination '%s' has invalid OWN coordinates.", destination.key.c_str());
++                    continue;
++                }
++
++                if (destination.instancePolicy == DestinationInstancePolicy::Overlay && destination.overlayKey.empty())
++                {
++                    sLog.outError("[WorldRouting] OVERLAY destination '%s' has no overlay_key.", destination.key.c_str());
++                    continue;
++                }
++
++                loaded[destination.key] = destination;
++            }
++            while (result->NextRow());
++
++            delete result;
++        }
++
++        {
++            std::lock_guard<std::mutex> guard(m_mutex);
++            m_destinations.swap(loaded);
++        }
++
++        sLog.outString("[WorldRouting] Loaded %u destination(s).", Size());
++    }
++
++    bool DestinationRegistry::Find(std::string const& destinationKey, DestinationDefinition& destination) const
++    {
++        std::lock_guard<std::mutex> guard(m_mutex);
++        auto const itr = m_destinations.find(destinationKey);
++        if (itr == m_destinations.end())
++            return false;
++
++        destination = itr->second;
++        return true;
++    }
++
++    bool DestinationRegistry::FindDefaultOverlayDestination(std::string const& overlayKey, DestinationDefinition& destination) const
++    {
++        std::lock_guard<std::mutex> guard(m_mutex);
++        bool found = false;
++        for (auto const& pair : m_destinations)
++        {
++            DestinationDefinition const& candidate = pair.second;
++            if (candidate.instancePolicy != DestinationInstancePolicy::Overlay || candidate.overlayKey != overlayKey)
++                continue;
++
++            if (!found || candidate.destinationId < destination.destinationId)
++            {
++                destination = candidate;
++                found = true;
++            }
++        }
++
++        return found;
++    }
++
++    uint32 DestinationRegistry::Size() const
++    {
++        std::lock_guard<std::mutex> guard(m_mutex);
++        return uint32(m_destinations.size());
++    }
++}
+diff --git a/modules/mod-worldoverlay/src/routing/DestinationRegistry.h b/modules/mod-worldoverlay/src/routing/DestinationRegistry.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..f85b06a5a86c0cdecfd32014cbfbd82a427f43d1
+--- /dev/null
++++ b/modules/mod-worldoverlay/src/routing/DestinationRegistry.h
+@@ -0,0 +1,26 @@
++#ifndef MOD_WORLDOVERLAY_DESTINATION_REGISTRY_H
++#define MOD_WORLDOVERLAY_DESTINATION_REGISTRY_H
++
++#include "routing/WorldRoutingTypes.h"
++
++#include <map>
++#include <mutex>
++#include <string>
++
++namespace WorldOverlay
++{
++    class DestinationRegistry
++    {
++    public:
++        void Load();
++        bool Find(std::string const& destinationKey, DestinationDefinition& destination) const;
++        bool FindDefaultOverlayDestination(std::string const& overlayKey, DestinationDefinition& destination) const;
++        uint32 Size() const;
++
++    private:
++        mutable std::mutex m_mutex;
++        std::map<std::string, DestinationDefinition> m_destinations;
++    };
++}
++
++#endif
+diff --git a/modules/mod-worldoverlay/src/routing/DestinationResolver.cpp b/modules/mod-worldoverlay/src/routing/DestinationResolver.cpp
+new file mode 100644
+index 0000000000000000000000000000000000000000..b09703a9cb49129ce03a16d3310347fc7cc9abb7
+--- /dev/null
++++ b/modules/mod-worldoverlay/src/routing/DestinationResolver.cpp
+@@ -0,0 +1,39 @@
++#include "routing/DestinationResolver.h"
++
++#include "routing/DestinationRegistry.h"
++
++namespace WorldOverlay
++{
++    bool DestinationResolver::Resolve(std::string const& destinationKey, ResolvedDestination& destination, std::string& error) const
++    {
++        DestinationDefinition definition;
++        if (!m_registry.Find(destinationKey, definition))
++        {
++            error = "unknown or disabled destination '" + destinationKey + "'";
++            return false;
++        }
++
++        switch (definition.resolverType)
++        {
++            case DestinationResolverType::Own:
++                destination.key = definition.key;
++                destination.mapId = definition.mapId;
++                destination.x = definition.x;
++                destination.y = definition.y;
++                destination.z = definition.z;
++                destination.o = definition.o;
++                destination.instancePolicy = definition.instancePolicy;
++                destination.overlayKey = definition.overlayKey;
++                return true;
++            case DestinationResolverType::SpellTargetPosition:
++                error = "destination '" + destinationKey + "' uses reserved SPELL_TARGET_POSITION resolution, not implemented in Phase 0";
++                return false;
++            case DestinationResolverType::AreaTriggerTeleport:
++                error = "destination '" + destinationKey + "' uses reserved AREATRIGGER_TELEPORT resolution, not implemented in Phase 0";
++                return false;
++        }
++
++        error = "destination '" + destinationKey + "' has an unsupported resolver type";
++        return false;
++    }
++}
+diff --git a/modules/mod-worldoverlay/src/routing/DestinationResolver.h b/modules/mod-worldoverlay/src/routing/DestinationResolver.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..3fbb272d18cd44aa3bebb846d4eb79cb391eb026
+--- /dev/null
++++ b/modules/mod-worldoverlay/src/routing/DestinationResolver.h
+@@ -0,0 +1,24 @@
++#ifndef MOD_WORLDOVERLAY_DESTINATION_RESOLVER_H
++#define MOD_WORLDOVERLAY_DESTINATION_RESOLVER_H
++
++#include "routing/WorldRoutingTypes.h"
++
++#include <string>
++
++namespace WorldOverlay
++{
++    class DestinationRegistry;
++
++    class DestinationResolver
++    {
++    public:
++        explicit DestinationResolver(DestinationRegistry const& registry) : m_registry(registry) {}
++
++        bool Resolve(std::string const& destinationKey, ResolvedDestination& destination, std::string& error) const;
++
++    private:
++        DestinationRegistry const& m_registry;
++    };
++}
++
++#endif
+diff --git a/modules/mod-worldoverlay/src/routing/TeleportBindingManager.cpp b/modules/mod-worldoverlay/src/routing/TeleportBindingManager.cpp
+new file mode 100644
+index 0000000000000000000000000000000000000000..30c7ba1df5caa4abf3ba3b035d20898eb83ea18d
+--- /dev/null
++++ b/modules/mod-worldoverlay/src/routing/TeleportBindingManager.cpp
+@@ -0,0 +1,69 @@
++#include "routing/TeleportBindingManager.h"
++
++#include "Database/DatabaseEnv.h"
++#include "Log.h"
++
++namespace WorldOverlay
++{
++    void TeleportBindingManager::Load()
++    {
++        std::map<BindingKey, TeleportBinding> loaded;
++
++        QueryResult* result = WorldDatabase.Query(
++            "SELECT source_type, source_entry, destination_key, cooldown_ms, flags "
++            "FROM worldoverlay_teleport_binding WHERE enabled = 1 ORDER BY source_type, source_entry");
++
++        if (result)
++        {
++            do
++            {
++                Field* fields = result->Fetch();
++                uint8 const sourceType = fields[0].GetUInt8();
++                TeleportBinding binding;
++                binding.sourceType = static_cast<TeleportBindingSourceType>(sourceType);
++                binding.sourceEntry = fields[1].GetUInt32();
++                binding.destinationKey = fields[2].GetCppString();
++                binding.cooldownMs = fields[3].GetUInt32();
++                binding.flags = fields[4].GetUInt32();
++
++                if (sourceType < static_cast<uint8>(TeleportBindingSourceType::Item) ||
++                    sourceType > static_cast<uint8>(TeleportBindingSourceType::Script) ||
++                    !binding.sourceEntry || binding.destinationKey.empty())
++                {
++                    sLog.outError("[WorldRouting] Ignoring invalid teleport binding source_type=%u source_entry=%u.",
++                        sourceType, binding.sourceEntry);
++                    continue;
++                }
++
++                loaded[{ sourceType, binding.sourceEntry }] = binding;
++            }
++            while (result->NextRow());
++
++            delete result;
++        }
++
++        {
++            std::lock_guard<std::mutex> guard(m_mutex);
++            m_bindings.swap(loaded);
++        }
++
++        sLog.outString("[WorldRouting] Loaded %u teleport binding(s).", Size());
++    }
++
++    bool TeleportBindingManager::Find(TeleportBindingSourceType sourceType, uint32 sourceEntry, TeleportBinding& binding) const
++    {
++        std::lock_guard<std::mutex> guard(m_mutex);
++        auto const itr = m_bindings.find({ static_cast<uint8>(sourceType), sourceEntry });
++        if (itr == m_bindings.end())
++            return false;
++
++        binding = itr->second;
++        return true;
++    }
++
++    uint32 TeleportBindingManager::Size() const
++    {
++        std::lock_guard<std::mutex> guard(m_mutex);
++        return uint32(m_bindings.size());
++    }
++}
+diff --git a/modules/mod-worldoverlay/src/routing/TeleportBindingManager.h b/modules/mod-worldoverlay/src/routing/TeleportBindingManager.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..e4cdca387caa7795054fe25d4246381b2d24a288
+--- /dev/null
++++ b/modules/mod-worldoverlay/src/routing/TeleportBindingManager.h
+@@ -0,0 +1,27 @@
++#ifndef MOD_WORLDOVERLAY_TELEPORT_BINDING_MANAGER_H
++#define MOD_WORLDOVERLAY_TELEPORT_BINDING_MANAGER_H
++
++#include "routing/WorldRoutingTypes.h"
++
++#include <map>
++#include <mutex>
++#include <utility>
++
++namespace WorldOverlay
++{
++    class TeleportBindingManager
++    {
++    public:
++        void Load();
++        bool Find(TeleportBindingSourceType sourceType, uint32 sourceEntry, TeleportBinding& binding) const;
++        uint32 Size() const;
++
++    private:
++        using BindingKey = std::pair<uint8, uint32>;
++
++        mutable std::mutex m_mutex;
++        std::map<BindingKey, TeleportBinding> m_bindings;
++    };
++}
++
++#endif
+diff --git a/modules/mod-worldoverlay/src/routing/TeleportExecutor.cpp b/modules/mod-worldoverlay/src/routing/TeleportExecutor.cpp
+new file mode 100644
+index 0000000000000000000000000000000000000000..b6d87bdc196cd443eb22753832ff511fb4b9838e
+--- /dev/null
++++ b/modules/mod-worldoverlay/src/routing/TeleportExecutor.cpp
+@@ -0,0 +1,89 @@
++#include "routing/TeleportExecutor.h"
++
++#include "MapManager.h"
++#include "Player.h"
++#include "overlay/WorldOverlayManager.h"
++
++namespace WorldOverlay
++{
++    bool TeleportExecutor::Execute(Player* player, ResolvedDestination const& destination, std::string& error) const
++    {
++        if (!player)
++        {
++            error = "no player available for teleport";
++            return false;
++        }
++
++        switch (destination.instancePolicy)
++        {
++            case DestinationInstancePolicy::Auto:
++                if (!player->TeleportTo(destination.mapId, destination.x, destination.y, destination.z, destination.o))
++                {
++                    error = "normal Tortoise teleport failed for destination '" + destination.key + "'";
++                    return false;
++                }
++                return true;
++
++            case DestinationInstancePolicy::Current:
++                if (player->GetMapId() == destination.mapId)
++                {
++                    if (!player->NearTeleportTo(destination.x, destination.y, destination.z, destination.o))
++                    {
++                        error = "same-instance teleport failed for destination '" + destination.key + "'";
++                        return false;
++                    }
++                    return true;
++                }
++
++                if (!player->TeleportTo(destination.mapId, destination.x, destination.y, destination.z, destination.o))
++                {
++                    error = "CURRENT destination '" + destination.key + "' could not fall back to normal map transfer";
++                    return false;
++                }
++                return true;
++
++            case DestinationInstancePolicy::Overlay:
++            {
++                if (destination.overlayKey.empty())
++                {
++                    error = "OVERLAY destination '" + destination.key + "' has no overlay_key";
++                    return false;
++                }
++
++                OverlayDefinition overlay;
++                if (!WorldOverlayManager::Instance().GetOverlay(destination.overlayKey, overlay))
++                {
++                    error = "OVERLAY destination '" + destination.key + "' references unknown overlay '" + destination.overlayKey + "'";
++                    return false;
++                }
++
++                if (overlay.mapId != destination.mapId)
++                {
++                    error = "OVERLAY destination '" + destination.key + "' map does not match overlay '" + destination.overlayKey + "'";
++                    return false;
++                }
++
++                RuntimeDefinition runtime;
++                DungeonMap* map = WorldOverlayManager::Instance().ResolveRuntime(destination.overlayKey, runtime, error);
++                if (!map)
++                    return false;
++
++                if (!sMapMgr.TeleportPlayerToUnboundDungeon(player, map,
++                        destination.x, destination.y, destination.z, destination.o))
++                {
++                    error = "instance-aware transfer failed for destination '" + destination.key + "'";
++                    return false;
++                }
++
++                return true;
++            }
++
++            case DestinationInstancePolicy::ExplicitInstance:
++                error = "EXPLICIT_INSTANCE is reserved for admin/debug routing and is not implemented in Phase 0";
++                return false;
++        }
++
++        error = "destination '" + destination.key + "' has an unsupported instance policy";
++        return false;
++    }
++}
+diff --git a/modules/mod-worldoverlay/src/routing/TeleportExecutor.h b/modules/mod-worldoverlay/src/routing/TeleportExecutor.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..ac3b0fd3aa859c13e728ab6c9b0dba5cbb6068bb
+--- /dev/null
++++ b/modules/mod-worldoverlay/src/routing/TeleportExecutor.h
+@@ -0,0 +1,19 @@
++#ifndef MOD_WORLDOVERLAY_TELEPORT_EXECUTOR_H
++#define MOD_WORLDOVERLAY_TELEPORT_EXECUTOR_H
++
++#include "routing/WorldRoutingTypes.h"
++
++#include <string>
++
++class Player;
++
++namespace WorldOverlay
++{
++    class TeleportExecutor
++    {
++    public:
++        bool Execute(Player* player, ResolvedDestination const& destination, std::string& error) const;
++    };
++}
++
++#endif
+diff --git a/modules/mod-worldoverlay/src/routing/WorldRouting.cpp b/modules/mod-worldoverlay/src/routing/WorldRouting.cpp
+new file mode 100644
+index 0000000000000000000000000000000000000000..ce051fc38673e078e5ffaef6ba42f1e08cb06724
+--- /dev/null
++++ b/modules/mod-worldoverlay/src/routing/WorldRouting.cpp
+@@ -0,0 +1,70 @@
++#include "routing/WorldRouting.h"
++
++namespace WorldOverlay
++{
++    WorldRouting::WorldRouting() : m_resolver(m_destinations)
++    {
++    }
++
++    WorldRouting& WorldRouting::Instance()
++    {
++        static WorldRouting instance;
++        return instance;
++    }
++
++    void WorldRouting::Load()
++    {
++        m_destinations.Load();
++        m_bindings.Load();
++    }
++
++    bool WorldRouting::ResolveDestination(std::string const& destinationKey, ResolvedDestination& destination, std::string& error) const
++    {
++        return m_resolver.Resolve(destinationKey, destination, error);
++    }
++
++    bool WorldRouting::TeleportToDestination(Player* player, std::string const& destinationKey, std::string& error) const
++    {
++        ResolvedDestination destination;
++        if (!m_resolver.Resolve(destinationKey, destination, error))
++            return false;
++
++        return m_executor.Execute(player, destination, error);
++    }
++
++    bool WorldRouting::TeleportToOverlayDestination(Player* player, std::string const& overlayKey,
++        std::string const& requestedDestinationKey, std::string& resolvedDestinationKey, std::string& error) const
++    {
++        DestinationDefinition definition;
++        if (requestedDestinationKey.empty())
++        {
++            if (!m_destinations.FindDefaultOverlayDestination(overlayKey, definition))
++            {
++                error = "overlay '" + overlayKey + "' has no enabled OVERLAY destination";
++                return false;
++            }
++        }
++        else
++        {
++            if (!m_destinations.Find(requestedDestinationKey, definition))
++            {
++                error = "unknown or disabled destination '" + requestedDestinationKey + "'";
++                return false;
++            }
++
++            if (definition.instancePolicy != DestinationInstancePolicy::Overlay || definition.overlayKey != overlayKey)
++            {
++                error = "destination '" + requestedDestinationKey + "' does not belong to overlay '" + overlayKey + "'";
++                return false;
++            }
++        }
++
++        resolvedDestinationKey = definition.key;
++        return TeleportToDestination(player, definition.key, error);
++    }
++
++    bool WorldRouting::FindBinding(TeleportBindingSourceType sourceType, uint32 sourceEntry, TeleportBinding& binding) const
++    {
++        return m_bindings.Find(sourceType, sourceEntry, binding);
++    }
++}
+diff --git a/modules/mod-worldoverlay/src/routing/WorldRouting.h b/modules/mod-worldoverlay/src/routing/WorldRouting.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..5a955a99bb55ef0b44fba2e2aec28019d6767d6c
+--- /dev/null
++++ b/modules/mod-worldoverlay/src/routing/WorldRouting.h
+@@ -0,0 +1,40 @@
++#ifndef MOD_WORLDOVERLAY_WORLD_ROUTING_H
++#define MOD_WORLDOVERLAY_WORLD_ROUTING_H
++
++#include "routing/DestinationRegistry.h"
++#include "routing/DestinationResolver.h"
++#include "routing/TeleportBindingManager.h"
++#include "routing/TeleportExecutor.h"
++
++#include <string>
++
++class Player;
++
++namespace WorldOverlay
++{
++    class WorldRouting
++    {
++    public:
++        static WorldRouting& Instance();
++
++        void Load();
++        bool ResolveDestination(std::string const& destinationKey, ResolvedDestination& destination, std::string& error) const;
++        bool TeleportToDestination(Player* player, std::string const& destinationKey, std::string& error) const;
++        bool TeleportToOverlayDestination(Player* player, std::string const& overlayKey,
++            std::string const& requestedDestinationKey, std::string& resolvedDestinationKey, std::string& error) const;
++        bool FindBinding(TeleportBindingSourceType sourceType, uint32 sourceEntry, TeleportBinding& binding) const;
++
++        uint32 DestinationCount() const { return m_destinations.Size(); }
++        uint32 BindingCount() const { return m_bindings.Size(); }
++
++    private:
++        WorldRouting();
++
++        DestinationRegistry m_destinations;
++        DestinationResolver m_resolver;
++        TeleportBindingManager m_bindings;
++        TeleportExecutor m_executor;
++    };
++}
++
++#endif
+diff --git a/modules/mod-worldoverlay/src/routing/WorldRoutingTypes.h b/modules/mod-worldoverlay/src/routing/WorldRoutingTypes.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..1e5e95bf96e15a8789a185d0038bfc8f2c3eec0d
+--- /dev/null
++++ b/modules/mod-worldoverlay/src/routing/WorldRoutingTypes.h
+@@ -0,0 +1,74 @@
++#ifndef MOD_WORLDOVERLAY_WORLD_ROUTING_TYPES_H
++#define MOD_WORLDOVERLAY_WORLD_ROUTING_TYPES_H
++
++#include "Common.h"
++
++#include <string>
++
++namespace WorldOverlay
++{
++    enum class DestinationResolverType : uint8
++    {
++        Own = 0,
++        SpellTargetPosition = 1,
++        AreaTriggerTeleport = 2
++    };
++
++    enum class DestinationInstancePolicy : uint8
++    {
++        Auto = 0,
++        Current = 1,
++        Overlay = 2,
++        ExplicitInstance = 3 // Reserved for admin/debug use; not implemented in Phase 0.
++    };
++
++    struct DestinationDefinition
++    {
++        uint32 destinationId = 0;
++        std::string key;
++        DestinationResolverType resolverType = DestinationResolverType::Own;
++        uint32 resolverRef = 0;
++        uint32 mapId = 0;
++        float x = 0.0f;
++        float y = 0.0f;
++        float z = 0.0f;
++        float o = 0.0f;
++        DestinationInstancePolicy instancePolicy = DestinationInstancePolicy::Auto;
++        std::string overlayKey;
++    };
++
++    struct ResolvedDestination
++    {
++        std::string key;
++        uint32 mapId = 0;
++        float x = 0.0f;
++        float y = 0.0f;
++        float z = 0.0f;
++        float o = 0.0f;
++        DestinationInstancePolicy instancePolicy = DestinationInstancePolicy::Auto;
++        std::string overlayKey;
++        uint32 explicitInstanceId = 0;
++    };
++
++    enum class TeleportBindingSourceType : uint8
++    {
++        Item = 1,
++        GameObject = 2,
++        Creature = 3,
++        Trigger = 4,
++        Command = 5,
++        GossipAction = 6,
++        Script = 7
++    };
++
++    struct TeleportBinding
++    {
++        TeleportBindingSourceType sourceType = TeleportBindingSourceType::Item;
++        uint32 sourceEntry = 0;
++        std::string destinationKey;
++        uint32 cooldownMs = 0;
++        uint32 flags = 0;
++    };
++}
++
++#endif
+diff --git a/modules/mod-worldoverlay/src/spawn/OverlayGameObjectSpawner.cpp b/modules/mod-worldoverlay/src/spawn/OverlayGameObjectSpawner.cpp
+new file mode 100644
+index 0000000000000000000000000000000000000000..c839ceece9270e323fc71709b66ab074eeecd72d
+--- /dev/null
++++ b/modules/mod-worldoverlay/src/spawn/OverlayGameObjectSpawner.cpp
+@@ -0,0 +1,75 @@
++#include "spawn/OverlayGameObjectSpawner.h"
++
++#include "Database/DatabaseEnv.h"
++#include "GameObject.h"
++#include "Log.h"
++#include "Map.h"
++#include "MapManager.h"
++#include "ObjectMgr.h"
++
++namespace WorldOverlay
++{
++    uint32 OverlayGameObjectSpawner::Materialize(std::string const& overlayKey, uint32 mapId, DungeonMap* map) const
++    {
++        if (!map)
++            return 0;
++
++        std::string escapedKey = overlayKey;
++        WorldDatabase.escape_string(escapedKey);
++
++        QueryResult* result = WorldDatabase.PQuery(
++            "SELECT spawn_id, entry, position_x, position_y, position_z, orientation, "
++            "rotation0, rotation1, rotation2, rotation3 "
++            "FROM worldoverlay_gameobject WHERE overlay_key = '%s' AND enabled = 1 ORDER BY spawn_id",
++            escapedKey.c_str());
++
++        if (!result)
++            return 0;
++
++        uint32 count = 0;
++        do
++        {
++            Field* fields = result->Fetch();
++            uint64 const spawnId = fields[0].GetUInt64();
++            uint32 const entry = fields[1].GetUInt32();
++            float const x = fields[2].GetFloat();
++            float const y = fields[3].GetFloat();
++            float const z = fields[4].GetFloat();
++            float const o = fields[5].GetFloat();
++            float const r0 = fields[6].GetFloat();
++            float const r1 = fields[7].GetFloat();
++            float const r2 = fields[8].GetFloat();
++            float const r3 = fields[9].GetFloat();
++
++            if (!sObjectMgr.GetGameObjectInfo(entry))
++            {
++                sLog.outError("[WorldOverlay] GO spawn " UI64FMTD " in '%s' references missing gameobject_template %u.",
++                    spawnId, overlayKey.c_str(), entry);
++                continue;
++            }
++
++            if (!MapManager::IsValidMapCoord(mapId, x, y, z, o))
++            {
++                sLog.outError("[WorldOverlay] GO spawn " UI64FMTD " in '%s' has invalid coordinates.",
++                    spawnId, overlayKey.c_str());
++                continue;
++            }
++
++            // Phase 0 keeps overlay objects map-local and alive for the runtime map lifetime.
++            // No row is inserted into the core gameobject table and no runtime InstanceID is persisted.
++            GameObject* object = map->SummonGameObject(entry, x, y, z, o, r0, r1, r2, r3, 0, WORLD_DEFAULT_OBJECT);
++            if (!object)
++            {
++                sLog.outError("[WorldOverlay] Failed to materialize GO spawn " UI64FMTD " (entry %u) in '%s'.",
++                    spawnId, entry, overlayKey.c_str());
++                continue;
++            }
++
++            ++count;
++        }
++        while (result->NextRow());
++
++        delete result;
++        return count;
++    }
++}
+diff --git a/modules/mod-worldoverlay/src/spawn/OverlayGameObjectSpawner.h b/modules/mod-worldoverlay/src/spawn/OverlayGameObjectSpawner.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..1ab219f7925d62ef50366eaa24bc596606a77638
+--- /dev/null
++++ b/modules/mod-worldoverlay/src/spawn/OverlayGameObjectSpawner.h
+@@ -0,0 +1,19 @@
++#ifndef MOD_WORLDOVERLAY_OVERLAY_GAMEOBJECT_SPAWNER_H
++#define MOD_WORLDOVERLAY_OVERLAY_GAMEOBJECT_SPAWNER_H
++
++#include "Common.h"
++
++#include <string>
++
++class DungeonMap;
++
++namespace WorldOverlay
++{
++    class OverlayGameObjectSpawner
++    {
++    public:
++        uint32 Materialize(std::string const& overlayKey, uint32 mapId, DungeonMap* map) const;
++    };
++}
++
++#endif
