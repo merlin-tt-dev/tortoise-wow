@@ -1,0 +1,38 @@
+--- a/src/game/DiscordBot/GMCommandHandler.cpp
++++ b/src/game/DiscordBot/GMCommandHandler.cpp
+@@ -14,7 +14,8 @@
+ 
+ namespace DiscordBot
+ {
+-  /*  bool GMCommandHandler::IsAuthorized(const dpp::user* user) const
++#if 0
++    bool GMCommandHandler::IsAuthorized(const dpp::user* user) const
+     {
+         auto authInfo = AuthManager::Instance()->GetAuthInfo(user);
+         return authInfo && authInfo->authenticated && authInfo->securityLevel > SEC_PLAYER;
+@@ -44,7 +45,7 @@
+             {
+             }, MakeCommandHandler(&GMCommandHandler::LookupCommand), "Starts a character lookup");
+ 
+-        _commHandler = &registrar;*/
++        _commHandler = &registrar;
+     }
+ 
+     void GMCommandHandler::ExecuteGMCommand(const std::string& command, const dpp::parameter_list_t& parameters, dpp::command_source src)
+@@ -178,4 +179,15 @@
+         } while (offset < output.size() - 1);
+     }
+ 
++#endif
++
++    bool GMCommandHandler::IsAuthorized(const dpp::user*) const
++    {
++        return false;
++    }
++
++    void GMCommandHandler::RegisterCommands(dpp::commandhandler&)
++    {
++    }
++
+ }
+\ No newline at end of file
