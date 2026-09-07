@@ -19009,14 +19009,14 @@ bool ChatHandler::HandleAccountEmailCommand(char* args)
     if (!oldEmail || !newEmail || !newEmail2)
         return false;
 
-    if (strcmp(oldEmail, newEmail) == NULL)
+    if (strcmp(oldEmail, newEmail) == 0)
     {
         SendSysMessage("New email must be different than old.");
         SetSentErrorMessage(true);
         return false;
     }
 
-    if (strcmp(newEmail, newEmail2) != NULL)
+    if (strcmp(newEmail, newEmail2) != 0)
     {
         SendSysMessage("Email confirmation doesn't match.");
         SetSentErrorMessage(true);

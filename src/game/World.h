@@ -1008,7 +1008,7 @@ class World
             }
             void operator()(Player* p)
             {
-                int32 loc_idx = p->GetSession()->GetSessionDbLocaleIndex();
+                int32 loc_idx = GetSessionDbLocaleIndex(p);
                 uint32 cache_idx = loc_idx + 1;
                 WorldPacketList* data_list;
 
@@ -1026,10 +1026,22 @@ class World
                     data_list = &i_data_cache[cache_idx];
 
                 for (auto& i : *data_list)
-                    p->SendDirectMessage(i);
+                    SendDirectMessage(p, i);
             }
 
         private:
+            template <typename PlayerType>
+            static int32 GetSessionDbLocaleIndex(PlayerType* player)
+            {
+                return player->GetSession()->GetSessionDbLocaleIndex();
+            }
+
+            template <typename PlayerType>
+            static void SendDirectMessage(PlayerType* player, WorldPacket* packet)
+            {
+                player->SendDirectMessage(packet);
+            }
+
             Builder& i_builder;
             std::vector<WorldPacketList> i_data_cache;
             // 0 = default, i => i-1 locale index
@@ -1040,6 +1052,11 @@ class World
         template <typename F>
         void SendWorldTextChecked(int32 string_id, F checker, ...)
         {
+            auto isPlayerInWorld = [](auto* player)
+            {
+                return player->IsInWorld();
+            };
+
             va_list ap;
             va_start(ap, checker);
 
@@ -1050,7 +1067,7 @@ class World
                 if (WorldSession* session = itr.second)
                 {
                     Player* player = session->GetPlayer();
-                    if (player && player->IsInWorld() && checker(player))
+                    if (player && isPlayerInWorld(player) && checker(player))
                         wt_do(player);
                 }
             }

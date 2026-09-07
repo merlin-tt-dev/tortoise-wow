@@ -5,7 +5,7 @@
 
 namespace
 {
-static constexpr char *sCheatTypeNames[] =
+static constexpr char const* sCheatTypeNames[] =
 {
     "WallClimb",
     "WaterWalk",

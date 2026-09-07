@@ -544,7 +544,7 @@ WeaponAttackType SpellEntry::GetWeaponAttackType() const
     }
 }
 
-char* SpellEntry::GetIcon(uint32 ID) const
+char const* SpellEntry::GetIcon(uint32 ID) const
 {
     SpellIconEntry const *spellIconEntry = sSpellIconStore.LookupEntry(ID);
     if (!spellIconEntry)

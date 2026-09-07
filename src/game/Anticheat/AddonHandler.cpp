@@ -77,7 +77,7 @@ struct AddonInfo
 
 // each addon will give us one byte of the fingerprint.  this byte can not be 0x00, 0x01, or 0x02, as
 // the client considers these as valid flags with behaviors we want to avoid (i.e. 0x02 = banned)
-static constexpr char *sFingerprintAddons[] =
+static constexpr char const* sFingerprintAddons[] =
 {
     "Blizzard_BindingUI",
     "Blizzard_InspectUI",

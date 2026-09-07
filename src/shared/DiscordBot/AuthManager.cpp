@@ -1,5 +1,3 @@
-#pragma once
-
 #include "AuthManager.hpp"
 #include "Util.h"
 #include "Auth/Sha1.h"

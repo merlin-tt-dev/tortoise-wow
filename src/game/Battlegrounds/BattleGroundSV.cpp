@@ -518,7 +518,7 @@ void BattleGroundSV::EventPlayerClickedOnFlag(Player* source, GameObject* /*targ
             else
                 SendMessage2ToAll(LANG_BG_SV_NODE_DEFENDED, CHAT_MSG_BG_SYSTEM_HORDE, source, GetTowerNameId(node));
         }
-        sound = (teamIndex == TEAM_ALLIANCE) ? BG_SV_SOUND_NODE_ASSAULTED_ALLIANCE : BG_SV_SOUND_NODE_ASSAULTED_HORDE;
+        sound = (teamIndex == BG_TEAM_ALLIANCE) ? BG_SV_SOUND_NODE_ASSAULTED_ALLIANCE : BG_SV_SOUND_NODE_ASSAULTED_HORDE;
     }
     // If node is occupied, change to enemy-contested
     else
@@ -539,7 +539,7 @@ void BattleGroundSV::EventPlayerClickedOnFlag(Player* source, GameObject* /*targ
         else
             SendMessage2ToAll(LANG_BG_AB_NODE_ASSAULTED, CHAT_MSG_BG_SYSTEM_HORDE, source, GetTowerNameId(node));
 
-        sound = (teamIndex == TEAM_ALLIANCE) ? BG_SV_SOUND_NODE_ASSAULTED_ALLIANCE : BG_SV_SOUND_NODE_ASSAULTED_HORDE;
+        sound = (teamIndex == BG_TEAM_ALLIANCE) ? BG_SV_SOUND_NODE_ASSAULTED_ALLIANCE : BG_SV_SOUND_NODE_ASSAULTED_HORDE;
     }
 
     // If node is occupied again, send "X has taken the Y" msg.
