@@ -1,7 +1,7 @@
 # dev-clean – End-to-End Test TODO
 
-> **Status:** Nur Testplan.  
-> **Regel:** `dev-clean` erst als endgültige Core-Baseline freigeben, wenn Build-, Start- und Runtime-Tests auf demselben dokumentierten Stand abgeschlossen sind.  
+> **Status:** Nur Testplan.
+> **Regel:** `dev-clean` erst als endgültige Core-Baseline freigeben, wenn Build-, Start- und Runtime-Tests auf demselben dokumentierten Stand abgeschlossen sind.
 > **Keine Modultests hier:** WorldOverlay, neues PlayerBots-Modul und andere Module werden auf ihren eigenen Branches getestet.
 
 ## Core-Patch Checkpoint (Runtime noch ausstehend)
