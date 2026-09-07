@@ -21,6 +21,7 @@
 #pragma once
 #include <dpp/export.h>
 #include <dpp/misc-enum.h>
+#include <cstdint>
 #include <string>
 #include <functional>
 #include <dpp/socket.h>
