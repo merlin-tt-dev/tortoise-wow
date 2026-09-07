@@ -1,0 +1,123 @@
+# Generate a split, directly usable mangosd configuration bundle from the
+# canonical monolithic mangosd.conf.dist.in source. This keeps one source of
+# truth while making the build tree expose a maintainable conf.d layout.
+
+function(_mangos_config_bucket key out_var)
+  # Database/storage first so LoginDatabase.* does not fall into Log*.
+  if(key MATCHES "^(LoginDatabase\\.|WorldDatabase\\.|CharacterDatabase\\.|LogsDatabase\\.|Database\\.|AutoPDump\\.|PDumpDir$|AutoCommit\\.|MaxPingTime$|CleanCharacterDB$|BackupCharacterInventory$)")
+    set(bucket DATABASE)
+  elseif(key MATCHES "^(WorldServerPort$|BindIP$|Compression$|PlayerLimit$|PlayerHardLimit$|LoginVIPQueue|LoginQueue\\.|LoginPerTick$|CharacterScreenMaxIdleTime$|Network\\.|AsyncTasks\\.|AsyncQueriesTickTimeout$|PriorityQueue\\.|Queue\\.)")
+    set(bucket NETWORK)
+  elseif(key MATCHES "^(LogsDir$|HonorDir$|HardcoreModeLogFile$|PidFile$|Log|ChatLog|BgLog|GmLog|GMLog|HonorLog|RaidLog|RaLog|WorldLog|DBError|CharLog|WardenLog|AnticheatLog|CriticalCommandsLogFile$|ChatSpamLogFile$|ExploitsLogFile$|ClientIdsLogFile$|LootsLogFile$|RareLootsLogFile$|LevelupLogFile$|NostalriusLog|PerformanceLog\\.|Perf\\.|Smartlog\\.|SplitLogs$|WaitAtStartupError$|ShowProgressBars$)")
+    set(bucket LOGGING)
+  elseif(key MATCHES "^(Terrain\\.|vmap\\.|mmap\\.|Collision\\.|DetectPosCollision$|TargetPosRecalculateRange$|GridUnload$|CleanupTerrain$|GridCleanUpDelay$|MapUpdate|Continents\\.|Movement\\.|Visibility\\.|StaticObjectLOS$|DynamicVisibility\\.|DynamicScaling\\.|DynamicRespawn\\.)")
+    set(bucket MAPS)
+  elseif(key MATCHES "^(Warden\\.|Anticheat\\.|Antispam\\.|Antiflood\\.|Anticrash\\.|ChatFlood\\.|ChatStrictLinkChecking\\.|Suspicious\\.|WhisperTargets\\.|Analysis\\.|Hanzi\\.|EnforceEnglish$|NiHao$)")
+    set(bucket SECURITY)
+  elseif(key MATCHES "^(PvP\\.|BattleGround\\.|Battleground\\.|Alterac\\.|OutdoorPvP\\.|OutdoorPvp\\.|WarEffort|WeeklyHonorCap$|MaxHonorPoints$|StartHonorPoints$|MinHonorKills$|AutoHonorRestart$)")
+    set(bucket PVP)
+  elseif(key MATCHES "^(Rate\\.|Auction\\.|SkillChance\\.|SkillGain\\.|SkillFail\\.|DurabilityLossChance\\.|Corpse\\.|Corpses\\.|Bones\\.|Death\\.|EnvironmentalDamage\\.|GuidReserveSize\\.|Item\\.|MailSpam\\.)")
+    set(bucket RATES)
+  elseif(key MATCHES "^(HttpApi\\.|Api\\.|DiscordBot\\.|AutoTranslate\\.|AutoBroadcast\\.|Transmog\\.|PlayerBot\\.|Shop\\.|PTR$|Progression\\.|FactionBalance\\.|BeginnersGuild|HolidayEvent$)")
+    set(bucket SERVICES)
+  elseif(key MATCHES "^(ConfVersion$|RealmID$|DataDir$|UseProcessors$|ProcessPriority$|SaveRespawnTimeImmediately$|AutoRestart\\.|UpdateUptimeInterval$|MaxCoreStuckTime$|BanListReloadTimer$|AddonChannel$|ChangeWeatherInterval$|DebuffLimit$)")
+    set(bucket CORE)
+  else()
+    set(bucket GAMEPLAY)
+  endif()
+
+  set(${out_var} "${bucket}" PARENT_SCOPE)
+endfunction()
+
+function(generate_mangos_split_config input_file output_dir)
+  if(NOT EXISTS "${input_file}")
+    message(FATAL_ERROR "mangos config split source does not exist: ${input_file}")
+  endif()
+
+  # Recreate the bundle so removed/renamed fragments cannot survive from an
+  # older configure run.
+  file(REMOVE_RECURSE "${output_dir}")
+  set(fragment_dir "${output_dir}/mangosd.conf.d")
+  file(MAKE_DIRECTORY "${fragment_dir}")
+
+  set(bucket_order CORE DATABASE NETWORK LOGGING GAMEPLAY RATES PVP MAPS SECURITY SERVICES)
+  set(bucket_CORE     "10-core-runtime.conf")
+  set(bucket_DATABASE "20-database-storage.conf")
+  set(bucket_NETWORK  "30-network-login.conf")
+  set(bucket_LOGGING  "40-logging-monitoring.conf")
+  set(bucket_GAMEPLAY "50-world-gameplay.conf")
+  set(bucket_RATES    "60-rates-economy.conf")
+  set(bucket_PVP      "70-pvp-battlegrounds.conf")
+  set(bucket_MAPS     "80-maps-visibility.conf")
+  set(bucket_SECURITY "90-security-anticheat.conf")
+  set(bucket_SERVICES "95-services-custom.conf")
+
+  foreach(bucket IN LISTS bucket_order)
+    set(content_${bucket}
+      "# Generated from mangosd.conf.dist.in. Do not edit this build artifact.\n# Set ConfigFileActive = 0 to disable this complete fragment.\n\n[MangosdConf]\nConfigFileActive = 1\n")
+    set(count_${bucket} 0)
+  endforeach()
+
+  file(STRINGS "${input_file}" config_lines ENCODING UTF-8)
+  set(pending "")
+  set(last_bucket CORE)
+  set(total_assignments 0)
+
+  foreach(line IN LISTS config_lines)
+    string(STRIP "${line}" stripped)
+
+    if(stripped MATCHES "^\\[([^]]+)\\]$")
+      if(NOT CMAKE_MATCH_1 STREQUAL "MangosdConf")
+        message(FATAL_ERROR
+          "mangos config splitter only supports [MangosdConf], found [${CMAKE_MATCH_1}] in ${input_file}")
+      endif()
+      # Every generated fragment gets its own [MangosdConf] header.
+    else()
+      if(stripped MATCHES "^([A-Za-z0-9_.-]+)[ \\t]*=")
+        set(key "${CMAKE_MATCH_1}")
+        _mangos_config_bucket("${key}" bucket)
+
+        set(content_${bucket} "${content_${bucket}}${pending}${line}\n")
+        math(EXPR count_${bucket} "${count_${bucket}} + 1")
+        math(EXPR total_assignments "${total_assignments} + 1")
+        set(last_bucket "${bucket}")
+        set(pending "")
+      else()
+        set(pending "${pending}${line}\n")
+      endif()
+    endif()
+  endforeach()
+
+  if(NOT pending STREQUAL "")
+    set(content_${last_bucket} "${content_${last_bucket}}${pending}")
+  endif()
+
+  file(MAKE_DIRECTORY "${output_dir}")
+  file(WRITE "${output_dir}/mangosd.conf"
+    "# Generated split mangosd configuration bundle.\n# Copy this file together with mangosd.conf.d/ to the server config directory.\n# IncludeFile directives are processed in this exact order.\n\n[MangosdConf]\n")
+
+  set(manifest "Generated split mangosd configuration\nSource: ${input_file}\nAssignments: ${total_assignments}\n\n")
+
+  foreach(bucket IN LISTS bucket_order)
+    if(count_${bucket} GREATER 0)
+      set(fragment "${bucket_${bucket}}")
+      file(WRITE "${fragment_dir}/${fragment}" "${content_${bucket}}")
+      file(APPEND "${output_dir}/mangosd.conf" "IncludeFile = mangosd.conf.d/${fragment}\n")
+      set(manifest "${manifest}${fragment}: ${count_${bucket}} assignments\n")
+    endif()
+  endforeach()
+
+  file(WRITE "${output_dir}/MANIFEST.txt" "${manifest}")
+  file(WRITE "${output_dir}/README.txt"
+    "This directory is generated from src/mangosd/mangosd.conf.dist.in.\n\n"
+    "Use:\n"
+    "  1. Copy mangosd.conf and mangosd.conf.d/ together to the runtime config directory.\n"
+    "  2. Edit values in the fragments.\n"
+    "  3. Set ConfigFileActive = 0 in a fragment to disable the whole fragment.\n"
+    "  4. Comment an IncludeFile line in mangosd.conf to disable that fragment from the root.\n\n"
+    "The legacy monolithic mangosd.conf.dist is still generated separately for compatibility.\n"
+    "Runtime duplicate-key warnings from the Core make accidental overrides visible.\n")
+
+  message(STATUS
+    "Generated split mangosd config bundle at ${output_dir} (${total_assignments} assignments)")
+endfunction()
