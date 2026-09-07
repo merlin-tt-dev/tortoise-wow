@@ -351,4 +351,4 @@ Warden.SuspiciousEndSceneHookAction = 1
 Warden.TickCount = 1
 Warden.TickAction = 1
 Warden.TotalCount = 0
-Warden.TotalCount = 0
+Warden.TotalAction = 0
