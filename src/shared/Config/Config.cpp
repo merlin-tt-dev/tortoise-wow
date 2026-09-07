@@ -23,6 +23,8 @@
 
 #include "Log.h"
 #include "Policies/SingletonImp.h"
+#include <algorithm>
+#include <filesystem>
 #include <vector>
 
 INSTANTIATE_SINGLETON_2(Config, Config::Lock);
@@ -76,6 +78,78 @@ std::string Config::GetConfigDirectory() const
         return "";
 
     return mFilename.substr(0, separator + 1);
+}
+
+bool Config::LoadIncludeDirectory()
+{
+    ACE_TString includeDirValue;
+    if (!GetValueHelper("IncludeDir", includeDirValue))
+        return true;
+
+    std::string const includeDir = includeDirValue.c_str();
+    if (includeDir.empty())
+        return true;
+
+    std::filesystem::path includePath(includeDir);
+    if (includePath.is_relative())
+        includePath = std::filesystem::path(GetConfigDirectory()) / includePath;
+
+    std::error_code error;
+    if (!std::filesystem::exists(includePath, error))
+    {
+        if (error)
+        {
+            sLog.outError("Could not inspect config IncludeDir %s: %s.", includePath.string().c_str(), error.message().c_str());
+            return false;
+        }
+
+        sLog.outDetail("Config IncludeDir %s does not exist; continuing without includes.", includePath.string().c_str());
+        return true;
+    }
+
+    if (!std::filesystem::is_directory(includePath, error) || error)
+    {
+        sLog.outError("Config IncludeDir %s is not a readable directory.", includePath.string().c_str());
+        return false;
+    }
+
+    std::vector<std::filesystem::path> includeFiles;
+    std::filesystem::directory_iterator end;
+    for (std::filesystem::directory_iterator itr(includePath, error); !error && itr != end; itr.increment(error))
+    {
+        std::error_code fileError;
+        if (itr->is_regular_file(fileError) && !fileError && itr->path().extension() == ".conf")
+            includeFiles.push_back(itr->path());
+    }
+
+    if (error)
+    {
+        sLog.outError("Could not enumerate config IncludeDir %s: %s.", includePath.string().c_str(), error.message().c_str());
+        return false;
+    }
+
+    std::sort(includeFiles.begin(), includeFiles.end(), [](std::filesystem::path const& left, std::filesystem::path const& right)
+    {
+        return left.filename().string() < right.filename().string();
+    });
+
+    // IncludeDir is intentionally single-level. Included files cannot include
+    // another directory, which keeps ordering deterministic and makes cycles impossible.
+    for (std::filesystem::path const& includeFile : includeFiles)
+    {
+        ACE_Ini_ImpExp includeImporter(*mConf);
+        int const importResult = includeImporter.import_config(includeFile.string().c_str());
+        if (importResult != 0)
+        {
+            sLog.outError("Could not load included configuration file %s: %s.",
+                includeFile.string().c_str(), GetConfigImportErrorText(importResult));
+            return false;
+        }
+
+        sLog.outDetail("Loaded included configuration file %s.", includeFile.string().c_str());
+    }
+
+    return true;
 }
 
 // Defined here as it must not be exposed to end-users.
@@ -195,8 +269,17 @@ bool Config::Reload()
     if (mConf->open() != -1)
     {
         ACE_Ini_ImpExp config_importer(*mConf);
-        if (config_importer.import_config(mFilename.c_str()) != -1)
-            return true;
+        int const importResult = config_importer.import_config(mFilename.c_str());
+        if (importResult == 0)
+        {
+            if (LoadIncludeDirectory())
+                return true;
+        }
+        else
+        {
+            sLog.outError("Could not load configuration file %s: %s.",
+                mFilename.c_str(), GetConfigImportErrorText(importResult));
+        }
     }
 
     delete mConf;
