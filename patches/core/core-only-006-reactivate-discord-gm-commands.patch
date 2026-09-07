@@ -1,0 +1,138 @@
+diff --git a/src/game/DiscordBot/GMCommandHandler.cpp b/src/game/DiscordBot/GMCommandHandler.cpp
+index 8dc4a46..ae7d536 100644
+--- a/src/game/DiscordBot/GMCommandHandler.cpp
++++ b/src/game/DiscordBot/GMCommandHandler.cpp
+@@ -14,7 +14,6 @@ bool ChatHandler::HandleDiscBotStopCommand(char* args)
+ 
+ namespace DiscordBot
+ {
+-#if 0
+     bool GMCommandHandler::IsAuthorized(const dpp::user* user) const
+     {
+         auto authInfo = AuthManager::Instance()->GetAuthInfo(user);
+@@ -41,9 +40,8 @@ namespace DiscordBot
+             MakeCommandHandler(&GMCommandHandler::LogCommand),
+             "Shows logs");
+ 
+-        Register("lookup",
+-            {
+-            }, MakeCommandHandler(&GMCommandHandler::LookupCommand), "Starts a character lookup");
++        // LookupCommand is intentionally not registered yet. The current implementation
++        // only renders a select menu and has no component-selection handler.
+ 
+         _commHandler = &registrar;
+     }
+@@ -105,31 +103,44 @@ namespace DiscordBot
+         if (authinfo->securityLevel < SEC_DEVELOPER)
+             return;
+ 
+-        if (parameters.empty())
++        if (parameters.size() < 2)
+             return;
+ 
+         int64_t logType = std::get<int64_t>(parameters[0].second);
+         int64_t numChars = std::get<int64_t>(parameters[1].second);
+ 
++        if (logType < 0 || logType >= LOG_MAX_FILES || numChars <= 0)
++            return;
++
++        // A Discord message cannot exceed MaxMessageLength. Keep the read bounded as well.
++        if (numChars > static_cast<int64_t>(MaxMessageLength))
++            numChars = MaxMessageLength;
++
+         auto logfile = sLog.logFiles[logType];
+ 
+         if (!logfile)
+             return;
+ 
+-        //we're going to edit writing positions to find what to read. Start locking exclusive access from here on out.
++        // Reading shares the FILE* seek position with writers, so hold exclusive access
++        // while temporarily moving it and restore the original position afterwards.
+         std::unique_lock<std::shared_mutex> l{ sLog.logLock };
+ 
+-        int streamPos = ftell(logfile);
+-
++        long streamPos = ftell(logfile);
++        if (streamPos < 0)
++            return;
+ 
+-        fseek(logfile, 0, SEEK_SET);
++        long readStart = streamPos > numChars ? streamPos - static_cast<long>(numChars) : 0;
++        if (fseek(logfile, readStart, SEEK_SET) != 0)
++            return;
+ 
+-        std::vector<char> buff;
+-        buff.resize(numChars);
+-        fread(buff.data(), sizeof(char), numChars, logfile);
++        std::vector<char> buff(static_cast<size_t>(streamPos - readStart));
++        size_t bytesRead = fread(buff.data(), sizeof(char), buff.size(), logfile);
+         fseek(logfile, streamPos, SEEK_SET);
+ 
+-        _commHandler->reply(dpp::message(std::string(buff.begin(), buff.end())), src);
++        if (bytesRead == 0)
++            return;
++
++        _commHandler->reply(dpp::message(std::string(buff.data(), bytesRead)), src);
+     }
+ 
+ 
+@@ -176,18 +187,7 @@ namespace DiscordBot
+ 
+             handler->_commHandler->owner->message_create(msg);
+ 
+-        } while (offset < output.size() - 1);
+-    }
+-
+-#endif
+-
+-    bool GMCommandHandler::IsAuthorized(const dpp::user*) const
+-    {
+-        return false;
+-    }
+-
+-    void GMCommandHandler::RegisterCommands(dpp::commandhandler&)
+-    {
++        } while (offset < output.size());
+     }
+ 
+ }
+\ No newline at end of file
+diff --git a/src/shared/DiscordBot/BaseCommandHandler.cpp b/src/shared/DiscordBot/BaseCommandHandler.cpp
+index e6de34b..ad929bd 100644
+--- a/src/shared/DiscordBot/BaseCommandHandler.cpp
++++ b/src/shared/DiscordBot/BaseCommandHandler.cpp
+@@ -36,7 +36,7 @@ namespace DiscordBot
+ 
+     bool BaseCommandHandler::CheckAllowedAccess(const dpp::user* user, std::string command)
+     {
+-#ifdef DISCORD_DEBUG
++#if DISCORD_DEBUG
+         return true;
+ #endif
+ 
+@@ -77,6 +77,12 @@ namespace DiscordBot
+                     std::stringstream ss(messageContent);
+                     std::string command;
+                     ss >> command;
++
++                    // Command links are stored without the DPP text-command prefix.
++                    if (!command.empty() && (command.front() == '.' || command.front() == '/'))
++                        command.erase(command.begin());
++                    command = lowercase(command);
++
+                     if (CheckAllowedAccess(&event.msg.author, command))
+                         _commandHandler->route(event);
+                     else
+diff --git a/src/shared/DiscordBot/BaseCommandHandler.hpp b/src/shared/DiscordBot/BaseCommandHandler.hpp
+index 6198c42..699cf84 100644
+--- a/src/shared/DiscordBot/BaseCommandHandler.hpp
++++ b/src/shared/DiscordBot/BaseCommandHandler.hpp
+@@ -9,7 +9,7 @@
+ #include <stdint.h>
+ #include <type_traits>
+ 
+-#define DISCORD_DEBUG false
++#define DISCORD_DEBUG 0
+ 
+ namespace DiscordBot
+ {

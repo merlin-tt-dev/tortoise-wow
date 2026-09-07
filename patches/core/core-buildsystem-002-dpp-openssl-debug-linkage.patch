@@ -1,0 +1,12 @@
+diff --git a/dep/dpp/CMakeLists.txt b/dep/dpp/CMakeLists.txt
+--- a/dep/dpp/CMakeLists.txt
++++ b/dep/dpp/CMakeLists.txt
+@@ -24,7 +24,7 @@ if(UNIX)
+   find_package(ZLIB REQUIRED)
+   if(ZLIB_FOUND)
+     target_include_directories(dpp PUBLIC ${ZLIB_INCLUDE_DIRS})
+-    target_link_libraries(dpp PUBLIC ${ZLIB_LIBRARIES} optimized ${OPENSSL_LIBRARIES})
++    target_link_libraries(dpp PUBLIC ${ZLIB_LIBRARIES} ${OPENSSL_LIBRARIES})
+   endif(ZLIB_FOUND)
+ else()
+   include_directories(${CMAKE_SOURCE_DIR}/dep/windows/include/zlib)

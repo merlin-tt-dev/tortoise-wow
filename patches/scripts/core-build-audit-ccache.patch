@@ -1,0 +1,107 @@
+diff --git a/core-full-build-audit.sh b/core-full-build-audit.sh
+index d5ab2ed..961f490 100644
+--- a/core-full-build-audit.sh
++++ b/core-full-build-audit.sh
+@@ -5,12 +5,18 @@ set -Eeuo pipefail
+ # Repository modules are disabled. PCH is deliberately disabled to expose
+ # missing/self-contained headers. Discord/DPP is deliberately enabled because
+ # it is part of the generic Core dependency audit surface.
++#
++# If ccache is installed it is used automatically as C/C++ compiler launcher.
++# The build directory is still recreated from scratch on every run; only
++# compiler outputs are cached outside the build tree.
+ 
+ ROOT="${ROOT:-$(pwd)}"
+ BUILD_DIR="${BUILD_DIR:-$ROOT/build-core-full-audit}"
+ LOG="${LOG:-$BUILD_DIR/core-full-build-audit.log}"
+ BUILD_TYPE="${BUILD_TYPE:-Debug}"
+ ACE_PREFIX="${ACE_ROOT:-/usr}"
++USE_CCACHE="${USE_CCACHE:-auto}"
++CCACHE_BIN="${CCACHE_BIN:-}"
+ 
+ if [[ ! -f "$ROOT/CMakeLists.txt" ]]; then
+     echo "ERROR: run this from the tortoise-wow repository root (or set ROOT=/path/to/tortoise-wow)." >&2
+@@ -24,6 +30,31 @@ for tool in cmake ninja; do
+     fi
+ done
+ 
++case "$USE_CCACHE" in
++    auto|on|off)
++        ;;
++    *)
++        echo "ERROR: USE_CCACHE must be one of: auto, on, off." >&2
++        exit 2
++        ;;
++esac
++
++if [[ "$USE_CCACHE" != "off" ]]; then
++    if [[ -z "$CCACHE_BIN" ]] && command -v ccache >/dev/null 2>&1; then
++        CCACHE_BIN="$(command -v ccache)"
++    fi
++
++    if [[ -n "$CCACHE_BIN" ]]; then
++        if ! command -v "$CCACHE_BIN" >/dev/null 2>&1 && [[ ! -x "$CCACHE_BIN" ]]; then
++            echo "ERROR: configured CCACHE_BIN is not executable: $CCACHE_BIN" >&2
++            exit 2
++        fi
++    elif [[ "$USE_CCACHE" == "on" ]]; then
++        echo "ERROR: USE_CCACHE=on but ccache was not found." >&2
++        exit 2
++    fi
++fi
++
+ if [[ ! -f "${ACE_PREFIX}/include/ace/ACE.h" && ! -f "${ACE_PREFIX}/include/ace/Basic_Types.h" ]]; then
+     echo "WARNING: ACE headers not found below ${ACE_PREFIX}/include/ace/."
+     echo "         If ACE is installed in a custom prefix, run e.g.: ACE_ROOT=/opt/ace $0"
+@@ -61,7 +92,17 @@ printf 'Build dir  : %s\n' "$BUILD_DIR"
+ printf 'Build type : %s\n' "$BUILD_TYPE"
+ printf 'CPUs       : %s logical\n' "$NPROC"
+ printf 'Ninja jobs : %s (<=80%%)\n' "$JOBS"
+-printf 'Scope      : full Core + scripts + Discord/DPP; repository modules disabled; PCH OFF\n\n'
++printf 'Scope      : full Core + scripts + Discord/DPP; repository modules disabled; PCH OFF\n'
++if [[ -n "$CCACHE_BIN" && "$USE_CCACHE" != "off" ]]; then
++    printf 'C/C++ cache : %s\n' "$("$CCACHE_BIN" --version | head -n 1)"
++else
++    printf 'C/C++ cache : disabled'
++    if [[ "$USE_CCACHE" == "auto" ]]; then
++        printf ' (ccache not installed)'
++    fi
++    printf '\n'
++fi
++printf '\n'
+ 
+ rm -rf "$BUILD_DIR"
+ mkdir -p "$BUILD_DIR"
+@@ -83,6 +124,16 @@ if [[ -n "${ACE_ROOT:-}" ]]; then
+     CMAKE_ARGS+=( -DACE_ROOT="$ACE_ROOT" )
+ fi
+ 
++if [[ -n "$CCACHE_BIN" && "$USE_CCACHE" != "off" ]]; then
++    # Keep statistics for this audit run separate without resetting the
++    # user's global ccache counters.
++    export CCACHE_STATSLOG="${CCACHE_STATSLOG:-$BUILD_DIR/ccache-stats.log}"
++    CMAKE_ARGS+=(
++        -DCMAKE_C_COMPILER_LAUNCHER="$CCACHE_BIN"
++        -DCMAKE_CXX_COMPILER_LAUNCHER="$CCACHE_BIN"
++    )
++fi
++
+ echo '== CMake configure =='
+ cmake "${CMAKE_ARGS[@]}" 2>&1 | tee "$BUILD_DIR/cmake-configure.log"
+ 
+@@ -104,6 +155,15 @@ status=${PIPESTATUS[0]}
+ set -e
+ 
+ echo
++if [[ -n "$CCACHE_BIN" && "$USE_CCACHE" != "off" ]]; then
++    echo '== ccache statistics for this audit =='
++    if ! "$CCACHE_BIN" --show-log-stats 2>/dev/null; then
++        echo "(Per-run statistics unavailable; showing cumulative ccache statistics.)"
++        "$CCACHE_BIN" --show-stats || true
++    fi
++    echo
++fi
++
+ if (( status == 0 )); then
+     echo "OK: full Core audit compiled successfully."
+ else
