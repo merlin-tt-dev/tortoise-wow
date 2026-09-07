@@ -16,6 +16,7 @@ MINGW_TRIPLET="${MINGW_TRIPLET:-x86_64-w64-mingw32}"
 BUILD_TYPE="${BUILD_TYPE:-Debug}"
 USE_CCACHE="${USE_CCACHE:-auto}"
 CCACHE_BIN="${CCACHE_BIN:-}"
+CCACHE_BASE_DIR="${CCACHE_BASE_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}/ccache/tortoise-wow}"
 NINJA_VERBOSE="${NINJA_VERBOSE:-off}"
 NINJA_STATS="${NINJA_STATS:-on}"
 NINJA_STATUS_FORMAT="${NINJA_STATUS_FORMAT:-[%f/%t %p | %e sec | %r running | %o edges/s] }"
@@ -31,6 +32,9 @@ Targets:
 The target can also be selected with AUDIT_TARGET=windows-x64.
 Windows cross-builds require a Windows-target ACE build via ACE_ROOT and
 MinGW-w64 tools named from MINGW_TRIPLET (default: x86_64-w64-mingw32).
+
+When ccache is enabled, native and windows-x64 use separate cache directories
+under CCACHE_BASE_DIR by default. Set CCACHE_DIR explicitly to override this.
 EOF
 }
 
@@ -67,9 +71,11 @@ done
 case "$AUDIT_TARGET" in
     native)
         DEFAULT_BUILD_DIR="$ROOT/build-core-full-audit"
+        DEFAULT_CCACHE_DIR="$CCACHE_BASE_DIR/native"
         ;;
     windows-x64)
         DEFAULT_BUILD_DIR="$ROOT/build-core-full-audit-windows-x64"
+        DEFAULT_CCACHE_DIR="$CCACHE_BASE_DIR/windows-x64"
         ;;
     *)
         echo "ERROR: AUDIT_TARGET must be one of: native, windows-x64." >&2
@@ -78,6 +84,7 @@ case "$AUDIT_TARGET" in
 esac
 
 BUILD_DIR="${BUILD_DIR:-$DEFAULT_BUILD_DIR}"
+CCACHE_DIR="${CCACHE_DIR:-$DEFAULT_CCACHE_DIR}"
 LOG="${LOG:-$BUILD_DIR/core-full-build-audit.log}"
 ACE_PREFIX="${ACE_ROOT:-/usr}"
 
@@ -233,6 +240,7 @@ printf 'Ninja verbose: %s\n' "$NINJA_VERBOSE"
 printf 'Ninja status: %s\n' "$NINJA_STATUS_FORMAT"
 if [[ -n "$CCACHE_BIN" && "$USE_CCACHE" != "off" ]]; then
     printf 'C/C++ cache : %s\n' "$("$CCACHE_BIN" --version | head -n 1)"
+    printf 'Cache dir   : %s\n' "$CCACHE_DIR"
 else
     printf 'C/C++ cache : disabled'
     if [[ "$USE_CCACHE" == "auto" ]]; then
@@ -273,8 +281,13 @@ if [[ -n "${ACE_ROOT:-}" ]]; then
 fi
 
 if [[ -n "$CCACHE_BIN" && "$USE_CCACHE" != "off" ]]; then
+    # Keep native and MinGW outputs in independent caches so alternating
+    # audit targets cannot evict each other's compiler results.
+    mkdir -p "$CCACHE_DIR"
+    export CCACHE_DIR
+
     # Keep statistics for this audit run separate without resetting the
-    # user's global ccache counters.
+    # selected target cache counters.
     export CCACHE_STATSLOG="${CCACHE_STATSLOG:-$BUILD_DIR/ccache-stats.log}"
     CMAKE_ARGS+=(
         -DCMAKE_C_COMPILER_LAUNCHER="$CCACHE_BIN"
