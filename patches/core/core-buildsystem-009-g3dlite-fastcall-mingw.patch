@@ -1,0 +1,12 @@
+diff --git a/dep/include/g3dlite/G3D/platform.h b/dep/include/g3dlite/G3D/platform.h
+--- a/dep/include/g3dlite/G3D/platform.h
++++ b/dep/include/g3dlite/G3D/platform.h
+@@ -50,7 +50,7 @@
+ #define G3D_WINSOCK_MAJOR_VERSION 2
+ #define G3D_WINSOCK_MINOR_VERSION 0
+ 
+-#ifndef _MSC_VER
++#if !defined(_MSC_VER) && !defined(__fastcall)
+ /// Fast call is a register-based optimized calling convention supported only by Visual C++
+ #define __fastcall
+ #endif
