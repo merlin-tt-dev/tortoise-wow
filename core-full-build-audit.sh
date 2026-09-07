@@ -17,6 +17,9 @@ BUILD_TYPE="${BUILD_TYPE:-Debug}"
 ACE_PREFIX="${ACE_ROOT:-/usr}"
 USE_CCACHE="${USE_CCACHE:-auto}"
 CCACHE_BIN="${CCACHE_BIN:-}"
+NINJA_VERBOSE="${NINJA_VERBOSE:-off}"
+NINJA_STATS="${NINJA_STATS:-on}"
+NINJA_STATUS_FORMAT="${NINJA_STATUS_FORMAT:-[%f/%t %p | %e sec | %r running | %o edges/s] }"
 
 if [[ ! -f "$ROOT/CMakeLists.txt" ]]; then
     echo "ERROR: run this from the tortoise-wow repository root (or set ROOT=/path/to/tortoise-wow)." >&2
@@ -35,6 +38,24 @@ case "$USE_CCACHE" in
         ;;
     *)
         echo "ERROR: USE_CCACHE must be one of: auto, on, off." >&2
+        exit 2
+        ;;
+esac
+
+case "$NINJA_VERBOSE" in
+    on|off)
+        ;;
+    *)
+        echo "ERROR: NINJA_VERBOSE must be one of: on, off." >&2
+        exit 2
+        ;;
+esac
+
+case "$NINJA_STATS" in
+    on|off)
+        ;;
+    *)
+        echo "ERROR: NINJA_STATS must be one of: on, off." >&2
         exit 2
         ;;
 esac
@@ -93,6 +114,9 @@ printf 'Build type : %s\n' "$BUILD_TYPE"
 printf 'CPUs       : %s logical\n' "$NPROC"
 printf 'Ninja jobs : %s (<=80%%)\n' "$JOBS"
 printf 'Scope      : full Core + scripts + Discord/DPP; repository modules disabled; PCH OFF\n'
+printf 'Ninja stats: %s\n' "$NINJA_STATS"
+printf 'Ninja verbose: %s\n' "$NINJA_VERBOSE"
+printf 'Ninja status: %s\n' "$NINJA_STATUS_FORMAT"
 if [[ -n "$CCACHE_BIN" && "$USE_CCACHE" != "off" ]]; then
     printf 'C/C++ cache : %s\n' "$("$CCACHE_BIN" --version | head -n 1)"
 else
@@ -148,8 +172,22 @@ run_ninja() {
     fi
 }
 
+NINJA_ARGS=(
+    -C "$BUILD_DIR"
+    -j"$JOBS"
+    -k0
+)
+
+if [[ "$NINJA_STATS" == "on" ]]; then
+    NINJA_ARGS+=( -d stats )
+fi
+
+if [[ "$NINJA_VERBOSE" == "on" ]]; then
+    NINJA_ARGS+=( -v )
+fi
+
 set +e
-run_ninja -C "$BUILD_DIR" -j"$JOBS" -k0 \
+NINJA_STATUS="$NINJA_STATUS_FORMAT" run_ninja "${NINJA_ARGS[@]}" \
     2>&1 | tee "$LOG"
 status=${PIPESTATUS[0]}
 set -e
