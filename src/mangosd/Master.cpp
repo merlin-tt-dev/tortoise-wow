@@ -58,6 +58,10 @@
 #include <ace/Dev_Poll_Reactor.h>
 #include <signal.h>
 
+#ifdef __MINGW32__
+#include <process.h>
+#endif
+
 #include "ace/MMAP_Memory_Pool.h"
 #include "ace/Shared_Memory_MM.h"
 #include "ace/ACE.h"
@@ -383,7 +387,11 @@ int Master::Run()
 	sWorld.InternalShutdown();
 
     uint8 exitCode = World::GetExitCode();
+#ifdef __MINGW32__
+    _exit(exitCode);
+#else
     std::quick_exit(exitCode);
+#endif
     return exitCode;
 }
 

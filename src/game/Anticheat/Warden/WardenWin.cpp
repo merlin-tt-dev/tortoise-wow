@@ -103,7 +103,7 @@ uint32 WardenWin::GetSharedDataFieldOffset(SharedDataField field)
     {
         {SharedDataField::TimeZoneBias, 
             {
-                {OsVersion::WindowsXP, }
+                {OsVersion::XP, }
             }
         },
 
@@ -116,15 +116,15 @@ std::string OsVersionToString(OsVersion version)
     {
     case OsVersion::None:
         return "None";
-    case OsVersion::WindowsXP:
+    case OsVersion::XP:
         return "WinXP";
-    case OsVersion::Windows7:
+    case OsVersion::Win7:
         return "Win7";
-    case OsVersion::Windows8:
+    case OsVersion::Win8:
         return "Win8";
-    case OsVersion::WindowsVista:
+    case OsVersion::Vista:
         return "Vista";
-    case OsVersion::Windows10AndUp:
+    case OsVersion::Win10AndUp:
         return "Win10Up";
     default:
         return "<Unknown>";
@@ -136,23 +136,23 @@ void WardenWin::SetOSVersion()
     //expects _minor and _major version to be here.
     if (_majorVersion == 5)
     {
-        _osVersion = OsVersion::WindowsXP;
+        _osVersion = OsVersion::XP;
     }
 
     if (_majorVersion == 6)
     {
         if (_minorVersion == 0)
-            _osVersion = OsVersion::WindowsVista;
+            _osVersion = OsVersion::Vista;
 
         if (_minorVersion == 1)
-            _osVersion = OsVersion::Windows7;
+            _osVersion = OsVersion::Win7;
 
         if (_minorVersion == 2 || _minorVersion == 3)
-            _osVersion = OsVersion::Windows8;
+            _osVersion = OsVersion::Win8;
     }
 
     if (_majorVersion >= 10)
-        _osVersion = OsVersion::Windows10AndUp;
+        _osVersion = OsVersion::Win10AndUp;
 }
 
 
@@ -166,7 +166,7 @@ struct AIT_SAMPLING_PART
 
 template <OsVersion Version>
 struct AIT_SAMPLING_PART<Version, typename std::enable_if_t<
-    ((Version) >= OsVersion::WindowsVista)>>
+    ((Version) >= OsVersion::Vista)>>
 {
     ULONG                         AitSamplingValue;
     ULONG                         AppCompatFlag;
@@ -183,28 +183,28 @@ struct BUILDNUMBER_PART
 
 template <OsVersion Version>
 struct BUILDNUMBER_PART<Version, typename std::enable_if_t<
-    ((Version) == OsVersion::WindowsXP)>>
+    ((Version) == OsVersion::XP)>>
 {
     ULONG                         Reserved2[8];
 };
 
 template <OsVersion Version>
 struct BUILDNUMBER_PART<Version, typename std::enable_if_t<
-    ((Version) == OsVersion::WindowsVista || Version == OsVersion::Windows7)>>
+    ((Version) == OsVersion::Vista || Version == OsVersion::Win7)>>
 {
     ULONG                         Reserved2[7];
 };
 
 template <OsVersion Version>
 struct BUILDNUMBER_PART<Version, typename std::enable_if_t<
-    ((Version) == OsVersion::Windows8)>>
+    ((Version) == OsVersion::Win8)>>
 {
     ULONG                         Reserved2;
 };
 
 template <OsVersion Version>
 struct BUILDNUMBER_PART<Version, typename std::enable_if_t<
-    ((Version) == OsVersion::Windows10AndUp)>>
+    ((Version) == OsVersion::Win10AndUp)>>
 {
     ULONG                         NtBuildNumber;
 };
@@ -218,7 +218,7 @@ struct TSC_PART
 
 template <OsVersion Version>
 struct TSC_PART<Version, typename std::enable_if_t<
-    (Version == OsVersion::Windows7)>>
+    (Version == OsVersion::Win7)>>
 {
     union {
         UCHAR TscQpcData;
@@ -232,7 +232,7 @@ struct TSC_PART<Version, typename std::enable_if_t<
 
 template <OsVersion Version>
 struct TSC_PART<Version, typename std::enable_if_t<
-    ((Version) == OsVersion::Windows10AndUp)>>
+    ((Version) == OsVersion::Win10AndUp)>>
 {
     UCHAR VirtualizationFlags;
 };
@@ -246,14 +246,14 @@ struct TSC_PART_2
 
 template <OsVersion Version>
 struct TSC_PART_2<Version, typename std::enable_if_t<
-    (Version == OsVersion::Windows7 || Version == OsVersion::Windows10AndUp)>>
+    (Version == OsVersion::Win7 || Version == OsVersion::Win10AndUp)>>
 {
     UCHAR TscQpcPad[2];
 };
 
 template <OsVersion Version>
 struct TSC_PART_2<Version, typename std::enable_if_t<
-    ((Version) == OsVersion::Windows8)>>
+    ((Version) == OsVersion::Win8)>>
 {
     UCHAR Reserved12[3];
 };
@@ -266,14 +266,14 @@ struct TRACELOG_PART
 
 template <OsVersion Version>
 struct TRACELOG_PART<Version, typename std::enable_if_t<
-    (Version == OsVersion::WindowsXP)>>
+    (Version == OsVersion::XP)>>
 {
     ULONG TraceLogging;
 };
 
 template <OsVersion Version>
 struct TRACELOG_PART<Version, typename std::enable_if_t<
-    ((Version) >= OsVersion::WindowsVista)>>
+    ((Version) >= OsVersion::Vista)>>
 {
     ULONG SharedDataFlags;
 };
@@ -287,7 +287,7 @@ struct PAD_PART_1
 
 template <OsVersion Version>
 struct PAD_PART_1<Version, typename std::enable_if_t<
-    (Version >= OsVersion::Windows7)>>
+    (Version >= OsVersion::Win7)>>
 {
     ULONG DataFlagsPad[1];
 };
@@ -301,7 +301,7 @@ struct QPC_SYSTEM_TIME
 
 template <OsVersion Version>
 struct QPC_SYSTEM_TIME<Version, typename std::enable_if_t<
-    (Version == OsVersion::Windows8)>>
+    (Version == OsVersion::Win8)>>
 {
     ULONG QpcSystemTimeIncrement32;
     ULONG QpcInterruptTimeIncrement32;

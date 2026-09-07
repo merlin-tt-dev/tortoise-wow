@@ -12,6 +12,10 @@
 #include "G3D/debugAssert.h"
 #include "G3D/GMutex.h"
 
+#if defined(__MINGW32__) && !defined(_WIN64)
+#include <seh.h>
+#endif
+
 namespace G3D {
 
 namespace _internal {
@@ -91,11 +95,11 @@ typedef struct tagTHREADNAME_INFO {
 } THREADNAME_INFO;
 #pragma pack(pop)
 
-#ifdef __MINGW32__
-#include <seh.h>
-#endif
-
 static void SetThreadName(DWORD dwThreadID, const char* threadName) {
+#if defined(__MINGW32__) && defined(_WIN64)
+    (void)dwThreadID;
+    (void)threadName;
+#else
     THREADNAME_INFO info;
     info.dwType = 0x1000;
     info.szName = threadName;
@@ -113,6 +117,7 @@ static void SetThreadName(DWORD dwThreadID, const char* threadName) {
         RaiseException( MS_VC_EXCEPTION, 0, sizeof(info)/sizeof(ULONG_PTR), (ULONG_PTR*)&info );
     }
     __except(EXCEPTION_EXECUTE_HANDLER) {}
+#endif
 #endif
 }
 #endif

@@ -138,11 +138,11 @@ struct SharedDataCompact
 enum class OsVersion
 {
     None = 0,
-    WindowsXP,
-    WindowsVista,
-    Windows7,
-    Windows8,
-    Windows10AndUp
+    XP,
+    Vista,
+    Win7,
+    Win8,
+    Win10AndUp
 };
 
 
