@@ -75,6 +75,7 @@
 #include "PlayerDump.h"
 #include "revision.h"
 #include "Auth/base32.h"
+#include <cmath>
 #include <cctype>
 #include <cstring>
 #include <fstream>
@@ -10101,6 +10102,100 @@ bool ChatHandler::HandleGameObjectRespawnCommand(char*)
     return true;
 }
 
+bool ChatHandler::HandleGameObjectSetSpawnFlagsCommand(char* args)
+{
+    uint32 spawnFlags;
+    if (!ExtractUInt32(&args, spawnFlags))
+        return false;
+
+    GameObject* go = getSelectedGameObject();
+    if (!go)
+    {
+        SendSysMessage(LANG_COMMAND_NOGAMEOBJECTFOUND);
+        SetSentErrorMessage(true);
+        return false;
+    }
+
+    // ACTIVE is the spawn flag with an immediate runtime representation.
+    // Other spawn flag bits are persisted for the next normal load/respawn.
+    go->SetActiveObjectState((spawnFlags & SPAWN_FLAG_ACTIVE) != 0);
+
+    if (go->HasStaticDBSpawnData())
+    {
+        uint32 const guid = go->GetDBTableGUIDLow();
+
+        sWorld.GetMigration().SetAuthor(m_session->GetUsername());
+        sWorld.ExecuteUpdate(
+            "UPDATE `gameobject` SET `spawn_flags` = %u WHERE `guid` = %u",
+            spawnFlags, guid);
+
+        // Keep ObjectMgr's already-loaded spawn cache coherent with the DB.
+        sObjectMgr.NewGOData(guid).spawn_flags = spawnFlags;
+
+        PSendSysMessage(
+            "GameObject %u (Entry %u, %s): spawn_flags = %u (ACTIVE=%s).",
+            guid, go->GetEntry(), go->GetName(), spawnFlags,
+            (spawnFlags & SPAWN_FLAG_ACTIVE) ? "on" : "off");
+    }
+    else
+    {
+        PSendSysMessage(
+            "Temporary GameObject %u (Entry %u, %s): ACTIVE=%s (runtime only; no gameobject DB row).",
+            go->GetGUIDLow(), go->GetEntry(), go->GetName(),
+            (spawnFlags & SPAWN_FLAG_ACTIVE) ? "on" : "off");
+    }
+
+    go->UpdateObjectVisibility();
+    return true;
+}
+
+bool ChatHandler::HandleGameObjectSetVisibilityCommand(char* args)
+{
+    float visibility;
+    if (!ExtractFloat(&args, visibility) || !std::isfinite(visibility) || visibility < 0.0f)
+    {
+        SendSysMessage("Visibility must be a finite value greater than or equal to 0.");
+        SetSentErrorMessage(true);
+        return false;
+    }
+
+    GameObject* go = getSelectedGameObject();
+    if (!go)
+    {
+        SendSysMessage(LANG_COMMAND_NOGAMEOBJECTFOUND);
+        SetSentErrorMessage(true);
+        return false;
+    }
+
+    go->SetVisibilityModifier(visibility);
+
+    if (go->HasStaticDBSpawnData())
+    {
+        uint32 const guid = go->GetDBTableGUIDLow();
+
+        sWorld.GetMigration().SetAuthor(m_session->GetUsername());
+        sWorld.ExecuteUpdate(
+            "UPDATE `gameobject` SET `visibility_mod` = %f WHERE `guid` = %u",
+            visibility, guid);
+
+        // Keep ObjectMgr's already-loaded spawn cache coherent with the DB.
+        sObjectMgr.NewGOData(guid).visibility_mod = visibility;
+
+        PSendSysMessage(
+            "GameObject %u (Entry %u, %s): visibility_mod = %.2f.",
+            guid, go->GetEntry(), go->GetName(), visibility);
+    }
+    else
+    {
+        PSendSysMessage(
+            "Temporary GameObject %u (Entry %u, %s): visibility_mod = %.2f (runtime only; no gameobject DB row).",
+            go->GetGUIDLow(), go->GetEntry(), go->GetName(), visibility);
+    }
+
+    go->UpdateObjectVisibility();
+    return true;
+}
+
 bool ChatHandler::HandleGameObjectSetGoStateCommand(char* args)
 {
     // number or [name] Shift-click form |color|Hgameobject:go_id|h[name]|h|r
@@ -13460,7 +13555,20 @@ bool ChatHandler::HandleGameObjectTempAddCommand(char* args)
     float rot2 = sin(ang / 2);
     float rot3 = cos(ang / 2);
 
-    return chr->SummonGameObject(id, x, y, z, ang, 0, 0, rot2, rot3, spawntm) != nullptr;
+    GameObject* gameObject = chr->SummonGameObject(id, x, y, z, ang, 0, 0, rot2, rot3, spawntm);
+    if (!gameObject)
+        return false;
+
+    // Keep temporary spawning temporary, but provide the same useful feedback
+    // as `.gobject add` (entry, name, runtime GUID and position).
+    PSendSysMessage(
+        LANG_GAMEOBJECT_ADD,
+        id,
+        gameObject->GetGOInfo()->name.c_str(),
+        gameObject->GetGUIDLow(),
+        x, y, z);
+
+    return true;
 }
 
 bool ChatHandler::HandleUpdateWorldStateCommand(char* args)

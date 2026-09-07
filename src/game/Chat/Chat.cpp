@@ -242,10 +242,16 @@ ChatCommand * ChatHandler::getCommandTable()
 
     static ChatCommand gobjectSetCommandTable[] =
     {
-        { "gostate",     SEC_DEVELOPER,         false, &ChatHandler::HandleGameObjectSetGoStateCommand,      "", nullptr },
-        { "lootstate",   SEC_DEVELOPER,         false, &ChatHandler::HandleGameObjectSetLootStateCommand,    "", nullptr },
-        { "respawntime", SEC_DEVELOPER,         false, &ChatHandler::HandleGameObjectSetRespawnTimeCommand,  "", nullptr },
-        { nullptr,          0,                  false, nullptr,                                              "", nullptr }
+        { "gostate",      SEC_DEVELOPER, false, &ChatHandler::HandleGameObjectSetGoStateCommand,      "", nullptr },
+        { "lootstate",    SEC_DEVELOPER, false, &ChatHandler::HandleGameObjectSetLootStateCommand,    "", nullptr },
+        { "respawntime",  SEC_DEVELOPER, false, &ChatHandler::HandleGameObjectSetRespawnTimeCommand,  "", nullptr },
+        { "spawn_flags",  SEC_DEVELOPER, false, &ChatHandler::HandleGameObjectSetSpawnFlagsCommand,
+          "Syntax: .gobject set spawn_flags <mask>. Sets gameobject.spawn_flags; ACTIVE bit is applied live.", nullptr },
+        { "spell_focus",  SEC_DEVELOPER, false, &ChatHandler::HandleGameObjectSetSpawnFlagsCommand,
+          "Compatibility alias for .gobject set spawn_flags.", nullptr },
+        { "visibility",   SEC_DEVELOPER, false, &ChatHandler::HandleGameObjectSetVisibilityCommand,
+          "Syntax: .gobject set visibility <distance>. May be abbreviated to .gobject set visi.", nullptr },
+        { nullptr,          0,             false, nullptr,                                                     "", nullptr }
     };
 
     static ChatCommand gobjectCommandTable[] =
