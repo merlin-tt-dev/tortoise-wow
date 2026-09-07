@@ -62,5 +62,5 @@
 #ifndef _WIN32
 	#define SOCKET int
 #else
-	#include <WinSock2.h>
+    #include <winsock2.h>
 #endif
