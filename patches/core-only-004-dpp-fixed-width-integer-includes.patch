@@ -1,0 +1,22 @@
+diff --git a/dep/dpp/dpp/sslclient.h b/dep/dpp/dpp/sslclient.h
+--- a/dep/dpp/dpp/sslclient.h
++++ b/dep/dpp/dpp/sslclient.h
+@@ -20,6 +20,7 @@
+ #pragma once
+ #include <dpp/export.h>
+ #include <dpp/misc-enum.h>
++#include <cstdint>
+ #include <string>
+ #include <functional>
+ #include <dpp/socket.h>
+diff --git a/dep/dpp/dpp/wsclient.h b/dep/dpp/dpp/wsclient.h
+--- a/dep/dpp/dpp/wsclient.h
++++ b/dep/dpp/dpp/wsclient.h
+@@ -20,6 +20,7 @@
+ #pragma once
+ #include <dpp/export.h>
++#include <cstdint>
+ #include <string>
+ #include <map>
+ #include <vector>
+ #include <variant>
