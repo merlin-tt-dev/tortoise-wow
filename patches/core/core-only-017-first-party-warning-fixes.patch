@@ -1,0 +1,227 @@
+diff --git a/src/game/Anticheat/AddonHandler.cpp b/src/game/Anticheat/AddonHandler.cpp
+index 89a61d3..d38e82c 100644
+--- a/src/game/Anticheat/AddonHandler.cpp
++++ b/src/game/Anticheat/AddonHandler.cpp
+@@ -77,7 +77,7 @@ struct AddonInfo
+ 
+ // each addon will give us one byte of the fingerprint.  this byte can not be 0x00, 0x01, or 0x02, as
+ // the client considers these as valid flags with behaviors we want to avoid (i.e. 0x02 = banned)
+-static constexpr char *sFingerprintAddons[] =
++static constexpr char const* sFingerprintAddons[] =
+ {
+     "Blizzard_BindingUI",
+     "Blizzard_InspectUI",
+diff --git a/src/game/Anticheat/Config.cpp b/src/game/Anticheat/Config.cpp
+index e9af55c..0dab46f 100644
+--- a/src/game/Anticheat/Config.cpp
++++ b/src/game/Anticheat/Config.cpp
+@@ -5,7 +5,7 @@
+ 
+ namespace
+ {
+-static constexpr char *sCheatTypeNames[] =
++static constexpr char const* sCheatTypeNames[] =
+ {
+     "WallClimb",
+     "WaterWalk",
+diff --git a/src/game/Battlegrounds/BattleGroundSV.cpp b/src/game/Battlegrounds/BattleGroundSV.cpp
+index 3a223ce..b5444a5 100644
+--- a/src/game/Battlegrounds/BattleGroundSV.cpp
++++ b/src/game/Battlegrounds/BattleGroundSV.cpp
+@@ -518,7 +518,7 @@ void BattleGroundSV::EventPlayerClickedOnFlag(Player* source, GameObject* /*targ
+             else
+                 SendMessage2ToAll(LANG_BG_SV_NODE_DEFENDED, CHAT_MSG_BG_SYSTEM_HORDE, source, GetTowerNameId(node));
+         }
+-        sound = (teamIndex == TEAM_ALLIANCE) ? BG_SV_SOUND_NODE_ASSAULTED_ALLIANCE : BG_SV_SOUND_NODE_ASSAULTED_HORDE;
++        sound = (teamIndex == BG_TEAM_ALLIANCE) ? BG_SV_SOUND_NODE_ASSAULTED_ALLIANCE : BG_SV_SOUND_NODE_ASSAULTED_HORDE;
+     }
+     // If node is occupied, change to enemy-contested
+     else
+@@ -539,7 +539,7 @@ void BattleGroundSV::EventPlayerClickedOnFlag(Player* source, GameObject* /*targ
+         else
+             SendMessage2ToAll(LANG_BG_AB_NODE_ASSAULTED, CHAT_MSG_BG_SYSTEM_HORDE, source, GetTowerNameId(node));
+ 
+-        sound = (teamIndex == TEAM_ALLIANCE) ? BG_SV_SOUND_NODE_ASSAULTED_ALLIANCE : BG_SV_SOUND_NODE_ASSAULTED_HORDE;
++        sound = (teamIndex == BG_TEAM_ALLIANCE) ? BG_SV_SOUND_NODE_ASSAULTED_ALLIANCE : BG_SV_SOUND_NODE_ASSAULTED_HORDE;
+     }
+ 
+     // If node is occupied again, send "X has taken the Y" msg.
+diff --git a/src/game/Commands/Commands.cpp b/src/game/Commands/Commands.cpp
+index c223706..112d1cc 100644
+--- a/src/game/Commands/Commands.cpp
++++ b/src/game/Commands/Commands.cpp
+@@ -19009,14 +19009,14 @@ bool ChatHandler::HandleAccountEmailCommand(char* args)
+     if (!oldEmail || !newEmail || !newEmail2)
+         return false;
+ 
+-    if (strcmp(oldEmail, newEmail) == NULL)
++    if (strcmp(oldEmail, newEmail) == 0)
+     {
+         SendSysMessage("New email must be different than old.");
+         SetSentErrorMessage(true);
+         return false;
+     }
+ 
+-    if (strcmp(newEmail, newEmail2) != NULL)
++    if (strcmp(newEmail, newEmail2) != 0)
+     {
+         SendSysMessage("Email confirmation doesn't match.");
+         SetSentErrorMessage(true);
+diff --git a/src/game/Spells/SpellEntry.cpp b/src/game/Spells/SpellEntry.cpp
+index feac0e2..60ba9fd 100644
+--- a/src/game/Spells/SpellEntry.cpp
++++ b/src/game/Spells/SpellEntry.cpp
+@@ -544,7 +544,7 @@ WeaponAttackType SpellEntry::GetWeaponAttackType() const
+     }
+ }
+ 
+-char* SpellEntry::GetIcon(uint32 ID) const
++char const* SpellEntry::GetIcon(uint32 ID) const
+ {
+     SpellIconEntry const *spellIconEntry = sSpellIconStore.LookupEntry(ID);
+     if (!spellIconEntry)
+diff --git a/src/game/Spells/SpellEntry.h b/src/game/Spells/SpellEntry.h
+index fecb5f1..1b730a0 100644
+--- a/src/game/Spells/SpellEntry.h
++++ b/src/game/Spells/SpellEntry.h
+@@ -1111,7 +1111,7 @@ public:
+     int32 GetMaxDuration() const;
+     int32 CalculateDuration(WorldObject const* caster = nullptr, Unit const* target = nullptr, AuraScript* auraScript = nullptr) const;
+     uint32 GetCastTime(WorldObject* caster, Spell* spell = nullptr) const;
+-    char* GetIcon(uint32 ID) const;
++    char const* GetIcon(uint32 ID) const;
+     uint32 GetCastTimeForBonus(DamageEffectType damagetype) const;
+     uint16 GetAuraMaxTicks() const;
+     WeaponAttackType GetWeaponAttackType() const;
+diff --git a/src/game/World.h b/src/game/World.h
+index ae32fca..72657df 100644
+--- a/src/game/World.h
++++ b/src/game/World.h
+@@ -1008,7 +1008,7 @@ class World
+             }
+             void operator()(Player* p)
+             {
+-                int32 loc_idx = p->GetSession()->GetSessionDbLocaleIndex();
++                int32 loc_idx = GetSessionDbLocaleIndex(p);
+                 uint32 cache_idx = loc_idx + 1;
+                 WorldPacketList* data_list;
+ 
+@@ -1026,10 +1026,22 @@ class World
+                     data_list = &i_data_cache[cache_idx];
+ 
+                 for (auto& i : *data_list)
+-                    p->SendDirectMessage(i);
++                    SendDirectMessage(p, i);
+             }
+ 
+         private:
++            template <typename PlayerType>
++            static int32 GetSessionDbLocaleIndex(PlayerType* player)
++            {
++                return player->GetSession()->GetSessionDbLocaleIndex();
++            }
++
++            template <typename PlayerType>
++            static void SendDirectMessage(PlayerType* player, WorldPacket* packet)
++            {
++                player->SendDirectMessage(packet);
++            }
++
+             Builder& i_builder;
+             std::vector<WorldPacketList> i_data_cache;
+             // 0 = default, i => i-1 locale index
+@@ -1040,6 +1052,11 @@ class World
+         template <typename F>
+         void SendWorldTextChecked(int32 string_id, F checker, ...)
+         {
++            auto isPlayerInWorld = [](auto* player)
++            {
++                return player->IsInWorld();
++            };
++
+             va_list ap;
+             va_start(ap, checker);
+ 
+@@ -1050,7 +1067,7 @@ class World
+                 if (WorldSession* session = itr.second)
+                 {
+                     Player* player = session->GetPlayer();
+-                    if (player && player->IsInWorld() && checker(player))
++                    if (player && isPlayerInWorld(player) && checker(player))
+                         wt_do(player);
+                 }
+             }
+diff --git a/src/scripts/dungeons/scarlet_citadel/boss_ardaeus.hpp b/src/scripts/dungeons/scarlet_citadel/boss_ardaeus.hpp
+index 961dbc1..3bf5c49 100644
+--- a/src/scripts/dungeons/scarlet_citadel/boss_ardaeus.hpp
++++ b/src/scripts/dungeons/scarlet_citadel/boss_ardaeus.hpp
+@@ -109,7 +109,7 @@ namespace nsArdaeus
+         ADMIRAL_BAERAN_WESTWIND
+     };
+ 
+-    const std::string [[nodiscard]] CombatNotification(const CombatNotifications& combatNotifications)
++    [[nodiscard]] const std::string CombatNotification(const CombatNotifications& combatNotifications)
+     {
+         switch (combatNotifications)
+         {
+diff --git a/src/scripts/dungeons/scarlet_citadel/boss_daelus.hpp b/src/scripts/dungeons/scarlet_citadel/boss_daelus.hpp
+index 8a6778d..4d953f6 100644
+--- a/src/scripts/dungeons/scarlet_citadel/boss_daelus.hpp
++++ b/src/scripts/dungeons/scarlet_citadel/boss_daelus.hpp
+@@ -88,7 +88,7 @@ namespace nsDaelus
+         LIFEDRAIN
+     };
+ 
+-    const std::string [[nodiscard]] CombatNotification(const CombatNotifications& combatNotifications)
++    [[nodiscard]] const std::string CombatNotification(const CombatNotifications& combatNotifications)
+     {
+         switch (combatNotifications)
+         {
+diff --git a/src/scripts/dungeons/scarlet_citadel/boss_mariella.hpp b/src/scripts/dungeons/scarlet_citadel/boss_mariella.hpp
+index 4137a52..b9833a7 100644
+--- a/src/scripts/dungeons/scarlet_citadel/boss_mariella.hpp
++++ b/src/scripts/dungeons/scarlet_citadel/boss_mariella.hpp
+@@ -97,7 +97,7 @@ namespace nsMariella
+         ACHIEVEMENT_FAILED
+     };
+ 
+-    const std::string [[nodiscard]] CombatNotification(const CombatNotifications& combatNotifications)
++    [[nodiscard]] const std::string CombatNotification(const CombatNotifications& combatNotifications)
+     {
+         switch (combatNotifications)
+         {
+@@ -155,7 +155,7 @@ namespace nsMariella
+         }
+     }
+ 
+-    const std::string [[nodiscard]] SayOnPlayersDeath(const uint8 uiRandomNumber)
++    [[nodiscard]] const std::string SayOnPlayersDeath(const uint8 uiRandomNumber)
+     {
+         switch (uiRandomNumber)
+         {
+diff --git a/src/shared/DiscordBot/AuthManager.cpp b/src/shared/DiscordBot/AuthManager.cpp
+index d50a5e5..50418c3 100644
+--- a/src/shared/DiscordBot/AuthManager.cpp
++++ b/src/shared/DiscordBot/AuthManager.cpp
+@@ -1,5 +1,3 @@
+-#pragma once
+-
+ #include "AuthManager.hpp"
+ #include "Util.h"
+ #include "Auth/Sha1.h"
+diff --git a/src/shared/Log.cpp b/src/shared/Log.cpp
+index 798454b..dae0b52 100644
+--- a/src/shared/Log.cpp
++++ b/src/shared/Log.cpp
+@@ -401,8 +401,10 @@ FILE* Log::openLogFile(char const* configFileName, char const* configTimeStampFl
+ 
+             };
+ 
++            constexpr int64 LOG_SPLIT_SIZE = 50LL * GB;
++
+             fseek(pFile, 0L, SEEK_END);
+-            if (ftell(pFile) > 50 * GB && !(configTimeStampFlag && sConfig.GetBoolDefault(configTimeStampFlag, false)))
++            if (ftell(pFile) > LOG_SPLIT_SIZE && !(configTimeStampFlag && sConfig.GetBoolDefault(configTimeStampFlag, false)))
+             {
+                 printf("splitting log file %s\n", configFileName);
+                 fclose(pFile);
