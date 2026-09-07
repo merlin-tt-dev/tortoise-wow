@@ -180,18 +180,30 @@ set_target_properties(${EXECUTABLE_NAME} PROPERTIES LINK_FLAGS
 
 install(TARGETS ${EXECUTABLE_NAME} DESTINATION ${BIN_DIR})
 install(FILES run-mangosd DESTINATION ${BIN_DIR})
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/mangosd.conf.dist.in ${CMAKE_CURRENT_BINARY_DIR}/mangosd.conf.dist)
+# Keep the historical monolithic template available under an explicit legacy
+# name, while the normal mangosd.conf.dist becomes the IncludeFile-based root.
+configure_file(
+  ${CMAKE_CURRENT_SOURCE_DIR}/mangosd.conf.dist.in
+  ${CMAKE_CURRENT_BINARY_DIR}/mangosd-legacy.conf.dist
+)
 
-# Keep the historical monolithic .dist file above, and additionally generate
-# a directly usable split bundle for the IncludeFile/ConfigFileActive config
-# semantics. The monolithic source remains the single source of truth.
 include(SplitMangosConfig)
 generate_mangos_split_config(
   ${CMAKE_CURRENT_SOURCE_DIR}/mangosd.conf.dist.in
-  ${CMAKE_CURRENT_BINARY_DIR}/config-dist
+  ${CMAKE_CURRENT_BINARY_DIR}/mangosd.conf.dist
+  ${CMAKE_CURRENT_BINARY_DIR}/mangosd.conf.d.dist
+  mangosd.conf.d
 )
 
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/mangosd.conf.dist DESTINATION ${CONF_DIR})
+install(FILES
+  ${CMAKE_CURRENT_BINARY_DIR}/mangosd.conf.dist
+  ${CMAKE_CURRENT_BINARY_DIR}/mangosd-legacy.conf.dist
+  DESTINATION ${CONF_DIR}
+)
+install(DIRECTORY
+  ${CMAKE_CURRENT_BINARY_DIR}/mangosd.conf.d.dist
+  DESTINATION ${CONF_DIR}
+)
 
 if(WIN32 AND MSVC)
   install(FILES ${CMAKE_CURRENT_BINARY_DIR}/\${BUILD_TYPE}/${EXECUTABLE_NAME}.pdb DESTINATION ${BIN_DIR} CONFIGURATIONS Debug)

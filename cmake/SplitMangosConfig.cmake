@@ -29,16 +29,16 @@ function(_mangos_config_bucket key out_var)
   set(${out_var} "${bucket}" PARENT_SCOPE)
 endfunction()
 
-function(generate_mangos_split_config input_file output_dir)
+function(generate_mangos_split_config input_file output_root output_fragment_dir runtime_fragment_dir)
   if(NOT EXISTS "${input_file}")
     message(FATAL_ERROR "mangos config split source does not exist: ${input_file}")
   endif()
 
   # Recreate the bundle so removed/renamed fragments cannot survive from an
   # older configure run.
-  file(REMOVE_RECURSE "${output_dir}")
-  set(fragment_dir "${output_dir}/mangosd.conf.d")
-  file(MAKE_DIRECTORY "${fragment_dir}")
+  file(REMOVE "${output_root}")
+  file(REMOVE_RECURSE "${output_fragment_dir}")
+  file(MAKE_DIRECTORY "${output_fragment_dir}")
 
   set(bucket_order CORE DATABASE NETWORK LOGGING GAMEPLAY RATES PVP MAPS SECURITY SERVICES)
   set(bucket_CORE     "10-core-runtime.conf")
@@ -49,7 +49,7 @@ function(generate_mangos_split_config input_file output_dir)
   set(bucket_RATES    "60-rates-economy.conf")
   set(bucket_PVP      "70-pvp-battlegrounds.conf")
   set(bucket_MAPS     "80-maps-visibility.conf")
-  set(bucket_SECURITY "90-security-anticheat.conf")
+  set(bucket_SECURITY "90-security.conf")
   set(bucket_SERVICES "95-services-custom.conf")
 
   foreach(bucket IN LISTS bucket_order)
@@ -92,32 +92,32 @@ function(generate_mangos_split_config input_file output_dir)
     set(content_${last_bucket} "${content_${last_bucket}}${pending}")
   endif()
 
-  file(MAKE_DIRECTORY "${output_dir}")
-  file(WRITE "${output_dir}/mangosd.conf"
-    "# Generated split mangosd configuration bundle.\n# Copy this file together with mangosd.conf.d/ to the server config directory.\n# IncludeFile directives are processed in this exact order.\n\n[MangosdConf]\n")
+  file(WRITE "${output_root}"
+    "# Generated split mangosd distribution root.\n# Copy this file to mangosd.conf and copy/rename mangosd.conf.d.dist/ to mangosd.conf.d/.\n# IncludeFile directives are processed in this exact order.\n\n[MangosdConf]\n")
 
   set(manifest "Generated split mangosd configuration\nSource: ${input_file}\nAssignments: ${total_assignments}\n\n")
 
   foreach(bucket IN LISTS bucket_order)
     if(count_${bucket} GREATER 0)
       set(fragment "${bucket_${bucket}}")
-      file(WRITE "${fragment_dir}/${fragment}" "${content_${bucket}}")
-      file(APPEND "${output_dir}/mangosd.conf" "IncludeFile = mangosd.conf.d/${fragment}\n")
+      file(WRITE "${output_fragment_dir}/${fragment}" "${content_${bucket}}")
+      file(APPEND "${output_root}" "IncludeFile = ${runtime_fragment_dir}/${fragment}\n")
       set(manifest "${manifest}${fragment}: ${count_${bucket}} assignments\n")
     endif()
   endforeach()
 
-  file(WRITE "${output_dir}/MANIFEST.txt" "${manifest}")
-  file(WRITE "${output_dir}/README.txt"
+  file(WRITE "${output_fragment_dir}/MANIFEST.txt" "${manifest}")
+  file(WRITE "${output_fragment_dir}/README.txt"
     "This directory is generated from src/mangosd/mangosd.conf.dist.in.\n\n"
     "Use:\n"
-    "  1. Copy mangosd.conf and mangosd.conf.d/ together to the runtime config directory.\n"
-    "  2. Edit values in the fragments.\n"
-    "  3. Set ConfigFileActive = 0 in a fragment to disable the whole fragment.\n"
-    "  4. Comment an IncludeFile line in mangosd.conf to disable that fragment from the root.\n\n"
-    "The legacy monolithic mangosd.conf.dist is still generated separately for compatibility.\n"
+    "  1. Copy mangosd.conf.dist to mangosd.conf in the runtime config directory.\n"
+    "  2. Copy/rename mangosd.conf.d.dist/ to mangosd.conf.d/.\n"
+    "  3. Edit values in the fragments.\n"
+    "  4. Set ConfigFileActive = 0 in a fragment to disable the whole fragment.\n"
+    "  5. Comment an IncludeFile line in mangosd.conf to disable that fragment from the root.\n\n"
+    "The historical monolithic configuration is generated separately as mangosd-legacy.conf.dist.\n"
     "Runtime duplicate-key warnings from the Core make accidental overrides visible.\n")
 
   message(STATUS
-    "Generated split mangosd config bundle at ${output_dir} (${total_assignments} assignments)")
+    "Generated split mangosd config: ${output_root} + ${output_fragment_dir} (${total_assignments} assignments)")
 endfunction()
