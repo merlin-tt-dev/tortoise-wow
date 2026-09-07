@@ -66,8 +66,6 @@
 # endif
 # define _MANGOSD_CONFIG  SYSCONFDIR "mangosd.conf"
 # define _REALMD_CONFIG   SYSCONFDIR "realmd.conf"
-# define _MODS_CONFIG     SYSCONFDIR "mods.conf"
-# define _RATE_CONFIG     SYSCONFDIR "rate.conf"
 #else
 # if defined  (__FreeBSD__)
 #  define _ENDIAN_PLATFORM "FreeBSD_" ARCHITECTURE " (" _ENDIAN_STRING ")"
@@ -86,8 +84,6 @@
 # endif
 # define _MANGOSD_CONFIG  SYSCONFDIR "mangosd.conf"
 # define _REALMD_CONFIG  SYSCONFDIR "realmd.conf"
-# define _MODS_CONFIG     SYSCONFDIR "mods.conf"
-# define _RATE_CONFIG     SYSCONFDIR "rate.conf"
 #endif
 
 #define _FULLVERSION REVISION_DATE
