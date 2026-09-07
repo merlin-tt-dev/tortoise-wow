@@ -1,0 +1,122 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -87,4 +87,7 @@
+ if(NOT MSVC)
+ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
+ endif()
++if(MINGW)
++  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wa,-mbig-obj")
++endif()
+ # Giperion: Set Edit and Continue by default for all windows debug builds
+diff --git a/src/realmd/CMakeLists.txt b/src/realmd/CMakeLists.txt
+--- a/src/realmd/CMakeLists.txt
++++ b/src/realmd/CMakeLists.txt
+@@ -33,5 +33,7 @@
+     realmd.rc
+   )
+ 
+-  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /D__ACE_INLINE__")
++  if(MSVC)
++    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /D__ACE_INLINE__")
++  endif()
+ endif()
+diff --git a/src/mangosd/CMakeLists.txt b/src/mangosd/CMakeLists.txt
+--- a/src/mangosd/CMakeLists.txt
++++ b/src/mangosd/CMakeLists.txt
+@@ -33,5 +33,7 @@
+     mangosd.rc
+   )
+ 
+-  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /D__ACE_INLINE__")
++  if(MSVC)
++    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /D__ACE_INLINE__")
++  endif()
+ endif()
+diff --git a/dep/src/g3dlite/GThread.cpp b/dep/src/g3dlite/GThread.cpp
+--- a/dep/src/g3dlite/GThread.cpp
++++ b/dep/src/g3dlite/GThread.cpp
+@@ -10,4 +10,8 @@
+ #include "G3D/debugAssert.h"
+ #include "G3D/GMutex.h"
+ 
++#if defined(__MINGW32__) && !defined(__WIN64__)
++#include <seh.h>
++#endif
++
+ namespace G3D {
+@@ -90,8 +94,10 @@
+-#ifdef __MINGW32__
+-#include <seh.h>
+-#endif
+-
+ static void SetThreadName(DWORD dwThreadID, const char* threadName) {
++#if defined(__MINGW32__) && defined(__WIN64__)
++    // The bundled libseh backend does not support MinGW64 SEH. Thread naming
++    // is diagnostic-only, so avoid raising an exception that cannot be caught.
++    (void)dwThreadID;
++    (void)threadName;
++#else
+     THREADNAME_INFO info;
+     info.dwType = 0x1000;
+     info.szName = threadName;
+@@ -101,7 +107,7 @@
+ #ifdef __MINGW32__
+     __seh_try {
+         RaiseException(MS_VC_EXCEPTION, 0, sizeof(info) / sizeof(ULONG_PTR), (ULONG_PTR*)&info);
+-    }   
++    }
+     __seh_except(EXCEPTION_EXECUTE_HANDLER) {}
+     __seh_end_except
+ #else
+@@ -110,4 +116,5 @@
+     }
+     __except(EXCEPTION_EXECUTE_HANDLER) {}
+ #endif
++#endif
+ }
+diff --git a/src/game/Anticheat/Warden/WardenWin.hpp b/src/game/Anticheat/Warden/WardenWin.hpp
+--- a/src/game/Anticheat/Warden/WardenWin.hpp
++++ b/src/game/Anticheat/Warden/WardenWin.hpp
+@@ -14,4 +14,21 @@
+ #include <vector>
++
++#ifdef __MINGW32__
++// mingw-w64 w32api exposes these names as version-number macros. They collide
++// with the scoped OsVersion enumerators below even when used as OsVersion::X.
++#  ifdef WindowsXP
++#    undef WindowsXP
++#  endif
++#  ifdef WindowsVista
++#    undef WindowsVista
++#  endif
++#  ifdef Windows7
++#    undef Windows7
++#  endif
++#  ifdef Windows8
++#    undef Windows8
++#  endif
++#endif
+ 
+ struct ChallengeResponseEntry;
+ class WorldSession;
+diff --git a/src/mangosd/Master.cpp b/src/mangosd/Master.cpp
+--- a/src/mangosd/Master.cpp
++++ b/src/mangosd/Master.cpp
+@@ -52,4 +52,8 @@
+ #include <ace/Dev_Poll_Reactor.h>
+ #include <signal.h>
+ 
++#ifdef __MINGW32__
++#include <process.h>
++#endif
++
+ #include "ace/MMAP_Memory_Pool.h"
+@@ -385,3 +389,7 @@
+     uint8 exitCode = World::GetExitCode();
++#ifdef __MINGW32__
++    _exit(exitCode);
++#else
+     std::quick_exit(exitCode);
++#endif
+     return exitCode;

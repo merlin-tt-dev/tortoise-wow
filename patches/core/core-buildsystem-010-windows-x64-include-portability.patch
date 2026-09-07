@@ -1,0 +1,178 @@
+diff --git a/dep/dpp/discordvoiceclient.cpp b/dep/dpp/discordvoiceclient.cpp
+--- a/dep/dpp/discordvoiceclient.cpp
++++ b/dep/dpp/discordvoiceclient.cpp
+@@ -21,7 +21,7 @@
+ #include <dpp/export.h>
+ #ifdef _WIN32
+-	#include <WinSock2.h>
+-	#include <WS2tcpip.h>
++    #include <winsock2.h>
++    #include <ws2tcpip.h>
+ 	#include <io.h>
+ #else
+ 	#include <unistd.h>
+diff --git a/dep/dpp/dpp/dns.h b/dep/dpp/dpp/dns.h
+--- a/dep/dpp/dpp/dns.h
++++ b/dep/dpp/dpp/dns.h
+@@ -21,7 +21,7 @@
+ #pragma once
+ #include <dpp/export.h>
+ #ifdef _WIN32
+-#include <WinSock2.h>
+-#include <WS2tcpip.h>
++#include <winsock2.h>
++#include <ws2tcpip.h>
+ #else
+ #include <netinet/in.h>
+diff --git a/dep/dpp/sslclient.cpp b/dep/dpp/sslclient.cpp
+--- a/dep/dpp/sslclient.cpp
++++ b/dep/dpp/sslclient.cpp
+@@ -21,7 +21,7 @@
+ #include <cerrno>
+ #ifdef _WIN32
+ 	/* Windows-specific sockets includes */
+-	#include <WinSock2.h>
+-	#include <WS2tcpip.h>
++    #include <winsock2.h>
++    #include <ws2tcpip.h>
+ 	#include <io.h>
+ 	/* Windows doesn't have standard poll(), it has WSAPoll.
+diff --git a/dep/dpp/discordclient.cpp b/dep/dpp/discordclient.cpp
+--- a/dep/dpp/discordclient.cpp
++++ b/dep/dpp/discordclient.cpp
+@@ -29,8 +29,8 @@
+ #include <dpp/etf.h>
+ #include <zlib.h>
+ #ifdef _WIN32
+-	#include <WinSock2.h>
+-	#include <WS2tcpip.h>
++    #include <winsock2.h>
++    #include <ws2tcpip.h>
+ 	#include <io.h>
+ #else
+ 	#include <unistd.h>
+diff --git a/dep/dpp/wsclient.cpp b/dep/dpp/wsclient.cpp
+--- a/dep/dpp/wsclient.cpp
++++ b/dep/dpp/wsclient.cpp
+@@ -20,5 +20,6 @@
+ #include <string>
+ #include <iostream>
+ #include <fstream>
++#include <ctime>
+ #include <dpp/wsclient.h>
+ #include <dpp/utility.h>
+diff --git a/src/shared/Util.cpp b/src/shared/Util.cpp
+--- a/src/shared/Util.cpp
++++ b/src/shared/Util.cpp
+@@ -755,6 +755,6 @@
+ #ifdef WIN32
+ #include <windows.h>
+-#include <VersionHelpers.h>
+-#include <Psapi.h>
++#include <versionhelpers.h>
++#include <psapi.h>
+ 
+ bool Win10SupportNewThreadNameInit = false;
+diff --git a/dep/src/g3dlite/System.cpp b/dep/src/g3dlite/System.cpp
+--- a/dep/src/g3dlite/System.cpp
++++ b/dep/src/g3dlite/System.cpp
+@@ -44,5 +44,5 @@
+ #   include <sys/timeb.h>
+ #   include "G3D/RegistryUtil.h"
+-#include <Ole2.h>
++#include <ole2.h>
+ #ifdef _MSC_VER
+ #include <intrin.h>
+diff --git a/src/game/CMakeLists.txt b/src/game/CMakeLists.txt
+--- a/src/game/CMakeLists.txt
++++ b/src/game/CMakeLists.txt
+@@ -451,6 +451,7 @@
+   ${TBB_INCLUDE_DIRS}
+   ${ACE_INCLUDE_DIR}
+   ${OPENSSL_INCLUDE_DIR}
++  ${ZLIB_INCLUDE_DIRS}
+ )
+ 
+ if(WIN32)
+diff --git a/src/game/Handlers/AddonHandler.cpp b/src/game/Handlers/AddonHandler.cpp
+--- a/src/game/Handlers/AddonHandler.cpp
++++ b/src/game/Handlers/AddonHandler.cpp
+@@ -25,10 +25,6 @@
+ #include "Log.h"
+ #include "Policies/SingletonImp.h"
+ 
+-#ifdef WIN32
+-#include "..\\zlib\\zlib.h"
+-#else
+ #include "zlib.h"
+-#endif
+ 
+ AddonHandler sAddOnHandler;
+diff --git a/src/game/Handlers/MiscHandler.cpp b/src/game/Handlers/MiscHandler.cpp
+--- a/src/game/Handlers/MiscHandler.cpp
++++ b/src/game/Handlers/MiscHandler.cpp
+@@ -51,10 +51,6 @@
+ #include "Anticheat/Warden/Warden.hpp"
+ #include "TWDebuff/TWDebuff.hpp"
+ 
+-#ifdef WIN32
+-#include "..\\zlib\\zlib.h"
+-#else
+ #include "zlib.h"
+-#endif
+ 
+ void WorldSession::HandleRepopRequestOpcode(WorldPacket & /*recv_data*/)
+diff --git a/src/game/Anticheat/Warden/Warden.cpp b/src/game/Anticheat/Warden/Warden.cpp
+--- a/src/game/Anticheat/Warden/Warden.cpp
++++ b/src/game/Anticheat/Warden/Warden.cpp
+@@ -29,11 +29,7 @@
+ #include <openssl/md5.h>
+ #include <openssl/sha.h>
+ 
+-#ifdef WIN32
+-#include "..\\zlib\\zlib.h"
+-#else
+ #include "zlib.h"
+-#endif
+ 
+ #include <algorithm>
+ #include <memory>
+diff --git a/src/game/Anticheat/Warden/WardenModule.cpp b/src/game/Anticheat/Warden/WardenModule.cpp
+--- a/src/game/Anticheat/Warden/WardenModule.cpp
++++ b/src/game/Anticheat/Warden/WardenModule.cpp
+@@ -10,11 +10,7 @@
+ 
+ #include "Platform/Define.h"
+ #include "Auth/ARC4.h"
+-#ifdef WIN32
+-#include "..\\zlib\\zlib.h"
+-#else
+ #include "zlib.h"
+-#endif
+ 
+ #include <openssl/md5.h>
+ 
+diff --git a/src/game/Anticheat/AddonHandler.cpp b/src/game/Anticheat/AddonHandler.cpp
+--- a/src/game/Anticheat/AddonHandler.cpp
++++ b/src/game/Anticheat/AddonHandler.cpp
+@@ -11,11 +11,7 @@
+ #include "Util.h"
+ #include "Database/DatabaseImpl.h"
+ #include "Database/DatabaseEnv.h"
+-#ifdef WIN32
+-#include "..\\zlib\\zlib.h"
+-#else
+ #include "zlib.h"
+-#endif
+ 
+ #include <memory>
+ 
+diff --git a/src/game/Anticheat/Warden/WardenModule.hpp b/src/game/Anticheat/Warden/WardenModule.hpp
+--- a/src/game/Anticheat/Warden/WardenModule.hpp
++++ b/src/game/Anticheat/Warden/WardenModule.hpp
+@@ -10,4 +10,5 @@
+ #include "Platform/Define.h"
+ 
++#include <cstdint>
+ #include <string>
+ #include <vector>
