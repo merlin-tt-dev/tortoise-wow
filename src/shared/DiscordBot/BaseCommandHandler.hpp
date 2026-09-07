@@ -9,7 +9,7 @@
 #include <stdint.h>
 #include <type_traits>
 
-#define DISCORD_DEBUG false
+#define DISCORD_DEBUG 0
 
 namespace DiscordBot
 {

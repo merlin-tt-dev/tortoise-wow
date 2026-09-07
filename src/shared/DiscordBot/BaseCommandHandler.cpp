@@ -36,7 +36,7 @@ namespace DiscordBot
 
     bool BaseCommandHandler::CheckAllowedAccess(const dpp::user* user, std::string command)
     {
-#ifdef DISCORD_DEBUG
+#if DISCORD_DEBUG
         return true;
 #endif
 
@@ -77,6 +77,12 @@ namespace DiscordBot
                     std::stringstream ss(messageContent);
                     std::string command;
                     ss >> command;
+
+                    // Command links are stored without the DPP text-command prefix.
+                    if (!command.empty() && (command.front() == '.' || command.front() == '/'))
+                        command.erase(command.begin());
+                    command = lowercase(command);
+
                     if (CheckAllowedAccess(&event.msg.author, command))
                         _commandHandler->route(event);
                     else
