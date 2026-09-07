@@ -1,8 +1,12 @@
-# NOTE:
+# SAFE MONITORING PROFILE
 #
-#   This file is intended to be used in a setting where the anticheat should run
-#   purely in a read-only mode.  It will do all of its tasks, but take no action,
-#   aside from sending out notifications.  It is intended for testing purposes.
+#   This file is the distribution profile for the built-in anticheat. Movement
+#   detectors are configured for informational logging only. Warden is disabled
+#   by default until its classic-client-specific protocol, modules and memory
+#   offsets have been validated against the Turtle 1.18.1 client.
+#
+#   Do not enable Warden enforcement on a production realm merely by changing
+#   the response masks. Validate the Warden-specific end-test checklist first.
 
 [AnticheatConf]
 ConfVersion=2017102301
@@ -321,9 +325,13 @@ Antispam.RepetitionMovementTimeout = 60
 #
 ################################
 
-# Similar to the overall anticheat, if Warden is disabled, it will not be initialized when a world session is created.
-# Changing this setting will have no effect on pre-existing world sessions.
-Warden.Enable = 1
+# Warden is intentionally OFF in the distributed safe profile. When disabled,
+# no Warden object is created for new world sessions; character enumeration is
+# sent directly and unsolicited Warden packets are ignored. Existing sessions
+# keep the state they were created with, so reconnect/restart after changing it.
+#
+# Keep this at 0 until the Turtle 1.18.1 Warden compatibility checklist passes.
+Warden.Enable = 0
 
 # Directory where Warden modules can be found
 Warden.ModuleDir = "warden_modules"

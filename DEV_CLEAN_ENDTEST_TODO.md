@@ -10,6 +10,9 @@
 | --- | --- | --- |
 | core-buildsystem-001 Revision-Header im Build-Tree | eingebaut | ausstehend |
 | core-buildsystem-002 DPP/OpenSSL Debug-Linkage | eingebaut | ausstehend |
+| core-buildsystem-003 Split mangosd Config Build Output | eingebaut | Build-/Config-Audit |
+| core-buildsystem-004 Final Config Dist Layout | eingebaut | Build-/Install-Audit |
+| core-buildsystem-005 Package Anticheat Config Dist | eingebaut | Build-/Runtime-Audit |
 | core-only-001 Chat Channel Loaded ID | eingebaut | ausstehend |
 | core-only-002 Chat Channel Name Match | eingebaut | ausstehend |
 | core-only-003 LFT ObjectGuid Include | eingebaut | Build-Audit |
@@ -20,6 +23,12 @@
 | core-only-008 Discord GM Commands Reactivation/Hardening | eingebaut | Runtime ausstehend |
 | core-only-009 Model-Bounds GameObject Visibility | eingebaut | Runtime ausstehend |
 | core-only-010 GObject Live Visibility/Spawn Commands + tmpadd Output | eingebaut | Runtime ausstehend |
+| core-only-011 Restore Battleground Queue Locking | eingebaut | Build-/Threading-Runtime ausstehend |
+| core-only-012 Config IncludeDir | eingebaut | Runtime ausstehend |
+| core-only-013 Config Multi-Include / Active Switch / Duplicate Warnings | eingebaut | Runtime ausstehend |
+| core-only-014 Config Dist Audit Cleanup | eingebaut | Config-/Runtime-Audit ausstehend |
+| core-only-015 Anticheat Config Audit Fixes | eingebaut | Runtime ausstehend |
+| core-only-016 Warden Enable Safety Gate | eingebaut | Build-/Runtime ausstehend |
 
 **Wichtig:** „eingebaut“ bedeutet nur, dass der Source-Stand materialisiert ist. Kein Punkt gilt dadurch als runtime-getestet.
 
@@ -120,6 +129,49 @@ Prüfen:
 - [ ] keine neuen Fehler beim Map-/Grid-Unload während Shutdown.
 
 **PASS:** mehrfacher Start/Stop ohne State-Leak oder Crash.
+
+## A6. Anticheat / Warden Safe Baseline – core-only-015 / 016 + buildsystem-005
+
+Sicherer Ausgangszustand für Turtle 1.18.1: das allgemeine Anticheat darf im Monitoring-Modus laufen; Warden bleibt deaktiviert, bis seine clientabhängigen Teile separat validiert sind.
+
+### A6.1 Distribution / Startzustand
+
+- [ ] Build erzeugt `anticheat.conf.dist`.
+- [ ] ausgelieferte Dist enthält `Enable = 1`.
+- [ ] ausgelieferte Dist enthält `Warden.Enable = 0`.
+- [ ] Movement-Response-Actions im Safe-Profil sind nur `INFO_LOG` oder `NONE`; kein automatischer Kick/Ban durch die Dist-Defaults.
+- [ ] `mangosd` startet mit kopierter `anticheat.conf.dist` als `anticheat.conf` ohne Configfehler.
+
+### A6.2 Warden wirklich deaktiviert
+
+Mit `Warden.Enable = 0`:
+
+- [ ] normale Turtle-1.18.1-Anmeldung funktioniert bis Charakterauswahl.
+- [ ] Charakterliste wird ohne Warden-Handshake unmittelbar gesendet.
+- [ ] Charakter kann die Welt betreten.
+- [ ] normale Bewegung erzeugt keinen Warden-Kick.
+- [ ] eingehendes `CMSG_WARDEN_DATA` ohne Warden-Session wird ignoriert und verursacht weder Kick noch Crash.
+- [ ] kein Warden-Challenge-/Modul-Handshake wird für die Session erzeugt.
+- [ ] Movement/Fingerprint/Antispam bleiben unabhängig von Warden funktionsfähig.
+- [ ] mindestens ein Reconnect bestätigt, dass der neue Sessionzustand reproduzierbar ist.
+
+**PASS Safe Baseline:** Warden kann vollständig aus dem Client-Sessionpfad genommen werden, ohne Login, Character-Enum oder restliches Anticheat zu beschädigen.
+
+### A6.3 Vor einer späteren Warden-Aktivierung zwingend offen
+
+Diese Punkte sind **kein Bestandteil von core-only-016** und müssen separat auditiert/hardened werden:
+
+- [ ] tatsächliche Turtle-1.18.1-Client-/World-Build-Semantik dokumentieren (`realmd` 7272 vs. WorldSession/Warden-Buildpfad 5875).
+- [ ] alle festen Windows-Warden-Memory-/Code-Offsets gegen den real verwendeten Turtle-1.18.1-Client validieren.
+- [ ] vorhandene Warden-Module (`.bin/.key/.cr`) und deren Protokollkompatibilität mit Turtle 1.18.1 validieren; keine Module nur aufgrund alter Classic-Kompatibilität aktivieren.
+- [ ] alle direkten `KickPlayer()`-Pfade im Warden-Protokoll einzeln klassifizieren: Challenge, Checksum, unbekanntes Opcode, Module-Failure, unsupported Build/OS.
+- [ ] Warden-Protokollfehler standardmäßig fail-open/log-only machen oder hinter eine explizite Enforcement-Option stellen.
+- [ ] unsupported/unerwarteter Client-Build darf nicht allein durch Versionsdrift einen Massenkick verursachen.
+- [ ] Character-Enum bleibt auch bei fehlendem/inkompatiblem Warden-Modul fail-open.
+- [ ] malformed Warden-Pakete, Timeout und Challenge-Fehler mit Testclient gezielt prüfen.
+- [ ] Windows- und gegebenenfalls Mac-Pfad getrennt testen.
+- [ ] Reload-Semantik von `Warden.Enable` dokumentieren und testen; bestehende Sessions dürfen keinen inkonsistenten Zwischenzustand erhalten.
+- [ ] erst nach diesen Punkten Warden auf einem Testrealm aktivieren; Enforcement erst nach sauberem Monitorlauf.
 
 ---
 
@@ -359,6 +411,7 @@ Erst abhaken, wenn alle für `dev-clean` relevanten Blöcke bestanden sind:
 - [ ] Discord Runtime/Security grün oder bewusst als nicht verwendetes optionales Feature mit dokumentiertem Zustand akzeptiert.
 - [ ] Large-WMO-Visibility grün.
 - [ ] GObject-Commands grün.
+- [ ] Anticheat Safe Baseline grün; Warden bleibt deaktiviert oder ist separat vollständig gegen Turtle 1.18.1 validiert.
 - [ ] Repository-Hygiene grün.
 - [ ] finaler Test-SHA dokumentiert.
 
@@ -368,6 +421,7 @@ Erst abhaken, wenn alle für `dev-clean` relevanten Blöcke bestanden sind:
 - `.gobject set spell_focus` ist Alias für `spawn_flags`, nicht der SpellFocus-Templatewert.
 - `.gobject tmpadd` meldet eine Runtime-GUID und erzeugt keine DB-GUID.
 - ein kalter `ccache` darf beim ersten Build fast nur Misses zeigen.
+- `Warden.Enable = 0` ist der erwartete sichere Default, solange die Turtle-1.18.1-spezifische Warden-Kompatibilität nicht vollständig validiert ist.
 - `core-only-007` kann nicht isoliert gegen den bereits von `008` weiterveränderten finalen Tree rückwärts geprüft werden; für einen echten Reverse-Test zuerst spätere Patches tatsächlich rückwärts anwenden.
 
 ---

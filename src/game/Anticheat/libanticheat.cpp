@@ -45,6 +45,9 @@ namespace
 {
 Warden *CreateWarden(WorldSession *session, const BigNumber &K, Anticheat::SessionAnticheat *anticheat)
 {
+    if (!sAnticheatConfig.EnableWarden())
+        return nullptr;
+
     Warden* warden;
     ClientOSType os = session->GetOS();
 
@@ -227,6 +230,9 @@ void AnticheatLib::Reload()
     // the configuration setting must be loaded before the database data because the current config settings
     // will affect how the database data is interpreted (i.e. normalization of antispam blacklist entries)
     sAnticheatConfig.loadConfigSettings();
+
+    sLog.outString("Warden client sessions are %s for new connections.",
+        sAnticheatConfig.EnableWarden() ? "enabled" : "disabled");
 
     sLog.outString("Loading antispam system ...");
     sAntispam.LoadConfig();
@@ -757,7 +763,8 @@ void SessionAnticheat::Update(uint32 diff)
     if (!sAnticheatConfig.EnableAnticheat())
         return;
 
-    _warden->Update();
+    if (_warden)
+        _warden->Update();
 
     if (_tickTimer > diff)
         _tickTimer -= diff;
@@ -778,7 +785,10 @@ void SessionAnticheat::Update(uint32 diff)
 
 void SessionAnticheat::SendCharEnum(WorldPacket &&packet)
 {
-    _warden->SetCharEnumPacket(std::move(packet));
+    if (_warden)
+        _warden->SetCharEnumPacket(std::move(packet));
+    else
+        _session->SendPacket(&packet);
 }
 
 void SessionAnticheat::NewPlayer()
@@ -811,7 +821,10 @@ void SessionAnticheat::SendPlayerInfo(ChatHandler *handler) const
         handler->PSendSysMessage("OS: %s Build: %u Fingerprint: 0x%lx Local IP: %s",
             _session->GetOS() == CLIENT_OS_WIN ? "Win" : "Mac", _session->GetGameBuild(), _fingerprint, _session->GetRemoteAddress().c_str());
 
-    _warden->SendPlayerInfo(handler, includeFingerprint);
+    if (_warden)
+        _warden->SendPlayerInfo(handler, includeFingerprint);
+    else
+        handler->SendSysMessage("Warden: disabled for this session");
 }
 
 void SessionAnticheat::SendCheatInfo(ChatHandler *handler) const
@@ -969,7 +982,10 @@ void SessionAnticheat::OrderAck(uint16 opcode, uint32 counter)
 
 void SessionAnticheat::WardenPacket(WorldPacket &packet)
 {
-    _warden->HandlePacket(packet);
+    if (_warden)
+        _warden->HandlePacket(packet);
+    else
+        packet.rpos(packet.wpos());
 }
 
 void SessionAnticheat::RecordCheatInternal(CheatType cheat, const char *format, ...)
