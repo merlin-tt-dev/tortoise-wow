@@ -24,7 +24,11 @@
 #include "Log.h"
 #include "Policies/SingletonImp.h"
 #include <algorithm>
+#include <cctype>
 #include <filesystem>
+#include <fstream>
+#include <map>
+#include <set>
 #include <vector>
 
 INSTANTIATE_SINGLETON_2(Config, Config::Lock);
@@ -46,6 +50,196 @@ static char const* GetConfigImportErrorText(int importResult)
             return "config is missing a section header";
         default:
             return "unknown import error";
+    }
+}
+
+enum class ConfigIncludeType
+{
+    Directory,
+    File
+};
+
+struct ConfigIncludeDirective
+{
+    ConfigIncludeType type;
+    std::string key;
+    std::string value;
+    uint32 line;
+};
+
+struct ConfigKeyDefinition
+{
+    std::string section;
+    std::string key;
+    std::string file;
+    uint32 line;
+};
+
+struct ConfigFileMetadata
+{
+    bool active = true;
+    std::vector<ConfigIncludeDirective> includes;
+    std::vector<ConfigKeyDefinition> keys;
+};
+
+static std::string TrimConfigText(std::string value)
+{
+    std::string::size_type const first = value.find_first_not_of(" \t\r\n");
+    if (first == std::string::npos)
+        return "";
+
+    std::string::size_type const last = value.find_last_not_of(" \t\r\n");
+    return value.substr(first, last - first + 1);
+}
+
+static std::string StripInlineConfigComment(std::string value)
+{
+    char quote = 0;
+    for (std::string::size_type index = 0; index < value.size(); ++index)
+    {
+        char const character = value[index];
+
+        if (quote)
+        {
+            if (character == quote)
+                quote = 0;
+            continue;
+        }
+
+        if (character == '"' || character == '\'')
+        {
+            quote = character;
+            continue;
+        }
+
+        if (character == '#' || character == ';')
+            return value.substr(0, index);
+    }
+
+    return value;
+}
+
+static std::string NormalizeConfigValue(std::string value)
+{
+    value = TrimConfigText(StripInlineConfigComment(value));
+    if (value.size() >= 2 &&
+        ((value.front() == '"' && value.back() == '"') ||
+         (value.front() == '\'' && value.back() == '\'')))
+    {
+        value = value.substr(1, value.size() - 2);
+    }
+
+    return value;
+}
+
+static bool IsDisabledConfigValue(std::string value)
+{
+    value = NormalizeConfigValue(value);
+    std::transform(value.begin(), value.end(), value.begin(), [](unsigned char character)
+    {
+        return static_cast<char>(std::tolower(character));
+    });
+
+    return value == "0" || value == "false" || value == "no" || value == "off";
+}
+
+static bool IsConfigControlKey(std::string const& key)
+{
+    return key == "ConfigFileActive" ||
+        key == "IncludeDir" || key.rfind("IncludeDir.", 0) == 0 ||
+        key == "IncludeFile" || key.rfind("IncludeFile.", 0) == 0;
+}
+
+static bool ReadConfigFileMetadata(
+    std::string const& fileName,
+    bool collectIncludes,
+    ConfigFileMetadata& metadata)
+{
+    std::ifstream input(fileName);
+    if (!input.is_open())
+    {
+        sLog.outError("Could not inspect configuration file %s.", fileName.c_str());
+        return false;
+    }
+
+    std::string section;
+    std::string line;
+    uint32 lineNumber = 0;
+
+    while (std::getline(input, line))
+    {
+        ++lineNumber;
+        std::string const trimmed = TrimConfigText(line);
+
+        if (trimmed.empty() || trimmed[0] == '#' || trimmed[0] == ';')
+            continue;
+
+        if (trimmed[0] == '[')
+        {
+            std::string::size_type const sectionEnd = trimmed.find(']');
+            if (sectionEnd != std::string::npos)
+                section = TrimConfigText(trimmed.substr(1, sectionEnd - 1));
+            continue;
+        }
+
+        std::string::size_type const separator = trimmed.find('=');
+        if (separator == std::string::npos)
+            continue;
+
+        std::string const key = TrimConfigText(trimmed.substr(0, separator));
+        std::string const value = NormalizeConfigValue(trimmed.substr(separator + 1));
+        if (key.empty())
+            continue;
+
+        if (key == "ConfigFileActive")
+        {
+            metadata.active = !IsDisabledConfigValue(value);
+            continue;
+        }
+
+        if (collectIncludes)
+        {
+            if (key == "IncludeDir" || key.rfind("IncludeDir.", 0) == 0)
+            {
+                if (!value.empty())
+                    metadata.includes.push_back({ConfigIncludeType::Directory, key, value, lineNumber});
+                continue;
+            }
+
+            if (key == "IncludeFile" || key.rfind("IncludeFile.", 0) == 0)
+            {
+                if (!value.empty())
+                    metadata.includes.push_back({ConfigIncludeType::File, key, value, lineNumber});
+                continue;
+            }
+        }
+
+        if (!IsConfigControlKey(key))
+            metadata.keys.push_back({section, key, fileName, lineNumber});
+    }
+
+    return true;
+}
+
+static void WarnAndRegisterDuplicateKeys(
+    ConfigFileMetadata const& metadata,
+    std::map<std::string, ConfigKeyDefinition>& knownKeys)
+{
+    for (ConfigKeyDefinition const& definition : metadata.keys)
+    {
+        std::string const identity = definition.section + "\x1f" + definition.key;
+        auto const previous = knownKeys.find(identity);
+
+        if (previous != knownKeys.end())
+        {
+            sLog.outString(
+                "WARNING: config key [%s] %s is parsed more than once; %s:%u overrides %s:%u.",
+                definition.section.c_str(), definition.key.c_str(),
+                definition.file.c_str(), definition.line,
+                previous->second.file.c_str(), previous->second.line);
+        }
+
+        knownKeys[identity] = definition;
     }
 }
 
@@ -80,73 +274,118 @@ std::string Config::GetConfigDirectory() const
     return mFilename.substr(0, separator + 1);
 }
 
-bool Config::LoadIncludeDirectory()
+bool Config::LoadIncludes()
 {
-    ACE_TString includeDirValue;
-    if (!GetValueHelper("IncludeDir", includeDirValue))
-        return true;
+    ConfigFileMetadata rootMetadata;
+    if (!ReadConfigFileMetadata(mFilename, true, rootMetadata))
+        return false;
 
-    std::string const includeDir = includeDirValue.c_str();
-    if (includeDir.empty())
-        return true;
+    std::map<std::string, ConfigKeyDefinition> knownKeys;
+    WarnAndRegisterDuplicateKeys(rootMetadata, knownKeys);
 
-    std::filesystem::path includePath(includeDir);
-    if (includePath.is_relative())
-        includePath = std::filesystem::path(GetConfigDirectory()) / includePath;
+    std::filesystem::path const configDirectory(GetConfigDirectory());
+    std::vector<std::filesystem::path> includeFiles;
 
-    std::error_code error;
-    if (!std::filesystem::exists(includePath, error))
+    for (ConfigIncludeDirective const& include : rootMetadata.includes)
     {
-        if (error)
+        std::filesystem::path includePath(include.value);
+        if (includePath.is_relative())
+            includePath = configDirectory / includePath;
+
+        if (include.type == ConfigIncludeType::File)
         {
-            sLog.outError("Could not inspect config IncludeDir %s: %s.", includePath.string().c_str(), error.message().c_str());
+            includeFiles.push_back(includePath);
+            continue;
+        }
+
+        std::error_code error;
+        if (!std::filesystem::exists(includePath, error))
+        {
+            if (error)
+            {
+                sLog.outError("Could not inspect config %s=%s from %s:%u: %s.",
+                    include.key.c_str(), includePath.string().c_str(), mFilename.c_str(), include.line,
+                    error.message().c_str());
+                return false;
+            }
+
+            sLog.outDetail("Config %s=%s from %s:%u does not exist; continuing without this include directory.",
+                include.key.c_str(), includePath.string().c_str(), mFilename.c_str(), include.line);
+            continue;
+        }
+
+        if (!std::filesystem::is_directory(includePath, error) || error)
+        {
+            sLog.outError("Config %s=%s from %s:%u is not a readable directory.",
+                include.key.c_str(), includePath.string().c_str(), mFilename.c_str(), include.line);
             return false;
         }
 
-        sLog.outDetail("Config IncludeDir %s does not exist; continuing without includes.", includePath.string().c_str());
-        return true;
+        std::vector<std::filesystem::path> directoryFiles;
+        std::filesystem::directory_iterator end;
+        for (std::filesystem::directory_iterator itr(includePath, error); !error && itr != end; itr.increment(error))
+        {
+            std::error_code fileError;
+            if (itr->is_regular_file(fileError) && !fileError && itr->path().extension() == ".conf")
+                directoryFiles.push_back(itr->path());
+        }
+
+        if (error)
+        {
+            sLog.outError("Could not enumerate config %s=%s from %s:%u: %s.",
+                include.key.c_str(), includePath.string().c_str(), mFilename.c_str(), include.line,
+                error.message().c_str());
+            return false;
+        }
+
+        std::sort(directoryFiles.begin(), directoryFiles.end(), [](std::filesystem::path const& left, std::filesystem::path const& right)
+        {
+            return left.filename().string() < right.filename().string();
+        });
+
+        includeFiles.insert(includeFiles.end(), directoryFiles.begin(), directoryFiles.end());
     }
 
-    if (!std::filesystem::is_directory(includePath, error) || error)
-    {
-        sLog.outError("Config IncludeDir %s is not a readable directory.", includePath.string().c_str());
-        return false;
-    }
+    std::set<std::string> loadedIncludeFiles;
 
-    std::vector<std::filesystem::path> includeFiles;
-    std::filesystem::directory_iterator end;
-    for (std::filesystem::directory_iterator itr(includePath, error); !error && itr != end; itr.increment(error))
+    // Includes are intentionally single-level. IncludeDir/IncludeFile directives
+    // inside included files are ignored, which keeps ordering deterministic and
+    // makes include cycles impossible.
+    for (std::filesystem::path includeFile : includeFiles)
     {
-        std::error_code fileError;
-        if (itr->is_regular_file(fileError) && !fileError && itr->path().extension() == ".conf")
-            includeFiles.push_back(itr->path());
-    }
+        includeFile = includeFile.lexically_normal();
+        std::string const includeFileName = includeFile.string();
 
-    if (error)
-    {
-        sLog.outError("Could not enumerate config IncludeDir %s: %s.", includePath.string().c_str(), error.message().c_str());
-        return false;
-    }
+        if (!loadedIncludeFiles.insert(includeFileName).second)
+        {
+            sLog.outString("WARNING: configuration file %s was requested more than once; duplicate include skipped.",
+                includeFileName.c_str());
+            continue;
+        }
 
-    std::sort(includeFiles.begin(), includeFiles.end(), [](std::filesystem::path const& left, std::filesystem::path const& right)
-    {
-        return left.filename().string() < right.filename().string();
-    });
+        ConfigFileMetadata metadata;
+        if (!ReadConfigFileMetadata(includeFileName, false, metadata))
+            return false;
 
-    // IncludeDir is intentionally single-level. Included files cannot include
-    // another directory, which keeps ordering deterministic and makes cycles impossible.
-    for (std::filesystem::path const& includeFile : includeFiles)
-    {
+        if (!metadata.active)
+        {
+            sLog.outDetail("Skipping included configuration file %s because ConfigFileActive is disabled.",
+                includeFileName.c_str());
+            continue;
+        }
+
+        WarnAndRegisterDuplicateKeys(metadata, knownKeys);
+
         ACE_Ini_ImpExp includeImporter(*mConf);
-        int const importResult = includeImporter.import_config(includeFile.string().c_str());
+        int const importResult = includeImporter.import_config(includeFileName.c_str());
         if (importResult != 0)
         {
             sLog.outError("Could not load included configuration file %s: %s.",
-                includeFile.string().c_str(), GetConfigImportErrorText(importResult));
+                includeFileName.c_str(), GetConfigImportErrorText(importResult));
             return false;
         }
 
-        sLog.outDetail("Loaded included configuration file %s.", includeFile.string().c_str());
+        sLog.outDetail("Loaded included configuration file %s.", includeFileName.c_str());
     }
 
     return true;
@@ -272,7 +511,7 @@ bool Config::Reload()
         int const importResult = config_importer.import_config(mFilename.c_str());
         if (importResult == 0)
         {
-            if (LoadIncludeDirectory())
+            if (LoadIncludes())
                 return true;
         }
         else
