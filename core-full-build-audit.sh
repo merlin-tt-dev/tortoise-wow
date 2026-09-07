@@ -11,27 +11,106 @@ set -Eeuo pipefail
 # compiler outputs are cached outside the build tree.
 
 ROOT="${ROOT:-$(pwd)}"
-BUILD_DIR="${BUILD_DIR:-$ROOT/build-core-full-audit}"
-LOG="${LOG:-$BUILD_DIR/core-full-build-audit.log}"
+AUDIT_TARGET="${AUDIT_TARGET:-native}"
+MINGW_TRIPLET="${MINGW_TRIPLET:-x86_64-w64-mingw32}"
 BUILD_TYPE="${BUILD_TYPE:-Debug}"
-ACE_PREFIX="${ACE_ROOT:-/usr}"
 USE_CCACHE="${USE_CCACHE:-auto}"
 CCACHE_BIN="${CCACHE_BIN:-}"
 NINJA_VERBOSE="${NINJA_VERBOSE:-off}"
 NINJA_STATS="${NINJA_STATS:-on}"
 NINJA_STATUS_FORMAT="${NINJA_STATUS_FORMAT:-[%f/%t %p | %e sec | %r running | %o edges/s] }"
 
+usage() {
+    cat <<'EOF'
+Usage: ./core-full-build-audit.sh [--target native|windows-x64]
+
+Targets:
+  native       Build for the host platform (default).
+  windows-x64  Cross-compile a 64-bit Windows Core with MinGW-w64.
+
+The target can also be selected with AUDIT_TARGET=windows-x64.
+Windows cross-builds require a Windows-target ACE build via ACE_ROOT and
+MinGW-w64 tools named from MINGW_TRIPLET (default: x86_64-w64-mingw32).
+EOF
+}
+
+while (( $# > 0 )); do
+    case "$1" in
+        --target)
+            if (( $# < 2 )); then
+                echo "ERROR: --target requires a value." >&2
+                exit 2
+            fi
+            AUDIT_TARGET="$2"
+            shift 2
+            ;;
+        --target=*)
+            AUDIT_TARGET="${1#*=}"
+            shift
+            ;;
+        --windows-x64)
+            AUDIT_TARGET="windows-x64"
+            shift
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            echo "ERROR: unknown argument: $1" >&2
+            usage >&2
+            exit 2
+            ;;
+    esac
+done
+
+case "$AUDIT_TARGET" in
+    native)
+        DEFAULT_BUILD_DIR="$ROOT/build-core-full-audit"
+        ;;
+    windows-x64)
+        DEFAULT_BUILD_DIR="$ROOT/build-core-full-audit-windows-x64"
+        ;;
+    *)
+        echo "ERROR: AUDIT_TARGET must be one of: native, windows-x64." >&2
+        exit 2
+        ;;
+esac
+
+BUILD_DIR="${BUILD_DIR:-$DEFAULT_BUILD_DIR}"
+LOG="${LOG:-$BUILD_DIR/core-full-build-audit.log}"
+ACE_PREFIX="${ACE_ROOT:-/usr}"
+
 if [[ ! -f "$ROOT/CMakeLists.txt" ]]; then
     echo "ERROR: run this from the tortoise-wow repository root (or set ROOT=/path/to/tortoise-wow)." >&2
     exit 2
 fi
 
-for tool in cmake ninja; do
+REQUIRED_TOOLS=(cmake ninja)
+if [[ "$AUDIT_TARGET" == "windows-x64" ]]; then
+    MINGW_CC="${MINGW_CC:-${MINGW_TRIPLET}-gcc}"
+    MINGW_CXX="${MINGW_CXX:-${MINGW_TRIPLET}-g++}"
+    MINGW_RC="${MINGW_RC:-${MINGW_TRIPLET}-windres}"
+    REQUIRED_TOOLS+=("$MINGW_CC" "$MINGW_CXX" "$MINGW_RC")
+fi
+
+for tool in "${REQUIRED_TOOLS[@]}"; do
     if ! command -v "$tool" >/dev/null 2>&1; then
         echo "ERROR: $tool not found." >&2
+        if [[ "$AUDIT_TARGET" == "windows-x64" ]]; then
+            echo "       Install a MinGW-w64 x86_64 toolchain or override MINGW_TRIPLET/MINGW_CC/MINGW_CXX/MINGW_RC." >&2
+        fi
         exit 2
     fi
 done
+
+if [[ "$AUDIT_TARGET" == "windows-x64" ]]; then
+    MINGW_MACHINE="$("$MINGW_CC" -dumpmachine)"
+    if [[ "$MINGW_MACHINE" != x86_64-* ]]; then
+        echo "ERROR: windows-x64 target requires an x86_64 MinGW compiler; $MINGW_CC reports: $MINGW_MACHINE" >&2
+        exit 2
+    fi
+fi
 
 case "$USE_CCACHE" in
     auto|on|off)
@@ -76,24 +155,53 @@ if [[ "$USE_CCACHE" != "off" ]]; then
     fi
 fi
 
-if [[ ! -f "${ACE_PREFIX}/include/ace/ACE.h" && ! -f "${ACE_PREFIX}/include/ace/Basic_Types.h" ]]; then
-    echo "WARNING: ACE headers not found below ${ACE_PREFIX}/include/ace/."
-    echo "         If ACE is installed in a custom prefix, run e.g.: ACE_ROOT=/opt/ace $0"
-fi
-
-ace_library_available() {
-    if command -v ldconfig >/dev/null 2>&1 && \
-       ldconfig -p 2>/dev/null | grep -qE 'libACE\.so([.[:space:]]|$)'; then
-        return 0
+if [[ "$AUDIT_TARGET" == "windows-x64" ]]; then
+    if [[ -z "${ACE_ROOT:-}" ]]; then
+        echo "ERROR: windows-x64 cross-build requires ACE_ROOT pointing to a MinGW-w64/Windows x64 ACE build." >&2
+        echo "       A native Linux libACE installation cannot be linked into the Windows target." >&2
+        exit 2
     fi
 
-    compgen -G "${ACE_PREFIX}/lib/libACE.so*" >/dev/null ||
-    compgen -G "${ACE_PREFIX}/lib64/libACE.so*" >/dev/null ||
-    compgen -G "${ACE_PREFIX}/lib/*/libACE.so*" >/dev/null
-}
+    if [[ ! -f "${ACE_ROOT}/include/ace/ACE.h" && ! -f "${ACE_ROOT}/include/ace/Basic_Types.h" ]]; then
+        echo "ERROR: Windows-target ACE headers not found below ${ACE_ROOT}/include/ace/." >&2
+        exit 2
+    fi
 
-if ! ace_library_available; then
-    echo "WARNING: ACE library not found in the linker cache or below ${ACE_PREFIX}/lib{,64} (including multiarch subdirectories)."
+    ace_cross_library_available() {
+        compgen -G "${ACE_ROOT}/lib/libACE*.a" >/dev/null ||
+        compgen -G "${ACE_ROOT}/lib/ACE*.lib" >/dev/null ||
+        compgen -G "${ACE_ROOT}/lib64/libACE*.a" >/dev/null ||
+        compgen -G "${ACE_ROOT}/lib64/ACE*.lib" >/dev/null ||
+        compgen -G "${ACE_ROOT}/lib/*/libACE*.a" >/dev/null ||
+        compgen -G "${ACE_ROOT}/lib/*/ACE*.lib" >/dev/null ||
+        compgen -G "${ACE_ROOT}/libACE*.a" >/dev/null ||
+        compgen -G "${ACE_ROOT}/ACE*.lib" >/dev/null
+    }
+
+    if ! ace_cross_library_available; then
+        echo "ERROR: Windows-target ACE library not found below ACE_ROOT=${ACE_ROOT}." >&2
+        exit 2
+    fi
+else
+    if [[ ! -f "${ACE_PREFIX}/include/ace/ACE.h" && ! -f "${ACE_PREFIX}/include/ace/Basic_Types.h" ]]; then
+        echo "WARNING: ACE headers not found below ${ACE_PREFIX}/include/ace/."
+        echo "         If ACE is installed in a custom prefix, run e.g.: ACE_ROOT=/opt/ace $0"
+    fi
+
+    ace_library_available() {
+        if command -v ldconfig >/dev/null 2>&1 && \
+           ldconfig -p 2>/dev/null | grep -qE 'libACE\.so([.[:space:]]|$)'; then
+            return 0
+        fi
+
+        compgen -G "${ACE_PREFIX}/lib/libACE.so*" >/dev/null ||
+        compgen -G "${ACE_PREFIX}/lib64/libACE.so*" >/dev/null ||
+        compgen -G "${ACE_PREFIX}/lib/*/libACE.so*" >/dev/null
+    }
+
+    if ! ace_library_available; then
+        echo "WARNING: ACE library not found in the linker cache or below ${ACE_PREFIX}/lib{,64} (including multiarch subdirectories)."
+    fi
 fi
 
 NPROC="$(nproc)"
@@ -111,6 +219,12 @@ printf 'Branch     : %s\n' "${BRANCH:-<detached/unknown>}"
 printf 'Revision   : %s\n' "${REVISION:-<unknown>}"
 printf 'Build dir  : %s\n' "$BUILD_DIR"
 printf 'Build type : %s\n' "$BUILD_TYPE"
+printf 'Target     : %s\n' "$AUDIT_TARGET"
+if [[ "$AUDIT_TARGET" == "windows-x64" ]]; then
+    printf 'MinGW target: %s\n' "$MINGW_MACHINE"
+    printf 'MinGW C/C++ : %s / %s\n' "$MINGW_CC" "$MINGW_CXX"
+    printf 'ACE target  : %s\n' "$ACE_ROOT"
+fi
 printf 'CPUs       : %s logical\n' "$NPROC"
 printf 'Ninja jobs : %s (<=80%%)\n' "$JOBS"
 printf 'Scope      : full Core + scripts + Discord/DPP; repository modules disabled; PCH OFF\n'
@@ -143,6 +257,16 @@ CMAKE_ARGS=(
     -DUSE_EXTRACTORS=OFF
     -DUSE_DISCORD_BOT=ON
 )
+
+if [[ "$AUDIT_TARGET" == "windows-x64" ]]; then
+    CMAKE_ARGS+=(
+        -DCMAKE_SYSTEM_NAME=Windows
+        -DCMAKE_SYSTEM_PROCESSOR=x86_64
+        -DCMAKE_C_COMPILER="$MINGW_CC"
+        -DCMAKE_CXX_COMPILER="$MINGW_CXX"
+        -DCMAKE_RC_COMPILER="$MINGW_RC"
+    )
+fi
 
 if [[ -n "${ACE_ROOT:-}" ]]; then
     CMAKE_ARGS+=( -DACE_ROOT="$ACE_ROOT" )
