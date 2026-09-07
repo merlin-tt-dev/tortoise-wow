@@ -254,16 +254,36 @@ bool GameObject::Create(uint32 guidlow, uint32 name_id, Map *map, float x, float
 
     SetGoAnimProgress(animprogress);
 
+    float visibilityDistance = 0.0f;
+
     if (GetGOInfo()->IsLargeGameObject())
-    {
-        SetVisibilityModifier(VISIBILITY_DISTANCE_LARGE);
-        if (sWorld.getConfig(CONFIG_BOOL_VISIBILITY_FORCE_ACTIVE_OBJECTS))
-            SetActiveObjectState(true);
-    }
+        visibilityDistance = VISIBILITY_DISTANCE_LARGE;
 
     if (GetGOInfo()->IsInfiniteGameObject())
+        visibilityDistance = std::max(visibilityDistance, MAX_VISIBILITY_DISTANCE);
+
+    // Some very large WMO-backed gameobjects have incomplete template visibility
+    // metadata (for example a missing `large` flag). Their VMAP model already
+    // contains the real, rotated and scaled world-space bounds, so use those
+    // bounds as a conservative fallback instead of hardcoding individual entries.
+    if (m_model)
     {
-        SetVisibilityModifier(MAX_VISIBILITY_DISTANCE);
+        G3D::Vector3 const origin(GetPositionX(), GetPositionY(), GetPositionZ());
+        G3D::AABox const& bounds = m_model->getBounds();
+        float modelRadius = 0.0f;
+
+        for (int i = 0; i < 8; ++i)
+            modelRadius = std::max(modelRadius, (bounds.corner(i) - origin).length());
+
+        // Keep ordinary gameobjects on the normal grid visibility path. Only
+        // genuinely large models are promoted to model-derived visibility.
+        if (modelRadius >= VISIBILITY_DISTANCE_LARGE)
+            visibilityDistance = std::max(visibilityDistance, GetVisibilityDistance() + modelRadius);
+    }
+
+    if (visibilityDistance > 0.0f)
+    {
+        SetVisibilityModifier(visibilityDistance);
         if (sWorld.getConfig(CONFIG_BOOL_VISIBILITY_FORCE_ACTIVE_OBJECTS))
             SetActiveObjectState(true);
     }
