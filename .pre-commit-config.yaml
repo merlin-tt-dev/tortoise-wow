@@ -1,0 +1,112 @@
+# .pre-commit-config.yaml
+#
+# Tortoise / LivingBots development safety checks.
+#
+# Important:
+# This is a large legacy codebase containing vendored dependencies,
+# historical migrations and binary-/payload-like files.
+#
+# Hooks in this configuration are intentionally CHECK-ONLY.
+# They must not rewrite unrelated legacy files during
+# `pre-commit run --all-files`.
+
+fail_fast: false
+
+
+# ---------------------------------------------------------------------------
+# Legacy / vendored areas
+# ---------------------------------------------------------------------------
+#
+# Do not perform generic repository-hygiene checks on files we do not own
+# or on historical/payload data where byte-for-byte preservation may matter.
+#
+exclude: >-
+  (?x)^(
+    dep/|
+    src/game/Anticheat/warden_modules/|
+    tools/TurtlePatcher/ThirdParty/|
+    sql/database_updates/
+  )
+
+
+repos:
+
+  # -------------------------------------------------------------------------
+  # Standard safety checks
+  # -------------------------------------------------------------------------
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+
+    hooks:
+
+      # Detect mixed CRLF/LF files, but NEVER rewrite them automatically.
+      #
+      # This is deliberately check-only. The previous --fix=lf setting
+      # rewrote hundreds of legacy files during `pre-commit run --all-files`.
+      #
+      # Patch files have their own stricter validator below.
+      - id: mixed-line-ending
+        args:
+          - --fix=no
+        exclude: ^patches/.*\.patch$
+
+      # Detect unresolved Git conflict markers.
+      - id: check-merge-conflict
+
+      # Detect files whose names collide on case-insensitive filesystems.
+      - id: check-case-conflict
+
+      # Detect broken/malformed symlinks.
+      - id: check-symlinks
+      - id: destroyed-symlinks
+
+      # Validate structured configuration files.
+      - id: check-yaml
+      - id: check-json
+      - id: check-toml
+
+      # Prevent accidentally committing private keys.
+      - id: detect-private-key
+
+      # LivingBots development must never be committed directly to
+      # the protected base branches.
+      - id: no-commit-to-branch
+        args:
+          - --branch
+          - main
+          - --branch
+          - 1181dev
+
+
+  # -------------------------------------------------------------------------
+  # Tortoise / LivingBots specific checks
+  # -------------------------------------------------------------------------
+
+  - repo: local
+
+    hooks:
+
+      # ---------------------------------------------------------------------
+      # Unified patch validator
+      # ---------------------------------------------------------------------
+      #
+      # Playerbot clean-port patches need stronger checks than normal source:
+      #
+      # - validates unified-diff syntax
+      # - detects corrupt hunk metadata / wrong hunk counts
+      # - detects malformed patches
+      # - checks whitespace added by the patch
+      # - rejects trailing spaces
+      # - rejects space-before-tab
+      # - rejects tab-in-indent
+      #
+      # --numstat parses the patch without requiring that the patch still
+      # applies to the current working tree.
+      #
+      - id: validate-unified-patches
+        name: validate unified patches
+        language: system
+        files: ^patches/.*\.patch$
+        entry: git -c core.whitespace=trailing-space,space-before-tab,tab-in-indent apply --numstat --whitespace=error-all
+        require_serial: true

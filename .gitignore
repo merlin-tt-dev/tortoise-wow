@@ -1,6 +1,10 @@
 /samples/
 /data/
 /build/
+/build-full-audit/
+/build-*/
 /.vscode/
 *.kate-swp
 *.exe
+
+tmp/

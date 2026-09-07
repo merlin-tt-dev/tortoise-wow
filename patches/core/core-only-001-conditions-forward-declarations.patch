@@ -1,0 +1,14 @@
+diff --git a/src/game/Conditions.h b/src/game/Conditions.h
+index 7f7a65c..1ef84aa 100644
+--- a/src/game/Conditions.h
++++ b/src/game/Conditions.h
+@@ -23,6 +23,9 @@
+ 
+ #include "SharedDefines.h"
+ 
++class Map;
++class WorldObject;
++
+ enum ConditionType
+ {
+     //                                                      // Legend:
