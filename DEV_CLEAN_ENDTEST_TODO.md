@@ -163,6 +163,20 @@ Diese Punkte sind **kein Bestandteil von core-only-016** und müssen separat aud
 
 - [ ] tatsächliche Turtle-1.18.1-Client-/World-Build-Semantik dokumentieren (`realmd` 7272 vs. WorldSession/Warden-Buildpfad 5875).
 - [ ] alle festen Windows-Warden-Memory-/Code-Offsets gegen den real verwendeten Turtle-1.18.1-Client validieren.
+- [ ] den **exakten** untersuchten Turtle-Clientstand festhalten: Clientversion, `WoW.exe`-SHA256, Dateigröße und PE-Timestamp; ein später geändertes Binary gilt bis zur erneuten Validierung als unbekannter Client.
+- [ ] soweit verfügbar einen originalen Vanilla-1.12.1.5875-Client als Referenz verwenden, um jeden alten Hardcoded Offset zuerst semantisch zu identifizieren: welche Funktion, globale Struktur oder welcher Zustand wurde dort tatsächlich gelesen?
+- [ ] die korrespondierenden Turtle-1.18.1-Stellen per statischer Binaryanalyse (z. B. Ghidra/IDA) anhand von String-Xrefs, Callgraph, Imports, Konstanten, Datenstrukturen und charakteristischen Instruktionsfolgen neu identifizieren; alte numerische Adressen niemals nur übernehmen.
+- [ ] gefundene Kandidaten anschließend dynamisch mit einem lokalen Testclient/Debugger verifizieren: kontrollierte Zustandsänderungen wie Bewegung, Sprung, Schwimmen, Tracking oder Click-to-Move müssen exakt mit dem vermuteten Feld bzw. der vermuteten Funktion korrelieren.
+- [ ] validierte Clientadressen als modulrelative RVA/Offset-Daten dokumentieren; keine nackten absoluten Prozessadressen als dauerhaft gültige Wahrheit behandeln.
+- [ ] für **jeden einzelnen Warden-Scan** einen expliziten Kompatibilitätszustand führen:
+  - `SUPPORTED` = für exakt den dokumentierten Client-Binary-Hash statisch und dynamisch validiert,
+  - `UNRESOLVED` = Ziel/Funktion noch nicht sicher identifiziert,
+  - `UNSUPPORTED` = Scan ist für diesen Client nicht sinnvoll oder nicht portiert.
+- [ ] nur `SUPPORTED`-Scans dürfen überhaupt einen clientseitigen Memory-/Code-Check erzeugen; `UNRESOLVED` und `UNSUPPORTED` werden übersprungen und geloggt.
+- [ ] Signatur-/Resolver-Ergebnisse zusätzlich auf erwartete Instruktions-/Datenstrukturform prüfen; kein Scan darf allein deshalb aktiv werden, weil eine Byte-Signatur zufällig genau einen Treffer liefert.
+- [ ] für jeden unterstützten Client-Binary-Hash eine nachvollziehbare Warden-Kompatibilitätsmatrix pflegen (z. B. GetText, File-API, MovementFlags, MoveSpeed, Tracking, ClickToMove, Warden-Internals, Hook-Checks).
+- [ ] unbekannter oder nach einem Turtle-Update veränderter Client-Hash muss Warden für diese Session automatisch deaktivieren bzw. alle clientabhängigen Scans überspringen; **kein Kick/Ban nur wegen fehlendem Profil, nicht auflösbarer Signatur oder Versionsdrift**.
+- [ ] nach jedem Turtle-Clientupdate gelten alle binaryabhängigen Warden-Scans bis zur erneuten Validierung mindestens als `UNRESOLVED`; keine stillschweigende Übernahme der Freigabe vom vorherigen Client.
 - [ ] vorhandene Warden-Module (`.bin/.key/.cr`) und deren Protokollkompatibilität mit Turtle 1.18.1 validieren; keine Module nur aufgrund alter Classic-Kompatibilität aktivieren.
 - [ ] alle direkten `KickPlayer()`-Pfade im Warden-Protokoll einzeln klassifizieren: Challenge, Checksum, unbekanntes Opcode, Module-Failure, unsupported Build/OS.
 - [ ] Warden-Protokollfehler standardmäßig fail-open/log-only machen oder hinter eine explizite Enforcement-Option stellen.
