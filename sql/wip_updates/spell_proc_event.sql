@@ -1,0 +1,12 @@
+-- Spirit Tap (Priest talent): spirit_tap.sql in 20260901101113_world.sql gives
+-- every rank (15270 through 15338) the exact same procEx/procFlags/ppmRate,
+-- but ppmRate = 0 on the non-first ranks means SpellMgr::IsValidCustomRank
+-- rejects those rows on load - they never enter spell_proc_event's in-memory
+-- map. FillHigherRanks then copies rank 1's data onto ranks 2-5 anyway, so the
+-- outcome is identical with or without these rows; they are simply dead data:
+--
+--     Spell 15335 listed in `spell_proc_event` is not first rank (15270) in chain
+--     Spell 15336 listed in `spell_proc_event` is not first rank (15270) in chain
+--     Spell 15337 listed in `spell_proc_event` is not first rank (15270) in chain
+--     Spell 15338 listed in `spell_proc_event` is not first rank (15270) in chain
+DELETE FROM `spell_proc_event` WHERE `entry` IN (15335, 15336, 15337, 15338);
