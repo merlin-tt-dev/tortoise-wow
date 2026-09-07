@@ -14,7 +14,8 @@ bool ChatHandler::HandleDiscBotStopCommand(char* args)
 
 namespace DiscordBot
 {
-  /*  bool GMCommandHandler::IsAuthorized(const dpp::user* user) const
+#if 0
+    bool GMCommandHandler::IsAuthorized(const dpp::user* user) const
     {
         auto authInfo = AuthManager::Instance()->GetAuthInfo(user);
         return authInfo && authInfo->authenticated && authInfo->securityLevel > SEC_PLAYER;
@@ -44,7 +45,7 @@ namespace DiscordBot
             {
             }, MakeCommandHandler(&GMCommandHandler::LookupCommand), "Starts a character lookup");
 
-        _commHandler = &registrar;*/
+        _commHandler = &registrar;
     }
 
     void GMCommandHandler::ExecuteGMCommand(const std::string& command, const dpp::parameter_list_t& parameters, dpp::command_source src)
@@ -176,6 +177,17 @@ namespace DiscordBot
             handler->_commHandler->owner->message_create(msg);
 
         } while (offset < output.size() - 1);
+    }
+
+#endif
+
+    bool GMCommandHandler::IsAuthorized(const dpp::user*) const
+    {
+        return false;
+    }
+
+    void GMCommandHandler::RegisterCommands(dpp::commandhandler&)
+    {
     }
 
 }
