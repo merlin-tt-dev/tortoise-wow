@@ -1,0 +1,213 @@
+diff --git a/DEV_CLEAN_ENDTEST_TODO.md b/DEV_CLEAN_ENDTEST_TODO.md
+index e748939..38f34a3 100644
+--- a/DEV_CLEAN_ENDTEST_TODO.md
++++ b/DEV_CLEAN_ENDTEST_TODO.md
+@@ -10,6 +10,9 @@
+ | --- | --- | --- |
+ | core-buildsystem-001 Revision-Header im Build-Tree | eingebaut | ausstehend |
+ | core-buildsystem-002 DPP/OpenSSL Debug-Linkage | eingebaut | ausstehend |
++| core-buildsystem-003 Split mangosd Config Build Output | eingebaut | Build-/Config-Audit |
++| core-buildsystem-004 Final Config Dist Layout | eingebaut | Build-/Install-Audit |
++| core-buildsystem-005 Package Anticheat Config Dist | eingebaut | Build-/Runtime-Audit |
+ | core-only-001 Chat Channel Loaded ID | eingebaut | ausstehend |
+ | core-only-002 Chat Channel Name Match | eingebaut | ausstehend |
+ | core-only-003 LFT ObjectGuid Include | eingebaut | Build-Audit |
+@@ -20,6 +23,12 @@
+ | core-only-008 Discord GM Commands Reactivation/Hardening | eingebaut | Runtime ausstehend |
+ | core-only-009 Model-Bounds GameObject Visibility | eingebaut | Runtime ausstehend |
+ | core-only-010 GObject Live Visibility/Spawn Commands + tmpadd Output | eingebaut | Runtime ausstehend |
++| core-only-011 Restore Battleground Queue Locking | eingebaut | Build-/Threading-Runtime ausstehend |
++| core-only-012 Config IncludeDir | eingebaut | Runtime ausstehend |
++| core-only-013 Config Multi-Include / Active Switch / Duplicate Warnings | eingebaut | Runtime ausstehend |
++| core-only-014 Config Dist Audit Cleanup | eingebaut | Config-/Runtime-Audit ausstehend |
++| core-only-015 Anticheat Config Audit Fixes | eingebaut | Runtime ausstehend |
++| core-only-016 Warden Enable Safety Gate | eingebaut | Build-/Runtime ausstehend |
+ 
+ **Wichtig:** „eingebaut“ bedeutet nur, dass der Source-Stand materialisiert ist. Kein Punkt gilt dadurch als runtime-getestet.
+ 
+@@ -121,6 +130,49 @@ Prüfen:
+ 
+ **PASS:** mehrfacher Start/Stop ohne State-Leak oder Crash.
+ 
++## A6. Anticheat / Warden Safe Baseline – core-only-015 / 016 + buildsystem-005
++
++Sicherer Ausgangszustand für Turtle 1.18.1: das allgemeine Anticheat darf im Monitoring-Modus laufen; Warden bleibt deaktiviert, bis seine clientabhängigen Teile separat validiert sind.
++
++### A6.1 Distribution / Startzustand
++
++- [ ] Build erzeugt `anticheat.conf.dist`.
++- [ ] ausgelieferte Dist enthält `Enable = 1`.
++- [ ] ausgelieferte Dist enthält `Warden.Enable = 0`.
++- [ ] Movement-Response-Actions im Safe-Profil sind nur `INFO_LOG` oder `NONE`; kein automatischer Kick/Ban durch die Dist-Defaults.
++- [ ] `mangosd` startet mit kopierter `anticheat.conf.dist` als `anticheat.conf` ohne Configfehler.
++
++### A6.2 Warden wirklich deaktiviert
++
++Mit `Warden.Enable = 0`:
++
++- [ ] normale Turtle-1.18.1-Anmeldung funktioniert bis Charakterauswahl.
++- [ ] Charakterliste wird ohne Warden-Handshake unmittelbar gesendet.
++- [ ] Charakter kann die Welt betreten.
++- [ ] normale Bewegung erzeugt keinen Warden-Kick.
++- [ ] eingehendes `CMSG_WARDEN_DATA` ohne Warden-Session wird ignoriert und verursacht weder Kick noch Crash.
++- [ ] kein Warden-Challenge-/Modul-Handshake wird für die Session erzeugt.
++- [ ] Movement/Fingerprint/Antispam bleiben unabhängig von Warden funktionsfähig.
++- [ ] mindestens ein Reconnect bestätigt, dass der neue Sessionzustand reproduzierbar ist.
++
++**PASS Safe Baseline:** Warden kann vollständig aus dem Client-Sessionpfad genommen werden, ohne Login, Character-Enum oder restliches Anticheat zu beschädigen.
++
++### A6.3 Vor einer späteren Warden-Aktivierung zwingend offen
++
++Diese Punkte sind **kein Bestandteil von core-only-016** und müssen separat auditiert/hardened werden:
++
++- [ ] tatsächliche Turtle-1.18.1-Client-/World-Build-Semantik dokumentieren (`realmd` 7272 vs. WorldSession/Warden-Buildpfad 5875).
++- [ ] alle festen Windows-Warden-Memory-/Code-Offsets gegen den real verwendeten Turtle-1.18.1-Client validieren.
++- [ ] vorhandene Warden-Module (`.bin/.key/.cr`) und deren Protokollkompatibilität mit Turtle 1.18.1 validieren; keine Module nur aufgrund alter Classic-Kompatibilität aktivieren.
++- [ ] alle direkten `KickPlayer()`-Pfade im Warden-Protokoll einzeln klassifizieren: Challenge, Checksum, unbekanntes Opcode, Module-Failure, unsupported Build/OS.
++- [ ] Warden-Protokollfehler standardmäßig fail-open/log-only machen oder hinter eine explizite Enforcement-Option stellen.
++- [ ] unsupported/unerwarteter Client-Build darf nicht allein durch Versionsdrift einen Massenkick verursachen.
++- [ ] Character-Enum bleibt auch bei fehlendem/inkompatiblem Warden-Modul fail-open.
++- [ ] malformed Warden-Pakete, Timeout und Challenge-Fehler mit Testclient gezielt prüfen.
++- [ ] Windows- und gegebenenfalls Mac-Pfad getrennt testen.
++- [ ] Reload-Semantik von `Warden.Enable` dokumentieren und testen; bestehende Sessions dürfen keinen inkonsistenten Zwischenzustand erhalten.
++- [ ] erst nach diesen Punkten Warden auf einem Testrealm aktivieren; Enforcement erst nach sauberem Monitorlauf.
++
+ ---
+ 
+ # B. Core Smoke Test
+@@ -359,6 +411,7 @@ Erst abhaken, wenn alle für `dev-clean` relevanten Blöcke bestanden sind:
+ - [ ] Discord Runtime/Security grün oder bewusst als nicht verwendetes optionales Feature mit dokumentiertem Zustand akzeptiert.
+ - [ ] Large-WMO-Visibility grün.
+ - [ ] GObject-Commands grün.
++- [ ] Anticheat Safe Baseline grün; Warden bleibt deaktiviert oder ist separat vollständig gegen Turtle 1.18.1 validiert.
+ - [ ] Repository-Hygiene grün.
+ - [ ] finaler Test-SHA dokumentiert.
+ 
+@@ -368,6 +421,7 @@ Erst abhaken, wenn alle für `dev-clean` relevanten Blöcke bestanden sind:
+ - `.gobject set spell_focus` ist Alias für `spawn_flags`, nicht der SpellFocus-Templatewert.
+ - `.gobject tmpadd` meldet eine Runtime-GUID und erzeugt keine DB-GUID.
+ - ein kalter `ccache` darf beim ersten Build fast nur Misses zeigen.
++- `Warden.Enable = 0` ist der erwartete sichere Default, solange die Turtle-1.18.1-spezifische Warden-Kompatibilität nicht vollständig validiert ist.
+ - `core-only-007` kann nicht isoliert gegen den bereits von `008` weiterveränderten finalen Tree rückwärts geprüft werden; für einen echten Reverse-Test zuerst spätere Patches tatsächlich rückwärts anwenden.
+ 
+ ---
+diff --git a/src/game/Anticheat/Config.hpp b/src/game/Anticheat/Config.hpp
+index e7a7680..9e0adea 100644
+--- a/src/game/Anticheat/Config.hpp
++++ b/src/game/Anticheat/Config.hpp
+@@ -106,6 +106,7 @@ class AnticheatConfig : public Config
+         float getConfig(AnticheatConfigFloatValues index)   const { return m_configFloatValues[index];  }
+ 
+         bool EnableAnticheat()                      const { return getConfig(CONFIG_BOOL_AC_ENABLED);                               }
++        bool EnableWarden()                         const { return getConfig(CONFIG_BOOL_AC_WARDEN_ENABLED);                        }
+         bool EnableExtrapolation()                  const { return getConfig(CONFIG_BOOL_AC_MOVEMENT_USE_EXTRAPOLATION);            }
+ 
+         bool IsEnabled(CheatType cheatType) const
+diff --git a/src/game/Anticheat/anticheat.conf.readonly b/src/game/Anticheat/anticheat.conf.readonly
+index 74c8aea..12e9419 100644
+--- a/src/game/Anticheat/anticheat.conf.readonly
++++ b/src/game/Anticheat/anticheat.conf.readonly
+@@ -1,8 +1,12 @@
+-# NOTE:
++# SAFE MONITORING PROFILE
+ #
+-#   This file is intended to be used in a setting where the anticheat should run
+-#   purely in a read-only mode.  It will do all of its tasks, but take no action,
+-#   aside from sending out notifications.  It is intended for testing purposes.
++#   This file is the distribution profile for the built-in anticheat. Movement
++#   detectors are configured for informational logging only. Warden is disabled
++#   by default until its classic-client-specific protocol, modules and memory
++#   offsets have been validated against the Turtle 1.18.1 client.
++#
++#   Do not enable Warden enforcement on a production realm merely by changing
++#   the response masks. Validate the Warden-specific end-test checklist first.
+ 
+ [AnticheatConf]
+ ConfVersion=2017102301
+@@ -321,9 +325,13 @@ Antispam.RepetitionMovementTimeout = 60
+ #
+ ################################
+ 
+-# Similar to the overall anticheat, if Warden is disabled, it will not be initialized when a world session is created.
+-# Changing this setting will have no effect on pre-existing world sessions.
+-Warden.Enable = 1
++# Warden is intentionally OFF in the distributed safe profile. When disabled,
++# no Warden object is created for new world sessions; character enumeration is
++# sent directly and unsolicited Warden packets are ignored. Existing sessions
++# keep the state they were created with, so reconnect/restart after changing it.
++#
++# Keep this at 0 until the Turtle 1.18.1 Warden compatibility checklist passes.
++Warden.Enable = 0
+ 
+ # Directory where Warden modules can be found
+ Warden.ModuleDir = "warden_modules"
+diff --git a/src/game/Anticheat/libanticheat.cpp b/src/game/Anticheat/libanticheat.cpp
+index 980f5c6..728dd01 100644
+--- a/src/game/Anticheat/libanticheat.cpp
++++ b/src/game/Anticheat/libanticheat.cpp
+@@ -45,6 +45,9 @@ namespace
+ {
+ Warden *CreateWarden(WorldSession *session, const BigNumber &K, Anticheat::SessionAnticheat *anticheat)
+ {
++    if (!sAnticheatConfig.EnableWarden())
++        return nullptr;
++
+     Warden* warden;
+     ClientOSType os = session->GetOS();
+ 
+@@ -228,6 +231,9 @@ void AnticheatLib::Reload()
+     // will affect how the database data is interpreted (i.e. normalization of antispam blacklist entries)
+     sAnticheatConfig.loadConfigSettings();
+ 
++    sLog.outString("Warden client sessions are %s for new connections.",
++        sAnticheatConfig.EnableWarden() ? "enabled" : "disabled");
++
+     sLog.outString("Loading antispam system ...");
+     sAntispam.LoadConfig();
+ 
+@@ -757,7 +763,8 @@ void SessionAnticheat::Update(uint32 diff)
+     if (!sAnticheatConfig.EnableAnticheat())
+         return;
+ 
+-    _warden->Update();
++    if (_warden)
++        _warden->Update();
+ 
+     if (_tickTimer > diff)
+         _tickTimer -= diff;
+@@ -778,7 +785,10 @@ void SessionAnticheat::Update(uint32 diff)
+ 
+ void SessionAnticheat::SendCharEnum(WorldPacket &&packet)
+ {
+-    _warden->SetCharEnumPacket(std::move(packet));
++    if (_warden)
++        _warden->SetCharEnumPacket(std::move(packet));
++    else
++        _session->SendPacket(&packet);
+ }
+ 
+ void SessionAnticheat::NewPlayer()
+@@ -811,7 +821,10 @@ void SessionAnticheat::SendPlayerInfo(ChatHandler *handler) const
+         handler->PSendSysMessage("OS: %s Build: %u Fingerprint: 0x%lx Local IP: %s",
+             _session->GetOS() == CLIENT_OS_WIN ? "Win" : "Mac", _session->GetGameBuild(), _fingerprint, _session->GetRemoteAddress().c_str());
+ 
+-    _warden->SendPlayerInfo(handler, includeFingerprint);
++    if (_warden)
++        _warden->SendPlayerInfo(handler, includeFingerprint);
++    else
++        handler->SendSysMessage("Warden: disabled for this session");
+ }
+ 
+ void SessionAnticheat::SendCheatInfo(ChatHandler *handler) const
+@@ -969,7 +982,10 @@ void SessionAnticheat::OrderAck(uint16 opcode, uint32 counter)
+ 
+ void SessionAnticheat::WardenPacket(WorldPacket &packet)
+ {
+-    _warden->HandlePacket(packet);
++    if (_warden)
++        _warden->HandlePacket(packet);
++    else
++        packet.rpos(packet.wpos());
+ }
+ 
+ void SessionAnticheat::RecordCheatInternal(CheatType cheat, const char *format, ...)
