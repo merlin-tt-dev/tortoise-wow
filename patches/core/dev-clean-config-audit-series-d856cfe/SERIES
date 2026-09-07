@@ -1,0 +1,4 @@
+patches/01-core-buildsystem-004-finalize-config-dist-layout.patch
+patches/02-core-only-014-config-dist-audit-cleanup.patch
+patches/03-core-only-015-anticheat-config-audit-fixes.patch
+patches/04-core-buildsystem-005-package-anticheat-config-dist.patch

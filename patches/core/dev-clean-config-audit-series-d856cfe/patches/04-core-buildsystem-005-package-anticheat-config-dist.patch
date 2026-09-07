@@ -1,0 +1,24 @@
+diff --git a/src/mangosd/CMakeLists.txt b/src/mangosd/CMakeLists.txt
+index b578d81..6e3cd0e 100644
+--- a/src/mangosd/CMakeLists.txt
++++ b/src/mangosd/CMakeLists.txt
+@@ -205,6 +205,19 @@ install(DIRECTORY
+   DESTINATION ${CONF_DIR}
+ )
+ 
++# The active AnticheatConfig is a separate Config instance and reads
++# anticheat.conf directly. Publish the existing read-only profile as the safe
++# distribution template instead of mixing AnticheatConf into mangosd.conf.d.
++configure_file(
++  ${CMAKE_SOURCE_DIR}/src/game/Anticheat/anticheat.conf.readonly
++  ${CMAKE_CURRENT_BINARY_DIR}/anticheat.conf.dist
++  COPYONLY
++)
++install(FILES
++  ${CMAKE_CURRENT_BINARY_DIR}/anticheat.conf.dist
++  DESTINATION ${CONF_DIR}
++)
++
+ if(WIN32 AND MSVC)
+   install(FILES ${CMAKE_CURRENT_BINARY_DIR}/\${BUILD_TYPE}/${EXECUTABLE_NAME}.pdb DESTINATION ${BIN_DIR} CONFIGURATIONS Debug)
+ endif()
