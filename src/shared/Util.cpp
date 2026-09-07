@@ -754,8 +754,8 @@ std::string GetCurrentTimeString()
 
 #ifdef WIN32
 #include <windows.h>
-#include <VersionHelpers.h>
-#include <Psapi.h>
+#include <versionhelpers.h>
+#include <psapi.h>
 
 bool Win10SupportNewThreadNameInit = false;
 

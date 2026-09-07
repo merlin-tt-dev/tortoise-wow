@@ -21,8 +21,8 @@
 #pragma once
 #include <dpp/export.h>
 #ifdef _WIN32
-#include <WinSock2.h>
-#include <WS2tcpip.h>
+#include <winsock2.h>
+#include <ws2tcpip.h>
 #else
 #include <netinet/in.h>
 #include <netdb.h>

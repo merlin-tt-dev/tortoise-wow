@@ -10,6 +10,7 @@
 
 #include "Platform/Define.h"
 
+#include <cstdint>
 #include <string>
 #include <vector>
 

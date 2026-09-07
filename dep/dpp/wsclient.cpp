@@ -21,6 +21,7 @@
 #include <string>
 #include <iostream>
 #include <fstream>
+#include <ctime>
 #include <dpp/wsclient.h>
 #include <dpp/utility.h>
 

@@ -52,11 +52,7 @@
 #include "Anticheat/Warden/Warden.hpp"
 #include "TWDebuff/TWDebuff.hpp"
 
-#ifdef WIN32
-#include "..\zlib\zlib.h"
-#else
 #include "zlib.h"
-#endif
 
 void WorldSession::HandleRepopRequestOpcode(WorldPacket & /*recv_data*/)
 {

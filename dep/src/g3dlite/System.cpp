@@ -44,7 +44,7 @@
 #   include <conio.h>
 #   include <sys/timeb.h>
 #   include "G3D/RegistryUtil.h"
-#include <Ole2.h>
+#include <ole2.h>
 #ifdef _MSC_VER
 #include <intrin.h>
 #else

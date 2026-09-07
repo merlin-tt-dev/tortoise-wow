@@ -22,8 +22,8 @@
 #include <cerrno>
 #ifdef _WIN32
 	/* Windows-specific sockets includes */
-	#include <WinSock2.h>
-	#include <WS2tcpip.h>
+    #include <winsock2.h>
+    #include <ws2tcpip.h>
 	#include <io.h>
 	/* Windows doesn't have standard poll(), it has WSAPoll.
 	 * It's the same thing with different symbol names.
