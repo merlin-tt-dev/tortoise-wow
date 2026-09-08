@@ -22,6 +22,7 @@
 #include "Common.h"
 #include "SharedDefines.h"
 #include "Platform/Define.h"
+#include <condition_variable>
 #include <mutex>
 
 struct ShopRequest
@@ -38,12 +39,14 @@ class ShopMgr
         bool RequestBalance(uint32 accountId);
         bool RequestPurchase(uint32 accountId, uint32 guidLow, uint32 itemId);
         void ProcessRequestsWorker();
+        void NotifyWorkerShutdown();
     private:
         int32 GetBalance(uint32 accountId);
         void BuyItem(uint32 accountId, uint32 guidLow, uint32 itemId);
 
         std::vector<ShopRequest> m_pendingRequests;
         std::mutex m_mutex;
+        std::condition_variable m_condition;
 };
 
 extern ShopMgr sShopMgr;

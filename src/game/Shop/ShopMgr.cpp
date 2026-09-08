@@ -144,13 +144,17 @@ public:
 
 bool ShopMgr::RequestBalance(uint32 accountId)
 {
-    std::lock_guard<std::mutex> lock(m_mutex);
-    for (auto const& itr : m_pendingRequests)
     {
-        if (itr.accountId == accountId && itr.itemId == 0)
-            return false;
+        std::lock_guard<std::mutex> lock(m_mutex);
+        for (auto const& itr : m_pendingRequests)
+        {
+            if (itr.accountId == accountId && itr.itemId == 0)
+                return false;
+        }
+        m_pendingRequests.emplace_back(accountId, 0, 0);
     }
-    m_pendingRequests.push_back(ShopRequest(accountId, 0, 0));
+
+    m_condition.notify_one();
     return true;
 }
 
@@ -179,13 +183,17 @@ bool ShopMgr::RequestPurchase(uint32 accountId, uint32 guidLow, uint32 itemId)
         }
     }
 
-    std::lock_guard<std::mutex> lock(m_mutex);
-    for (auto const& itr : m_pendingRequests)
     {
-        if (itr.accountId == accountId && itr.guidLow == guidLow && itr.itemId == itemId)
-            return false;
+        std::lock_guard<std::mutex> lock(m_mutex);
+        for (auto const& itr : m_pendingRequests)
+        {
+            if (itr.accountId == accountId && itr.guidLow == guidLow && itr.itemId == itemId)
+                return false;
+        }
+        m_pendingRequests.emplace_back(accountId, guidLow, itemId);
     }
-    m_pendingRequests.push_back(ShopRequest(accountId, guidLow, itemId));
+
+    m_condition.notify_one();
     return true;
 }
 
@@ -197,10 +205,18 @@ void ShopMgr::ProcessRequestsWorker()
     {
         std::vector<ShopRequest> requests;
         {
-            std::lock_guard<std::mutex> lock(m_mutex);
-            std::swap(requests, m_pendingRequests);
+            std::unique_lock<std::mutex> lock(m_mutex);
+            m_condition.wait(lock, [this]
+            {
+                return !m_pendingRequests.empty() || sWorld.IsStopped();
+            });
+
+            if (sWorld.IsStopped())
+                break;
+
+            requests.swap(m_pendingRequests);
         }
-        
+
         for (auto const& itr : requests)
         {
             if (itr.itemId)
@@ -208,10 +224,13 @@ void ShopMgr::ProcessRequestsWorker()
             else
                 sWorld.AddAsyncTask({ ShopSendBalanceTask(itr.accountId, GetBalance(itr.accountId)) });
         }
-
-        std::this_thread::sleep_for(std::chrono::milliseconds(20));
     }
     LoginDatabase.ThreadEnd();
+}
+
+void ShopMgr::NotifyWorkerShutdown()
+{
+    m_condition.notify_all();
 }
 
 int32 ShopMgr::GetBalance(uint32 accountId)

@@ -253,7 +253,10 @@ void World::InternalShutdown()
         m_asyncPacketsThread.join();
 
     if (m_shopThread.joinable())
+    {
+        sShopMgr.NotifyWorkerShutdown();
         m_shopThread.join();
+    }
 
 #ifdef USING_DISCORD_BOT
     sDiscordBot->Stop();
