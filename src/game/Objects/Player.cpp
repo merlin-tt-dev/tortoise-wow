@@ -21306,7 +21306,7 @@ void Player::LearnQuestRewardedSpells()
 
 void Player::LearnGameMasterSpells()
 {
-    const std::list<uint32> aGameMasterSpellList =
+    static constexpr uint32 aGameMasterSpellList[] =
     {
         56043, // Debug: Next DisplayID
         56044, // Debug: Previous DisplayID
