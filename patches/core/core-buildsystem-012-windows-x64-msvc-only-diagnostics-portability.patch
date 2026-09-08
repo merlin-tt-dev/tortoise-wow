@@ -1,0 +1,33 @@
+diff --git a/dep/src/g3dlite/System.cpp b/dep/src/g3dlite/System.cpp
+index f7013f5..b061965 100644
+--- a/dep/src/g3dlite/System.cpp
++++ b/dep/src/g3dlite/System.cpp
+@@ -1543,7 +1543,7 @@ void* System::alignedMalloc(size_t bytes, size_t alignment) {
+ 
+     debugAssert(isValidHeapPointer((void*)truePtr));
+ 
+-    #if defined(G3D_WINDOWS) && defined(G3D_DEBUG)
++    #if defined(G3D_WINDOWS) && defined(G3D_DEBUG) && defined(_MSC_VER)
+         if (bytes < 0xFFFFFFFF) { 
+             debugAssert( _CrtIsValidPointer((void*)alignedPtr, (int)bytes, TRUE) );
+         }
+diff --git a/src/shared/Util.cpp b/src/shared/Util.cpp
+index d365758..c62d2f3 100644
+--- a/src/shared/Util.cpp
++++ b/src/shared/Util.cpp
+@@ -792,6 +792,7 @@ void InternalThreadName(const char* name)
+ 
+ 		pThreadCall(GetCurrentThread(), wc);
+ 	}
++#ifdef _MSC_VER
+ 	else
+ 	{
+ 		THREAD_NAME tn;
+@@ -807,6 +808,7 @@ void InternalThreadName(const char* name)
+ 		{
+ 		}
+ 	}
++#endif
+ }
+ 
+ #else
