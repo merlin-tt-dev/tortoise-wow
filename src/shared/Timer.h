@@ -22,7 +22,6 @@
 #pragma once
 
 #include "Common.h"
-#include <ace/OS_NS_sys_time.h>
 
 class WorldTimer
 {
@@ -56,8 +55,8 @@ private:
     WorldTimer();
     WorldTimer(const WorldTimer& );
 
-    //analogue to getMSTime() but it persists m_SystemTickTime
-    static uint32 getMSTime_internal(bool savetime = false);
+    // Process-relative monotonic millisecond clock used by getMSTime().
+    static uint32 getMSTime_internal();
 
     static uint32 m_iTime;
     static uint32 m_iPrevTime;

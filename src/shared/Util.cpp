@@ -35,6 +35,7 @@
 #include "Auth/base32.h"
 
 
+#include <chrono>
 #include <ios>
 #include <iostream>
 #include <fstream>
@@ -81,7 +82,7 @@ Tokenizer::Tokenizer(const std::string &src, const char sep, uint32 vectorReserv
     }
 }
 
-static ACE_Time_Value g_SystemTickTime = ACE_OS::gettimeofday();
+static const std::chrono::steady_clock::time_point g_SystemTickTime = std::chrono::steady_clock::now();
 
 uint32 WorldTimer::m_iTime = 0;
 uint32 WorldTimer::m_iPrevTime = 0;
@@ -94,8 +95,8 @@ uint32 WorldTimer::tick()
     //save previous world tick time
     m_iPrevTime = m_iTime;
 
-    //get the new one and don't forget to persist current system time in m_SystemTickTime
-    m_iTime = WorldTimer::getMSTime_internal(true);
+    // Get the new process-relative monotonic timestamp.
+    m_iTime = WorldTimer::getMSTime_internal();
 
     //return tick diff
     return getMSTimeDiff(m_iPrevTime, m_iTime);
@@ -106,19 +107,13 @@ uint32 WorldTimer::getMSTime()
     return getMSTime_internal();
 }
 
-uint32 WorldTimer::getMSTime_internal(bool /*savetime*/ /*= false*/)
+uint32 WorldTimer::getMSTime_internal()
 {
-    //get current time
-    const ACE_Time_Value currTime = ACE_OS::gettimeofday();
-    //calculate time diff between two world ticks
-    //special case: curr_time < old_time - we suppose that our time has not ticked at all
-    //this should be constant value otherwise it is possible that our time can start ticking backwards until next world tick!!!
-    uint64 diff = 0;
-    (currTime - g_SystemTickTime).msec(diff);
+    const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now() - g_SystemTickTime).count();
 
-    //lets calculate current world time
-    uint32 iRes = uint32(diff % UI64LIT(0x00000000FFFFFFFF));
-    return iRes;
+    // Preserve the legacy 32-bit wrap behavior used throughout the core.
+    return uint32(uint64(elapsed) % UI64LIT(0x00000000FFFFFFFF));
 }
 
 //////////////////////////////////////////////////////////////////////////
