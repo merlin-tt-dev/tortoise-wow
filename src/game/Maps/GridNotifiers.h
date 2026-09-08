@@ -386,13 +386,13 @@ namespace MaNGOS
     };
 
     // All accepted by Check units if any
-    template<class Check>
+    template<class Check, class Container = std::list<Unit*>>
         struct UnitListSearcher
     {
-        std::list<Unit*> &i_objects;
+        Container& i_objects;
         Check& i_check;
 
-        UnitListSearcher(std::list<Unit*> &objects, Check & check) : i_objects(objects),i_check(check) {}
+        UnitListSearcher(Container& objects, Check& check) : i_objects(objects), i_check(check) {}
 
         void Visit(PlayerMapType &m);
         void Visit(CreatureMapType &m);

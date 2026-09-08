@@ -490,16 +490,16 @@ void MaNGOS::CorpseListSearcher<Check>::Visit(CorpseMapType& m)
     }
 }
 
-template<class Check>
-void MaNGOS::UnitListSearcher<Check>::Visit(PlayerMapType& m)
+template<class Check, class Container>
+void MaNGOS::UnitListSearcher<Check, Container>::Visit(PlayerMapType& m)
 {
     for(auto & itr : m)
         if (i_check(itr.getSource()))
             i_objects.push_back(itr.getSource());
 }
 
-template<class Check>
-void MaNGOS::UnitListSearcher<Check>::Visit(CreatureMapType& m)
+template<class Check, class Container>
+void MaNGOS::UnitListSearcher<Check, Container>::Visit(CreatureMapType& m)
 {
     for(auto & itr : m)
         if (i_check(itr.getSource()))
