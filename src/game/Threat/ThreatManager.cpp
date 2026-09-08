@@ -572,7 +572,7 @@ void ThreatManager::UnitDetailedThreatSituation(Creature* creature, Player* requ
                 ThreatList::const_iterator hatedPlayers = hThreatList.begin();
 
                 //if im 1st on threat, send 2nd, else im not 1st on threat, send 1st, begin()
-                if (hatedPlayer->getTarget()->GetName() == requesterName)
+                if ((*hatedPlayers)->getTarget()->GetName() == requesterName)
                     ++hatedPlayers;
 
                 HostileReference* const hatedPlayer = *hatedPlayers;
@@ -609,7 +609,8 @@ void ThreatManager::UnitDetailedThreatSituation(Creature* creature, Player* requ
 
 		if (pSecondMessage.size() > 1)
 		{
-			bigPacket += "#" + tankModePrefix;
+            bigPacket += '#';
+            bigPacket += tankModePrefix;
             for (std::string const& msg : pSecondMessage)
             {
                 bigPacket += msg;
