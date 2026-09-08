@@ -160,13 +160,14 @@ void Channel::Join(ObjectGuid guid, const char *password, bool checkPassword)
     if (HasFlag(CHANNEL_FLAG_CUSTOM) && !IsConstant() && !m_ownerGuid)
     {
         SetOwner(guid, (m_players.size() > 1));
-        m_players[guid].SetModerator(true);
+        pinfo.SetModerator(true);
     }
 }
 
 void Channel::Leave(ObjectGuid guid, bool send)
 {
-    if (!IsOn(guid))
+    PlayerList::iterator playerItr = m_players.find(guid);
+    if (playerItr == m_players.end())
     {
         if (send)
         {
@@ -189,9 +190,9 @@ void Channel::Leave(ObjectGuid guid, bool send)
         data.clear();
     }
 
-    bool changeowner = m_players[guid].IsOwner();
+    bool changeowner = playerItr->second.IsOwner();
 
-    m_players.erase(guid);
+    m_players.erase(playerItr);
     if (m_announce && (!pPlayer.get() || pPlayer->GetSession()->GetSecurity() < SEC_OBSERVER || !sWorld.getConfig(CONFIG_BOOL_SILENTLY_GM_JOIN_TO_CHANNEL)))
     {
         WorldPacket data;
@@ -651,9 +652,11 @@ void Channel::Say(ObjectGuid guid, const char *text, uint32 lang, bool skipCheck
     uint32 const sec = pPlayer ? pPlayer->GetSession()->GetSecurity() : 0;
     uint8  const honor_rank = pPlayer ? pPlayer->ToPlayer()->GetHonorMgr().GetCurrentHonorRank() : 0;
 
+    PlayerInfo* playerInfo = nullptr;
     if (!skipCheck)
     {
-        if (!IsOn(guid))
+        auto playerItr = m_players.find(guid);
+        if (playerItr == m_players.end())
         {
             WorldPacket data;
             MakeNotMember(&data);
@@ -661,7 +664,8 @@ void Channel::Say(ObjectGuid guid, const char *text, uint32 lang, bool skipCheck
             return;
         }
 
-        if (m_players[guid].IsMuted() || ((GetChannelId() == CHANNEL_ID_WORLD_DEFENSE) && (honor_rank < 15)))
+        playerInfo = &playerItr->second;
+        if (playerInfo->IsMuted() || ((GetChannelId() == CHANNEL_ID_WORLD_DEFENSE) && (honor_rank < 15)))
         {
             WorldPacket data;
             MakeMuted(&data);
@@ -669,8 +673,7 @@ void Channel::Say(ObjectGuid guid, const char *text, uint32 lang, bool skipCheck
             return;
         }
 
-
-        if (m_moderate && !m_players[guid].IsModerator() && sec < SEC_OBSERVER)
+        if (m_moderate && !playerInfo->IsModerator() && sec < SEC_OBSERVER)
         {
             WorldPacket data;
             MakeNotModerator(&data);
@@ -697,7 +700,7 @@ void Channel::Say(ObjectGuid guid, const char *text, uint32 lang, bool skipCheck
     }
     else
     {
-        SendToAll(&data, (!skipCheck && !m_players[guid].IsModerator()) ? guid : ObjectGuid());
+        SendToAll(&data, (playerInfo && !playerInfo->IsModerator()) ? guid : ObjectGuid());
     }
 }
 

@@ -275,10 +275,11 @@ class Channel
 
         void SetModerator(ObjectGuid guid, bool set)
         {
-            if (m_players[guid].IsModerator() != set)
+            PlayerInfo& playerInfo = m_players[guid];
+            if (playerInfo.IsModerator() != set)
             {
-                uint8 oldFlag = GetPlayerFlags(guid);
-                m_players[guid].SetModerator(set);
+                uint8 oldFlag = playerInfo.flags;
+                playerInfo.SetModerator(set);
 
                 WorldPacket data;
                 MakeModeChange(&data, guid, oldFlag);
@@ -288,10 +289,11 @@ class Channel
 
         void SetMute(ObjectGuid guid, bool set)
         {
-            if (m_players[guid].IsMuted() != set)
+            PlayerInfo& playerInfo = m_players[guid];
+            if (playerInfo.IsMuted() != set)
             {
-                uint8 oldFlag = GetPlayerFlags(guid);
-                m_players[guid].SetMuted(set);
+                uint8 oldFlag = playerInfo.flags;
+                playerInfo.SetMuted(set);
 
                 WorldPacket data;
                 MakeModeChange(&data, guid, oldFlag);
