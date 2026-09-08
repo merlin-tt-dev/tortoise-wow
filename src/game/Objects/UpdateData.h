@@ -25,6 +25,8 @@
 #include "ByteBuffer.h"
 #include "ObjectGuid.h"
 
+#include <deque>
+
 class WorldPacket;
 class WorldSession;
 class WorldObject;
@@ -89,7 +91,7 @@ class UpdateData
 
     protected:
         ObjectGuidSet m_outOfRangeGUIDs;
-        std::list<UpdatePacket> m_datas;
+        std::deque<UpdatePacket> m_datas;
 };
 
 class MovementData

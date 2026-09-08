@@ -53,18 +53,12 @@ void UpdateData::AddOutOfRangeGUID(ObjectGuid const &guid)
 
 ByteBuffer& UpdateData::AddUpdateBlockAndGetBuffer()
 {
-    if (m_datas.empty())
-        m_datas.push_back(UpdatePacket());
-    std::list<UpdatePacket>::iterator it = m_datas.end();
-    --it;
-    if (it->data.wpos() > MAX_UNCOMPRESSED_PACKET_SIZE)
-    {
-        m_datas.push_back(UpdatePacket());
-        it = m_datas.end();
-        --it;
-    }
-    ++it->blockCount;
-    return it->data;
+    if (m_datas.empty() || m_datas.back().data.wpos() > MAX_UNCOMPRESSED_PACKET_SIZE)
+        m_datas.emplace_back();
+
+    UpdatePacket& packet = m_datas.back();
+    ++packet.blockCount;
+    return packet.data;
 }
 
 inline libdeflate_compressor* GetCompressor()
