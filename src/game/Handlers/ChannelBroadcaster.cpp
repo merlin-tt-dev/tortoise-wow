@@ -1,4 +1,3 @@
-#include <chrono>
 #include "ChannelBroadcaster.h"
 #include "ChannelMgr.h"
 #include "World.h"
@@ -69,8 +68,14 @@ void ChannelBroadcaster::DisableSendingMessages()
 
 void ChannelBroadcaster::EnqueueMessage(std::string&& Message, const std::string& ChannelName, ObjectGuid PlayerGuid, uint32 Language, Team ChannelTeam, bool bSkipChecks)
 {
-	MessageQueue.enqueue(ChannelMessage{std::move(Message), ChannelName, PlayerGuid, Language, ChannelTeam, bSkipChecks });
-    StateChanged.notify_one();
+    MessageQueue.enqueue(ChannelMessage{std::move(Message), ChannelName, PlayerGuid, Language, ChannelTeam, bSkipChecks });
+
+    // Synchronize with the consumer's empty-queue wait so a notification cannot
+    // be lost between its queue check and entering the wait state.
+    {
+        std::lock_guard<std::mutex> lock(StateMutex);
+        StateChanged.notify_one();
+    }
 }
 
 void ChannelBroadcaster::ThreadProc()
@@ -114,8 +119,12 @@ void ChannelBroadcaster::ThreadProc()
             if (MessageIterator == 0)
             {
                 std::unique_lock<std::mutex> lock(StateMutex);
-                StateChanged.wait_for(lock, std::chrono::milliseconds(1));
-			}
+                StateChanged.wait(lock, [this]()
+                {
+                    return MessageQueue.peek() != nullptr || !bShouldSentMessages ||
+                           bStopRequested || sWorld.IsStopped();
+                });
+            }
 		}
 
         {
