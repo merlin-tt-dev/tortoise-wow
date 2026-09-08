@@ -566,11 +566,12 @@ inline ByteBuffer &operator>>(ByteBuffer &b, std::vector<T> &v)
     uint32 vsize;
     b >> vsize;
     v.clear();
+    v.reserve(vsize);
     while(vsize--)
     {
         T t;
         b >> t;
-        v.push_back(t);
+        v.push_back(std::move(t));
     }
     return b;
 }
@@ -592,11 +593,12 @@ inline ByteBuffer &operator>>(ByteBuffer &b, std::list<T> &v)
     uint32 vsize;
     b >> vsize;
     v.clear();
+    v.reserve(vsize);
     while(vsize--)
     {
         T t;
         b >> t;
-        v.push_back(t);
+        v.push_back(std::move(t));
     }
     return b;
 }
