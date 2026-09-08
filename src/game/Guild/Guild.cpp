@@ -36,6 +36,8 @@
 #include "ScriptObjects.h"
 #include "Item.h"
 
+#include <vector>
+
 #define MAX_UNCOMPRESSED_PACKET_SIZE 0x8000 
 
 //// MemberSlot ////////////////////////////////////////////
@@ -104,10 +106,10 @@ bool Guild::Create(Petition* petition, Player* leader)
     if (!Create(leader, petition->GetName()))
         return false;
 
-    PetitionSignatureList const& signatures = petition->GetSignatureList();
-    for (auto iter = signatures.cbegin(); iter != signatures.cend(); ++iter)
+    PetitionSignatureList const& petitionSignatures = petition->GetSignatureList();
+    std::vector<PetitionSignature*> signatures(petitionSignatures.begin(), petitionSignatures.end());
+    for (PetitionSignature* signature : signatures)
     {
-        PetitionSignature* signature = *iter;
 
         if (signature->GetSignatureGuid().IsEmpty())
             continue;
