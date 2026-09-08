@@ -5160,9 +5160,10 @@ void Spell::SendResurrectRequest(Player* target, bool sickness)
         :
         m_caster->GetNameForLocaleIdx(target->GetSession()->GetSessionDbLocaleIndex());
 
-    WorldPacket data(SMSG_RESURRECT_REQUEST, (8 + 4 + strlen(sentName) + 1 + 1 + 1));
+    size_t const sentNameLength = strlen(sentName) + 1;
+    WorldPacket data(SMSG_RESURRECT_REQUEST, 8 + 4 + sentNameLength + 1 + 1);
     data << m_caster->GetObjectGuid();
-    data << uint32(strlen(sentName) + 1);
+    data << uint32(sentNameLength);
 
     data << sentName;
     data << uint8(sickness); // warns it will cause ressurrection sickness
