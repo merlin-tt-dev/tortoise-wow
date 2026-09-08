@@ -1,0 +1,56 @@
+diff --git a/src/game/Anticheat/Warden/WardenModule.cpp b/src/game/Anticheat/Warden/WardenModule.cpp
+--- a/src/game/Anticheat/Warden/WardenModule.cpp
++++ b/src/game/Anticheat/Warden/WardenModule.cpp
+@@ -8,6 +8,7 @@
+ #include "WardenModule.hpp"
+ 
+ #include "Platform/Define.h"
+ #include "Auth/ARC4.h"
++#include "Log.h"
+ #include "zlib.h"
+ 
+ #include <openssl/md5.h>
+diff --git a/src/shared/Auth/HMACSHA1.cpp b/src/shared/Auth/HMACSHA1.cpp
+--- a/src/shared/Auth/HMACSHA1.cpp
++++ b/src/shared/Auth/HMACSHA1.cpp
+@@ -17,6 +17,7 @@
+ 
+ #include "Auth/HMACSHA1.h"
+ #include "BigNumber.h"
++#include "Log.h"
+ 
+ HMACSHA1::HMACSHA1(uint32 len, uint8 *seed)
+ {
+diff --git a/src/shared/Auth/Hmac.cpp b/src/shared/Auth/Hmac.cpp
+--- a/src/shared/Auth/Hmac.cpp
++++ b/src/shared/Auth/Hmac.cpp
+@@ -17,6 +17,7 @@
+ 
+ #include "Auth/Hmac.h"
+ #include "BigNumber.h"
++#include "Log.h"
+ 
+ HmacHash::HmacHash(const uint8* data, int length)
+ {
+diff --git a/src/shared/Auth/Sha1.cpp b/src/shared/Auth/Sha1.cpp
+--- a/src/shared/Auth/Sha1.cpp
++++ b/src/shared/Auth/Sha1.cpp
+@@ -17,6 +17,7 @@
+ 
+ #include "Auth/Sha1.h"
+ #include "Auth/BigNumber.h"
++#include "Log.h"
+ #include <stdarg.h>
+ 
+ Sha1Hash::Sha1Hash() : m_ctx(EVP_MD_CTX_new())
+diff --git a/src/shared/Auth/Sha1.h b/src/shared/Auth/Sha1.h
+--- a/src/shared/Auth/Sha1.h
++++ b/src/shared/Auth/Sha1.h
+@@ -43,6 +43,7 @@ class Sha1Hash
+         void Finalize();
+ 
+         uint8 *GetDigest(void) { return mDigest; };
++        uint8 const* GetDigest(void) const { return mDigest; };
+         int GetLength(void) { return SHA_DIGEST_LENGTH; };
+ 
+     private:
