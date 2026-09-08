@@ -31,7 +31,7 @@ Camera::Camera(Player* pl) : m_owner(*pl), m_source(pl)
     m_source->GetViewPoint().Attach(this);
 }
 
-Camera::~Camera()
+Camera::~Camera() noexcept(false)
 {
     // view of camera should be already reseted to owner (RemoveFromWorld -> Event_RemovedFromWorld -> ResetView)
     MANGOS_ASSERT(m_source == &m_owner);

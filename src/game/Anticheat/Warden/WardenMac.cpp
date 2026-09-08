@@ -6,6 +6,7 @@
  */
 
 #include "WardenMac.hpp"
+#include <openssl/evp.h>
 #include "WardenModuleMgr.hpp"
 #include "WardenScanMgr.hpp"
 #include "WorldSession.h"
@@ -72,10 +73,9 @@ WardenMac::WardenMac(WorldSession *session, const BigNumber &K, SessionAnticheat
 
     memcpy(_hashSHA, sha1.GetDigest(), sizeof(_hashSHA));
 
-    MD5_CTX md5;
-    MD5_Init(&md5);
-    MD5_Update(&md5, _hashString.c_str(), _hashString.size());
-    MD5_Final(_hashMD5, &md5);
+    unsigned int length = 0;
+    MANGOS_ASSERT(EVP_Digest(_hashString.data(), _hashString.size(), _hashMD5, &length, EVP_md5(), nullptr) == 1);
+    MANGOS_ASSERT(length == MD5_DIGEST_LENGTH);
 
     // PPC no module, begin string hashing requests directly
     if (!_module)

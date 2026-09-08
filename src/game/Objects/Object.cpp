@@ -196,7 +196,7 @@ Object::Object() : m_updateFlag(0)
     _delayedActions     = 0;
 }
 
-Object::~Object()
+Object::~Object() noexcept(false)
 {
     if (IsInWorld())
     {

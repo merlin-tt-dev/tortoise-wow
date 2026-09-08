@@ -12,6 +12,7 @@
 #include "zlib.h"
 
 #include <openssl/md5.h>
+#include <openssl/evp.h>
 
 #include <string>
 #include <vector>
@@ -39,12 +40,10 @@ WardenModule::WardenModule(std::string const &bin, std::string const &kf, std::s
     // compute md5 hash of encrypted/compressed data
     {
         // md5 hash
-        MD5_CTX ctx;
-        MD5_Init(&ctx);
-        MD5_Update(&ctx, &binary[0], binary.size());
-
         hash.resize(MD5_DIGEST_LENGTH);
-        MD5_Final(&hash[0], &ctx);
+        unsigned int length = 0;
+        MANGOS_ASSERT(EVP_Digest(binary.data(), binary.size(), hash.data(), &length, EVP_md5(), nullptr) == 1);
+        MANGOS_ASSERT(length == MD5_DIGEST_LENGTH);
     }
 
     std::ifstream k(kf, std::ios::binary | std::ios::ate);

@@ -28,6 +28,7 @@
 #include "Common.h"
 #include "Timer.h"
 #include "PatchHandler.h"
+#include <openssl/evp.h>
 #include "PatchLimiter.hpp"
 
 #ifdef WIN32
@@ -217,8 +218,9 @@ void PatchCache::LoadPatchMD5(const char* szFileName)
         return;
 
     // Calculate the MD5 hash
-    MD5_CTX ctx;
-    MD5_Init(&ctx);
+    EVP_MD_CTX* ctx = EVP_MD_CTX_new();
+    MANGOS_ASSERT(ctx);
+    MANGOS_ASSERT(EVP_DigestInit_ex(ctx, EVP_md5(), nullptr) == 1);
 
     const size_t check_chunk_size = 4*1024;
 
@@ -227,14 +229,17 @@ void PatchCache::LoadPatchMD5(const char* szFileName)
     while(!feof (pPatch))
     {
         size_t read = fread(buf, 1, check_chunk_size, pPatch);
-        MD5_Update(&ctx, buf, read);
+        MANGOS_ASSERT(EVP_DigestUpdate(ctx, buf, read) == 1);
     }
 
     fclose(pPatch);
 
     // Store the result in the internal patch hash map
     patches_[path] = new PATCH_INFO;
-    MD5_Final((ACE_UINT8 *) & patches_[path]->md5, &ctx);
+    unsigned int length = 0;
+    MANGOS_ASSERT(EVP_DigestFinal_ex(ctx, patches_[path]->md5, &length) == 1);
+    EVP_MD_CTX_free(ctx);
+    MANGOS_ASSERT(length == MD5_DIGEST_LENGTH);
 }
 
 bool PatchCache::GetHash(const char * pat, ACE_UINT8 mymd5[MD5_DIGEST_LENGTH])

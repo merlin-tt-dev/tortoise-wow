@@ -38,7 +38,7 @@ class Camera
     public:
 
         explicit Camera(Player* pl);
-        ~Camera();
+        ~Camera() noexcept(false);
 
         WorldObject* GetBody() { return m_source;}
         Player* GetOwner() { return &m_owner;}

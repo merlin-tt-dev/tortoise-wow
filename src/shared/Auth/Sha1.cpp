@@ -20,24 +20,25 @@
 #include "Auth/BigNumber.h"
 #include <stdarg.h>
 
-Sha1Hash::Sha1Hash()
+Sha1Hash::Sha1Hash() : m_ctx(EVP_MD_CTX_new())
 {
-    SHA1_Init(&mC);
+    MANGOS_ASSERT(m_ctx);
+    MANGOS_ASSERT(EVP_DigestInit_ex(m_ctx, EVP_sha1(), nullptr) == 1);
 }
 
 Sha1Hash::~Sha1Hash()
 {
-    SHA1_Init(&mC);
+    EVP_MD_CTX_free(m_ctx);
 }
 
 void Sha1Hash::UpdateData(const uint8 *dta, int len)
 {
-    SHA1_Update(&mC, dta, len);
+    MANGOS_ASSERT(EVP_DigestUpdate(m_ctx, dta, len) == 1);
 }
 
 void Sha1Hash::UpdateData(const std::vector<uint8>& data)
 {
-    SHA1_Update(&mC, data.data(), data.size());
+    MANGOS_ASSERT(EVP_DigestUpdate(m_ctx, data.data(), data.size()) == 1);
 }
 
 void Sha1Hash::UpdateData(const std::string &str)
@@ -62,10 +63,12 @@ void Sha1Hash::UpdateBigNumbers(BigNumber *bn0, ...)
 
 void Sha1Hash::Initialize()
 {
-    SHA1_Init(&mC);
+    MANGOS_ASSERT(EVP_DigestInit_ex(m_ctx, EVP_sha1(), nullptr) == 1);
 }
 
 void Sha1Hash::Finalize(void)
 {
-    SHA1_Final(mDigest, &mC);
+    unsigned int length = 0;
+    MANGOS_ASSERT(EVP_DigestFinal_ex(m_ctx, mDigest, &length) == 1);
+    MANGOS_ASSERT(length == SHA_DIGEST_LENGTH);
 }

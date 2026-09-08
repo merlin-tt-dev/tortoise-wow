@@ -372,7 +372,7 @@ typedef void (*CreatureAiSetter)(Creature *pCreature);
 class Object
 {
     public:
-        virtual ~Object();
+        virtual ~Object() noexcept(false);
 
         void SetIsNewObject(bool state) { m_isNewObject = state; }
         const bool& IsInWorld() const { return m_inWorld; }

@@ -64,7 +64,7 @@ class AuthSocket: public BufferedSocket
 
         void OnAccept();
         void OnRead();
-        void SendProof(Sha1Hash sha);
+        void SendProof(const Sha1Hash& sha);
         void LoadRealmlist(ByteBuffer &pkt);
         bool VerifyPinData(uint32 pin, const PINData& clientData);
         bool ValidateToken(std::string const& secretString, PINData& data);
@@ -128,11 +128,14 @@ class AuthSocket: public BufferedSocket
         uint32 gridSeed;
         uint32_t _geoUnlockPIN;
 
-        static constexpr uint32 Win = 'Win';
-        static constexpr uint32 OSX = 'OSX';
+        // Numeric values match the legacy multi-character constants exactly,
+        // without relying on their implementation-defined representation.
+        static constexpr uint32 Win = 0x0057696E; // 'Win'
+        static constexpr uint32 OSX = 0x004F5358; // 'OSX'
 
-        static constexpr uint32 X86 = 'x86';
-        static constexpr uint32 PPC = 'PPC';
+        static constexpr uint32 X86 = 0x00783836; // 'x86'
+        static constexpr uint32 PPC = 0x00505043; // 'PPC'
+
 
         uint32 _os;
         uint32 _platform;

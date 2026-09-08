@@ -41,11 +41,8 @@ class HmacHash
         int GetLength() { return SHA_DIGEST_LENGTH; };
     private:
 
-#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
-        HMAC_CTX* m_ctx;
-#else
-        HMAC_CTX m_ctx;
-#endif
+        std::vector<uint8> m_key;
+        std::vector<uint8> m_data;
         uint8 m_digest[SHA_DIGEST_LENGTH];
 };
 #endif

@@ -337,7 +337,7 @@ void AuthSocket::_SetVSFields(const std::string& rI)
     OPENSSL_free((void*)s_hex);
 }
 
-void AuthSocket::SendProof(Sha1Hash sha)
+void AuthSocket::SendProof(const Sha1Hash& sha)
 {
     sAuthLogonProof_S_BUILD_6005 proof;
     memcpy(proof.M2, sha.GetDigest(), 20);

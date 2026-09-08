@@ -21,6 +21,7 @@
 
 #include "Common.h"
 #include <openssl/sha.h>
+#include <openssl/evp.h>
 #include <openssl/crypto.h>
 
 class BigNumber;
@@ -30,6 +31,8 @@ class Sha1Hash
     public:
         Sha1Hash();
         ~Sha1Hash();
+        Sha1Hash(const Sha1Hash&) = delete;
+        Sha1Hash& operator=(const Sha1Hash&) = delete;
 
         void UpdateBigNumbers(BigNumber *bn0, ...);
 
@@ -44,7 +47,7 @@ class Sha1Hash
         int GetLength(void) { return SHA_DIGEST_LENGTH; };
 
     private:
-        SHA_CTX mC;
+        EVP_MD_CTX* m_ctx;
         uint8 mDigest[SHA_DIGEST_LENGTH];
 };
 #endif
