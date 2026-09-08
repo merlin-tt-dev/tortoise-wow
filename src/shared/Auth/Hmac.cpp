@@ -18,6 +18,7 @@
 
 #include "Auth/Hmac.h"
 #include "BigNumber.h"
+#include "Log.h"
 
 HmacHash::HmacHash(const uint8* data, int length)
 {

@@ -9,6 +9,7 @@
 
 #include "Platform/Define.h"
 #include "Auth/ARC4.h"
+#include "Log.h"
 #include "zlib.h"
 
 #include <openssl/md5.h>

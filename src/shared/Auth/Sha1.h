@@ -44,6 +44,7 @@ class Sha1Hash
         void Finalize();
 
         uint8 *GetDigest(void) { return mDigest; };
+        uint8 const* GetDigest(void) const { return mDigest; };
         int GetLength(void) { return SHA_DIGEST_LENGTH; };
 
     private:
