@@ -1469,13 +1469,17 @@ void BattleGround::ReturnPlayersToHomeGY()
 
 void BattleGround::SpawnEvent(uint8 event1, uint8 event2, bool spawn, bool forced_despawn, uint32 delay)
 {
-    auto const [activeItr, inserted] = m_ActiveEvents.try_emplace(event1);
+    // Keep BG_EVENT_NONE as a pure no-op: historically this path never created
+    // an m_ActiveEvents entry through the short-circuited operator[] checks.
+    if (event2 == BG_EVENT_NONE)
+        return;
+
+    auto activeItr = m_ActiveEvents.try_emplace(event1).first;
     uint8& activeEvent = activeItr->second;
 
     // stop if we want to spawn something which was already spawned
     // or despawn something which was already despawned
-    if (event2 == BG_EVENT_NONE || (spawn && activeEvent == event2)
-            || (!spawn && activeEvent != event2))
+    if ((spawn && activeEvent == event2) || (!spawn && activeEvent != event2))
         return;
 
     if (spawn)

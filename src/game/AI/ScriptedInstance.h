@@ -73,6 +73,7 @@ public:
     void OnCreatureEnterCombat(Creature* creature) override;
     void Update(uint32 diff) override;
 protected:
+    bool TryAddBossExpiration(ObjectGuid guid);
     std::map<ObjectGuid, time_t> boss_expirations; // For PTR testes
 };
 

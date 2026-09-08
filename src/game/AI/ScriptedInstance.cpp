@@ -166,14 +166,21 @@ Creature* ScriptedInstance::GetSingleCreatureFromStorage(uint32 uiEntry, bool bS
     return nullptr;
 }
 
+bool ScriptedInstance_PTR::TryAddBossExpiration(ObjectGuid guid)
+{
+    auto const [it, inserted] = boss_expirations.try_emplace(guid);
+    if (!inserted)
+        return false;
+
+    it->second = time(nullptr);
+    return true;
+}
+
 void ScriptedInstance_PTR::OnCreatureEnterCombat(Creature* creature)
 {
-    if (creature->IsWorldBoss())
-    {
-        auto const [it, inserted] = boss_expirations.try_emplace(creature->GetObjectGuid(), time(nullptr));
-        if (inserted)
-            creature->MonsterSay("Remaining time before despawn: 30 minutes.");
-    }
+    if (creature->IsWorldBoss() && TryAddBossExpiration(creature->GetObjectGuid()))
+        creature->MonsterSay("Remaining time before despawn: 30 minutes.");
+
     ScriptedInstance::OnCreatureEnterCombat(creature);
 }
 
