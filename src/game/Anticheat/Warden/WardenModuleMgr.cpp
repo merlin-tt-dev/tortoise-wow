@@ -13,38 +13,25 @@
 #include "Policies/SingletonImp.h"
 #include "Util.h"
 
-#include <ace/OS_NS_dirent.h>
-
-#include <vector>
+#include <filesystem>
 #include <string>
-#include <fstream>
+#include <system_error>
+#include <vector>
 
 namespace
 {
-std::vector<std::string> GetModuleNames(const std::string &moduleDir)
+std::vector<std::string> GetModuleNames(const std::string& moduleDir)
 {
-    ACE_DIR *dirp = ACE_OS::opendir(ACE_TEXT(moduleDir.c_str()));
-
     std::vector<std::string> results;
+    std::error_code error;
 
-    if (dirp)
+    for (std::filesystem::directory_iterator itr(moduleDir, error), end; !error && itr != end; itr.increment(error))
     {
-        ACE_DIRENT *dp;
+        const std::string modulePath = itr->path().generic_string();
 
-        // look only for .bin files, and assume (for now) that the corresponding .key and .cr files exist
-        while (!!(dp = ACE_OS::readdir(dirp)))
-        {
-            if (strlen(dp->d_name) < 4)
-                continue;
-
-            if (!memcmp(&dp->d_name[strlen(dp->d_name) - 4], ".bin", 4))
-                results.emplace_back(moduleDir + "/" + dp->d_name);
-        }
-
-#ifndef _WIN32
-        // this causes a crash on Windows, so just accept a minor memory leak for now
-        ACE_OS::closedir(dirp);
-#endif
+        // Look only for .bin files, and assume (for now) that the corresponding .key and .cr files exist.
+        if (modulePath.size() >= 4 && modulePath.compare(modulePath.size() - 4, 4, ".bin") == 0)
+            results.emplace_back(modulePath);
     }
 
     return results;
