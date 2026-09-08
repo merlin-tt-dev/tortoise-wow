@@ -1,0 +1,69 @@
+diff --git a/src/game/AI/ScriptedInstance.cpp b/src/game/AI/ScriptedInstance.cpp
+index 438ac13..4a6c43f 100644
+--- a/src/game/AI/ScriptedInstance.cpp
++++ b/src/game/AI/ScriptedInstance.cpp
+@@ -166,14 +166,21 @@ Creature* ScriptedInstance::GetSingleCreatureFromStorage(uint32 uiEntry, bool bS
+     return nullptr;
+ }
+ 
++bool ScriptedInstance_PTR::TryAddBossExpiration(ObjectGuid guid)
++{
++    auto const [it, inserted] = boss_expirations.try_emplace(guid);
++    if (!inserted)
++        return false;
++
++    it->second = time(nullptr);
++    return true;
++}
++
+ void ScriptedInstance_PTR::OnCreatureEnterCombat(Creature* creature)
+ {
+-    if (creature->IsWorldBoss())
+-    {
+-        auto const [it, inserted] = boss_expirations.try_emplace(creature->GetObjectGuid(), time(nullptr));
+-        if (inserted)
+-            creature->MonsterSay("Remaining time before despawn: 30 minutes.");
+-    }
++    if (creature->IsWorldBoss() && TryAddBossExpiration(creature->GetObjectGuid()))
++        creature->MonsterSay("Remaining time before despawn: 30 minutes.");
++
+     ScriptedInstance::OnCreatureEnterCombat(creature);
+ }
+ 
+diff --git a/src/game/AI/ScriptedInstance.h b/src/game/AI/ScriptedInstance.h
+index 2bf593d..3eca1db 100644
+--- a/src/game/AI/ScriptedInstance.h
++++ b/src/game/AI/ScriptedInstance.h
+@@ -73,6 +73,7 @@ public:
+     void OnCreatureEnterCombat(Creature* creature) override;
+     void Update(uint32 diff) override;
+ protected:
++    bool TryAddBossExpiration(ObjectGuid guid);
+     std::map<ObjectGuid, time_t> boss_expirations; // For PTR testes
+ };
+ 
+diff --git a/src/game/Battlegrounds/BattleGround.cpp b/src/game/Battlegrounds/BattleGround.cpp
+index d0cbd6c..26d34f7 100644
+--- a/src/game/Battlegrounds/BattleGround.cpp
++++ b/src/game/Battlegrounds/BattleGround.cpp
+@@ -1469,13 +1469,17 @@ void BattleGround::ReturnPlayersToHomeGY()
+ 
+ void BattleGround::SpawnEvent(uint8 event1, uint8 event2, bool spawn, bool forced_despawn, uint32 delay)
+ {
+-    auto const [activeItr, inserted] = m_ActiveEvents.try_emplace(event1);
++    // Keep BG_EVENT_NONE as a pure no-op: historically this path never created
++    // an m_ActiveEvents entry through the short-circuited operator[] checks.
++    if (event2 == BG_EVENT_NONE)
++        return;
++
++    auto activeItr = m_ActiveEvents.try_emplace(event1).first;
+     uint8& activeEvent = activeItr->second;
+ 
+     // stop if we want to spawn something which was already spawned
+     // or despawn something which was already despawned
+-    if (event2 == BG_EVENT_NONE || (spawn && activeEvent == event2)
+-            || (!spawn && activeEvent != event2))
++    if ((spawn && activeEvent == event2) || (!spawn && activeEvent != event2))
+         return;
+ 
+     if (spawn)

@@ -1,0 +1,270 @@
+diff --git a/src/game/Maps/GridNotifiers.h b/src/game/Maps/GridNotifiers.h
+index 767f865..e1a1ddb 100644
+--- a/src/game/Maps/GridNotifiers.h
++++ b/src/game/Maps/GridNotifiers.h
+@@ -304,13 +304,13 @@ namespace MaNGOS
+         template<class NOT_INTERESTED> void Visit(GridRefManager<NOT_INTERESTED> &) {}
+     };
+ 
+-    template<class Check>
++    template<class Check, class Container = std::list<GameObject*>>
+         struct GameObjectListSearcher
+     {
+-        std::list<GameObject*> &i_objects;
++        Container& i_objects;
+         Check& i_check;
+ 
+-        GameObjectListSearcher(std::list<GameObject*> &objects, Check & check) : i_objects(objects),i_check(check) {}
++        GameObjectListSearcher(Container& objects, Check& check) : i_objects(objects), i_check(check) {}
+ 
+         void Visit(GameObjectMapType &m);
+ 
+@@ -429,13 +429,13 @@ namespace MaNGOS
+         template<class NOT_INTERESTED> void Visit(GridRefManager<NOT_INTERESTED> &) {}
+     };
+ 
+-    template<class Check>
++    template<class Check, class Container = std::list<Creature*>>
+         struct CreatureListSearcher
+     {
+-        std::list<Creature*> &i_objects;
++        Container& i_objects;
+         Check& i_check;
+ 
+-        CreatureListSearcher(std::list<Creature*> &objects, Check & check) : i_objects(objects),i_check(check) {}
++        CreatureListSearcher(Container& objects, Check& check) : i_objects(objects), i_check(check) {}
+ 
+         void Visit(CreatureMapType &m);
+ 
+@@ -486,14 +486,14 @@ namespace MaNGOS
+         template<class NOT_INTERESTED> void Visit(GridRefManager<NOT_INTERESTED> &) {}
+     };
+ 
+-    template<class Check>
++    template<class Check, class Container = std::list<Player*>>
+     struct PlayerListSearcher
+     {
+-        std::list<Player*> &i_objects;
++        Container& i_objects;
+         Check& i_check;
+ 
+-        PlayerListSearcher(std::list<Player*> &objects, Check & check)
+-            : i_objects(objects),i_check(check) {}
++        PlayerListSearcher(Container& objects, Check& check)
++            : i_objects(objects), i_check(check) {}
+ 
+         void Visit(PlayerMapType &m);
+ 
+diff --git a/src/game/Maps/GridNotifiersImpl.h b/src/game/Maps/GridNotifiersImpl.h
+index fcd8581..b692e7d 100644
+--- a/src/game/Maps/GridNotifiersImpl.h
++++ b/src/game/Maps/GridNotifiersImpl.h
+@@ -416,8 +416,8 @@ void MaNGOS::GameObjectLastSearcher<Check>::Visit(GameObjectMapType& m)
+     }
+ }
+ 
+-template<class Check>
+-void MaNGOS::GameObjectListSearcher<Check>::Visit(GameObjectMapType& m)
++template<class Check, class Container>
++void MaNGOS::GameObjectListSearcher<Check, Container>::Visit(GameObjectMapType& m)
+ {
+     for (auto & itr : m)
+         if (i_check(itr.getSource()))
+@@ -535,8 +535,8 @@ void MaNGOS::CreatureLastSearcher<Check>::Visit(CreatureMapType& m)
+     }
+ }
+ 
+-template<class Check>
+-void MaNGOS::CreatureListSearcher<Check>::Visit(CreatureMapType &m)
++template<class Check, class Container>
++void MaNGOS::CreatureListSearcher<Check, Container>::Visit(CreatureMapType &m)
+ {
+     for(auto & itr : m)
+         if (i_check(itr.getSource()))
+@@ -570,8 +570,8 @@ void MaNGOS::PlayerLastSearcher<Check>::Visit(PlayerMapType &m)
+     }
+ }
+ 
+-template<class Check>
+-void MaNGOS::PlayerListSearcher<Check>::Visit(PlayerMapType &m)
++template<class Check, class Container>
++void MaNGOS::PlayerListSearcher<Check, Container>::Visit(PlayerMapType &m)
+ {
+     for(auto & itr : m)
+         if (i_check(itr.getSource()))
+diff --git a/src/game/Objects/Object.cpp b/src/game/Objects/Object.cpp
+index 3ae005e..8747f41 100644
+--- a/src/game/Objects/Object.cpp
++++ b/src/game/Objects/Object.cpp
+@@ -58,6 +58,9 @@
+ #include "MovementBroadcaster.h"
+ #include "PlayerBroadcaster.h"
+ 
++#include <algorithm>
++#include <vector>
++
+ ////////////////////////////////////////////////////////////
+ // Methods of class MovementInfo
+ 
+@@ -2687,10 +2690,10 @@ void WorldObject::DestroyForNearbyPlayers()
+     if (!IsInWorld())
+         return;
+ 
+-    std::list<Player*> targets;
++    std::vector<Player*> targets;
+     // Use visibility modifier for long range players
+     MaNGOS::AnyPlayerInObjectRangeCheck check(this, std::max(GetVisibilityDistance(), GetVisibilityModifier()));
+-    MaNGOS::PlayerListSearcher<MaNGOS::AnyPlayerInObjectRangeCheck> searcher(targets, check);
++    MaNGOS::PlayerListSearcher<MaNGOS::AnyPlayerInObjectRangeCheck, std::vector<Player*>> searcher(targets, check);
+     Cell::VisitWorldObjects(this, searcher, std::max(GetVisibilityDistance(), GetVisibilityModifier()));
+     for (Player* plr : targets)
+     {
+@@ -2729,38 +2732,58 @@ Creature* WorldObject::FindNearestCreature(uint32 entry, float range, bool alive
+     return pCreature;
+ }
+ 
++namespace
++{
++template<class Container>
++void CollectCreaturesWithEntryInGrid(WorldObject const* source, Container& targets, uint32 entry, float range)
++{
++    CellPair pair(MaNGOS::ComputeCellPair(source->GetPositionX(), source->GetPositionY()));
++    Cell cell(pair);
++    cell.SetNoCreate();
++
++    MaNGOS::AllCreaturesOfEntryInRange check(source, entry, range);
++    using Searcher = MaNGOS::CreatureListSearcher<MaNGOS::AllCreaturesOfEntryInRange, Container>;
++    Searcher searcher(targets, check);
++    TypeContainerVisitor<Searcher, GridTypeMapContainer> visitor(searcher);
++
++    cell.Visit(pair, visitor, *source->GetMap(), *source, range);
++}
++
++template<class Container>
++void CollectGameObjectsWithEntryInGrid(WorldObject const* source, Container& targets, uint32 entry, float range)
++{
++    CellPair pair(MaNGOS::ComputeCellPair(source->GetPositionX(), source->GetPositionY()));
++    Cell cell(pair);
++    cell.SetNoCreate();
++
++    MaNGOS::AllGameObjectsWithEntryInRange check(source, entry, range);
++    using Searcher = MaNGOS::GameObjectListSearcher<MaNGOS::AllGameObjectsWithEntryInRange, Container>;
++    Searcher searcher(targets, check);
++    TypeContainerVisitor<Searcher, GridTypeMapContainer> visitor(searcher);
++
++    cell.Visit(pair, visitor, *source->GetMap(), *source, range);
++}
++}
++
+ Creature* WorldObject::FindRandomCreature(uint32 entry, float range, bool alive, Creature const* except) const
+ {
+-    std::list<Creature*> targets;
+-    GetCreatureListWithEntryInGrid(targets, entry, range);
++    std::vector<Creature*> targets;
++    CollectCreaturesWithEntryInGrid(this, targets, entry, range);
+ 
+     // remove current target
+     if (except)
+-        targets.remove((Creature*)except);
++        targets.erase(std::remove(targets.begin(), targets.end(), except), targets.end());
+ 
+-    for (std::list<Creature*>::iterator tIter = targets.begin(); tIter != targets.end();)
++    targets.erase(std::remove_if(targets.begin(), targets.end(), [alive](Creature* target)
+     {
+-        if ((alive && !(*tIter)->IsAlive()) || (!alive && (*tIter)->IsAlive()))
+-        {
+-            std::list<Creature*>::iterator tIter2 = tIter;
+-            ++tIter;
+-            targets.erase(tIter2);
+-        }
+-        else
+-            ++tIter;
+-    }
++        return alive != target->IsAlive();
++    }), targets.end());
+ 
+     // no appropriate targets
+     if (targets.empty())
+         return nullptr;
+ 
+-    // select random
+-    uint32 rIdx = urand(0, targets.size() - 1);
+-    std::list<Creature*>::const_iterator tcIter = targets.begin();
+-    for (uint32 i = 0; i < rIdx; ++i)
+-        ++tcIter;
+-
+-    return *tcIter;
++    return targets[urand(0, targets.size() - 1)];
+ }
+ 
+ GameObject* WorldObject::FindNearestGameObject(uint32 entry, float range) const
+@@ -2783,32 +2806,19 @@ GameObject* WorldObject::FindNearestGameObject(uint32 entry, float range) const
+ 
+ GameObject* WorldObject::FindRandomGameObject(uint32 entry, float range) const
+ {
+-    std::list<GameObject*> targets;
+-    GetGameObjectListWithEntryInGrid(targets, entry, range);
++    std::vector<GameObject*> targets;
++    CollectGameObjectsWithEntryInGrid(this, targets, entry, range);
+ 
+-    for (std::list<GameObject*>::iterator tIter = targets.begin(); tIter != targets.end();)
++    targets.erase(std::remove_if(targets.begin(), targets.end(), [](GameObject* target)
+     {
+-        if (!(*tIter)->isSpawned())
+-        {
+-            std::list<GameObject*>::iterator tIter2 = tIter;
+-            ++tIter;
+-            targets.erase(tIter2);
+-        }
+-        else
+-            ++tIter;
+-    }
++        return !target->isSpawned();
++    }), targets.end());
+ 
+     // no appropriate targets
+     if (targets.empty())
+         return nullptr;
+ 
+-    // select random
+-    uint32 rIdx = urand(0, targets.size() - 1);
+-    std::list<GameObject*>::const_iterator tcIter = targets.begin();
+-    for (uint32 i = 0; i < rIdx; ++i)
+-        ++tcIter;
+-
+-    return *tcIter;
++    return targets[urand(0, targets.size() - 1)];
+ }
+ 
+ Player* WorldObject::FindNearestPlayer(float range) const
+@@ -2823,28 +2833,12 @@ Player* WorldObject::FindNearestPlayer(float range) const
+ 
+ void WorldObject::GetGameObjectListWithEntryInGrid(std::list<GameObject*>& lList, uint32 uiEntry, float fMaxSearchRange) const
+ {
+-    CellPair pair(MaNGOS::ComputeCellPair(GetPositionX(), GetPositionY()));
+-    Cell cell(pair);
+-    cell.SetNoCreate();
+-
+-    MaNGOS::AllGameObjectsWithEntryInRange check(this, uiEntry, fMaxSearchRange);
+-    MaNGOS::GameObjectListSearcher<MaNGOS::AllGameObjectsWithEntryInRange> searcher(lList, check);
+-    TypeContainerVisitor<MaNGOS::GameObjectListSearcher<MaNGOS::AllGameObjectsWithEntryInRange>, GridTypeMapContainer> visitor(searcher);
+-
+-    cell.Visit(pair, visitor, *(GetMap()), *this, fMaxSearchRange);
++    CollectGameObjectsWithEntryInGrid(this, lList, uiEntry, fMaxSearchRange);
+ }
+ 
+ void WorldObject::GetCreatureListWithEntryInGrid(std::list<Creature*>& lList, uint32 uiEntry, float fMaxSearchRange) const
+ {
+-    CellPair pair(MaNGOS::ComputeCellPair(GetPositionX(), GetPositionY()));
+-    Cell cell(pair);
+-    cell.SetNoCreate();
+-
+-    MaNGOS::AllCreaturesOfEntryInRange check(this, uiEntry, fMaxSearchRange);
+-    MaNGOS::CreatureListSearcher<MaNGOS::AllCreaturesOfEntryInRange> searcher(lList, check);
+-    TypeContainerVisitor<MaNGOS::CreatureListSearcher<MaNGOS::AllCreaturesOfEntryInRange>, GridTypeMapContainer> visitor(searcher);
+-
+-    cell.Visit(pair, visitor, *(GetMap()), *this, fMaxSearchRange);
++    CollectCreaturesWithEntryInGrid(this, lList, uiEntry, fMaxSearchRange);
+ }
+ 
+ void WorldObject::GetAlivePlayerListInRange(WorldObject const* pSource, std::list<Player*>& lList, float fMaxSearchRange) const

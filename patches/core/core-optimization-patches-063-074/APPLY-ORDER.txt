@@ -1,0 +1,12 @@
+core-optimization-063-associative-lookup-semantics.patch
+core-optimization-064-channel-member-map-hotpaths.patch
+core-optimization-065-account-cache-loader-reuse.patch
+core-optimization-066-vmap-loaded-spawn-lookups.patch
+core-optimization-067-unit-target-vector-searchers.patch
+core-optimization-068-spell-group-range-lookups.patch
+core-optimization-069-shop-worker-event-wakeup.patch
+core-optimization-070-unit-nearby-vector-snapshots.patch
+core-optimization-071-grid-object-vector-snapshots.patch
+core-optimization-072-social-map-single-insertion.patch
+core-optimization-073-lft-associative-storage-moves.patch
+core-optimization-074-unit-threat-list-reference.patch

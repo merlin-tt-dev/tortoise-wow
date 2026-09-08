@@ -1,0 +1,97 @@
+CORE OPTIMIZATION 063-074 — FINAL VALIDATION
+
+Source archive:
+  tortoise-wow.tar.xz
+  SHA256 817b100bd63654ce2f908bb699fa76c071caf421c6e5470e460f7ec441460b9e
+
+PASS 1:
+  fresh archive -> 042-062 strict sequential apply
+  commit local reconstructed baseline through 062
+  -> 063-074 strict sequential apply
+  RESULT: PASS
+
+PASS 2:
+  independent fresh archive -> uninterrupted 042-074 strict sequential apply
+  RESULT: PASS
+
+Per-patch checks:
+  - git -c core.whitespace=trailing-space,space-before-tab,tab-in-indent apply --check --whitespace=error-all
+  - git -c core.whitespace=trailing-space,space-before-tab,tab-in-indent apply --numstat --whitespace=error-all
+  - git apply
+  - git diff --check
+  - no tabs in newly added indentation
+  - no added conflict markers
+
+Final checks:
+  - real conflict-marker source scan: PASS
+  - 41 touched source-file SHA256 fingerprints, pass 1 vs pass 2: BYTE-IDENTICAL
+  - same 41-file fingerprint vs current local dev-clean-work source: BYTE-IDENTICAL
+
+Full build status:
+  NOT asserted by this bundle. Linux/MinGW/MSVC compile/link remains an external gate.
+
+NUMSTAT / PATCH RESULTS (from independent PASS 2):
+== core-optimization-063-associative-lookup-semantics.patch ==
+13	6	src/game/AI/ScriptedInstance.cpp
+1	0	src/game/AI/ScriptedInstance.h
+7	3	src/game/Battlegrounds/BattleGround.cpp
+PASS
+
+== core-optimization-064-channel-member-map-hotpaths.patch ==
+12	9	src/game/Chat/Channel.cpp
+8	6	src/game/Chat/Channel.h
+PASS
+
+== core-optimization-065-account-cache-loader-reuse.patch ==
+9	8	src/game/AccountMgr.cpp
+PASS
+
+== core-optimization-066-vmap-loaded-spawn-lookups.patch ==
+8	6	src/game/vmap/MapTree.cpp
+PASS
+
+== core-optimization-067-unit-target-vector-searchers.patch ==
+3	3	src/game/Maps/GridNotifiers.h
+4	4	src/game/Maps/GridNotifiersImpl.h
+32	62	src/game/Objects/Unit.cpp
+PASS
+
+== core-optimization-068-spell-group-range-lookups.patch ==
+16	8	src/game/Spells/SpellMgr.h
+PASS
+
+== core-optimization-069-shop-worker-event-wakeup.patch ==
+34	15	src/game/Shop/ShopMgr.cpp
+3	0	src/game/Shop/ShopMgr.h
+3	0	src/game/World.cpp
+PASS
+
+== core-optimization-070-unit-nearby-vector-snapshots.patch ==
+6	6	src/game/Objects/Unit.cpp
+PASS
+
+== core-optimization-071-grid-object-vector-snapshots.patch ==
+10	10	src/game/Maps/GridNotifiers.h
+6	6	src/game/Maps/GridNotifiersImpl.h
+53	59	src/game/Objects/Object.cpp
+PASS
+
+== core-optimization-072-social-map-single-insertion.patch ==
+5	10	src/game/SocialMgr.cpp
+PASS
+
+== core-optimization-073-lft-associative-storage-moves.patch ==
+15	6	src/game/LFT/LFTQeueue.cpp
+7	5	src/game/LFT/LFTUserGroups.cpp
+PASS
+
+== core-optimization-074-unit-threat-list-reference.patch ==
+1	1	src/game/Objects/Unit.cpp
+PASS
+
+FINAL PASS 2: uninterrupted 042-074 fresh reconstruction passed.
+
+Bundled AUDIT-TEST.sh self-test:
+  reset validation pass 1 tree to committed 062 baseline
+  run bundled AUDIT-TEST.sh against that tree
+  RESULT: PASS (063-074 strict sequential audit)

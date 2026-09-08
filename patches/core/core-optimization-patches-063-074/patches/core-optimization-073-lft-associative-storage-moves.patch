@@ -1,0 +1,81 @@
+diff --git a/src/game/LFT/LFTQeueue.cpp b/src/game/LFT/LFTQeueue.cpp
+index 300ef49..b05c3b7 100644
+--- a/src/game/LFT/LFTQeueue.cpp
++++ b/src/game/LFT/LFTQeueue.cpp
+@@ -136,8 +136,15 @@ void LFTManager::HandleQueueLeave(Player* player)
+ 
+     for (ObjectGuid const& removeGuid : toRemove)
+     {
+-        std::string name = m_queue[removeGuid].name;
+-        m_queue.erase(removeGuid);
++        QueueMap::iterator removeItr = m_queue.find(removeGuid);
++        if (removeItr == m_queue.end())
++        {
++            SendQueueLeft(removeGuid, std::string());
++            continue;
++        }
++
++        std::string name = std::move(removeItr->second.name);
++        m_queue.erase(removeItr);
+         SendQueueLeft(removeGuid, name);
+     }
+ }
+@@ -308,8 +315,9 @@ void LFTManager::EnqueuePlayer(Player* player, ObjectGuid const& leaderGuid, std
+     queued.roleMask = roleMask;
+     queued.assignedRole = PickRole(roleMask, 0, 0, 0);
+ 
+-    m_queue[queued.guid] = queued;
+-    SendQueueJoined(player, m_queue[queued.guid]);
++    ObjectGuid const guid = queued.guid;
++    QueueMap::iterator queueItr = m_queue.insert_or_assign(guid, std::move(queued)).first;
++    SendQueueJoined(player, queueItr->second);
+ }
+ 
+ void LFTManager::EnqueueRolecheck(PendingRolecheck const& rolecheck)
+@@ -501,12 +509,13 @@ bool LFTManager::TryBuildOfferForInstance(std::string const& instance)
+     offer.instance = instance;
+     offer.roles = selectedRoles;
+     offer.timer = LFT_OFFER_TIMEOUT;
+-    m_offers[offer.id] = offer;
++    uint32 const offerId = offer.id;
++    m_offers.insert_or_assign(offerId, std::move(offer));
+ 
+     for (std::map<ObjectGuid, uint8>::const_iterator itr = selectedRoles.begin(); itr != selectedRoles.end(); ++itr)
+     {
+         m_queue[itr->first].assignedRole = itr->second;
+-        m_playerOffers[itr->first] = offer.id;
++        m_playerOffers[itr->first] = offerId;
+         if (Player* player = GetPlayer(itr->first))
+         {
+             std::string role = itr->second == LFT_ROLE_TANK ? "t" : itr->second == LFT_ROLE_HEALER ? "h" : "d";
+diff --git a/src/game/LFT/LFTUserGroups.cpp b/src/game/LFT/LFTUserGroups.cpp
+index f4ade1e..df16f39 100644
+--- a/src/game/LFT/LFTUserGroups.cpp
++++ b/src/game/LFT/LFTUserGroups.cpp
+@@ -195,10 +195,11 @@ void LFTManager::HandleNewGroup(Player* player, std::vector<std::string> const&
+         listing.category = 4;
+     listing.limit = ParseRoleCounts(fields[4]);
+ 
+-    m_listings[listing.id] = listing;
+-    SaveListingToDB(m_listings[listing.id]);
++    uint32 const listingId = listing.id;
++    ListingsMap::iterator listingItr = m_listings.insert_or_assign(listingId, std::move(listing)).first;
++    SaveListingToDB(listingItr->second);
+     BroadcastGroupsList();
+-    SendGroupDetails(player, m_listings[listing.id]);
++    SendGroupDetails(player, m_listings[listingId]);
+ }
+ 
+ void LFTManager::HandleUpdateGroup(Player* player, std::vector<std::string> const& fields)
+@@ -402,8 +403,9 @@ void LFTManager::LoadListingsFromDB()
+         listing.signups[2] = DeserializeSignups(fields[18].GetCppString());
+         RecountListing(listing);
+ 
+-        m_nextListingId = std::max(m_nextListingId, listing.id + 1);
+-        m_listings[listing.id] = listing;
++        uint32 const listingId = listing.id;
++        m_nextListingId = std::max(m_nextListingId, listingId + 1);
++        m_listings.insert_or_assign(listingId, std::move(listing));
+     } while (result->NextRow());
+ }
+ 

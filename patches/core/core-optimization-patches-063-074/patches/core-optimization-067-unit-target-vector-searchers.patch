@@ -1,0 +1,256 @@
+diff --git a/src/game/Maps/GridNotifiers.h b/src/game/Maps/GridNotifiers.h
+index 2f70d66..767f865 100644
+--- a/src/game/Maps/GridNotifiers.h
++++ b/src/game/Maps/GridNotifiers.h
+@@ -386,13 +386,13 @@ namespace MaNGOS
+     };
+ 
+     // All accepted by Check units if any
+-    template<class Check>
++    template<class Check, class Container = std::list<Unit*>>
+         struct UnitListSearcher
+     {
+-        std::list<Unit*> &i_objects;
++        Container& i_objects;
+         Check& i_check;
+ 
+-        UnitListSearcher(std::list<Unit*> &objects, Check & check) : i_objects(objects),i_check(check) {}
++        UnitListSearcher(Container& objects, Check& check) : i_objects(objects), i_check(check) {}
+ 
+         void Visit(PlayerMapType &m);
+         void Visit(CreatureMapType &m);
+diff --git a/src/game/Maps/GridNotifiersImpl.h b/src/game/Maps/GridNotifiersImpl.h
+index ecf9268..fcd8581 100644
+--- a/src/game/Maps/GridNotifiersImpl.h
++++ b/src/game/Maps/GridNotifiersImpl.h
+@@ -490,16 +490,16 @@ void MaNGOS::CorpseListSearcher<Check>::Visit(CorpseMapType& m)
+     }
+ }
+ 
+-template<class Check>
+-void MaNGOS::UnitListSearcher<Check>::Visit(PlayerMapType& m)
++template<class Check, class Container>
++void MaNGOS::UnitListSearcher<Check, Container>::Visit(PlayerMapType& m)
+ {
+     for(auto & itr : m)
+         if (i_check(itr.getSource()))
+             i_objects.push_back(itr.getSource());
+ }
+ 
+-template<class Check>
+-void MaNGOS::UnitListSearcher<Check>::Visit(CreatureMapType& m)
++template<class Check, class Container>
++void MaNGOS::UnitListSearcher<Check, Container>::Visit(CreatureMapType& m)
+ {
+     for(auto & itr : m)
+         if (i_check(itr.getSource()))
+diff --git a/src/game/Objects/Unit.cpp b/src/game/Objects/Unit.cpp
+index 82d6812..566c83b 100644
+--- a/src/game/Objects/Unit.cpp
++++ b/src/game/Objects/Unit.cpp
+@@ -67,8 +67,10 @@
+ #include "MovementPacketSender.h"
+ #include "TWDebuff/TWDebuff.hpp"
+ 
++#include <algorithm>
+ #include <math.h>
+ #include <optional>
++#include <vector>
+ #include <stdarg.h>
+ #include "SuspiciousStatisticMgr.h"
+ #include "PerfStats.h"
+@@ -10042,97 +10044,65 @@ void Unit::UpdateReactives(uint32 p_time)
+ 
+ uint8 Unit::GetEnemyCountInRadiusAround(Unit* pTarget, float radius) const
+ {
+-    std::list<Unit*> targets;
++    std::vector<Unit*> targets;
+     MaNGOS::AnyUnfriendlyUnitInObjectRangeCheck u_check(pTarget, this, radius);
+-    MaNGOS::UnitListSearcher<MaNGOS::AnyUnfriendlyUnitInObjectRangeCheck> searcher(targets, u_check);
++    MaNGOS::UnitListSearcher<MaNGOS::AnyUnfriendlyUnitInObjectRangeCheck, std::vector<Unit*>> searcher(targets, u_check);
+     Cell::VisitAllObjects(pTarget, searcher, radius);
+     return targets.size();
+ }
+ 
+ Unit* Unit::SelectRandomUnfriendlyTarget(Unit* except /*= nullptr*/, float radius /*= ATTACK_DISTANCE*/, bool inFront /*= false*/, bool isValidAttackTarget /*= false*/, bool notPvpEnabling /*= false*/) const
+ {
+-    std::list<Unit*> targets;
++    std::vector<Unit*> targets;
+ 
+     MaNGOS::AnyUnfriendlyUnitInObjectRangeCheck u_check(this, this, radius);
+-    MaNGOS::UnitListSearcher<MaNGOS::AnyUnfriendlyUnitInObjectRangeCheck> searcher(targets, u_check);
++    MaNGOS::UnitListSearcher<MaNGOS::AnyUnfriendlyUnitInObjectRangeCheck, std::vector<Unit*>> searcher(targets, u_check);
+     Cell::VisitAllObjects(this, searcher, radius);
+ 
+-    // remove current target
+     if (except)
+-        targets.remove(except);
++        targets.erase(std::remove(targets.begin(), targets.end(), except), targets.end());
+ 
+-    // remove not LoS targets
+-    for (std::list<Unit*>::iterator tIter = targets.begin(); tIter != targets.end();)
++    targets.erase(std::remove_if(targets.begin(), targets.end(), [this, inFront, isValidAttackTarget, notPvpEnabling](Unit* target)
+     {
+-        if ((!IsWithinLOSInMap(*tIter)) || 
+-           (inFront && !this->HasInArc(*tIter, M_PI_F / 2)) ||
+-           (isValidAttackTarget && !IsValidAttackTarget(*tIter)) ||
+-           (notPvpEnabling && !CanAttackWithoutEnablingPvP(*tIter)))
+-        {
+-            std::list<Unit*>::iterator tIter2 = tIter;
+-            ++tIter;
+-            targets.erase(tIter2);
+-        }
+-        else
+-            ++tIter;
+-    }
++        return !IsWithinLOSInMap(target) ||
++            (inFront && !HasInArc(target, M_PI_F / 2)) ||
++            (isValidAttackTarget && !IsValidAttackTarget(target)) ||
++            (notPvpEnabling && !CanAttackWithoutEnablingPvP(target));
++    }), targets.end());
+ 
+-    // no appropriate targets
+     if (targets.empty())
+         return nullptr;
+ 
+-    // select random
+-    uint32 rIdx = urand(0, targets.size() - 1);
+-    std::list<Unit*>::const_iterator tcIter = targets.begin();
+-    for (uint32 i = 0; i < rIdx; ++i)
+-        ++tcIter;
+-
+-    return *tcIter;
++    return targets[urand(0, targets.size() - 1)];
+ }
+ 
+ Unit* Unit::SelectRandomFriendlyTarget(Unit* except /*= nullptr*/, float radius /*= ATTACK_DISTANCE*/, bool inCombat) const
+ {
+-    std::list<Unit*> targets;
++    std::vector<Unit*> targets;
+ 
+     MaNGOS::AnyFriendlyUnitInObjectRangeCheck u_check(this, radius);
+-    MaNGOS::UnitListSearcher<MaNGOS::AnyFriendlyUnitInObjectRangeCheck> searcher(targets, u_check);
++    MaNGOS::UnitListSearcher<MaNGOS::AnyFriendlyUnitInObjectRangeCheck, std::vector<Unit*>> searcher(targets, u_check);
+ 
+     Cell::VisitAllObjects(this, searcher, radius);
+ 
+-    // remove current target
+     if (except)
+-        targets.remove(except);
++        targets.erase(std::remove(targets.begin(), targets.end(), except), targets.end());
+ 
+-    // remove not LoS targets
+-    for (std::list<Unit*>::iterator tIter = targets.begin(); tIter != targets.end();)
++    targets.erase(std::remove_if(targets.begin(), targets.end(), [this, inCombat](Unit* target)
+     {
+-        if (!IsWithinLOSInMap(*tIter) || (inCombat && !(*tIter)->IsInCombat()))
+-        {
+-            std::list<Unit *>::iterator tIter2 = tIter;
+-            ++tIter;
+-            targets.erase(tIter2);
+-        }
+-        else
+-            ++tIter;
+-    }
++        return !IsWithinLOSInMap(target) || (inCombat && !target->IsInCombat());
++    }), targets.end());
+ 
+-    // no appropriate targets
+     if (targets.empty())
+         return nullptr;
+ 
+-    // select random
+-    uint32 rIdx = urand(0, targets.size() - 1);
+-    std::list<Unit *>::const_iterator tcIter = targets.begin();
+-    for (uint32 i = 0; i < rIdx; ++i)
+-        ++tcIter;
+-
+-    return *tcIter;
++    return targets[urand(0, targets.size() - 1)];
+ }
+ 
+ // Returns friendly unit with the most amount of hp missing from max hp
+ Unit* Unit::FindLowestHpFriendlyUnit(const float fRange, const uint32 uiMinHPDiff, const bool bPercent, Unit* except) const
+ {
+-    std::list<Unit*> targets;
++    std::vector<Unit*> targets;
+ 
+     if (Player* pVictim = ::ToPlayer(GetVictim()))
+     {
+@@ -10154,7 +10124,7 @@ Unit* Unit::FindLowestHpFriendlyUnit(const float fRange, const uint32 uiMinHPDif
+     else
+     {
+         MaNGOS::MostHPMissingInRangeCheck u_check(this, fRange, uiMinHPDiff, bPercent);
+-        MaNGOS::UnitListSearcher<MaNGOS::MostHPMissingInRangeCheck> searcher(targets, u_check);
++        MaNGOS::UnitListSearcher<MaNGOS::MostHPMissingInRangeCheck, std::vector<Unit*>> searcher(targets, u_check);
+ 
+         Cell::VisitAllObjects(this, searcher, fRange);
+     }
+@@ -10162,7 +10132,7 @@ Unit* Unit::FindLowestHpFriendlyUnit(const float fRange, const uint32 uiMinHPDif
+     // Remove current target
+     if (except)
+     {
+-        targets.remove(except);
++        targets.erase(std::remove(targets.begin(), targets.end(), except), targets.end());
+     }
+ 
+     // No appropriate targets
+@@ -10171,13 +10141,13 @@ Unit* Unit::FindLowestHpFriendlyUnit(const float fRange, const uint32 uiMinHPDif
+         return nullptr;
+     }
+ 
+-    return *targets.begin();
++    return targets.front();
+ }
+ 
+ // Returns hostile unit with the most amount of hp missing from max hp
+ Unit* Unit::FindLowestHpHostileUnit(const float fRange, const uint32 uiMinHPDiff, const bool bPercent, Unit* except) const
+ {
+-    std::list<Unit*> targets;
++    std::vector<Unit*> targets;
+ 
+     const ThreatList threatList{ GetThreatManager().getThreatList() };
+     for (const auto itr : threatList)
+@@ -10195,7 +10165,7 @@ Unit* Unit::FindLowestHpHostileUnit(const float fRange, const uint32 uiMinHPDiff
+     // Remove current target
+     if (except)
+     {
+-        targets.remove(except);
++        targets.erase(std::remove(targets.begin(), targets.end(), except), targets.end());
+     }
+ 
+     // No appropriate targets
+@@ -10204,28 +10174,28 @@ Unit* Unit::FindLowestHpHostileUnit(const float fRange, const uint32 uiMinHPDiff
+         return nullptr;
+     }
+ 
+-    return *targets.begin();
++    return targets.front();
+ }
+ 
+ // Returns friendly unit that does not have an aura from the provided spellid
+ Unit* Unit::FindFriendlyUnitMissingBuff(float range, uint32 spellid, Unit* except) const
+ {
+-    std::list<Unit*> targets;
++    std::vector<Unit*> targets;
+ 
+     MaNGOS::FriendlyMissingBuffInRangeCheck u_check(this, range, spellid);
+-    MaNGOS::UnitListSearcher<MaNGOS::FriendlyMissingBuffInRangeCheck> searcher(targets, u_check);
++    MaNGOS::UnitListSearcher<MaNGOS::FriendlyMissingBuffInRangeCheck, std::vector<Unit*>> searcher(targets, u_check);
+ 
+     Cell::VisitGridObjects(this, searcher, range);
+ 
+     // remove current target
+     if (except)
+-        targets.remove(except);
++        targets.erase(std::remove(targets.begin(), targets.end(), except), targets.end());
+ 
+     // no appropriate targets
+     if (targets.empty())
+         return nullptr;
+ 
+-    return *targets.begin();
++    return targets.front();
+ }
+ 
+ // Returns friendly unit that is under a crowd control effect

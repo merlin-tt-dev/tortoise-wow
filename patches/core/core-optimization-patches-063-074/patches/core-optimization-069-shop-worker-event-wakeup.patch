@@ -1,0 +1,132 @@
+diff --git a/src/game/Shop/ShopMgr.cpp b/src/game/Shop/ShopMgr.cpp
+index 6ad06ed..6550dd8 100644
+--- a/src/game/Shop/ShopMgr.cpp
++++ b/src/game/Shop/ShopMgr.cpp
+@@ -144,13 +144,17 @@ public:
+ 
+ bool ShopMgr::RequestBalance(uint32 accountId)
+ {
+-    std::lock_guard<std::mutex> lock(m_mutex);
+-    for (auto const& itr : m_pendingRequests)
+     {
+-        if (itr.accountId == accountId && itr.itemId == 0)
+-            return false;
++        std::lock_guard<std::mutex> lock(m_mutex);
++        for (auto const& itr : m_pendingRequests)
++        {
++            if (itr.accountId == accountId && itr.itemId == 0)
++                return false;
++        }
++        m_pendingRequests.emplace_back(accountId, 0, 0);
+     }
+-    m_pendingRequests.push_back(ShopRequest(accountId, 0, 0));
++
++    m_condition.notify_one();
+     return true;
+ }
+ 
+@@ -179,13 +183,17 @@ bool ShopMgr::RequestPurchase(uint32 accountId, uint32 guidLow, uint32 itemId)
+         }
+     }
+ 
+-    std::lock_guard<std::mutex> lock(m_mutex);
+-    for (auto const& itr : m_pendingRequests)
+     {
+-        if (itr.accountId == accountId && itr.guidLow == guidLow && itr.itemId == itemId)
+-            return false;
++        std::lock_guard<std::mutex> lock(m_mutex);
++        for (auto const& itr : m_pendingRequests)
++        {
++            if (itr.accountId == accountId && itr.guidLow == guidLow && itr.itemId == itemId)
++                return false;
++        }
++        m_pendingRequests.emplace_back(accountId, guidLow, itemId);
+     }
+-    m_pendingRequests.push_back(ShopRequest(accountId, guidLow, itemId));
++
++    m_condition.notify_one();
+     return true;
+ }
+ 
+@@ -197,10 +205,18 @@ void ShopMgr::ProcessRequestsWorker()
+     {
+         std::vector<ShopRequest> requests;
+         {
+-            std::lock_guard<std::mutex> lock(m_mutex);
+-            std::swap(requests, m_pendingRequests);
++            std::unique_lock<std::mutex> lock(m_mutex);
++            m_condition.wait(lock, [this]
++            {
++                return !m_pendingRequests.empty() || sWorld.IsStopped();
++            });
++
++            if (sWorld.IsStopped())
++                break;
++
++            requests.swap(m_pendingRequests);
+         }
+-        
++
+         for (auto const& itr : requests)
+         {
+             if (itr.itemId)
+@@ -208,12 +224,15 @@ void ShopMgr::ProcessRequestsWorker()
+             else
+                 sWorld.AddAsyncTask({ ShopSendBalanceTask(itr.accountId, GetBalance(itr.accountId)) });
+         }
+-
+-        std::this_thread::sleep_for(std::chrono::milliseconds(20));
+     }
+     LoginDatabase.ThreadEnd();
+ }
+ 
++void ShopMgr::NotifyWorkerShutdown()
++{
++    m_condition.notify_all();
++}
++
+ int32 ShopMgr::GetBalance(uint32 accountId)
+ {
+     std::unique_ptr<QueryResult> result(LoginDatabase.PQuery("SELECT `coins` FROM `shop_coins` WHERE `id` = '%u'", accountId));
+diff --git a/src/game/Shop/ShopMgr.h b/src/game/Shop/ShopMgr.h
+index 0e4e56c..03eae8a 100644
+--- a/src/game/Shop/ShopMgr.h
++++ b/src/game/Shop/ShopMgr.h
+@@ -22,6 +22,7 @@
+ #include "Common.h"
+ #include "SharedDefines.h"
+ #include "Platform/Define.h"
++#include <condition_variable>
+ #include <mutex>
+ 
+ struct ShopRequest
+@@ -38,12 +39,14 @@ class ShopMgr
+         bool RequestBalance(uint32 accountId);
+         bool RequestPurchase(uint32 accountId, uint32 guidLow, uint32 itemId);
+         void ProcessRequestsWorker();
++        void NotifyWorkerShutdown();
+     private:
+         int32 GetBalance(uint32 accountId);
+         void BuyItem(uint32 accountId, uint32 guidLow, uint32 itemId);
+ 
+         std::vector<ShopRequest> m_pendingRequests;
+         std::mutex m_mutex;
++        std::condition_variable m_condition;
+ };
+ 
+ extern ShopMgr sShopMgr;
+diff --git a/src/game/World.cpp b/src/game/World.cpp
+index f5a01ac..3137a11 100644
+--- a/src/game/World.cpp
++++ b/src/game/World.cpp
+@@ -253,7 +253,10 @@ void World::InternalShutdown()
+         m_asyncPacketsThread.join();
+ 
+     if (m_shopThread.joinable())
++    {
++        sShopMgr.NotifyWorkerShutdown();
+         m_shopThread.join();
++    }
+ 
+ #ifdef USING_DISCORD_BOT
+     sDiscordBot->Stop();

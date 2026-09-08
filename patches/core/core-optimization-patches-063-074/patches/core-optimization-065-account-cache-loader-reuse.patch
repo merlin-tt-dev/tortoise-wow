@@ -1,0 +1,42 @@
+diff --git a/src/game/AccountMgr.cpp b/src/game/AccountMgr.cpp
+index db05f87..a3493e3 100644
+--- a/src/game/AccountMgr.cpp
++++ b/src/game/AccountMgr.cpp
+@@ -238,11 +238,9 @@ void AccountMgr::LoadAccountNames()
+                 continue;
+ 
+             m_accountNameToId.insert({ username, id });
+-            m_accountData[id].Username = std::move(username);
+-
+-            uint64 timeCreated = fields[2].GetUInt64();
+-
+-            m_accountData[id].CreatedAt = timeCreated;
++            AccountData& accountData = m_accountData[id];
++            accountData.Username = std::move(username);
++            accountData.CreatedAt = fields[2].GetUInt64();
+ 
+         } while (result->NextRow());
+     }
+@@ -446,7 +444,9 @@ void AccountMgr::LoadAccountWarnings(bool silent)
+     do
+     {
+         Field* fields = banresult->Fetch();
+-        m_accountData[fields[0].GetUInt32()].LastWarning = fields[1].GetCppString().substr(5, fields[1].GetCppString().size() - 5);
++        std::string warning = fields[1].GetCppString();
++        warning.erase(0, 5);
++        m_accountData[fields[0].GetUInt32()].LastWarning = std::move(warning);
+     } while (banresult->NextRow());
+ }
+ 
+@@ -520,8 +520,9 @@ void AccountMgr::LoadAccountHighestCharLevel()
+         uint32 accountId = fields[0].GetUInt32();
+         uint32 level = fields[1].GetUInt32();
+ 
+-        if (level > m_accountHighestCharLevel[accountId])
+-            m_accountHighestCharLevel[accountId] = level;
++        uint32& highestLevel = m_accountHighestCharLevel[accountId];
++        if (level > highestLevel)
++            highestLevel = level;
+ 
+     } while (result->NextRow());
+ }

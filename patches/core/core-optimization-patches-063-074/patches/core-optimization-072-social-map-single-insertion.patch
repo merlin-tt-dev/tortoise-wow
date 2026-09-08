@@ -1,0 +1,27 @@
+diff --git a/src/game/SocialMgr.cpp b/src/game/SocialMgr.cpp
+index 40bfc04..14d0350 100644
+--- a/src/game/SocialMgr.cpp
++++ b/src/game/SocialMgr.cpp
+@@ -52,17 +52,12 @@ bool PlayerSocial::AddToSocialList(ObjectGuid const& friendGuid, SocialFlag flag
+     if (GetNumberOfSocialsWithFlag(flag) >= (((flag & SOCIAL_FLAG_FRIEND) != 0) ? SOCIALMGR_FRIEND_LIMIT : SOCIALMGR_IGNORE_LIMIT))
+         return false;
+ 
+-    auto itr = m_playerSocialMap.find(friendGuid);
+-    if (itr != m_playerSocialMap.end())
+-    {
+-        itr->second.Flags |= flag;
+-        CharacterDatabase.PExecute("UPDATE character_social SET flags = '%u' WHERE guid = '%u' AND friend = '%u'", flag, m_playerGUID.GetCounter(), friendGuid.GetCounter());
+-    }
+-    else
+-    {
+-        m_playerSocialMap[friendGuid].Flags |= flag;
++    auto const [itr, inserted] = m_playerSocialMap.try_emplace(friendGuid);
++    itr->second.Flags |= flag;
++    if (inserted)
+         CharacterDatabase.PExecute("INSERT INTO character_social (guid, friend, flags) VALUES ('%u', '%u', '%u')", m_playerGUID.GetCounter(), friendGuid.GetCounter(), flag);
+-    }
++    else
++        CharacterDatabase.PExecute("UPDATE character_social SET flags = '%u' WHERE guid = '%u' AND friend = '%u'", flag, m_playerGUID.GetCounter(), friendGuid.GetCounter());
+     return true;
+ }
+ 

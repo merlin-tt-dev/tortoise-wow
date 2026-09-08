@@ -1,0 +1,17 @@
+74cd7979f72c4e47f7c0023ea53ae58cfd6a98219aa0201d8336bbb8559a50e4  ./APPLY-ORDER.txt
+0887f50c5f9dd5a8ff545d5c54a9a41656d99ebb91f6cf04af32261583e15bc5  ./AUDIT-TEST.sh
+f8ee318cba0aeb211a3d13bfbd2ec1ccb75245787f78da475594f1e09693155c  ./README.md
+fd1805f7b96ad462559ece7646a9e687195b96a9747738006d3385e2668f428c  ./SEMANTIC-AUDIT.md
+1b5f9e4d394c1ac7ec4ac39c4ac019474c7cc9d748f195e6dfd394a897e8bb1f  ./VALIDATION.txt
+cb5e93efe8a19edc0cd6a2a448cba0ac3bc07ac9b31607ac2a952855babe8c4e  ./patches/core-optimization-063-associative-lookup-semantics.patch
+31eb6fed554d223b903b7691b6c831d1eb14d5f437bf74dbad3c63e18fede79d  ./patches/core-optimization-064-channel-member-map-hotpaths.patch
+41f0dd1eb5ce567f32dc06cdde28baf0b6169d52e7ac003700790ea5797017c2  ./patches/core-optimization-065-account-cache-loader-reuse.patch
+646c6e766648d442fdf660dea5f84703f9a02abccd1ac24df610e53c79d2487b  ./patches/core-optimization-066-vmap-loaded-spawn-lookups.patch
+3bac463fcda96620872dcec3c67435cdad0c7812ecd3820d1e311528fd57550c  ./patches/core-optimization-067-unit-target-vector-searchers.patch
+5f139ad07d10d3d5d75a41e7b811aa1abbd821c78cead396300213af49e21bfc  ./patches/core-optimization-068-spell-group-range-lookups.patch
+dcbb5e9ff7914536e3b2915fca697a73270d98ba4c0c1bdc41f47ff1a03fb808  ./patches/core-optimization-069-shop-worker-event-wakeup.patch
+f447c6eb9fec84f1b16d781f331c719d5b024a10c50b2f15be175117a1b3c6e3  ./patches/core-optimization-070-unit-nearby-vector-snapshots.patch
+7f4859449fb9c4c802ec9770858a63408f6fb020b5728a80eeb83ed2e5815b17  ./patches/core-optimization-071-grid-object-vector-snapshots.patch
+e66995bed96a345f045db617779349cb58d19232bc969c89c0f2d8c081b523d8  ./patches/core-optimization-072-social-map-single-insertion.patch
+9aabfdddc28b9d0be4540933d6a35b5a76eee7a7238cc8ef69f14eada4903dc6  ./patches/core-optimization-073-lft-associative-storage-moves.patch
+3d66980a879a04f5357631cca48853a192e5f354cddb7c20fb0b9ba44a855776  ./patches/core-optimization-074-unit-threat-list-reference.patch
