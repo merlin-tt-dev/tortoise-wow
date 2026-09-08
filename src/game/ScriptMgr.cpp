@@ -1243,12 +1243,7 @@ void ScriptMgr::LoadScripts(ScriptMapMap& scripts, const char* tablename)
             }
         }
 
-        if (scripts.find(tmp.id) == scripts.end())
-        {
-            ScriptMap emptyMap;
-            scripts[tmp.id] = emptyMap;
-        }
-        scripts[tmp.id].insert(ScriptMap::value_type(tmp.delay, tmp));
+        scripts[tmp.id].emplace(tmp.delay, tmp);
     }
     while (result->NextRow());
 

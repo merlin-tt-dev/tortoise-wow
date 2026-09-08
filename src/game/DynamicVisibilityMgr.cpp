@@ -39,13 +39,9 @@ void DynamicVisibilityMgr::InitVisibilities(bool reload)
     for (auto& visSettings : _areaSettings)
     {
         if (reload)
-        {
-            auto itr = _currentVisibilities.find(visSettings.first);
-            if (itr == _currentVisibilities.end())
-                _currentVisibilities[visSettings.first] = visSettings.second.MaxVisibilityDistance;
-        }
+            _currentVisibilities.try_emplace(visSettings.first, visSettings.second.MaxVisibilityDistance);
         else
-            _currentVisibilities[visSettings.first] = visSettings.second.MaxVisibilityDistance;
+            _currentVisibilities.insert_or_assign(visSettings.first, visSettings.second.MaxVisibilityDistance);
         
     }
 }

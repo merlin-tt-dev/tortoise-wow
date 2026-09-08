@@ -188,13 +188,11 @@ struct DoSpellProcEvent
     {
         SpellProcEventEntry const& spe = state->second;
         // add ranks only for not filled data (some ranks have ppm data different for ranks for example)
-        SpellProcEventMap::const_iterator spellItr = spe_map.find(spell_id);
-        if (spellItr == spe_map.end())
-            spe_map[spell_id] = spe;
+        auto emplaceResult = spe_map.emplace(spell_id, spe);
         // if custom rank data added then it must be same except ppm
-        else
+        if (!emplaceResult.second)
         {
-            SpellProcEventEntry const& r_spe = spellItr->second;
+            SpellProcEventEntry const& r_spe = emplaceResult.first->second;
             if (spe.schoolMask != r_spe.schoolMask)
                 sLog.outErrorDb("Spell %u listed in `spell_proc_event` as custom rank have different schoolMask from first rank in chain", spell_id);
 
@@ -734,14 +732,12 @@ struct DoSpellThreat
     {
         SpellThreatEntry const &ste = state->second;
         // add ranks only for not filled data (spells adding flat threat are usually different for ranks)
-        SpellThreatMap::const_iterator spellItr = threatMap.find(spell_id);
-        if (spellItr == threatMap.end())
-            threatMap[spell_id] = ste;
+        auto emplaceResult = threatMap.emplace(spell_id, ste);
 
         // just assert that entry is not redundant
-        else
+        if (!emplaceResult.second)
         {
-            SpellThreatEntry const& r_ste = spellItr->second;
+            SpellThreatEntry const& r_ste = emplaceResult.first->second;
             if (ste.threat == r_ste.threat && ste.multiplier == r_ste.multiplier && ste.ap_bonus == r_ste.ap_bonus)
                 sLog.outErrorDb("Spell %u listed in `spell_threat` as custom rank has same data as Rank 1, so redundant", spell_id);
         }

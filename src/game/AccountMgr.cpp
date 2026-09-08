@@ -687,16 +687,8 @@ bool AccountMgr::CheckInstanceCount(uint32 accountId, uint32 instanceId, uint32 
 
 void AccountMgr::AddInstanceEnterTime(uint32 accountId, uint32 instanceId, time_t enterTime)
 {
-    AccountInstanceEnterTimesMap::iterator it = m_instanceEnterTimes.find(accountId);
-    if (it == m_instanceEnterTimes.end())
-    {
-        InstanceEnterTimesMap resetTimes;
-        resetTimes[instanceId] = enterTime;
-        m_instanceEnterTimes[accountId] = resetTimes;
-        return;
-    }
-
-    it->second[instanceId] = enterTime;
+    auto accountEntry = m_instanceEnterTimes.try_emplace(accountId);
+    accountEntry.first->second[instanceId] = enterTime;
 }
 
 uint32 AccountMgr::GetFlags(uint32 accountId)

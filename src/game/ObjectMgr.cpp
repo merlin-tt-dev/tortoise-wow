@@ -4231,16 +4231,15 @@ void ObjectMgr::LoadQuests()
                 qinfo->RewMailTemplateId = 0;               // no mail will send to player
                 qinfo->RewMailDelaySecs = 0;                // no mail will send to player
             }
-            else if (usedMailTemplates.find(mailTemplateId) != usedMailTemplates.end())
+            else if (auto usedMtItr = usedMailTemplates.find(mailTemplateId); usedMtItr != usedMailTemplates.end())
             {
-                std::map<uint32, uint32>::const_iterator used_mt_itr = usedMailTemplates.find(mailTemplateId);
                 sLog.outErrorDb("Quest %u has `RewMailTemplateId` = %u but mail template  %u already used for quest %u, quest will not have a mail reward.",
-                                qinfo->GetQuestId(), mailTemplateId, mailTemplateId, used_mt_itr->second);
+                                qinfo->GetQuestId(), mailTemplateId, mailTemplateId, usedMtItr->second);
                 qinfo->RewMailTemplateId = 0;               // no mail will send to player
                 qinfo->RewMailDelaySecs = 0;                // no mail will send to player
             }
             else
-                usedMailTemplates[mailTemplateId] = qinfo->GetQuestId();
+                usedMailTemplates.emplace(mailTemplateId, qinfo->GetQuestId());
         }
 
         if (qinfo->NextQuestInChain)

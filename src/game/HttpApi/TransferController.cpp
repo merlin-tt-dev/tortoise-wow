@@ -243,14 +243,17 @@ namespace HttpApi
         {
             *guidPtr = guid;
 
-            if (!charName.empty() && transferredNames.find(charName) != transferredNames.end())
+            if (!charName.empty())
             {
+                auto transferredItr = transferredNames.find(charName);
                 auto now = time(nullptr);
-                if (now - transferredNames[charName] < 60)
+                if (transferredItr != transferredNames.end() && now - transferredItr->second < 60)
                 {
                     sLog.out(LOG_API, "ALREADY IMPORTED CHAR. Aborting. AccountId:%u, newGuid:%u,playername:%s", accountId, guid, charName.c_str());
                     CharacterDatabase.PExecute("UPDATE `characters` SET `account` = 0 WHERE `guid` = %u", guid);
                 }
+                else if (transferredItr == transferredNames.end())
+                    transferredNames.emplace(charName, now);
             }
             else
                 transferredNames[charName] = time(nullptr);

@@ -184,18 +184,18 @@ namespace DBUpdater
             const auto& migrationKey = fileMigrationPair.first;
             const auto& migration = fileMigrationPair.second;
 
-            if (dbMigrations.find(migrationKey) != dbMigrations.end()) // already applied, skip
+            auto dbMigrationItr = dbMigrations.find(migrationKey);
+            if (dbMigrationItr != dbMigrations.end()) // already applied, skip
             {
-                if (migration.Name != dbMigrations[migrationKey].Name)
+                if (migration.Name != dbMigrationItr->second.Name)
                     sLog.outInfo("[DB Auto-Updater] Migration with hash %s%s was migrated with name %s but now has name %s.", migration.Hash.c_str(),
-                        ModuleLogSuffix(migration.Module).c_str(), dbMigrations[migrationKey].Name.c_str(), migration.Name.c_str());
+                        ModuleLogSuffix(migration.Module).c_str(), dbMigrationItr->second.Name.c_str(), migration.Name.c_str());
 
-                dbMigrations.erase(migrationKey);
+                dbMigrations.erase(dbMigrationItr);
                 continue;
             }
 
             updates.push_back(std::move(fileMigrationPair.second));
-            dbMigrations.erase(migrationKey);
         }
 
 
