@@ -66,6 +66,7 @@ These control the version of Winsock used by G3D.
     #define G3D_WINDOWS
     #undef __MSVCRT_VERSION__
     #define __MSVCRT_VERSION__ 0x0601
+    #include <winsock2.h>
     #include <windows.h>
 #elif  defined(__FreeBSD__) || defined(__OpenBSD__)
     #define G3D_FREEBSD
