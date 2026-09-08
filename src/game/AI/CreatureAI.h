@@ -32,6 +32,9 @@
 
 #include "Utilities/EventMap.h"
 
+#include <algorithm>
+#include <vector>
+
 class WorldObject;
 class GameObject;
 class Unit;
@@ -299,41 +302,30 @@ class CreatureAI
             if (position >= threatlist.size())
                 return nullptr;
 
-            std::list<Unit*> targetList;
+            std::vector<Unit*> targetList;
+            targetList.reserve(threatlist.size());
             for (auto itr : threatlist)
             {
-				if (predicate(itr->getTarget()))
-					targetList.push_back(itr->getTarget());
+                if (predicate(itr->getTarget()))
+                    targetList.push_back(itr->getTarget());
             }
 
             if (position >= targetList.size())
                 return nullptr;
 
             if (targetType == SelectTargetMethod::MaxDistance || targetType == SelectTargetMethod::MinDistance)
-                targetList.sort(ObjectDistanceOrderPred(m_creature));
+                std::stable_sort(targetList.begin(), targetList.end(), ObjectDistanceOrderPred(m_creature));
 
             switch (targetType)
             {
             case SelectTargetMethod::MaxDistance:
             case SelectTargetMethod::MaxThreat:
-            {
-                std::list<Unit*>::iterator itr = targetList.begin();
-                std::advance(itr, position);
-                return *itr;
-            }
+                return targetList[position];
             case SelectTargetMethod::MinDistance:
             case SelectTargetMethod::MinThreat:
-            {
-                std::list<Unit*>::reverse_iterator ritr = targetList.rbegin();
-                std::advance(ritr, position);
-                return *ritr;
-            }
+                return targetList[targetList.size() - 1 - position];
             case SelectTargetMethod::Random:
-            {
-                std::list<Unit*>::iterator itr = targetList.begin();
-                std::advance(itr, urand(position, targetList.size() - 1));
-                return *itr;
-            }
+                return targetList[urand(position, targetList.size() - 1)];
             default:
                 break;
             }
