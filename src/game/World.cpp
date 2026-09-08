@@ -95,7 +95,6 @@
 #include "SocialMgr.h"
 #include "Shop/ShopMgr.h"
 #include "ChannelBroadcaster.h"
-#include <ace/OS_NS_dirent.h>
 #include "PerformanceMonitor.h"
 
 #include <filesystem>
@@ -4874,45 +4873,41 @@ void World::AutoPDumpWorker()
 
 void World::DeleteOldPDumps()
 {
-    if (ACE_DIR* dirp = ACE_OS::opendir(ACE_TEXT(sWorld.GetPDumpDirectory().c_str())))
+    std::error_code error;
+    std::filesystem::directory_iterator it(sWorld.GetPDumpDirectory(), error);
+    std::filesystem::directory_iterator const end;
+    std::vector<std::string> filesToDelete;
+
+    while (!error && it != end)
     {
-        ACE_DIRENT* dp;
-        
-        std::set<std::string> filesToDelete;
-        while (!!(dp = ACE_OS::readdir(dirp)))
+        std::string entryName = it->path().filename().string();
+        char* fileName = entryName.data();
+
+        if (strstr(fileName, "Char"))
         {
-            if (strstr(dp->d_name, "Char"))
+            if (char* pDash = strstr(fileName, "-"))
             {
-                if (char* pDash = strstr(dp->d_name, "-"))
+                if (char* pDot = strstr(fileName, ".bak"))
                 {
-                    if (char* pDot = strstr(dp->d_name, ".bak"))
-                    {
-                        uint32 guidLow = strtol(dp->d_name + 4, &pDash, 10);
-                        time_t timestamp = strtol(pDash + 1, &pDot, 10);
-                        
-                        if ((sWorld.getConfig(CONFIG_UINT32_AUTO_PDUMP_DELETE_AFTER_DAYS) && ((timestamp + (sWorld.getConfig(CONFIG_UINT32_AUTO_PDUMP_DELETE_AFTER_DAYS) * DAY)) < time(nullptr)))
-                            || IsCharacterPDumpedRecently(guidLow, timestamp)) // dont keep duplicates
-                        {
-                            std::string fullPath = sWorld.GetPDumpDirectory() + "/" + dp->d_name;
-                            filesToDelete.insert(fullPath);
-                        }
-                        else
-                            AddPDumpedCharacterToList(guidLow, timestamp);
-                    }
+                    uint32 guidLow = strtol(fileName + 4, &pDash, 10);
+                    time_t timestamp = strtol(pDash + 1, &pDot, 10);
+
+                    if ((sWorld.getConfig(CONFIG_UINT32_AUTO_PDUMP_DELETE_AFTER_DAYS) && ((timestamp + (sWorld.getConfig(CONFIG_UINT32_AUTO_PDUMP_DELETE_AFTER_DAYS) * DAY)) < time(nullptr)))
+                        || IsCharacterPDumpedRecently(guidLow, timestamp)) // dont keep duplicates
+                        filesToDelete.emplace_back(it->path().string());
+                    else
+                        AddPDumpedCharacterToList(guidLow, timestamp);
                 }
             }
-        }   
-
-#ifndef _WIN32
-        // this causes a crash on Windows, so just accept a minor memory leak for now
-        ACE_OS::closedir(dirp);
-#endif
-
-        if (!filesToDelete.empty())
-        {
-            sLog.outInfo("Deleting %u old pdumps...", (uint32)filesToDelete.size());
-            for (auto const& file : filesToDelete)
-                remove(file.c_str());
         }
+
+        it.increment(error);
+    }
+
+    if (!filesToDelete.empty())
+    {
+        sLog.outInfo("Deleting %u old pdumps...", (uint32)filesToDelete.size());
+        for (auto const& file : filesToDelete)
+            remove(file.c_str());
     }
 }

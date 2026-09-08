@@ -78,6 +78,7 @@
 #include <cmath>
 #include <cctype>
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <map>
@@ -88,7 +89,6 @@
 #include <sstream>
 #include <ctime>
 #include "Anticheat/Anticheat.h"
-#include <ace/OS_NS_dirent.h>
 #include "SuspiciousStatisticMgr.h"
 #include "ChannelMgr.h"
 #include "CommandStream.h"
@@ -17414,18 +17414,17 @@ bool ChatHandler::HandlePDumpListCommand(char* args)
     sprintf(fileName, "Char%u-", guidLow);
 
     PSendSysMessage("Searching for pdumps for guid %u:", guidLow);
-    if (ACE_DIR* dirp = ACE_OS::opendir(ACE_TEXT(sWorld.GetPDumpDirectory().c_str())))
+    std::error_code error;
+    std::filesystem::directory_iterator it(sWorld.GetPDumpDirectory(), error);
+    std::filesystem::directory_iterator const end;
+
+    while (!error && it != end)
     {
-        ACE_DIRENT* dp;
+        std::string const entryName = it->path().filename().string();
+        if (entryName.find(fileName) != std::string::npos)
+            PSendSysMessage("- %s", playerLink(entryName.c_str()).c_str());
 
-        while (!!(dp = ACE_OS::readdir(dirp)))
-            if (strstr(dp->d_name, fileName))
-                PSendSysMessage("- %s", playerLink(dp->d_name).c_str());
-
-#ifndef _WIN32
-        // this causes a crash on Windows, so just accept a minor memory leak for now
-        ACE_OS::closedir(dirp);
-#endif
+        it.increment(error);
     }
 
     return true;
