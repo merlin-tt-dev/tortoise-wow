@@ -104,7 +104,7 @@ bool Guild::Create(Petition* petition, Player* leader)
     if (!Create(leader, petition->GetName()))
         return false;
 
-    PetitionSignatureList signatures = petition->GetSignatureList();
+    PetitionSignatureList const& signatures = petition->GetSignatureList();
     for (auto iter = signatures.cbegin(); iter != signatures.cend(); ++iter)
     {
         PetitionSignature* signature = *iter;
