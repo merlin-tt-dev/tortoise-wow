@@ -53,6 +53,8 @@
 #include "SuspiciousStatisticMgr.h"
 #include "PerfStats.h"
 
+#include <vector>
+
 bool QuaternionData::isUnit() const
 {
     return fabs(x * x + y * y + z * z + w * w - 1.0f) < 1e-5f;
@@ -1517,9 +1519,9 @@ void GameObject::Use(Unit* user)
 
             if (GetFactionTemplateId() && !GetGOInfo()->chest.minSuccessOpens && !GetGOInfo()->chest.maxSuccessOpens)
             {
-                std::list<Unit*> targets;
+                std::vector<Unit*> targets;
                 MaNGOS::AnyFriendlyUnitInObjectRangeCheck check(this, 10.0f);
-                MaNGOS::UnitListSearcher<MaNGOS::AnyFriendlyUnitInObjectRangeCheck> searcher(targets, check);
+                MaNGOS::UnitListSearcher<MaNGOS::AnyFriendlyUnitInObjectRangeCheck, std::vector<Unit*>> searcher(targets, check);
                 Cell::VisitAllObjects(this, searcher, 10.0f);
                 for (Unit* attacker : targets)
                 {

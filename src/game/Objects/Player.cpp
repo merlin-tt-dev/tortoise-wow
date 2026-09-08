@@ -20,6 +20,7 @@
  */
 
 #include <unordered_map>
+#include <vector>
 #include <cmath>
 #include <iostream>
 #include <ctime>
@@ -24312,10 +24313,10 @@ void Player::HandleStealthedUnitsDetection()
     if (!FindMap())
         return;
 
-    std::list<Unit*> stealthedUnits;
+    std::vector<Unit*> stealthedUnits;
 
     MaNGOS::AnyStealthedCheck u_check(this);
-    MaNGOS::UnitListSearcher<MaNGOS::AnyStealthedCheck > searcher(stealthedUnits, u_check);
+    MaNGOS::UnitListSearcher<MaNGOS::AnyStealthedCheck, std::vector<Unit*>> searcher(stealthedUnits, u_check);
     Cell::VisitAllObjects(this, searcher, sWorld.getConfig(CONFIG_FLOAT_MAX_PLAYERS_STEALTH_DETECT_RANGE));
 
     WorldObject const* viewPoint = GetCamera().GetBody();

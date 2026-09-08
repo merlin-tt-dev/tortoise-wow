@@ -32,6 +32,8 @@
 #include "Chat.h"
 #include "GridSearchers.h"
 
+#include <vector>
+
 //==============================================================
 //================= ThreatCalcHelper ===========================
 //==============================================================
@@ -546,8 +548,10 @@ void ThreatManager::UnitDetailedThreatSituation(Creature* creature, Player* requ
         std::vector<std::string> pSecondMessage;   // players that are 2nd on threat
         pSecondMessage.reserve(5);
 
-		std::list<Creature*> hCreatureNear;
-		GetHostileCreaturesListInRange(hCreatureNear, requester, 5.0f);
+        std::vector<Creature*> hCreatureNear;
+        MaNGOS::AllHostileCreaturesInRange hostileCheck(requester, 5.0f);
+        MaNGOS::CreatureListSearcher<MaNGOS::AllHostileCreaturesInRange, std::vector<Creature*>> hostileSearcher(hCreatureNear, hostileCheck);
+        Cell::VisitGridObjects(requester, hostileSearcher, 5.0f);
 
 		int creatureIndex = 0;
 

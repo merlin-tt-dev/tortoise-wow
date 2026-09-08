@@ -10933,8 +10933,10 @@ void Unit::CombatStopInRange(float dist)
 
 uint32 Unit::DespawnNearCreaturesByEntry(uint32 entry, float range)
 {
-    std::list<Creature*> creatures;
-    GetCreatureListWithEntryInGrid(creatures, entry, range);
+    std::vector<Creature*> creatures;
+    MaNGOS::AllCreaturesOfEntryInRange check(this, entry, range);
+    MaNGOS::CreatureListSearcher<MaNGOS::AllCreaturesOfEntryInRange, std::vector<Creature*>> searcher(creatures, check);
+    Cell::VisitGridObjects(this, searcher, range);
     uint32 count = 0;
     for (const auto& it : creatures)
     {
@@ -10954,13 +10956,15 @@ uint32 Unit::RespawnNearCreaturesByEntry(uint32 entry, float range)
         range = GetMap()->GetVisibilityDistance();
 
     uint32 count = 0;
-    std::list<Creature*> lList;
-    GetCreatureListWithEntryInGrid(lList, entry, range);
-    for (const auto& it : lList)
+    std::vector<Creature*> creatures;
+    MaNGOS::AllCreaturesOfEntryInRange check(this, entry, range);
+    MaNGOS::CreatureListSearcher<MaNGOS::AllCreaturesOfEntryInRange, std::vector<Creature*>> searcher(creatures, check);
+    Cell::VisitGridObjects(this, searcher, range);
+    for (Creature* creature : creatures)
     {
-        if (!it->IsAlive())
+        if (!creature->IsAlive())
         {
-            it->Respawn();
+            creature->Respawn();
             ++count;
         }
     }
