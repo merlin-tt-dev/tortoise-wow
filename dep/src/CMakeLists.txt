@@ -16,7 +16,7 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 
-if (MINGW)
+if(MINGW AND CMAKE_SIZEOF_VOID_P EQUAL 4)
     add_subdirectory(libseh)
 endif()
 add_subdirectory(g3dlite)

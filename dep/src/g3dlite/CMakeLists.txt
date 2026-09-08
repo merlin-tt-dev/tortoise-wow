@@ -78,7 +78,7 @@ SET_TARGET_PROPERTIES (g3dlite PROPERTIES FOLDER "3rd Party")
 
 if(WIN32)
   include_directories(${CMAKE_SOURCE_DIR}/dep/windows/include/zlib)
-  if(MINGW)
+  if(MINGW AND CMAKE_SIZEOF_VOID_P EQUAL 4)
     target_link_libraries(g3dlite zlib libseh)
   else()
     target_link_libraries(g3dlite zlib)
