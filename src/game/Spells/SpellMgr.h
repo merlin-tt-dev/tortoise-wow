@@ -526,7 +526,8 @@ class SpellMgr
         void doForHighRanks(uint32 spellid, Worker& worker)
         {
             SpellChainMapNext const& nextMap = GetSpellChainNext();
-            for(SpellChainMapNext::const_iterator itr = nextMap.lower_bound(spellid); itr != nextMap.upper_bound(spellid); ++itr)
+            auto const range = nextMap.equal_range(spellid);
+            for (auto itr = range.first; itr != range.second; ++itr)
             {
                 worker(itr->second);
                 doForHighRanks(itr->second,worker);

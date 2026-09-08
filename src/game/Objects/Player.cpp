@@ -4578,7 +4578,8 @@ void Player::LearnSpell(uint32 spell_id, bool dependent, bool talent)
     if (disabled || talent)
     {
         SpellChainMapNext const& nextMap = sSpellMgr.GetSpellChainNext();
-        for (SpellChainMapNext::const_iterator i = nextMap.lower_bound(spell_id); i != nextMap.upper_bound(spell_id); ++i)
+        auto const range = nextMap.equal_range(spell_id);
+        for (auto i = range.first; i != range.second; ++i)
         {
             PlayerSpellMap::iterator iter = m_spells.find(i->second);
             if (iter != m_spells.end() && iter->second.disabled)
@@ -4612,7 +4613,8 @@ void Player::RemoveSpell(uint32 spell_id, bool disabled, bool learn_low_rank, bo
 
                           // unlearn non talent higher ranks (recursive)
     SpellChainMapNext const& nextMap = sSpellMgr.GetSpellChainNext();
-    for (SpellChainMapNext::const_iterator itr2 = nextMap.lower_bound(spell_id); itr2 != nextMap.upper_bound(spell_id); ++itr2)
+    auto const range = nextMap.equal_range(spell_id);
+    for (auto itr2 = range.first; itr2 != range.second; ++itr2)
         if (HasSpell(itr2->second) && !GetTalentSpellPos(itr2->second))
             RemoveSpell(itr2->second, !Spells::IsPassiveSpell(itr2->second), false);
 
