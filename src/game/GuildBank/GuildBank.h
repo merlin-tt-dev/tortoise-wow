@@ -182,7 +182,7 @@ class GuildBank
 		GuildBank(bool isInfernoBank);
 
 		void SetGuild(Guild* guild);
-        void HandleAddonMessages(std::string msg, Player* player);
+        void HandleAddonMessages(std::string const& msg, Player* player);
 		void SaveToDB();
 		void DeleteFromDB();
 		void UpdateMinranks(uint32 rank);
@@ -218,46 +218,46 @@ class GuildBank
 		void LoadBank();
 
 		// bank and tabs
-		void UnlockGuildBank(std::string msg);
-		void UnlockTab(std::string msg);
-		void UnlockTabCost(std::string msg);
-		void UpdateTab(std::string msg);
+        void UnlockGuildBank(std::string const& msg);
+        void UnlockTab(std::string const& msg);
+        void UnlockTabCost(std::string const& msg);
+        void UpdateTab(std::string const& msg);
 
 		// money
 		void SendBankMoney();
 		void SendBankInfo();
-		void DepositMoney(std::string msg);
-		void WithdrawMoney(std::string msg);
+        void DepositMoney(std::string const& msg);
+        void WithdrawMoney(std::string const& msg);
 
 		// access
 		bool CanAccessTab(uint8 tab, uint8 action);
 		bool IsItemBankable(Item* bItem);
 		
 		// item actions
-		void SendTabItems(std::string msg);
-		void DepositItem(std::string msg);
+        void SendTabItems(std::string const& msg);
+        void DepositItem(std::string const& msg);
 		void DepositItemInFreeSlot(uint32 bankTab, Item* pItem);
 		void DepositItemInSlot(uint32 bankTab, uint32 bankSlot, Item* pItem, uint32 count, uint32 remainer, ItemUpdateState state, bool stack);
-		void WithdrawItem(std::string msg);
+        void WithdrawItem(std::string const& msg);
 		void WithdrawItem(uint32 bankTab, uint32 bankSlot, uint32 count, uint32 playerBag, uint32 playerSlot, BankItem* bItem, Item* pItem, uint32 remainer, bool swap);
 		void SwapItems(Item* bagItem, BankItem* bankItem);
-		void MoveItem(std::string msg);
+        void MoveItem(std::string const& msg);
 		void MoveItem(BankItem* sItem, BankItem* dItem, uint8 bankTab, uint8 fromSlot, uint8 toSlot);
-		void SplitItem(std::string msg);
-		void DestroyItem(std::string msg);
+        void SplitItem(std::string const& msg);
+        void DestroyItem(std::string const& msg);
 
 		void DepositInternal(uint32 bankTab, Item* item);
 
 		// weekly withdrawals
 		void SendTabWithdrawalsLeft(uint8 tab);
-		void SendTabWithdrawalsLeft(std::string msg);
+        void SendTabWithdrawalsLeft(std::string const& msg);
 		uint8 GetTabWithdrawalsLeft(uint8 tab);
 
 		// log
 		void LoadLog();
 		void AppendLog(uint32 index, uint32 tab, Field *fields, uint32 state);
-		void SendTabLog(std::string msg);
-		void SendMoneyLog(std::string msg);
+        void SendTabLog(std::string const& msg);
+        void SendMoneyLog(std::string const& msg);
 		void LogAction(uint8 action, uint32 tab, uint32 itemID, uint32 count, BankItem* bItem);
 
 		// helpers

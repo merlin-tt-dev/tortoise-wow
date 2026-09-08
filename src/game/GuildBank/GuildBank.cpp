@@ -114,7 +114,7 @@ void GuildBank::SetGuild(Guild* guild)
 }
 
 // Addon Handler
-void GuildBank::HandleAddonMessages(std::string msg, Player* player)
+void GuildBank::HandleAddonMessages(std::string const& msg, Player* player)
 {
 	SetPlayer(player);
 
@@ -479,7 +479,7 @@ void GuildBank::LoadBank()
 /* bank and tabs */
 
 // Unlocks guild bank feature and logs action
-void GuildBank::UnlockGuildBank(std::string msg) {
+void GuildBank::UnlockGuildBank(std::string const& msg) {
 
 	// should not get here from UI
 	// Guild Master check
@@ -556,7 +556,7 @@ void GuildBank::UnlockGuildBank(std::string msg) {
 }
 
 // Unlocks a guild tab and logs this action
-void GuildBank::UnlockTab(std::string msg)
+void GuildBank::UnlockTab(std::string const& msg)
 {
 	// Guild Master Check - should not get here from UI
 	if (playerRankIndex != 0)
@@ -640,7 +640,7 @@ void GuildBank::UnlockTab(std::string msg)
 }
 
 // Sends tab cost to client
-void GuildBank::UnlockTabCost(std::string msg)
+void GuildBank::UnlockTabCost(std::string const& msg)
 {
 	// Guild Master Check - should not get here from UI
 	if (playerRankIndex != 0)
@@ -683,7 +683,7 @@ void GuildBank::UnlockTabCost(std::string msg)
 }
 
 // Updates bank tab information (name, icon, withdrawals, minrank)
-void GuildBank::UpdateTab(std::string msg)
+void GuildBank::UpdateTab(std::string const& msg)
 {
 	// Guild Master Check - should not get here from UI
 	if (playerRankIndex != 0)
@@ -782,7 +782,7 @@ void GuildBank::SendBankInfo()
 }
 
 // Deposits money into the Guild Bank
-void GuildBank::DepositMoney(std::string msg)
+void GuildBank::DepositMoney(std::string const& msg)
 {
 	// msg = DepositMoney:money
 
@@ -820,7 +820,7 @@ void GuildBank::DepositMoney(std::string msg)
 }
 
 // Withdraws money from the guild bank, limited to guil rank index 0 and 1
-void GuildBank::WithdrawMoney(std::string msg)
+void GuildBank::WithdrawMoney(std::string const& msg)
 {
 	uint32 money;
 
@@ -919,7 +919,7 @@ bool GuildBank::IsItemBankable(Item* bItem)
 /* item actions */
 
 // Sends bank tab items to a player
-void GuildBank::SendTabItems(std::string msg)
+void GuildBank::SendTabItems(std::string const& msg)
 {
 	uint8 tab;
 
@@ -981,7 +981,7 @@ void GuildBank::SendTabItems(std::string msg)
 }
 
 // Deposits a player item into the bank
-void GuildBank::DepositItem(std::string msg) {
+void GuildBank::DepositItem(std::string const& msg) {
 
 	uint8 playerBag;
 	uint8 playerSlot;
@@ -1297,7 +1297,7 @@ void GuildBank::DepositItemInSlot(uint32 bankTab, uint32 bankSlot, Item* pItem, 
 }
 
 // Withdraws a bank item to player inventory
-void GuildBank::WithdrawItem(std::string msg)
+void GuildBank::WithdrawItem(std::string const& msg)
 {
 	uint32 bankTab;
 	uint32 bankSlot;
@@ -1566,7 +1566,7 @@ void GuildBank::SwapItems(Item* bagItem, BankItem* bankItem)
 }
 
 // Moves a bank item to a different slot
-void GuildBank::MoveItem(std::string msg)
+void GuildBank::MoveItem(std::string const& msg)
 {
 	uint8 bankTab;
 	uint8 fromSlot;
@@ -1786,7 +1786,7 @@ void GuildBank::MoveItem(BankItem* sItem, BankItem* dItem, uint8 bankTab, uint8 
 }
 
 // Splits a bank item
-void GuildBank::SplitItem(std::string msg)
+void GuildBank::SplitItem(std::string const& msg)
 {
 	uint8 bankTab;
 	uint8 fromSlot;
@@ -1983,7 +1983,7 @@ void GuildBank::SplitItem(std::string msg)
 
 }
 // Deletes a bank item
-void GuildBank::DestroyItem(std::string msg)
+void GuildBank::DestroyItem(std::string const& msg)
 {
 	uint8 bankTab;
 	uint8 bankSlot;
@@ -2072,7 +2072,7 @@ void GuildBank::DestroyItem(std::string msg)
 /* weekly withdrawals */
 
 // Sends how many weekly withdrawals the player has left
-void GuildBank::SendTabWithdrawalsLeft(std::string msg)
+void GuildBank::SendTabWithdrawalsLeft(std::string const& msg)
 {
 	uint8 tab;
 
@@ -2196,7 +2196,7 @@ void GuildBank::LoadLog()
 }
 
 // Sends tab log to player
-void GuildBank::SendTabLog(std::string msg)
+void GuildBank::SendTabLog(std::string const& msg)
 {
 	uint8 tab;
 
@@ -2266,7 +2266,7 @@ void GuildBank::SendTabLog(std::string msg)
 }
 
 // Sends money log to player
-void GuildBank::SendMoneyLog(std::string msg)
+void GuildBank::SendMoneyLog(std::string const& msg)
 {
 	// msg = GetMoneyLog:
 	std::vector<std::string> messages;
