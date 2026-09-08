@@ -73,13 +73,6 @@ enum class SelectTargetMethod
     MinDistance  // prefer targets closer to us
 };
 
-template<class ArgumentType, class ResultType>
-struct unary_function
-{
-    using argument_type = ArgumentType;
-    using result_type = ResultType;
-};
-
 class ObjectDistanceOrderPred
 {
 public:
@@ -93,7 +86,7 @@ private:
     const bool m_ascending;
 };
 
-struct DefaultTargetSelector : public unary_function<Unit*, bool>
+struct DefaultTargetSelector
 {
     const Unit* me;
     float m_dist;
