@@ -3805,15 +3805,12 @@ void Player::GiveLevel(uint32 level)
     if (HasChallenge(CHALLENGE_CRAFTMASTER) && level == PLAYER_MAX_LEVEL)
         AwardTitle(TITLE_CRAFTMASTER);
 
-<<<<<<< HEAD
     if (HasChallenge(CHALLENGE_BREWMASTER) && level == PLAYER_MAX_LEVEL)
     {
         AwardTitle(TITLE_BREWMASTER);
         MailBrewmasterModeRewards();
     }
 
-=======
->>>>>>> 53042f0 (Enforce Traveling Craftmaster equipment rules)
     if (HasChallenge(CHALLENGE_BOARING_MODE))
     {
         if (level == PLAYER_MAX_LEVEL)
@@ -25544,15 +25541,12 @@ bool Player::HasEarnedTitle(uint8 titleId)
             return true;
         break;
     }
-<<<<<<< HEAD
     case TITLE_BREWMASTER:
     {
         if (GetLevel() == PLAYER_MAX_LEVEL && HasChallenge(CHALLENGE_BREWMASTER))
             return true;
         break;
     }
-=======
->>>>>>> 53042f0 (Enforce Traveling Craftmaster equipment rules)
     case TITLE_SWINE_SLAYER:
     {
         if (GetLevel() == PLAYER_MAX_LEVEL && HasChallenge(CHALLENGE_BOARING_MODE))
