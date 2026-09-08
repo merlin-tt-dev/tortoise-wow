@@ -240,7 +240,15 @@ namespace dpp {
 				}
 				/* Capture stderr */
 				cmd_and_parameters << " 2>&1";
-				std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd_and_parameters.str().c_str(), "r"), pclose);
+                struct PipeCloser
+                {
+                    void operator()(FILE* file) const
+                    {
+                        if (file)
+                            pclose(file);
+                    }
+                };
+                std::unique_ptr<FILE, PipeCloser> pipe(popen(cmd_and_parameters.str().c_str(), "r"));
 				if (!pipe) {
 					return;
 				}
