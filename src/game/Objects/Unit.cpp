@@ -10864,10 +10864,10 @@ void Unit::ProcessRelocationVisibilityUpdates()
 // BEGIN Nostalrius specific functions
 void Unit::InterruptSpellsCastedOnMe(bool killDelayed, bool interruptPositiveSpells)
 {
-    std::list<Unit*> targets;
+    std::vector<Unit*> targets;
     // Maximum spell range=100m ?
     MaNGOS::AnyUnitInObjectRangeCheck u_check(this, 100.0f);
-    MaNGOS::UnitListSearcher<MaNGOS::AnyUnitInObjectRangeCheck> searcher(targets, u_check);
+    MaNGOS::UnitListSearcher<MaNGOS::AnyUnitInObjectRangeCheck, std::vector<Unit*>> searcher(targets, u_check);
     Cell::VisitAllObjects(this, searcher, GetMap()->GetVisibilityDistance());
     // Don't need to use visibility modifier, units won't be able to cast outside of draw distance
     for (const auto& iter : targets)
@@ -10899,9 +10899,9 @@ void Unit::InterruptAttacksOnMe(float dist, bool guard_check)
     // Must use modifier, otherwise long range auto attacks will not toggle
     dist = std::max(dist, GetVisibilityModifier());
 
-    std::list<Unit*> targets;
+    std::vector<Unit*> targets;
     MaNGOS::AnyUnfriendlyUnitInObjectRangeCheck u_check(this, this, dist);
-    MaNGOS::UnitListSearcher<MaNGOS::AnyUnfriendlyUnitInObjectRangeCheck> searcher(targets, u_check);
+    MaNGOS::UnitListSearcher<MaNGOS::AnyUnfriendlyUnitInObjectRangeCheck, std::vector<Unit*>> searcher(targets, u_check);
     Cell::VisitAllObjects(this, searcher, dist);
     for (const auto& iter : targets)
     {
@@ -10923,9 +10923,9 @@ void Unit::CombatStopInRange(float dist)
     // must check with modifier, otherwise we could combat bug
     dist = std::max(dist, GetVisibilityModifier());
 
-    std::list<Unit*> targets;
+    std::vector<Unit*> targets;
     MaNGOS::AnyUnfriendlyUnitInObjectRangeCheck u_check(this, this, dist);
-    MaNGOS::UnitListSearcher<MaNGOS::AnyUnfriendlyUnitInObjectRangeCheck> searcher(targets, u_check);
+    MaNGOS::UnitListSearcher<MaNGOS::AnyUnfriendlyUnitInObjectRangeCheck, std::vector<Unit*>> searcher(targets, u_check);
     Cell::VisitAllObjects(this, searcher, dist);
     for (const auto& iter : targets)
         iter->CombatStopWithPets(true);
