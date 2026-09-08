@@ -136,10 +136,14 @@ if(WIN32)
   target_link_libraries(${EXECUTABLE_NAME}
     zlib
     optimized ${MYSQL_LIBRARY}
-    optimized ${OPENSSL_LIBRARIES}
     debug ${MYSQL_DEBUG_LIBRARY}
-    debug ${OPENSSL_DEBUG_LIBRARIES}
   )
+  foreach(_mangosd_openssl_library ${OPENSSL_LIBRARIES})
+    target_link_libraries(${EXECUTABLE_NAME} optimized ${_mangosd_openssl_library})
+  endforeach()
+  foreach(_mangosd_openssl_library ${OPENSSL_DEBUG_LIBRARIES})
+    target_link_libraries(${EXECUTABLE_NAME} debug ${_mangosd_openssl_library})
+  endforeach()
   if(MINGW)
     target_link_libraries(${EXECUTABLE_NAME}
       -lws2_32
