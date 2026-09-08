@@ -39,9 +39,9 @@ class TransmogMgr
         // General
         void LoadFromDB(QueryResult* result);
 
-		void HandleAddonMessages(std::string msg);
+        void HandleAddonMessages(std::string const& msg);
 
-		void ApplyTransmog(std::string msg);
+        void ApplyTransmog(std::string const& msg);
 		uint8  ApplyTransmog(uint8 slot, uint32 sourceItemID, uint32 slotId);
 
 		std::string GetTransmogStatus();

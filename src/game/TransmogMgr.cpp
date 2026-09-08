@@ -96,7 +96,7 @@ void TransmogMgr::LoadFromDB(QueryResult* result)
     } while (result->NextRow());
 }
 
-void TransmogMgr::HandleAddonMessages(std::string msg)
+void TransmogMgr::HandleAddonMessages(std::string const& msg)
 {
 	if (strstr(msg.c_str(), "DoTransmog:"))
 	{
@@ -170,14 +170,15 @@ void TransmogMgr::HandleAddonMessages(std::string msg)
 		std::string aText;
 		aText = "TW_TRANSMOG ChangeGlowResult:";
 
-		std::string delimiter = ":";
-		std::string command = msg.substr(0, msg.find(delimiter));
+        std::string mutableMsg = msg;
+        std::string delimiter = ":";
+        std::string command = mutableMsg.substr(0, mutableMsg.find(delimiter));
 
-		msg = msg.substr(command.length() + 1, msg.length());
-		std::string slotStr = msg.substr(0, msg.find(delimiter));
+        mutableMsg = mutableMsg.substr(command.length() + 1, mutableMsg.length());
+        std::string slotStr = mutableMsg.substr(0, mutableMsg.find(delimiter));
 
-		msg = msg.substr(slotStr.length() + 1, msg.length());
-		std::string glowIdStr = msg.substr(0, msg.find(delimiter));
+        mutableMsg = mutableMsg.substr(slotStr.length() + 1, mutableMsg.length());
+        std::string glowIdStr = mutableMsg.substr(0, mutableMsg.find(delimiter));
 
 		// 803 fiery
 		// 1900 crusader
@@ -218,7 +219,7 @@ void TransmogMgr::HandleAddonMessages(std::string msg)
 	}
 }
 
-void TransmogMgr::ApplyTransmog(std::string msg)
+void TransmogMgr::ApplyTransmog(std::string const& msg)
 {
 	Tokenizer params(msg, ':', 4);
 	if (params.size() != 4)
