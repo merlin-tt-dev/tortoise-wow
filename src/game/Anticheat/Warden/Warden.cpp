@@ -34,6 +34,7 @@
 #include "zlib.h"
 
 #include <algorithm>
+#include <iterator>
 #include <memory>
 
 using CheatType = Anticheat::CheatType;
@@ -180,13 +181,13 @@ std::vector<std::shared_ptr<const Scan>> Warden::SelectScans(ScanFlags flags) co
 void Warden::EnqueueScans(std::vector<std::shared_ptr<const Scan>> &&scans)
 {
     // append the requested scans to the queue
-    _enqueuedScans.insert(_enqueuedScans.end(), scans.cbegin(), scans.cend());
+    _enqueuedScans.insert(_enqueuedScans.end(), std::make_move_iterator(scans.begin()), std::make_move_iterator(scans.end()));
 }
 
 void Warden::RequestScans(std::vector<std::shared_ptr<const Scan>> &&scans)
 {
     // start by appending the requested scans to the queue, which will usually be empty when this is called
-    _enqueuedScans.insert(_enqueuedScans.end(), scans.cbegin(), scans.cend());
+    _enqueuedScans.insert(_enqueuedScans.end(), std::make_move_iterator(scans.begin()), std::make_move_iterator(scans.end()));
 
     // if for whatever reason there is nothing to do, stop
     if (_enqueuedScans.empty())

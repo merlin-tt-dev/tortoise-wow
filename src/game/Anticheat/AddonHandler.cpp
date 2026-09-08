@@ -15,6 +15,7 @@
 #include "zlib.h"
 
 #include <memory>
+#include <utility>
 
 namespace
 {
@@ -206,7 +207,7 @@ bool SessionAnticheat::ReadAddonInfo(WorldPacket *authSession, WorldPacket &out)
             fingerprintBytes[i] = info.flags;
         }
 
-        addonInfo.push_back(info);
+        addonInfo.push_back(std::move(info));
     }
 
     bool fingerprintFound = false;
