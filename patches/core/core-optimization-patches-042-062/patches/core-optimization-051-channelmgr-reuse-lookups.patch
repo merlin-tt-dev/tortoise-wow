@@ -1,0 +1,35 @@
+diff --git a/src/game/Chat/ChannelMgr.cpp b/src/game/Chat/ChannelMgr.cpp
+index b9ab97e..1cec107 100644
+--- a/src/game/Chat/ChannelMgr.cpp
++++ b/src/game/Chat/ChannelMgr.cpp
+@@ -57,17 +57,18 @@ Channel *ChannelMgr::GetOrCreateChannel(std::string const& name, bool allowAreaD
+     Utf8toWStr(name, wname);
+     wstrToLower(wname);
+ 
+-    if (channels.find(wname) == channels.end())
++    auto const itr = channels.find(wname);
++    if (itr == channels.end())
+     {
+         ChatChannelsEntry const* ch = sObjectMgr.GetChannelEntryFor(name);
+         if (!allowAreaDependantChans && ch && ch->flags & Channel::CHANNEL_DBC_FLAG_ZONE_DEP)
+             return nullptr;
+         Channel *nchan = new Channel(name, m_team);
+-        channels[wname] = nchan;
++        channels.emplace(wname, nchan);
+         return nchan;
+     }
+ 
+-    return channels[wname];
++    return itr->second;
+ }
+ 
+ Channel *ChannelMgr::GetChannel(std::string const& name, PlayerPointer p, bool sendPacket)
+@@ -108,7 +109,7 @@ void ChannelMgr::LeftChannel(std::string const& name)
+ 
+     if (channel->GetNumPlayers() == 0 && !channel->IsConstant() && !channel->GetSecurityLevel())
+     {
+-        channels.erase(wname);
++        channels.erase(i);
+         delete channel;
+     }
+ }

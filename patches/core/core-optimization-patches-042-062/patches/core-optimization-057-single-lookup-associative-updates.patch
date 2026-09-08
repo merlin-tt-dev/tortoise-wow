@@ -1,0 +1,96 @@
+diff --git a/src/game/AI/ScriptedInstance.cpp b/src/game/AI/ScriptedInstance.cpp
+index be105f3..438ac13 100644
+--- a/src/game/AI/ScriptedInstance.cpp
++++ b/src/game/AI/ScriptedInstance.cpp
+@@ -170,12 +170,9 @@ void ScriptedInstance_PTR::OnCreatureEnterCombat(Creature* creature)
+ {
+     if (creature->IsWorldBoss())
+     {
+-        std::map<ObjectGuid, time_t>::iterator it = boss_expirations.find(creature->GetObjectGuid());
+-        if (it == boss_expirations.end())
+-        {
+-            boss_expirations[creature->GetObjectGuid()] = time(nullptr);
++        auto const [it, inserted] = boss_expirations.try_emplace(creature->GetObjectGuid(), time(nullptr));
++        if (inserted)
+             creature->MonsterSay("Remaining time before despawn: 30 minutes.");
+-        }
+     }
+     ScriptedInstance::OnCreatureEnterCombat(creature);
+ }
+diff --git a/src/game/Battlegrounds/BattleGround.cpp b/src/game/Battlegrounds/BattleGround.cpp
+index 3704721..d0cbd6c 100644
+--- a/src/game/Battlegrounds/BattleGround.cpp
++++ b/src/game/Battlegrounds/BattleGround.cpp
+@@ -1469,20 +1469,23 @@ void BattleGround::ReturnPlayersToHomeGY()
+ 
+ void BattleGround::SpawnEvent(uint8 event1, uint8 event2, bool spawn, bool forced_despawn, uint32 delay)
+ {
++    auto const [activeItr, inserted] = m_ActiveEvents.try_emplace(event1);
++    uint8& activeEvent = activeItr->second;
++
+     // stop if we want to spawn something which was already spawned
+     // or despawn something which was already despawned
+-    if (event2 == BG_EVENT_NONE || (spawn && m_ActiveEvents[event1] == event2)
+-            || (!spawn && m_ActiveEvents[event1] != event2))
++    if (event2 == BG_EVENT_NONE || (spawn && activeEvent == event2)
++            || (!spawn && activeEvent != event2))
+         return;
+ 
+     if (spawn)
+     {
+         // if event gets spawned, the current active event must get despawned
+-        SpawnEvent(event1, m_ActiveEvents[event1], false, forced_despawn);
+-        m_ActiveEvents[event1] = event2;                    // set this event to active
++        SpawnEvent(event1, activeEvent, false, forced_despawn);
++        activeEvent = event2;                               // set this event to active
+     }
+     else
+-        m_ActiveEvents[event1] = BG_EVENT_NONE;             // no event active if event2 gets despawned
++        activeEvent = BG_EVENT_NONE;                        // no event active if event2 gets despawned
+ 
+     GuidVector::const_iterator itr = m_EventObjects[MAKE_PAIR32(event1, event2)].creatures.begin();
+     for (; itr != m_EventObjects[MAKE_PAIR32(event1, event2)].creatures.end(); ++itr)
+diff --git a/src/game/ObjectMgr.cpp b/src/game/ObjectMgr.cpp
+index 2832261..ca40932 100644
+--- a/src/game/ObjectMgr.cpp
++++ b/src/game/ObjectMgr.cpp
+@@ -1939,8 +1939,9 @@ void ObjectMgr::LoadCreatures(bool reload)
+         if (skip)
+             continue;
+ 
+-        bool alreadyPresent = reload && m_CreatureDataMap.find(guid) != m_CreatureDataMap.end();
+-        CreatureData& data = m_CreatureDataMap[guid];
++        auto const [dataItr, inserted] = m_CreatureDataMap.try_emplace(guid);
++        bool const alreadyPresent = reload && !inserted;
++        CreatureData& data = dataItr->second;
+ 
+         data.creature_id[0]     = fields[ 1].GetUInt32();
+         data.creature_id[1]     = fields[ 2].GetUInt32();
+@@ -2070,8 +2071,9 @@ void ObjectMgr::LoadGameobjects(bool reload)
+             continue;
+         }
+ 
+-        bool alreadyPresent = reload && m_GameObjectDataMap.find(guid) != m_GameObjectDataMap.end();
+-        GameObjectData& data = m_GameObjectDataMap[guid];
++        auto const [dataItr, inserted] = m_GameObjectDataMap.try_emplace(guid);
++        bool const alreadyPresent = reload && !inserted;
++        GameObjectData& data = dataItr->second;
+ 
+         data.id               = entry;
+         data.position.mapId   = fields[ 2].GetUInt32();
+diff --git a/src/game/Objects/Player.cpp b/src/game/Objects/Player.cpp
+index ed01c4f..a6b95d4 100644
+--- a/src/game/Objects/Player.cpp
++++ b/src/game/Objects/Player.cpp
+@@ -23833,10 +23833,7 @@ bool Player::ChangeQuestsForRace(uint8 oldRace, uint8 newRace)
+                     newQuestStatus.m_timer = itr.second.m_timer;
+                     newQuestStatus.m_status = itr.second.m_status;
+                     // Pas de duplicate dans les quetes
+-                    QuestStatusMap::iterator eraseNewQuest = mQuestStatus.find(pNewQuest->GetQuestId());
+-                    if (eraseNewQuest != mQuestStatus.end())
+-                        mQuestStatus.erase(eraseNewQuest);
+-                    mQuestStatus[pNewQuest->GetQuestId()] = newQuestStatus;
++                    mQuestStatus.insert_or_assign(pNewQuest->GetQuestId(), newQuestStatus);
+                     itr.second.uState = QUEST_DELETED;
+                 }
+                 break;

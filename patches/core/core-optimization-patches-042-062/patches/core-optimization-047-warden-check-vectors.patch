@@ -1,0 +1,82 @@
+diff --git a/src/game/Anticheat/WardenAnticheat/WardenMgr.cpp b/src/game/Anticheat/WardenAnticheat/WardenMgr.cpp
+index ea8ae38..61e4661 100644
+--- a/src/game/Anticheat/WardenAnticheat/WardenMgr.cpp
++++ b/src/game/Anticheat/WardenAnticheat/WardenMgr.cpp
+@@ -318,7 +318,7 @@ WardenCheckResult* WardenMgr::GetWardenResultById(uint16 build, uint16 id)
+     return result;
+ }
+ 
+-void WardenMgr::GetWardenCheckIds(bool isMemCheck, uint16 build, std::list<uint16>& idl)
++void WardenMgr::GetWardenCheckIds(bool isMemCheck, uint16 build, std::vector<uint16>& idl)
+ {
+     idl.clear(); // Just to be sure
+ 
+diff --git a/src/game/Anticheat/WardenAnticheat/WardenMgr.h b/src/game/Anticheat/WardenAnticheat/WardenMgr.h
+index 9046bb3..16d3971 100644
+--- a/src/game/Anticheat/WardenAnticheat/WardenMgr.h
++++ b/src/game/Anticheat/WardenAnticheat/WardenMgr.h
+@@ -19,6 +19,7 @@
+ 
+ #include <map>
+ #include <mutex>
++#include <vector>
+ #include "Auth/BigNumber.h"
+ #include "Anticheat.h"
+ 
+@@ -81,7 +82,7 @@ class WardenMgr
+ 
+         WardenCheck* GetWardenDataById(uint16 /*build*/, uint16 /*id*/);
+         WardenCheckResult* GetWardenResultById(uint16 /*build*/, uint16 /*id*/);
+-        void GetWardenCheckIds(bool isMemCheck /* true = MEM */, uint16 build, std::list<uint16>& list);
++        void GetWardenCheckIds(bool isMemCheck /* true = MEM */, uint16 build, std::vector<uint16>& list);
+ 
+         WardenModule* GetRandomWardenModule(bool windows);
+ 
+diff --git a/src/game/Anticheat/WardenAnticheat/WardenWin.cpp b/src/game/Anticheat/WardenAnticheat/WardenWin.cpp
+index 63889df..264d8ea 100644
+--- a/src/game/Anticheat/WardenAnticheat/WardenWin.cpp
++++ b/src/game/Anticheat/WardenAnticheat/WardenWin.cpp
+@@ -226,7 +226,7 @@ void WardenWin::RequestData()
+     
+     uint8 index = 1;
+ 
+-    for (std::list<uint16>::iterator itr = _currentChecks.begin(); itr != _currentChecks.end(); ++itr)
++    for (std::vector<uint16>::iterator itr = _currentChecks.begin(); itr != _currentChecks.end(); ++itr)
+     {
+         wd = sWardenMgr->GetWardenDataById(build, *itr);
+         
+@@ -287,7 +287,7 @@ void WardenWin::RequestData()
+ 
+     std::stringstream stream;
+     stream << "Sent check id's: ";
+-    for (std::list<uint16>::iterator itr = _currentChecks.begin(); itr != _currentChecks.end(); ++itr)
++    for (std::vector<uint16>::iterator itr = _currentChecks.begin(); itr != _currentChecks.end(); ++itr)
+         stream << *itr << " ";
+ 
+     sLog.outWardenDebug("%s", stream.str().c_str());
+@@ -338,7 +338,7 @@ void WardenWin::HandleData(ByteBuffer &buff)
+     uint8 type;
+     uint16 checkFailed = 0;
+ 
+-    for (std::list<uint16>::iterator itr = _currentChecks.begin(); itr != _currentChecks.end(); ++itr)
++    for (std::vector<uint16>::iterator itr = _currentChecks.begin(); itr != _currentChecks.end(); ++itr)
+     {
+         rd = sWardenMgr->GetWardenDataById(m_session->GetGameBuild(), *itr);
+         rs = sWardenMgr->GetWardenResultById(m_session->GetGameBuild(), *itr);
+diff --git a/src/game/Anticheat/WardenAnticheat/WardenWin.h b/src/game/Anticheat/WardenAnticheat/WardenWin.h
+index 4ed3767..83a1a5c 100644
+--- a/src/game/Anticheat/WardenAnticheat/WardenWin.h
++++ b/src/game/Anticheat/WardenAnticheat/WardenWin.h
+@@ -81,9 +81,9 @@ class WardenWin : public Warden
+ 
+     private:
+         uint32 _serverTicks;
+-        std::list<uint16> _otherChecksTodo;
+-        std::list<uint16> _memChecksTodo;
+-        std::list<uint16> _currentChecks;
++        std::vector<uint16> _otherChecksTodo;
++        std::vector<uint16> _memChecksTodo;
++        std::vector<uint16> _currentChecks;
+ };
+ 
+ #endif

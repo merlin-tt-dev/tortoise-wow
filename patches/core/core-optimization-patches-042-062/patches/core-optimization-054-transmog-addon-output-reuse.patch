@@ -1,0 +1,92 @@
+diff --git a/src/game/TransmogMgr.cpp b/src/game/TransmogMgr.cpp
+index a05777e..b102319 100644
+--- a/src/game/TransmogMgr.cpp
++++ b/src/game/TransmogMgr.cpp
+@@ -478,48 +478,53 @@ std::vector<uint32> TransmogMgr::GetAvailableTransmogs(uint32 destItemId)
+ 
+ void TransmogMgr::SendAvailableTransmogs(uint8 InventorySlotId, uint32 destItemId)
+ {
+-	uint32 numPossibleTransmogs;
++    uint32 numPossibleTransmogs;
+ 
+-	ItemPrototype const* destItemProto = sObjectMgr.GetItemPrototype(destItemId);
+-	if (!destItemProto)
+-	{
+-		_owner->SendAddonMessage(prefix, "SendAvailableTransmogs:Error:CantFindProto");
+-		return;
+-	}
++    ItemPrototype const* destItemProto = sObjectMgr.GetItemPrototype(destItemId);
++    if (!destItemProto)
++    {
++        _owner->SendAddonMessage(prefix, "SendAvailableTransmogs:Error:CantFindProto");
++        return;
++    }
+ 
+-	numPossibleTransmogs = sObjectMgr.GetPossibleTransmogs(_owner->GetClass(), destItemProto->Class, destItemProto->SubClass, destItemProto->InventoryType, STUPID_RESTRICTIONS);
++    numPossibleTransmogs = sObjectMgr.GetPossibleTransmogs(_owner->GetClass(), destItemProto->Class, destItemProto->SubClass, destItemProto->InventoryType, STUPID_RESTRICTIONS);
+ 
+-	std::vector<uint32> tmogs = GetAvailableTransmogs(destItemId);
++    std::vector<uint32> tmogs = GetAvailableTransmogs(destItemId);
++    std::string const messagePrefix = "AvailableTransmogs:" + std::to_string(InventorySlotId) + ":" + std::to_string(numPossibleTransmogs) + ":";
+ 
+-	std::vector<std::string> messages;
+-	std::string message = "AvailableTransmogs:" + std::to_string(InventorySlotId) + ":" + std::to_string(numPossibleTransmogs) + ":";
+-	for (auto& item : tmogs)
+-	{
+-		message += std::to_string(item) + ":";
+-		if (message.length() > 1000)
+-		{
+-			message.pop_back();
+-			messages.push_back(message);
+-			message = "AvailableTransmogs:" + std::to_string(InventorySlotId) + ":" + std::to_string(numPossibleTransmogs) + ":";
+-		}
+-	}
++    std::vector<std::string> messages;
++    messages.reserve(tmogs.size() / 50 + 2);
++    std::string message = messagePrefix;
++    message.reserve(1024);
+ 
+-	if (message == "AvailableTransmogs:" + std::to_string(InventorySlotId) + ":" + std::to_string(numPossibleTransmogs) + ":")
+-	{
+-		message += "end";
+-		messages.push_back(message);
+-	}
+-	else
+-	{
+-		message.pop_back();
+-		messages.push_back(message);
+-		messages.push_back("AvailableTransmogs:" + std::to_string(InventorySlotId) + ":" +std::to_string(numPossibleTransmogs) + ":end");
+-	}
++    for (uint32 item : tmogs)
++    {
++        message += std::to_string(item) + ":";
++        if (message.length() > 1000)
++        {
++            message.pop_back();
++            messages.push_back(std::move(message));
++            message = messagePrefix;
++            message.reserve(1024);
++        }
++    }
++
++    if (message == messagePrefix)
++    {
++        message += "end";
++        messages.push_back(std::move(message));
++    }
++    else
++    {
++        message.pop_back();
++        messages.push_back(std::move(message));
++        messages.push_back(messagePrefix + "end");
++    }
+ 
+-	_owner->SendAddonMessage(prefix, "AvailableTransmogs:" + std::to_string(InventorySlotId) + ":" + std::to_string(numPossibleTransmogs) + ":start");
++    _owner->SendAddonMessage(prefix, messagePrefix + "start");
+ 
+     for (const auto& msg : messages)
+-		_owner->SendAddonMessage(prefix, msg);
++        _owner->SendAddonMessage(prefix, msg);
+ }
+ 
+ uint8 TransmogMgr::ServerSlotToClientInventorySlotId(uint8 InventorySlotId)

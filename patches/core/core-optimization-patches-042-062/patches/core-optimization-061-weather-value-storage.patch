@@ -1,0 +1,61 @@
+diff --git a/src/game/Weather.cpp b/src/game/Weather.cpp
+index 9f6159c..7fcb71a 100644
+--- a/src/game/Weather.cpp
++++ b/src/game/Weather.cpp
+@@ -352,26 +352,13 @@ void Weather::LogWeatherState(WeatherState state) const
+ WeatherSystem::WeatherSystem(Map const* _map) : m_map(_map)
+ {}
+ 
+-WeatherSystem::~WeatherSystem()
+-{
+-    ///- Empty the WeatherMap
+-    for (const auto& weather : m_weathers)
+-        delete weather.second;
+-
+-    m_weathers.clear();
+-}
++WeatherSystem::~WeatherSystem() = default;
+ 
+ /// Find or Create a Weather object by the given zoneid
+ Weather* WeatherSystem::FindOrCreateWeather(uint32 zoneId)
+ {
+-    WeatherMap::const_iterator itr = m_weathers.find(zoneId);
+-    // Return if found
+-    if (itr != m_weathers.end())
+-        return itr->second;
+-    // Create
+-    Weather* w = new Weather(zoneId, sWeatherMgr.GetWeatherChances(zoneId));
+-    m_weathers[zoneId] = w;
+-    return w;
++    auto const [itr, inserted] = m_weathers.try_emplace(zoneId, zoneId, sWeatherMgr.GetWeatherChances(zoneId));
++    return &itr->second;
+ }
+ 
+ /// Update Weathers for the different zones
+@@ -382,11 +369,8 @@ void WeatherSystem::UpdateWeathers(uint32 diff)
+     {
+         ///- and remove Weather objects for zones with no player
+         // As interval > WorldTick
+-        if (!itr->second->Update(diff, m_map))
+-        {
+-            delete itr->second;
+-            m_weathers.erase(itr++);
+-        }
++        if (!itr->second.Update(diff, m_map))
++            itr = m_weathers.erase(itr);
+         else
+             ++itr;
+     }
+diff --git a/src/game/Weather.h b/src/game/Weather.h
+index dbd70fb..7f4de8c 100644
+--- a/src/game/Weather.h
++++ b/src/game/Weather.h
+@@ -118,7 +118,7 @@ class WeatherSystem
+     private:
+         Map const* const m_map;
+ 
+-        typedef std::unordered_map<uint32 /*zoneId*/, Weather*> WeatherMap;
++        typedef std::unordered_map<uint32 /*zoneId*/, Weather> WeatherMap;
+         WeatherMap m_weathers;
+ };
+ 

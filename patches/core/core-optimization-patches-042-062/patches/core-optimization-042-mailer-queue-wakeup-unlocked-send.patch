@@ -1,0 +1,54 @@
+diff --git a/src/shared/MailerService.cpp b/src/shared/MailerService.cpp
+index 4e2aeeb..5dd1dd6 100644
+--- a/src/shared/MailerService.cpp
++++ b/src/shared/MailerService.cpp
+@@ -60,26 +60,40 @@ void MailerService::shutdown()
+ 
+ void MailerService::process()
+ {
+-    while (!_stop)
++    for (;;)
+     {
+-        std::unique_lock<std::mutex> guard(_queue_lock);
++        MailDetail detail;
++        {
++            std::unique_lock<std::mutex> guard(_queue_lock);
++            _cond_var.wait_for(guard, _timer, [this]()
++            {
++                return _stop || !_mail_queue.empty();
++            });
+ 
+-        _cond_var.wait_for(guard, _timer);
++            if (_mail_queue.empty())
++            {
++                if (_stop)
++                    break;
+ 
+-        while (!_mail_queue.empty())
+-        {
+-            auto& mail = _mail_queue.front();
+-            internal_send(mail);
++                continue;
++            }
++
++            detail = std::move(_mail_queue.front());
+             _mail_queue.pop();
+         }
++
++        internal_send(detail);
+     }
+ }
+ 
+ void MailerService::send(std::unique_ptr<SendgridMail> mail, SendCallback callback)
+ {
+     assert(mail != nullptr);
+-    std::lock_guard<std::mutex> guard(_queue_lock);
+-    _mail_queue.emplace(MailDetail{ std::move(mail), callback });
++    {
++        std::lock_guard<std::mutex> guard(_queue_lock);
++        _mail_queue.emplace(MailDetail{ std::move(mail), std::move(callback) });
++    }
++    _cond_var.notify_one();
+ }
+ 
+ void MailerService::internal_send(const MailDetail& detail)

@@ -1,0 +1,131 @@
+diff --git a/src/game/GuildBank/GuildBank.cpp b/src/game/GuildBank/GuildBank.cpp
+index 43e1a88..aac2e0f 100644
+--- a/src/game/GuildBank/GuildBank.cpp
++++ b/src/game/GuildBank/GuildBank.cpp
+@@ -938,8 +938,10 @@ void GuildBank::SendTabItems(std::string const& msg)
+ 
+ 	SendTabWithdrawalsLeft(tab);
+ 
+-	std::vector<std::string> messages;
+-	std::string message = "TabItems:" + std::to_string(tab) + ":";
++    std::string const messagePrefix = "TabItems:" + std::to_string(tab) + ":";
++    std::vector<std::string> messages;
++    std::string message = messagePrefix;
++    message.reserve(ADDON_MAX_PACKET_SIZE + 256);
+ 
+ 	for (uint32 i = 1; i <= BANK_TAB_SIZE; i++)
+ 	{
+@@ -958,22 +960,23 @@ void GuildBank::SendTabItems(std::string const& msg)
+ 			if (message.length() > ADDON_MAX_PACKET_SIZE)
+ 			{
+ 				message.pop_back();
+-				messages.push_back(message);
+-				message = "TabItems:" + std::to_string(tab) + ":";
++                messages.push_back(std::move(message));
++                message = messagePrefix;
++                message.reserve(ADDON_MAX_PACKET_SIZE + 256);
+ 			}
+ 		}
+ 	}
+ 
+-	if (message == "TabItems:" + std::to_string(tab) + ":")
++    if (message == messagePrefix)
+ 	{
+ 		message += "end";
+-		messages.push_back(message);
++        messages.push_back(std::move(message));
+ 	}
+ 	else
+ 	{
+ 		message.pop_back();
+-		messages.push_back(message);
+-		messages.push_back("TabItems:" + std::to_string(tab) + ":end");
++        messages.push_back(std::move(message));
++        messages.push_back(messagePrefix + "end");
+ 	}
+ 
+     for (const auto& msg : messages)
+@@ -2220,8 +2223,10 @@ void GuildBank::SendTabLog(std::string const& msg)
+ 		return;
+ 	}
+ 
+-	std::vector<std::string> messages;
+-	std::string message = "TabLog:" + std::to_string(tab) + ":";
++    std::string const messagePrefix = "TabLog:" + std::to_string(tab) + ":";
++    std::vector<std::string> messages;
++    std::string message = messagePrefix;
++    message.reserve(ADDON_MAX_PACKET_SIZE + 256);
+ 
+ 	uint32 startIndex = 0;
+ 
+@@ -2244,21 +2249,22 @@ void GuildBank::SendTabLog(std::string const& msg)
+ 		if (message.length() > ADDON_MAX_PACKET_SIZE)
+ 		{
+ 			message.pop_back();
+-			messages.push_back(message);
+-			message = "TabLog:" + std::to_string(tab) + ":";
++            messages.push_back(std::move(message));
++            message = messagePrefix;
++            message.reserve(ADDON_MAX_PACKET_SIZE + 256);
+ 		}
+ 	}
+ 
+-	if (message == "TabLog:" + std::to_string(tab) + ":")
++    if (message == messagePrefix)
+ 	{
+ 		message += "end";
+-		messages.push_back(message);
++        messages.push_back(std::move(message));
+ 	}
+ 	else
+ 	{
+ 		message.pop_back();
+-		messages.push_back(message);
+-		messages.push_back("TabLog:" + std::to_string(tab) + ":end");
++        messages.push_back(std::move(message));
++        messages.push_back(messagePrefix + "end");
+ 	}
+ 
+     for (const auto& msg : messages)
+@@ -2269,8 +2275,10 @@ void GuildBank::SendTabLog(std::string const& msg)
+ void GuildBank::SendMoneyLog(std::string const& msg)
+ {
+ 	// msg = GetMoneyLog:
+-	std::vector<std::string> messages;
+-	std::string message = "MoneyLog:";
++    std::string const messagePrefix = "MoneyLog:";
++    std::vector<std::string> messages;
++    std::string message = messagePrefix;
++    message.reserve(ADDON_MAX_PACKET_SIZE + 256);
+ 
+ 	uint32 startIndex = 0;
+ 
+@@ -2288,21 +2296,22 @@ void GuildBank::SendMoneyLog(std::string const& msg)
+ 		if (message.length() > ADDON_MAX_PACKET_SIZE)
+ 		{
+ 			message.pop_back();
+-			messages.push_back(message);
+-			message = "MoneyLog:";
++            messages.push_back(std::move(message));
++            message = messagePrefix;
++            message.reserve(ADDON_MAX_PACKET_SIZE + 256);
+ 		}
+ 	}
+ 
+-	if (message == "MoneyLog:")
++    if (message == messagePrefix)
+ 	{
+ 		message += "end";
+-		messages.push_back(message);
++        messages.push_back(std::move(message));
+ 	}
+ 	else
+ 	{
+ 		message.pop_back();
+-		messages.push_back(message);
+-		messages.push_back("MoneyLog:end");
++        messages.push_back(std::move(message));
++        messages.push_back(messagePrefix + "end");
+ 	}
+ 
+     for (const auto& msg : messages)

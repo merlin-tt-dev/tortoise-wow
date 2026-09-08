@@ -1,0 +1,43 @@
+diff --git a/src/game/Objects/Unit.cpp b/src/game/Objects/Unit.cpp
+index 025a010..82d6812 100644
+--- a/src/game/Objects/Unit.cpp
++++ b/src/game/Objects/Unit.cpp
+@@ -95,12 +95,12 @@ bool GlobalCooldownMgr::HasGlobalCooldown(SpellEntry const* spellInfo) const
+ 
+ void GlobalCooldownMgr::AddGlobalCooldown(SpellEntry const* spellInfo, uint32 gcd)
+ {
+-    m_GlobalCooldowns[spellInfo->StartRecoveryCategory] = GlobalCooldown(gcd, WorldTimer::getMSTime());
++    m_GlobalCooldowns.insert_or_assign(spellInfo->StartRecoveryCategory, GlobalCooldown(gcd, WorldTimer::getMSTime()));
+ }
+ 
+ void GlobalCooldownMgr::AddGlobalCooldown(uint32 category, uint32 gcd)
+ {
+-    m_GlobalCooldowns[category] = GlobalCooldown(gcd, WorldTimer::getMSTime());
++    m_GlobalCooldowns.insert_or_assign(category, GlobalCooldown(gcd, WorldTimer::getMSTime()));
+ }
+ 
+ void GlobalCooldownMgr::CancelGlobalCooldown(SpellEntry const* spellInfo)
+@@ -11935,20 +11935,19 @@ void Unit::AddSpellAndCategoryCooldowns(SpellEntry const* spellInfo, uint32 item
+ void Unit::AddSpellCooldown(uint32 spellid, uint32 itemid, time_t endTime, time_t categoryEndTime, uint32 cat)
+ {
+     // Do not replace longer cooldown
+-    SpellCooldowns::iterator it = m_spellCooldowns.find(spellid);
+-    if (it != m_spellCooldowns.end())
++    auto const [it, inserted] = m_spellCooldowns.try_emplace(spellid);
++    if (!inserted)
+     {
+         it->second.end = endTime;
+         it->second.categoryEnd = categoryEndTime;
+         return;
+     }
+ 
+-    SpellCooldown sc;
++    SpellCooldown& sc = it->second;
+     sc.end = endTime;
+     sc.categoryEnd = categoryEndTime;
+     sc.itemid = itemid;
+     sc.cat = cat;
+-    m_spellCooldowns[spellid] = sc;
+ }
+ 
+ void Unit::WritePetSpellsCooldown(WorldPacket& data) const

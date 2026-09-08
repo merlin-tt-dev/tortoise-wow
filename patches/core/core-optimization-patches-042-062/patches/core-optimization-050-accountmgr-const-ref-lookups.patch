@@ -1,0 +1,54 @@
+diff --git a/src/game/AccountMgr.cpp b/src/game/AccountMgr.cpp
+index b76c8a0..95cca18 100644
+--- a/src/game/AccountMgr.cpp
++++ b/src/game/AccountMgr.cpp
+@@ -156,14 +156,15 @@ AccountOpResult AccountMgr::ChangePassword(uint32 accid, std::string new_passwd,
+     return AOR_OK;
+ }
+ 
+-uint32 AccountMgr::GetId(std::string username)
++uint32 AccountMgr::GetId(std::string const& username)
+ {
+     auto itr = m_accountNameToId.find(username);
+     if (itr != m_accountNameToId.end())
+         return itr->second;
+ 
+-    LoginDatabase.escape_string(username);
+-    QueryResult *result = LoginDatabase.PQuery("SELECT id FROM account WHERE username = '%s'", username.c_str());
++    std::string escapedUsername = username;
++    LoginDatabase.escape_string(escapedUsername);
++    QueryResult *result = LoginDatabase.PQuery("SELECT id FROM account WHERE username = '%s'", escapedUsername.c_str());
+     if (!result)
+         return 0;
+     else
+@@ -332,7 +333,7 @@ bool AccountMgr::normalizeString(std::string& utf8str)
+     return WStrToUtf8(wstr_buf, utf8str);
+ }
+ 
+-std::string AccountMgr::CalculateShaPassHash(std::string& name, std::string& password)
++std::string AccountMgr::CalculateShaPassHash(std::string const& name, std::string const& password)
+ {
+     Sha1Hash sha;
+     sha.Initialize();
+diff --git a/src/game/AccountMgr.h b/src/game/AccountMgr.h
+index f26ec8e..0d3c010 100644
+--- a/src/game/AccountMgr.h
++++ b/src/game/AccountMgr.h
+@@ -104,7 +104,7 @@ class AccountMgr
+         AccountOpResult ChangePassword(uint32 accid, std::string new_passwd, std::string username="");
+         bool CheckPassword(uint32 accid, std::string passwd, std::string username="");
+ 
+-        uint32 GetId(std::string username);
++        uint32 GetId(std::string const& username);
+ 
+         void Load();
+         AccountTypes GetSecurity(uint32 acc_id);
+@@ -114,7 +114,7 @@ class AccountMgr
+ 
+         bool GetName(uint32 acc_id, std::string &name);
+         uint32 GetCharactersCount(uint32 acc_id);
+-        std::string CalculateShaPassHash(std::string& name, std::string& password);
++        std::string CalculateShaPassHash(std::string const& name, std::string const& password);
+ 
+         bool IsTraineeGM(uint32 accId) const
+         {

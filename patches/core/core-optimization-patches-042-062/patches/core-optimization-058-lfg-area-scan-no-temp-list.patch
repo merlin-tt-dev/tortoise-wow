@@ -1,0 +1,65 @@
+diff --git a/src/game/LFG/LFGMgr.cpp b/src/game/LFG/LFGMgr.cpp
+index 285a7ce..a55c88d 100644
+--- a/src/game/LFG/LFGMgr.cpp
++++ b/src/game/LFG/LFGMgr.cpp
+@@ -335,14 +335,14 @@ void LFGQueue::Update(uint32 diff)
+         // Pick Leader as first target.
+         QueuedPlayersMap::iterator leader = m_QueuedPlayers.begin();
+ 
+-        std::list<ObjectGuid> playersInArea;
+-        FindInArea(playersInArea, leader->second.areaId, leader->second.team, leader->first);
++        ObjectGuid firstPlayer;
++        uint32 const playersInArea = FindInArea(firstPlayer, _groupSize - 1, leader->second.areaId, leader->second.team, leader->first);
+ 
+         // 4 players + the leader
+-        if (playersInArea.size() >= _groupSize-1)
++        if (playersInArea >= _groupSize - 1)
+         {
+             Player* pLeader = sObjectMgr.GetPlayer(leader->first);
+-            Player* pMember = sObjectMgr.GetPlayer(playersInArea.front());
++            Player* pMember = sObjectMgr.GetPlayer(firstPlayer);
+ 
+             if (!pLeader || !pMember)
+             {
+@@ -531,16 +531,25 @@ void LFGQueue::RemoveGroupFromQueue(uint32 groupId, GroupLeaveMethod leaveMethod
+     }
+ }
+ 
+-void LFGQueue::FindInArea(std::list<ObjectGuid>& players, uint32 area, uint32 team, ObjectGuid const& exclude)
++uint32 LFGQueue::FindInArea(ObjectGuid& firstPlayer, uint32 limit, uint32 area, uint32 team, ObjectGuid const& exclude)
+ {
++    uint32 count = 0;
+     for (const auto& itr : m_QueuedPlayers)
+     {
+         if (itr.first == exclude)
+             continue;
+ 
+-        if (itr.second.areaId == area && itr.second.team == team)
+-            players.push_back(itr.first);
++        if (itr.second.areaId != area || itr.second.team != team)
++            continue;
++
++        if (!count)
++            firstPlayer = itr.first;
++
++        if (++count >= limit)
++            break;
+     }
++
++    return count;
+ }
+ 
+ void LFGQueue::BuildSetQueuePacket(WorldPacket &data, uint32 areaId, uint8 status)
+diff --git a/src/game/LFG/LFGMgr.h b/src/game/LFG/LFGMgr.h
+index 544482e..88a0ae9 100644
+--- a/src/game/LFG/LFGMgr.h
++++ b/src/game/LFG/LFGMgr.h
+@@ -118,7 +118,7 @@ class LFGQueue
+         typedef std::map<uint32, LFGGroupQueueInfo> QueuedGroupsMap;
+         QueuedGroupsMap m_QueuedGroups;
+ 
+-        void FindInArea(std::list<ObjectGuid>& players, uint32 area, uint32 team, ObjectGuid const& exclude);
++        uint32 FindInArea(ObjectGuid& firstPlayer, uint32 limit, uint32 area, uint32 team, ObjectGuid const& exclude);
+         bool FindRoleToGroup(ObjectGuid playerGuid, Group* group, ClassRoles role);
+ 
+         uint32 _groupSize = 5;

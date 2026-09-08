@@ -1,0 +1,34 @@
+diff --git a/src/game/Anticheat/WardenAnticheat/WardenMgr.cpp b/src/game/Anticheat/WardenAnticheat/WardenMgr.cpp
+index 11315a5..ea8ae38 100644
+--- a/src/game/Anticheat/WardenAnticheat/WardenMgr.cpp
++++ b/src/game/Anticheat/WardenAnticheat/WardenMgr.cpp
+@@ -293,7 +293,8 @@ WardenCheck* WardenMgr::GetWardenDataById(uint16 build, uint16 id)
+     WardenCheck* result = nullptr;
+ 
+     ReadGuard guard(m_lock);
+-    for (CheckMap::iterator it = CheckStore.lower_bound(build); it != CheckStore.upper_bound(build); ++it)
++    auto const range = CheckStore.equal_range(build);
++    for (auto it = range.first; it != range.second; ++it)
+     {
+         if (it->second->CheckId == id)
+             result = it->second;
+@@ -307,7 +308,8 @@ WardenCheckResult* WardenMgr::GetWardenResultById(uint16 build, uint16 id)
+     WardenCheckResult* result = nullptr;
+ 
+     ReadGuard guard(m_lock);
+-    for (CheckResultMap::iterator it = CheckResultStore.lower_bound(build); it != CheckResultStore.upper_bound(build); ++it)
++    auto const range = CheckResultStore.equal_range(build);
++    for (auto it = range.first; it != range.second; ++it)
+     {
+         if (it->second->Id == id)
+             result = it->second;
+@@ -321,7 +323,8 @@ void WardenMgr::GetWardenCheckIds(bool isMemCheck, uint16 build, std::list<uint1
+     idl.clear(); // Just to be sure
+ 
+     ReadGuard guard(m_lock);
+-    for (CheckMap::iterator it = CheckStore.lower_bound(build); it != CheckStore.upper_bound(build); ++it)
++    auto const range = CheckStore.equal_range(build);
++    for (auto it = range.first; it != range.second; ++it)
+     {
+         if (isMemCheck)
+         {

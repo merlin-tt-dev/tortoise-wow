@@ -1,0 +1,60 @@
+diff --git a/src/game/Objects/Player.cpp b/src/game/Objects/Player.cpp
+index a6b95d4..6db1264 100644
+--- a/src/game/Objects/Player.cpp
++++ b/src/game/Objects/Player.cpp
+@@ -17451,12 +17451,12 @@ void Player::_LoadInventory(QueryResult *result, uint32 timediff, bool &has_epic
+     //NOTE2: the "order by `slot`" is needed because mainhand weapons are (wrongly?)
+     //expected to be equipped before offhand items (TODO: fixme)
+ 
+-    std::set<uint32> itemGuids;
++    std::unordered_set<uint32> itemGuids;
+     uint32 zone = GetZoneId();
+ 
+     if (result)
+     {
+-        std::list<Item*> problematicItems;
++        std::vector<Item*> problematicItems;
+ 
+         // prevent items from being added to the queue when stored
+         m_itemUpdateQueueBlocked = true;
+@@ -17513,15 +17513,13 @@ void Player::_LoadInventory(QueryResult *result, uint32 timediff, bool &has_epic
+             }
+ 
+             // Duplic guid check
+-            if (itemGuids.find(item_lowguid) != itemGuids.end())
++            if (!itemGuids.insert(item_lowguid).second)
+             {
+                 std::stringstream oss;
+                 oss << "Duplicate item " << item_id << " GUID:" << item_lowguid << ", count: " << item->GetCount() << ", bag: " << bag_guid << ", slot: " << uint32(slot);
+                 GetSession()->ProcessAnticheatAction("PassiveAnticheat", oss.str().c_str(), CHEAT_ACTION_INFO_LOG);
+             }
+ 
+-            itemGuids.insert(item_lowguid);
+-
+             // not allow have in alive state item limited to another map/zone
+             if (IsAlive() && item->IsLimitedToAnotherMapOrZone(GetMapId(), zone))
+             {
+@@ -17642,20 +17640,15 @@ void Player::_LoadInventory(QueryResult *result, uint32 timediff, bool &has_epic
+         m_itemUpdateQueueBlocked = false;
+ 
+         // send by mail problematic items
+-        while (!problematicItems.empty())
++        for (std::size_t itemIndex = 0; itemIndex < problematicItems.size();)
+         {
+             std::string subject = GetSession()->GetMangosString(LANG_NOT_EQUIPPED_ITEM);
+ 
+             // fill mail
+             MailDraft draft(subject);
+ 
+-            for (int i = 0; !problematicItems.empty() && i < MAX_MAIL_ITEMS; ++i)
+-            {
+-                Item* item = problematicItems.front();
+-                problematicItems.pop_front();
+-
+-                draft.AddItem(item);
+-            }
++            for (int i = 0; itemIndex < problematicItems.size() && i < MAX_MAIL_ITEMS; ++i)
++                draft.AddItem(problematicItems[itemIndex++]);
+ 
+             draft.SendMailTo(this, MailSender(this, MAIL_STATIONERY_GM), MAIL_CHECK_MASK_COPIED);
+         }

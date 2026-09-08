@@ -1,0 +1,54 @@
+== 42 core-optimization-042-mailer-queue-wakeup-unlocked-send.patch ==
+23	9	src/shared/MailerService.cpp
+== 43 core-optimization-043-movement-broadcaster-vector-snapshot.patch ==
+4	3	src/game/PacketBroadcast/MovementBroadcaster.cpp
+== 44 core-optimization-044-player-broadcaster-unlock-queue-during-send.patch ==
+25	15	src/game/PacketBroadcast/PlayerBroadcaster.cpp
+== 45 core-optimization-045-player-broadcaster-listener-snapshot.patch ==
+16	12	src/game/PacketBroadcast/PlayerBroadcaster.cpp
+== 46 core-optimization-046-warden-cache-equal-range.patch ==
+6	3	src/game/Anticheat/WardenAnticheat/WardenMgr.cpp
+== 47 core-optimization-047-warden-check-vectors.patch ==
+1	1	src/game/Anticheat/WardenAnticheat/WardenMgr.cpp
+2	1	src/game/Anticheat/WardenAnticheat/WardenMgr.h
+3	3	src/game/Anticheat/WardenAnticheat/WardenWin.cpp
+3	3	src/game/Anticheat/WardenAnticheat/WardenWin.h
+== 48 core-optimization-048-motionmaster-finalize-reserve.patch ==
+4	0	src/game/Movement/MotionMaster.cpp
+== 49 core-optimization-049-bytebuffer-vector-deserialize.patch ==
+4	2	src/shared/ByteBuffer.h
+== 50 core-optimization-050-accountmgr-const-ref-lookups.patch ==
+5	4	src/game/AccountMgr.cpp
+2	2	src/game/AccountMgr.h
+== 51 core-optimization-051-channelmgr-reuse-lookups.patch ==
+5	4	src/game/Chat/ChannelMgr.cpp
+== 52 core-optimization-052-unit-cooldown-single-lookups.patch ==
+5	6	src/game/Objects/Unit.cpp
+== 53 core-optimization-053-guild-petition-signatures-by-reference.patch ==
+1	1	src/game/Guild/Guild.cpp
+== 54 core-optimization-054-transmog-addon-output-reuse.patch ==
+39	34	src/game/TransmogMgr.cpp
+== 55 core-optimization-055-guildbank-addon-output-reuse.patch ==
+33	24	src/game/GuildBank/GuildBank.cpp
+== 56 core-optimization-056-spellchain-cache-equal-range.patch ==
+4	2	src/game/Objects/Player.cpp
+2	1	src/game/Spells/SpellMgr.h
+== 57 core-optimization-057-single-lookup-associative-updates.patch ==
+2	5	src/game/AI/ScriptedInstance.cpp
+8	5	src/game/Battlegrounds/BattleGround.cpp
+6	4	src/game/ObjectMgr.cpp
+1	4	src/game/Objects/Player.cpp
+== 58 core-optimization-058-lfg-area-scan-no-temp-list.patch ==
+16	7	src/game/LFG/LFGMgr.cpp
+1	1	src/game/LFG/LFGMgr.h
+== 59 core-optimization-059-threat-report-allocation-reduction.patch ==
+82	70	src/game/Threat/ThreatManager.cpp
+== 60 core-optimization-060-inventory-load-contiguous-tracking.patch ==
+6	13	src/game/Objects/Player.cpp
+== 61 core-optimization-061-weather-value-storage.patch ==
+5	21	src/game/Weather.cpp
+1	1	src/game/Weather.h
+== 62 core-optimization-062-terrain-unique-ptr-ownership.patch ==
+6	22	src/game/Maps/GridMap.cpp
+1	1	src/game/Maps/GridMap.h
+SUCCESS: tar5 + 023-041 + 042-062 sequentially validated
