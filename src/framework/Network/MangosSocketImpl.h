@@ -26,7 +26,7 @@
 template <typename SessionType, typename SocketName, typename Crypt>
 MangosSocket<SessionType, SocketName, Crypt>::MangosSocket() :
     WorldHandler(),
-    m_LastPingTime(ACE_Time_Value::zero),
+    m_LastPingTime(),
     m_OverSpeedPings(0),
     m_Session(0),
     m_RecvWPct(0),

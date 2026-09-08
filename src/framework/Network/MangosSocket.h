@@ -11,6 +11,7 @@
 #include <ace/Connector.h>
 #include <ace/Unbounded_Queue.h>
 #include <ace/Message_Block.h>
+#include <chrono>
 #include <mutex>
 
 #if !defined (ACE_LACKS_PRAGMA_ONCE)
@@ -182,7 +183,7 @@ class MangosSocket : public WorldHandler
         bool iFlushPacketQueue ();
 
         /// Time in which the last ping was received
-        ACE_Time_Value m_LastPingTime;
+        std::chrono::steady_clock::time_point m_LastPingTime;
 
         /// Keep track of over-speed pings ,to prevent ping flood.
         uint32 m_OverSpeedPings;

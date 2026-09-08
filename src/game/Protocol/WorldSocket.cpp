@@ -36,7 +36,9 @@
 #include "Opcodes.h"
 #include "MangosSocketImpl.h"
 
+#include <chrono>
 #include <memory>
+#include <thread>
 
 template class MangosSocket<WorldSession, WorldSocket, AuthCrypt>;
 
@@ -366,7 +368,7 @@ int WorldSocket::HandleAuthSession(WorldPacket& recvPacket)
     //m_Session->InitWarden(&K);
 
     // In case needed sometime the second arg is in microseconds 1 000 000 = 1 sec
-    ACE_OS::sleep(ACE_Time_Value(0, 10000));
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
     // just refresh always..
     auto accountData = sWorld.GetAccountData(id);
@@ -401,16 +403,15 @@ int WorldSocket::HandlePing(WorldPacket& recvPacket)
     recvPacket >> ping;
     recvPacket >> latency;
 
-    if (m_LastPingTime == ACE_Time_Value::zero)
-        m_LastPingTime = ACE_OS::gettimeofday();  // for 1st ping
+    const auto currentTime = std::chrono::steady_clock::now();
+    if (m_LastPingTime == std::chrono::steady_clock::time_point{})
+        m_LastPingTime = currentTime;  // for 1st ping
     else
     {
-        ACE_Time_Value cur_time = ACE_OS::gettimeofday();
-        ACE_Time_Value diff_time(cur_time);
-        diff_time -= m_LastPingTime;
-        m_LastPingTime = cur_time;
+        const auto diffTime = currentTime - m_LastPingTime;
+        m_LastPingTime = currentTime;
 
-        if (diff_time < ACE_Time_Value(27))
+        if (diffTime < std::chrono::seconds(27))
         {
             ++m_OverSpeedPings;
 
