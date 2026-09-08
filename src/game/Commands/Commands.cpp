@@ -8454,7 +8454,7 @@ bool ChatHandler::HandleGoldRemoval(char* args)
 
     std::string input(args);
     // I'm bad at regex - feel free to improve this
-    std::regex pattern(R"(([a-zA-Z]{3,}) (\d{1,5})(g|s|c)\s?(\d{1,2})(g|s|c)\s?(\d{1,2})(g|s|c)\s?)");
+    static const std::regex pattern(R"(([a-zA-Z]{3,}) (\d{1,5})(g|s|c)\s?(\d{1,2})(g|s|c)\s?(\d{1,2})(g|s|c)\s?)", std::regex::optimize);
     std::smatch matches;
 
     if (!std::regex_match(input, matches, pattern))
