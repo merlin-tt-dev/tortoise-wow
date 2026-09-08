@@ -67,22 +67,32 @@ ByteBuffer& UpdateData::AddUpdateBlockAndGetBuffer()
     return it->data;
 }
 
-inline auto GetCompressor()
+inline libdeflate_compressor* GetCompressor()
 {
-    return std::unique_ptr<libdeflate_compressor, decltype(&libdeflate_free_compressor)>{
-        libdeflate_alloc_compressor(sWorld.getConfig(CONFIG_UINT32_COMPRESSION)), libdeflate_free_compressor };
+    using CompressorPtr = std::unique_ptr<libdeflate_compressor, decltype(&libdeflate_free_compressor)>;
+
+    static thread_local CompressorPtr compressor(nullptr, libdeflate_free_compressor);
+    static thread_local uint32 compressionLevel = UINT32_MAX;
+
+    uint32 const configuredLevel = sWorld.getConfig(CONFIG_UINT32_COMPRESSION);
+    if (!compressor || compressionLevel != configuredLevel)
+    {
+        compressor.reset(libdeflate_alloc_compressor(configuredLevel));
+        if (compressor)
+            compressionLevel = configuredLevel;
+    }
+
+    return compressor.get();
 }
 
 void PacketCompressor::Compress(void* dst, uint32 *dst_size, void* src, int src_size)
 {
-    auto compressor = GetCompressor();
-    *dst_size = libdeflate_zlib_compress(compressor.get(), src, src_size, dst, *dst_size);
+    *dst_size = libdeflate_zlib_compress(GetCompressor(), src, src_size, dst, *dst_size);
 }
 
 size_t PacketCompressor::Bound(size_t size)
 {
-    auto compressor = GetCompressor();
-    return libdeflate_zlib_compress_bound(compressor.get(), size);
+    return libdeflate_zlib_compress_bound(GetCompressor(), size);
 }
 
 
