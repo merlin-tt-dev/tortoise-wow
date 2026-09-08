@@ -317,7 +317,7 @@ void GuildBank::SaveToDB()
 	// Save Items
 	if (!b_itemUpdateQueue.empty())
 	{
-		for (auto item : b_itemUpdateQueue)
+        for (auto& item : b_itemUpdateQueue)
 		{
 			switch (item.state)
 			{
