@@ -303,7 +303,7 @@ class SpellMgr
         SpellSpellGroupMapBounds GetSpellSpellGroupMapBounds(uint32 spell_id) const
         {
             spell_id = GetFirstSpellInChain(spell_id);
-            return SpellSpellGroupMapBounds(mSpellSpellGroup.lower_bound(spell_id),mSpellSpellGroup.upper_bound(spell_id));
+            return mSpellSpellGroup.equal_range(spell_id);
         }
         uint32 IsSpellMemberOfSpellGroup(uint32 spellid, SpellGroup groupid) const
         {
@@ -318,7 +318,7 @@ class SpellMgr
 
         SpellGroupSpellMapBounds GetSpellGroupSpellMapBounds(SpellGroup group_id) const
         {
-            return SpellGroupSpellMapBounds(mSpellGroupSpell.lower_bound(group_id),mSpellGroupSpell.upper_bound(group_id));
+            return mSpellGroupSpell.equal_range(group_id);
         }
         void GetSetOfSpellsInSpellGroup(SpellGroup group_id, std::set<uint32>& foundSpells) const
         {
@@ -327,9 +327,8 @@ class SpellMgr
         }
         void GetSetOfSpellsInSpellGroup(SpellGroup group_id, std::set<uint32>& foundSpells, std::set<SpellGroup>& usedGroups) const
         {
-            if (usedGroups.find(group_id) != usedGroups.end())
+            if (!usedGroups.insert(group_id).second)
                 return;
-            usedGroups.insert(group_id);
 
             SpellGroupSpellMapBounds groupSpell = GetSpellGroupSpellMapBounds(group_id);
             for (SpellGroupSpellMap::const_iterator itr = groupSpell.first; itr != groupSpell.second ; ++itr)
@@ -353,11 +352,20 @@ class SpellMgr
             if (spellid_1 == spellid_2)
                 return SPELL_GROUP_STACK_RULE_DEFAULT;
             // find SpellGroups which are common for both spells
-            SpellSpellGroupMapBounds spellGroup1 = GetSpellSpellGroupMapBounds(spellid_1);
+            SpellSpellGroupMapBounds spellGroup1 = mSpellSpellGroup.equal_range(spellid_1);
+            SpellSpellGroupMapBounds spellGroup2 = mSpellSpellGroup.equal_range(spellid_2);
             std::set<SpellGroup> groups;
-            for (SpellSpellGroupMap::const_iterator itr = spellGroup1.first; itr != spellGroup1.second ; ++itr)
-                if (IsSpellMemberOfSpellGroup(spellid_2, itr->second))
-                    groups.insert(itr->second);
+            for (SpellSpellGroupMap::const_iterator itr = spellGroup1.first; itr != spellGroup1.second; ++itr)
+            {
+                for (SpellSpellGroupMap::const_iterator other = spellGroup2.first; other != spellGroup2.second; ++other)
+                {
+                    if (itr->second == other->second)
+                    {
+                        groups.insert(itr->second);
+                        break;
+                    }
+                }
+            }
 
             SpellGroupStackRule rule = SPELL_GROUP_STACK_RULE_DEFAULT;
 
