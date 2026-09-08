@@ -1557,7 +1557,7 @@ void World::RestoreLostGOs()
     if (!file)
         return;
 
-    std::regex pattern{ "gobject (add|delete|turn) (\\d+) +X: +([+-]?[0-9]*[.]?[0-9]+) +Y: +([+-]?[0-9]*[.]?[0-9]+) +Z: +([+-]?[0-9]*[.]?[0-9]+) +Map: +(\\d+)" };
+    static const std::regex pattern{ "gobject (add|delete|turn) (\\d+) +X: +([+-]?[0-9]*[.]?[0-9]+) +Y: +([+-]?[0-9]*[.]?[0-9]+) +Z: +([+-]?[0-9]*[.]?[0-9]+) +Map: +(\\d+)", std::regex::optimize };
 
 
     const uint32 startingGuid = 5000095;
