@@ -318,7 +318,7 @@ WardenCheckResult* WardenMgr::GetWardenResultById(uint16 build, uint16 id)
     return result;
 }
 
-void WardenMgr::GetWardenCheckIds(bool isMemCheck, uint16 build, std::list<uint16>& idl)
+void WardenMgr::GetWardenCheckIds(bool isMemCheck, uint16 build, std::vector<uint16>& idl)
 {
     idl.clear(); // Just to be sure
 

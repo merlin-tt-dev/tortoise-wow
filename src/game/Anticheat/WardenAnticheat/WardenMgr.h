@@ -19,6 +19,7 @@
 
 #include <map>
 #include <mutex>
+#include <vector>
 #include "Auth/BigNumber.h"
 #include "Anticheat.h"
 
@@ -81,7 +82,7 @@ class WardenMgr
 
         WardenCheck* GetWardenDataById(uint16 /*build*/, uint16 /*id*/);
         WardenCheckResult* GetWardenResultById(uint16 /*build*/, uint16 /*id*/);
-        void GetWardenCheckIds(bool isMemCheck /* true = MEM */, uint16 build, std::list<uint16>& list);
+        void GetWardenCheckIds(bool isMemCheck /* true = MEM */, uint16 build, std::vector<uint16>& list);
 
         WardenModule* GetRandomWardenModule(bool windows);
 

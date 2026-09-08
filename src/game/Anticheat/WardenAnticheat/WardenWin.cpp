@@ -226,7 +226,7 @@ void WardenWin::RequestData()
     
     uint8 index = 1;
 
-    for (std::list<uint16>::iterator itr = _currentChecks.begin(); itr != _currentChecks.end(); ++itr)
+    for (std::vector<uint16>::iterator itr = _currentChecks.begin(); itr != _currentChecks.end(); ++itr)
     {
         wd = sWardenMgr->GetWardenDataById(build, *itr);
         
@@ -287,7 +287,7 @@ void WardenWin::RequestData()
 
     std::stringstream stream;
     stream << "Sent check id's: ";
-    for (std::list<uint16>::iterator itr = _currentChecks.begin(); itr != _currentChecks.end(); ++itr)
+    for (std::vector<uint16>::iterator itr = _currentChecks.begin(); itr != _currentChecks.end(); ++itr)
         stream << *itr << " ";
 
     sLog.outWardenDebug("%s", stream.str().c_str());
@@ -338,7 +338,7 @@ void WardenWin::HandleData(ByteBuffer &buff)
     uint8 type;
     uint16 checkFailed = 0;
 
-    for (std::list<uint16>::iterator itr = _currentChecks.begin(); itr != _currentChecks.end(); ++itr)
+    for (std::vector<uint16>::iterator itr = _currentChecks.begin(); itr != _currentChecks.end(); ++itr)
     {
         rd = sWardenMgr->GetWardenDataById(m_session->GetGameBuild(), *itr);
         rs = sWardenMgr->GetWardenResultById(m_session->GetGameBuild(), *itr);
