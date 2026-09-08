@@ -1,0 +1,159 @@
+diff --git a/src/game/Handlers/ChannelBroadcaster.cpp b/src/game/Handlers/ChannelBroadcaster.cpp
+index 5540033..d28cf86 100644
+--- a/src/game/Handlers/ChannelBroadcaster.cpp
++++ b/src/game/Handlers/ChannelBroadcaster.cpp
+@@ -1,4 +1,3 @@
+-#include <thread>
+ #include <chrono>
+ #include "ChannelBroadcaster.h"
+ #include "ChannelMgr.h"
+@@ -29,6 +28,13 @@ void ChannelBroadcaster::Stop()
+ 	{
+ 		return;
+ 	}
++
++    {
++        std::lock_guard<std::mutex> lock(StateMutex);
++        bStopRequested = true;
++        bShouldSentMessages = false;
++    }
++    StateChanged.notify_all();
+ 	
+ 	if (Worker->joinable())
+ 	{
+@@ -41,53 +47,87 @@ void ChannelBroadcaster::Stop()
+ 
+ void ChannelBroadcaster::EnableSendingMessages()
+ {
+-	bShouldSentMessages.store(true);
+-	while (!bIsWorking.load() && !sWorld.IsStopped())
++    std::unique_lock<std::mutex> lock(StateMutex);
++    bShouldSentMessages = true;
++    StateChanged.notify_all();
++    StateChanged.wait(lock, [this]()
+ 	{
+-		std::this_thread::sleep_for(std::chrono::milliseconds(0));
+-	}
++        return bIsWorking || bStopRequested || sWorld.IsStopped();
++    });
+ }
+ 
+ void ChannelBroadcaster::DisableSendingMessages()
+ {
+-	bShouldSentMessages.store(false);
+-	while (bIsWorking.load())
++    std::unique_lock<std::mutex> lock(StateMutex);
++    bShouldSentMessages = false;
++    StateChanged.notify_all();
++    StateChanged.wait(lock, [this]()
+ 	{
+-		std::this_thread::sleep_for(std::chrono::milliseconds(0));
+-	}
++        return !bIsWorking;
++    });
+ }
+ 
+ void ChannelBroadcaster::EnqueueMessage(std::string&& Message, const std::string& ChannelName, ObjectGuid PlayerGuid, uint32 Language, Team ChannelTeam, bool bSkipChecks)
+ {
+ 	MessageQueue.enqueue(ChannelMessage{std::move(Message), ChannelName, PlayerGuid, Language, ChannelTeam, bSkipChecks });
++    StateChanged.notify_one();
+ }
+ 
+ void ChannelBroadcaster::ThreadProc()
+ {
+-	while (!sWorld.IsStopped())
++    for (;;)
+ 	{
+-		while (bShouldSentMessages.load() && !sWorld.IsStopped())
+ 		{
+-			bIsWorking.store(true);
++            std::unique_lock<std::mutex> lock(StateMutex);
++            StateChanged.wait(lock, [this]()
++            {
++                return bShouldSentMessages || bStopRequested || sWorld.IsStopped();
++            });
++
++            if (bStopRequested || sWorld.IsStopped())
++                break;
++
++            bIsWorking = true;
++            StateChanged.notify_all();
++        }
+ 
++        for (;;)
++        {
++            {
++                std::lock_guard<std::mutex> lock(StateMutex);
++                if (!bShouldSentMessages || bStopRequested || sWorld.IsStopped())
++                    break;
++            }
+ 
+ 			constexpr int32 MessageLimit = 5;
+ 			int32 MessageIterator = 0;
+ 
+-
+ 			ChannelMessage msg;
+-			while (MessageIterator < 5 && MessageQueue.try_dequeue(msg))
++            while (MessageIterator < MessageLimit && MessageQueue.try_dequeue(msg))
+ 			{
+-				ChannelMessage& ChanMsg = msg;
++                ChannelMgr* ChannelManager = channelMgr(msg.ChannelTeam);
++                Channel* TargetChannel = ChannelManager->GetOrCreateChannel(msg.ChannelName);
++                TargetChannel->Say(msg.PlayerGuid, msg.Message.c_str(), msg.Language, msg.bSkipChecks);
++                ++MessageIterator;
++            }
+ 
+-				ChannelMgr* ChannelManager = channelMgr(ChanMsg.ChannelTeam);
+-				Channel* TargetChannel = ChannelManager->GetOrCreateChannel(ChanMsg.ChannelName);
+-				TargetChannel->Say(ChanMsg.PlayerGuid, ChanMsg.Message.c_str(), ChanMsg.Language, ChanMsg.bSkipChecks);
+-				MessageIterator++;
++            if (MessageIterator == 0)
++            {
++                std::unique_lock<std::mutex> lock(StateMutex);
++                StateChanged.wait_for(lock, std::chrono::milliseconds(1));
+ 			}
+ 		}
+-		bIsWorking.store(false);
+ 
+-		std::this_thread::sleep_for(std::chrono::milliseconds(1));
++        {
++            std::lock_guard<std::mutex> lock(StateMutex);
++            bIsWorking = false;
++        }
++        StateChanged.notify_all();
++    }
++
++    {
++        std::lock_guard<std::mutex> lock(StateMutex);
++        bIsWorking = false;
+ 	}
++    StateChanged.notify_all();
+ }
+diff --git a/src/game/Handlers/ChannelBroadcaster.h b/src/game/Handlers/ChannelBroadcaster.h
+index d35f18c..8921e79 100644
+--- a/src/game/Handlers/ChannelBroadcaster.h
++++ b/src/game/Handlers/ChannelBroadcaster.h
+@@ -3,7 +3,9 @@
+ #include "SharedDefines.h"
+ #include "ObjectGuid.h"
+ #include "Utilities/readerwriterqueue.h"
+-#include <atomic>
++#include <condition_variable>
++#include <mutex>
++#include <thread>
+ 
+ 
+ struct ChannelMessage
+@@ -42,6 +44,9 @@ protected:
+ 	
+ 	char CacheLineDelimiter[4096];
+ 
+-	std::atomic_bool bShouldSentMessages = false;
+-	std::atomic_bool bIsWorking = false;
++    std::mutex StateMutex;
++    std::condition_variable StateChanged;
++    bool bShouldSentMessages = false;
++    bool bIsWorking = false;
++    bool bStopRequested = false;
+ };
+\ No newline at end of file
