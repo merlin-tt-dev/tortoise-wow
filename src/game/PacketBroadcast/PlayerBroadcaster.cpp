@@ -67,23 +67,27 @@ void PlayerBroadcaster::ProcessQueue(uint32& num_packets)
         queue.swap(m_queue);
     }
 
+    std::vector<std::pair<ObjectGuid, std::shared_ptr<PlayerBroadcaster>>> listeners;
     {
         std::lock_guard<std::mutex> guard(m_listeners_lock);
-        lastUpdatePackets = queue.size() * m_listeners.size();
-        num_packets += lastUpdatePackets;
+        listeners.reserve(m_listeners.size());
+        listeners.insert(listeners.end(), m_listeners.begin(), m_listeners.end());
+    }
 
-        for (auto& data : queue)
+    lastUpdatePackets = queue.size() * listeners.size();
+    num_packets += lastUpdatePackets;
+
+    for (auto& data : queue)
+    {
+        if (data.sendToSelf && data.except != GetGUID())
+            SendPacket(data.packet);
+
+        for (const auto& itr : listeners)
         {
-            if (data.sendToSelf && data.except != GetGUID())
-                SendPacket(data.packet);
+            if (itr.first == data.except)
+                continue;
 
-            for (const auto& itr : m_listeners)
-            {
-                if (itr.first == data.except)
-                    continue;
-
-                itr.second->SendPacket(data.packet);
-            }
+            itr.second->SendPacket(data.packet);
         }
     }
 
