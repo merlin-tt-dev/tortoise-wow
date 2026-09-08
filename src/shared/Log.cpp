@@ -31,6 +31,8 @@
 #include <stdarg.h>
 #include <fstream>
 #include <iostream>
+#include <chrono>
+#include <thread>
 
 #include "ace/OS_NS_unistd.h"
 
@@ -1226,9 +1228,6 @@ void Log::WaitBeforeContinueIfNeed()
     else if (mode > 0)
     {
         printf("\nWait %d secs for continue.\n",mode);
-        for(int i = 0; i < mode; ++i)
-        {
-            ACE_OS::sleep(1);
-        }
+        std::this_thread::sleep_for(std::chrono::seconds(mode));
     }
 }
