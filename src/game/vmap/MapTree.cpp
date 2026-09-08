@@ -473,7 +473,8 @@ bool StaticMapTree::LoadMapTile(uint32 tileX, uint32 tileY, VMapManager2* vm)
                 uint32 referencedVal;
 
                 fread(&referencedVal, sizeof(uint32), 1, tf);
-                if (!iLoadedSpawns.count(referencedVal))
+                auto loadedSpawnItr = iLoadedSpawns.find(referencedVal);
+                if (loadedSpawnItr == iLoadedSpawns.end())
                 {
                     if (referencedVal > iNTreeValues)
                     {
@@ -482,11 +483,11 @@ bool StaticMapTree::LoadMapTile(uint32 tileX, uint32 tileY, VMapManager2* vm)
                     }
 
                     iTreeValues[referencedVal] = ModelInstance(spawn, model);
-                    iLoadedSpawns[referencedVal] = 1;
+                    iLoadedSpawns.emplace(referencedVal, 1);
                 }
                 else
                 {
-                    ++iLoadedSpawns[referencedVal];
+                    ++loadedSpawnItr->second;
 #ifdef VMAP_DEBUG
                     if (iTreeValues[referencedVal].ID != spawn.ID)
                         DEBUG_LOG("Error: trying to load wrong spawn in node!");
@@ -544,12 +545,13 @@ void StaticMapTree::UnloadMapTile(uint32 tileX, uint32 tileY, VMapManager2* vm)
                     uint32 referencedNode;
 
                     fread(&referencedNode, sizeof(uint32), 1, tf);
-                    if (!iLoadedSpawns.count(referencedNode))
+                    auto loadedSpawnItr = iLoadedSpawns.find(referencedNode);
+                    if (loadedSpawnItr == iLoadedSpawns.end())
                         ERROR_LOG("Trying to unload non-referenced model '%s' (ID:%u)", spawn.name.c_str(), spawn.ID);
-                    else if (--iLoadedSpawns[referencedNode] == 0)
+                    else if (--loadedSpawnItr->second == 0)
                     {
                         iTreeValues[referencedNode].setUnloaded();
-                        iLoadedSpawns.erase(referencedNode);
+                        iLoadedSpawns.erase(loadedSpawnItr);
                     }
                 }
             }
