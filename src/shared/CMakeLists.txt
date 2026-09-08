@@ -239,6 +239,10 @@ if(MINGW)
   target_link_libraries(shared PUBLIC ${ACE_LIBRARIES} -lws2_32)
 endif()
 
+if(WIN32)
+  target_link_libraries(shared PUBLIC crypt32)
+endif()
+
 target_link_libraries(shared PUBLIC re2::re2)
 target_link_libraries(shared PUBLIC fmt)
 
