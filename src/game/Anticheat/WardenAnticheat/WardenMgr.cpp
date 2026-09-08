@@ -23,8 +23,8 @@
 #include "Database/DatabaseEnv.h"
 #include "WardenMgr.h"
 #include "Warden.h"
+#include <filesystem>
 #include <mutex>
-#include <ace/OS_NS_dirent.h>
 #include <openssl/md5.h>
 #include "Anticheat.h"
 
@@ -146,16 +146,18 @@ void WardenMgr::LoadWardenModules()
     if (!sWorld.getConfig(CONFIG_BOOL_AC_WARDEN_WIN_ENABLED) && !sWorld.getConfig(CONFIG_BOOL_AC_WARDEN_OSX_ENABLED))
         return;
 
-    std::string moduleDirectory = sWorld.GetWardenModuleDirectory();
-    ACE_DIR* pDirectory = ACE_OS::opendir(ACE_TEXT(moduleDirectory.c_str()));
+    std::filesystem::path const moduleDirectory = sWorld.GetWardenModuleDirectory();
+    std::error_code error;
+    std::filesystem::directory_iterator it(moduleDirectory, error);
+    std::filesystem::directory_iterator const end;
 
-    if (pDirectory)
+    while (!error && it != end)
     {
-        ACE_DIRENT* pFile;
+        std::filesystem::path const& modulePath = it->path();
+        if (modulePath.extension() == ".bin")
+            LoadWardenModule(modulePath.string());
 
-        while (!!(pFile = ACE_OS::readdir(pDirectory)))
-            if (!memcmp(&pFile->d_name[strlen(pFile->d_name) - 4], ".bin", 4))
-                LoadWardenModule(moduleDirectory + "/" + pFile->d_name);
+        it.increment(error);
     }
 
     MANGOS_ASSERT(!(m_vWindowsModules.empty() && sWorld.getConfig(CONFIG_BOOL_AC_WARDEN_WIN_ENABLED)));
