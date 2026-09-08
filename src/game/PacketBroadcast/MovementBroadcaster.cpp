@@ -122,13 +122,14 @@ uint32 MovementBroadcaster::IdentifySlowMap(std::size_t thread_id)
 
 void MovementBroadcaster::BroadcastPackets(std::size_t index, uint32& num_packets)
 {
-    PlayersBCastSet my_players;
+    std::vector<std::shared_ptr<PlayerBroadcaster>> my_players;
     {
         std::shared_lock<std::shared_mutex> guard(m_thread_locks[index]);
-        my_players = m_thread_players[index];
+        my_players.reserve(m_thread_players[index].size());
+        my_players.insert(my_players.end(), m_thread_players[index].begin(), m_thread_players[index].end());
     }
 
-    for (auto& player : my_players)
+    for (auto const& player : my_players)
         player->ProcessQueue(num_packets);
 }
 
