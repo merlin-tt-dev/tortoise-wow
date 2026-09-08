@@ -1,0 +1,467 @@
+diff --git a/src/game/Anticheat/Warden/WardenMac.cpp b/src/game/Anticheat/Warden/WardenMac.cpp
+index 6395315..fc7b17c 100644
+--- a/src/game/Anticheat/Warden/WardenMac.cpp
++++ b/src/game/Anticheat/Warden/WardenMac.cpp
+@@ -6,6 +6,7 @@
+  */
+ 
+ #include "WardenMac.hpp"
++#include <openssl/evp.h>
+ #include "WardenModuleMgr.hpp"
+ #include "WardenScanMgr.hpp"
+ #include "WorldSession.h"
+@@ -72,10 +73,9 @@ WardenMac::WardenMac(WorldSession *session, const BigNumber &K, SessionAnticheat
+ 
+     memcpy(_hashSHA, sha1.GetDigest(), sizeof(_hashSHA));
+ 
+-    MD5_CTX md5;
+-    MD5_Init(&md5);
+-    MD5_Update(&md5, _hashString.c_str(), _hashString.size());
+-    MD5_Final(_hashMD5, &md5);
++    unsigned int length = 0;
++    MANGOS_ASSERT(EVP_Digest(_hashString.data(), _hashString.size(), _hashMD5, &length, EVP_md5(), nullptr) == 1);
++    MANGOS_ASSERT(length == MD5_DIGEST_LENGTH);
+ 
+     // PPC no module, begin string hashing requests directly
+     if (!_module)
+diff --git a/src/game/Anticheat/Warden/WardenModule.cpp b/src/game/Anticheat/Warden/WardenModule.cpp
+index 2524f41..ee9f032 100644
+--- a/src/game/Anticheat/Warden/WardenModule.cpp
++++ b/src/game/Anticheat/Warden/WardenModule.cpp
+@@ -12,6 +12,7 @@
+ #include "zlib.h"
+ 
+ #include <openssl/md5.h>
++#include <openssl/evp.h>
+ 
+ #include <string>
+ #include <vector>
+@@ -39,12 +40,10 @@ WardenModule::WardenModule(std::string const &bin, std::string const &kf, std::s
+     // compute md5 hash of encrypted/compressed data
+     {
+         // md5 hash
+-        MD5_CTX ctx;
+-        MD5_Init(&ctx);
+-        MD5_Update(&ctx, &binary[0], binary.size());
+-
+         hash.resize(MD5_DIGEST_LENGTH);
+-        MD5_Final(&hash[0], &ctx);
++        unsigned int length = 0;
++        MANGOS_ASSERT(EVP_Digest(binary.data(), binary.size(), hash.data(), &length, EVP_md5(), nullptr) == 1);
++        MANGOS_ASSERT(length == MD5_DIGEST_LENGTH);
+     }
+ 
+     std::ifstream k(kf, std::ios::binary | std::ios::ate);
+diff --git a/src/game/Camera.cpp b/src/game/Camera.cpp
+index f268585..6ee5c27 100644
+--- a/src/game/Camera.cpp
++++ b/src/game/Camera.cpp
+@@ -31,7 +31,7 @@ Camera::Camera(Player* pl) : m_owner(*pl), m_source(pl)
+     m_source->GetViewPoint().Attach(this);
+ }
+ 
+-Camera::~Camera()
++Camera::~Camera() noexcept(false)
+ {
+     // view of camera should be already reseted to owner (RemoveFromWorld -> Event_RemovedFromWorld -> ResetView)
+     MANGOS_ASSERT(m_source == &m_owner);
+diff --git a/src/game/Camera.h b/src/game/Camera.h
+index d04da3a..75ed1b3 100644
+--- a/src/game/Camera.h
++++ b/src/game/Camera.h
+@@ -38,7 +38,7 @@ class Camera
+     public:
+ 
+         explicit Camera(Player* pl);
+-        ~Camera();
++        ~Camera() noexcept(false);
+ 
+         WorldObject* GetBody() { return m_source;}
+         Player* GetOwner() { return &m_owner;}
+diff --git a/src/game/Objects/Object.cpp b/src/game/Objects/Object.cpp
+index 2d13355..3ae005e 100644
+--- a/src/game/Objects/Object.cpp
++++ b/src/game/Objects/Object.cpp
+@@ -196,7 +196,7 @@ Object::Object() : m_updateFlag(0)
+     _delayedActions     = 0;
+ }
+ 
+-Object::~Object()
++Object::~Object() noexcept(false)
+ {
+     if (IsInWorld())
+     {
+diff --git a/src/game/Objects/Object.h b/src/game/Objects/Object.h
+index 892d6dd..3adcccd 100644
+--- a/src/game/Objects/Object.h
++++ b/src/game/Objects/Object.h
+@@ -372,7 +372,7 @@ typedef void (*CreatureAiSetter)(Creature *pCreature);
+ class Object
+ {
+     public:
+-        virtual ~Object();
++        virtual ~Object() noexcept(false);
+ 
+         void SetIsNewObject(bool state) { m_isNewObject = state; }
+         const bool& IsInWorld() const { return m_inWorld; }
+diff --git a/src/realmd/AuthSocket.cpp b/src/realmd/AuthSocket.cpp
+index 257b18a..cc0daba 100644
+--- a/src/realmd/AuthSocket.cpp
++++ b/src/realmd/AuthSocket.cpp
+@@ -337,7 +337,7 @@ void AuthSocket::_SetVSFields(const std::string& rI)
+     OPENSSL_free((void*)s_hex);
+ }
+ 
+-void AuthSocket::SendProof(Sha1Hash sha)
++void AuthSocket::SendProof(const Sha1Hash& sha)
+ {
+     sAuthLogonProof_S_BUILD_6005 proof;
+     memcpy(proof.M2, sha.GetDigest(), 20);
+diff --git a/src/realmd/AuthSocket.h b/src/realmd/AuthSocket.h
+index 1230fbf..634654c 100644
+--- a/src/realmd/AuthSocket.h
++++ b/src/realmd/AuthSocket.h
+@@ -64,7 +64,7 @@ class AuthSocket: public BufferedSocket
+ 
+         void OnAccept();
+         void OnRead();
+-        void SendProof(Sha1Hash sha);
++        void SendProof(const Sha1Hash& sha);
+         void LoadRealmlist(ByteBuffer &pkt);
+         bool VerifyPinData(uint32 pin, const PINData& clientData);
+         bool ValidateToken(std::string const& secretString, PINData& data);
+@@ -128,11 +128,14 @@ class AuthSocket: public BufferedSocket
+         uint32 gridSeed;
+         uint32_t _geoUnlockPIN;
+ 
+-        static constexpr uint32 Win = 'Win';
+-        static constexpr uint32 OSX = 'OSX';
++        // Numeric values match the legacy multi-character constants exactly,
++        // without relying on their implementation-defined representation.
++        static constexpr uint32 Win = 0x0057696E; // 'Win'
++        static constexpr uint32 OSX = 0x004F5358; // 'OSX'
++
++        static constexpr uint32 X86 = 0x00783836; // 'x86'
++        static constexpr uint32 PPC = 0x00505043; // 'PPC'
+ 
+-        static constexpr uint32 X86 = 'x86';
+-        static constexpr uint32 PPC = 'PPC';
+ 
+         uint32 _os;
+         uint32 _platform;
+diff --git a/src/realmd/PatchHandler.cpp b/src/realmd/PatchHandler.cpp
+index 49392b0..796dff4 100644
+--- a/src/realmd/PatchHandler.cpp
++++ b/src/realmd/PatchHandler.cpp
+@@ -28,6 +28,7 @@
+ #include "Common.h"
+ #include "Timer.h"
+ #include "PatchHandler.h"
++#include <openssl/evp.h>
+ #include "PatchLimiter.hpp"
+ 
+ #ifdef WIN32
+@@ -217,8 +218,9 @@ void PatchCache::LoadPatchMD5(const char* szFileName)
+         return;
+ 
+     // Calculate the MD5 hash
+-    MD5_CTX ctx;
+-    MD5_Init(&ctx);
++    EVP_MD_CTX* ctx = EVP_MD_CTX_new();
++    MANGOS_ASSERT(ctx);
++    MANGOS_ASSERT(EVP_DigestInit_ex(ctx, EVP_md5(), nullptr) == 1);
+ 
+     const size_t check_chunk_size = 4*1024;
+ 
+@@ -227,14 +229,17 @@ void PatchCache::LoadPatchMD5(const char* szFileName)
+     while(!feof (pPatch))
+     {
+         size_t read = fread(buf, 1, check_chunk_size, pPatch);
+-        MD5_Update(&ctx, buf, read);
++        MANGOS_ASSERT(EVP_DigestUpdate(ctx, buf, read) == 1);
+     }
+ 
+     fclose(pPatch);
+ 
+     // Store the result in the internal patch hash map
+     patches_[path] = new PATCH_INFO;
+-    MD5_Final((ACE_UINT8 *) & patches_[path]->md5, &ctx);
++    unsigned int length = 0;
++    MANGOS_ASSERT(EVP_DigestFinal_ex(ctx, patches_[path]->md5, &length) == 1);
++    EVP_MD_CTX_free(ctx);
++    MANGOS_ASSERT(length == MD5_DIGEST_LENGTH);
+ }
+ 
+ bool PatchCache::GetHash(const char * pat, ACE_UINT8 mymd5[MD5_DIGEST_LENGTH])
+diff --git a/src/shared/Auth/HMACSHA1.cpp b/src/shared/Auth/HMACSHA1.cpp
+index 6626b05..c88171b 100644
+--- a/src/shared/Auth/HMACSHA1.cpp
++++ b/src/shared/Auth/HMACSHA1.cpp
+@@ -21,23 +21,11 @@
+ 
+ HMACSHA1::HMACSHA1(uint32 len, uint8 *seed)
+ {
+-#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
+-    m_ctx = HMAC_CTX_new();
+-    HMAC_Init_ex(m_ctx, seed, len, EVP_sha1(), nullptr);
+-#else
+-    HMAC_CTX_init(&m_ctx);
+-    HMAC_Init_ex(&m_ctx, seed, len, EVP_sha1(), nullptr);
+-#endif
++    if (seed && len > 0)
++        m_key.assign(seed, seed + len);
+ }
+ 
+-HMACSHA1::~HMACSHA1()
+-{
+-#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
+-    HMAC_CTX_free(m_ctx);
+-#else
+-    HMAC_CTX_cleanup(&m_ctx);
+-#endif
+-}
++HMACSHA1::~HMACSHA1() = default;
+ 
+ void HMACSHA1::UpdateBigNumber(BigNumber *bn)
+ {
+@@ -46,46 +34,31 @@ void HMACSHA1::UpdateBigNumber(BigNumber *bn)
+ 
+ void HMACSHA1::UpdateData(const std::vector<uint8>& data)
+ {
+-#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
+-    HMAC_Update(m_ctx, data.data(), data.size());
+-#else
+-    HMAC_Update(&m_ctx, data.data(), data.size());
+-#endif
++    m_data.insert(m_data.end(), data.begin(), data.end());
+ }
+ 
+ void HMACSHA1::UpdateData(const uint8 *data, int length)
+ {
+-#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
+-    HMAC_Update(m_ctx, data, length);
+-#else
+-    HMAC_Update(&m_ctx, data, length);
+-#endif
++    if (data && length > 0)
++        m_data.insert(m_data.end(), data, data + length);
+ }
+ 
+ void HMACSHA1::UpdateData(const std::string &str)
+ {
+-    UpdateData((uint8 const*)str.c_str(), str.length());
++    UpdateData(reinterpret_cast<uint8 const*>(str.data()), str.length());
+ }
+ 
+ void HMACSHA1::Finalize()
+ {
+-    uint32 length = 0;
+-#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
+-    HMAC_Final(m_ctx, (uint8*)m_digest, &length);
+-#else
+-    HMAC_Final(&m_ctx, (uint8*)m_digest, &length);
+-#endif
+-    //MANGOS_ASSERT(length == SHA_DIGEST_LENGTH);
++    unsigned int length = 0;
++    MANGOS_ASSERT(HMAC(EVP_sha1(), m_key.data(), static_cast<int>(m_key.size()),
++        m_data.data(), m_data.size(), m_digest, &length));
++    MANGOS_ASSERT(length == SHA_DIGEST_LENGTH);
+ }
+ 
+ uint8 *HMACSHA1::ComputeHash(BigNumber *bn)
+ {
+-    auto byteArray = bn->AsByteArray();
+-#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
+-    HMAC_Update(m_ctx, byteArray.data(), byteArray.size());
+-#else
+-    HMAC_Update(&m_ctx, byteArray.data(), byteArray.size());
+-#endif
++    UpdateBigNumber(bn);
+     Finalize();
+-    return (uint8*)m_digest;
++    return m_digest;
+ }
+diff --git a/src/shared/Auth/HMACSHA1.h b/src/shared/Auth/HMACSHA1.h
+index c48f740..1c0a715 100644
+--- a/src/shared/Auth/HMACSHA1.h
++++ b/src/shared/Auth/HMACSHA1.h
+@@ -42,11 +42,8 @@ class HMACSHA1
+         int GetLength() { return SHA_DIGEST_LENGTH; }
+     private:
+ 
+-#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
+-        HMAC_CTX* m_ctx;
+-#else
+-        HMAC_CTX m_ctx;
+-#endif
++        std::vector<uint8> m_key;
++        std::vector<uint8> m_data;
+         uint8 m_digest[SHA_DIGEST_LENGTH];
+ };
+ #endif
+diff --git a/src/shared/Auth/Hmac.cpp b/src/shared/Auth/Hmac.cpp
+index 35bd3b7..b2b6655 100644
+--- a/src/shared/Auth/Hmac.cpp
++++ b/src/shared/Auth/Hmac.cpp
+@@ -21,23 +21,11 @@
+ 
+ HmacHash::HmacHash(const uint8* data, int length)
+ {
+-#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
+-    m_ctx = HMAC_CTX_new();
+-    HMAC_Init_ex(m_ctx, data, length, EVP_sha1(), nullptr);
+-#else
+-    HMAC_CTX_init(&m_ctx);
+-    HMAC_Init_ex(&m_ctx, data, length, EVP_sha1(), nullptr);
+-#endif
++    if (data && length > 0)
++        m_key.assign(data, data + length);
+ }
+ 
+-HmacHash::~HmacHash()
+-{
+-#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
+-    HMAC_CTX_free(m_ctx);
+-#else
+-    HMAC_CTX_cleanup(&m_ctx);
+-#endif
+-}
++HmacHash::~HmacHash() = default;
+ 
+ void HmacHash::UpdateBigNumber(BigNumber* bn)
+ {
+@@ -46,29 +34,19 @@ void HmacHash::UpdateBigNumber(BigNumber* bn)
+ 
+ void HmacHash::UpdateData(const std::vector<uint8>& data)
+ {
+-#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
+-    HMAC_Update(m_ctx, data.data(), data.size());
+-#else
+-    HMAC_Update(&m_ctx, data.data(), data.size());
+-#endif
++    m_data.insert(m_data.end(), data.begin(), data.end());
+ }
+ 
+ void HmacHash::UpdateData(const uint8* data, int length)
+ {
+-#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
+-    HMAC_Update(m_ctx, data, length);
+-#else
+-    HMAC_Update(&m_ctx, data, length);
+-#endif
++    if (data && length > 0)
++        m_data.insert(m_data.end(), data, data + length);
+ }
+ 
+ void HmacHash::Finalize()
+ {
+-    uint32 length = 0;
+-#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
+-    HMAC_Final(m_ctx, (uint8*)m_digest, &length);
+-#else
+-    HMAC_Final(&m_ctx, m_digest, &length);
+-#endif
+-    // MANGOS_ASSERT(length == SHA_DIGEST_LENGTH);
++    unsigned int length = 0;
++    MANGOS_ASSERT(HMAC(EVP_sha1(), m_key.data(), static_cast<int>(m_key.size()),
++        m_data.data(), m_data.size(), m_digest, &length));
++    MANGOS_ASSERT(length == SHA_DIGEST_LENGTH);
+ }
+diff --git a/src/shared/Auth/Hmac.h b/src/shared/Auth/Hmac.h
+index e7ead7e..4c1eca1 100644
+--- a/src/shared/Auth/Hmac.h
++++ b/src/shared/Auth/Hmac.h
+@@ -41,11 +41,8 @@ class HmacHash
+         int GetLength() { return SHA_DIGEST_LENGTH; };
+     private:
+ 
+-#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
+-        HMAC_CTX* m_ctx;
+-#else
+-        HMAC_CTX m_ctx;
+-#endif
++        std::vector<uint8> m_key;
++        std::vector<uint8> m_data;
+         uint8 m_digest[SHA_DIGEST_LENGTH];
+ };
+ #endif
+diff --git a/src/shared/Auth/Sha1.cpp b/src/shared/Auth/Sha1.cpp
+index dc74d86..219691e 100644
+--- a/src/shared/Auth/Sha1.cpp
++++ b/src/shared/Auth/Sha1.cpp
+@@ -20,24 +20,25 @@
+ #include "Auth/BigNumber.h"
+ #include <stdarg.h>
+ 
+-Sha1Hash::Sha1Hash()
++Sha1Hash::Sha1Hash() : m_ctx(EVP_MD_CTX_new())
+ {
+-    SHA1_Init(&mC);
++    MANGOS_ASSERT(m_ctx);
++    MANGOS_ASSERT(EVP_DigestInit_ex(m_ctx, EVP_sha1(), nullptr) == 1);
+ }
+ 
+ Sha1Hash::~Sha1Hash()
+ {
+-    SHA1_Init(&mC);
++    EVP_MD_CTX_free(m_ctx);
+ }
+ 
+ void Sha1Hash::UpdateData(const uint8 *dta, int len)
+ {
+-    SHA1_Update(&mC, dta, len);
++    MANGOS_ASSERT(EVP_DigestUpdate(m_ctx, dta, len) == 1);
+ }
+ 
+ void Sha1Hash::UpdateData(const std::vector<uint8>& data)
+ {
+-    SHA1_Update(&mC, data.data(), data.size());
++    MANGOS_ASSERT(EVP_DigestUpdate(m_ctx, data.data(), data.size()) == 1);
+ }
+ 
+ void Sha1Hash::UpdateData(const std::string &str)
+@@ -62,10 +63,12 @@ void Sha1Hash::UpdateBigNumbers(BigNumber *bn0, ...)
+ 
+ void Sha1Hash::Initialize()
+ {
+-    SHA1_Init(&mC);
++    MANGOS_ASSERT(EVP_DigestInit_ex(m_ctx, EVP_sha1(), nullptr) == 1);
+ }
+ 
+ void Sha1Hash::Finalize(void)
+ {
+-    SHA1_Final(mDigest, &mC);
++    unsigned int length = 0;
++    MANGOS_ASSERT(EVP_DigestFinal_ex(m_ctx, mDigest, &length) == 1);
++    MANGOS_ASSERT(length == SHA_DIGEST_LENGTH);
+ }
+diff --git a/src/shared/Auth/Sha1.h b/src/shared/Auth/Sha1.h
+index c5646a0..bc55ebd 100644
+--- a/src/shared/Auth/Sha1.h
++++ b/src/shared/Auth/Sha1.h
+@@ -21,6 +21,7 @@
+ 
+ #include "Common.h"
+ #include <openssl/sha.h>
++#include <openssl/evp.h>
+ #include <openssl/crypto.h>
+ 
+ class BigNumber;
+@@ -30,6 +31,8 @@ class Sha1Hash
+     public:
+         Sha1Hash();
+         ~Sha1Hash();
++        Sha1Hash(const Sha1Hash&) = delete;
++        Sha1Hash& operator=(const Sha1Hash&) = delete;
+ 
+         void UpdateBigNumbers(BigNumber *bn0, ...);
+ 
+@@ -44,7 +47,7 @@ class Sha1Hash
+         int GetLength(void) { return SHA_DIGEST_LENGTH; };
+ 
+     private:
+-        SHA_CTX mC;
++        EVP_MD_CTX* m_ctx;
+         uint8 mDigest[SHA_DIGEST_LENGTH];
+ };
+ #endif
