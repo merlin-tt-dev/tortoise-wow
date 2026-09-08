@@ -25,7 +25,7 @@
 #include "Warden.h"
 #include <filesystem>
 #include <mutex>
-#include <openssl/md5.h>
+#include <openssl/evp.h>
 #include "Anticheat.h"
 
 WardenMgr::WardenMgr() : CheckStore(), CheckResultStore() { }
@@ -197,11 +197,15 @@ void WardenMgr::LoadWardenModule(std::string module_name)
         fread(module.binaryData.data(), len, 1, pBinFile);
 
         // Calculate MD5 hash.
-        MD5_CTX ctx;
-        MD5_Init(&ctx);
-        MD5_Update(&ctx, module.binaryData.data(), len);
-        module.binaryHash.resize(MD5_DIGEST_LENGTH);
-        MD5_Final(&module.binaryHash[0], &ctx);
+        int const hashSize = EVP_MD_size(EVP_md5());
+        MANGOS_ASSERT(hashSize > 0);
+        module.binaryHash.resize(static_cast<size_t>(hashSize));
+
+        unsigned int digestLength = 0;
+        int const digestResult = EVP_Digest(module.binaryData.data(), len, module.binaryHash.data(),
+                                            &digestLength, EVP_md5(), nullptr);
+        MANGOS_ASSERT(digestResult == 1);
+        MANGOS_ASSERT(digestLength == module.binaryHash.size());
 
         fclose(pBinFile);
     }
