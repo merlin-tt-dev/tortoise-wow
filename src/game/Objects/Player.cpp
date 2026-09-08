@@ -23833,10 +23833,7 @@ bool Player::ChangeQuestsForRace(uint8 oldRace, uint8 newRace)
                     newQuestStatus.m_timer = itr.second.m_timer;
                     newQuestStatus.m_status = itr.second.m_status;
                     // Pas de duplicate dans les quetes
-                    QuestStatusMap::iterator eraseNewQuest = mQuestStatus.find(pNewQuest->GetQuestId());
-                    if (eraseNewQuest != mQuestStatus.end())
-                        mQuestStatus.erase(eraseNewQuest);
-                    mQuestStatus[pNewQuest->GetQuestId()] = newQuestStatus;
+                    mQuestStatus.insert_or_assign(pNewQuest->GetQuestId(), newQuestStatus);
                     itr.second.uState = QUEST_DELETED;
                 }
                 break;

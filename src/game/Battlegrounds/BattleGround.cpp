@@ -1469,20 +1469,23 @@ void BattleGround::ReturnPlayersToHomeGY()
 
 void BattleGround::SpawnEvent(uint8 event1, uint8 event2, bool spawn, bool forced_despawn, uint32 delay)
 {
+    auto const [activeItr, inserted] = m_ActiveEvents.try_emplace(event1);
+    uint8& activeEvent = activeItr->second;
+
     // stop if we want to spawn something which was already spawned
     // or despawn something which was already despawned
-    if (event2 == BG_EVENT_NONE || (spawn && m_ActiveEvents[event1] == event2)
-            || (!spawn && m_ActiveEvents[event1] != event2))
+    if (event2 == BG_EVENT_NONE || (spawn && activeEvent == event2)
+            || (!spawn && activeEvent != event2))
         return;
 
     if (spawn)
     {
         // if event gets spawned, the current active event must get despawned
-        SpawnEvent(event1, m_ActiveEvents[event1], false, forced_despawn);
-        m_ActiveEvents[event1] = event2;                    // set this event to active
+        SpawnEvent(event1, activeEvent, false, forced_despawn);
+        activeEvent = event2;                               // set this event to active
     }
     else
-        m_ActiveEvents[event1] = BG_EVENT_NONE;             // no event active if event2 gets despawned
+        activeEvent = BG_EVENT_NONE;                        // no event active if event2 gets despawned
 
     GuidVector::const_iterator itr = m_EventObjects[MAKE_PAIR32(event1, event2)].creatures.begin();
     for (; itr != m_EventObjects[MAKE_PAIR32(event1, event2)].creatures.end(); ++itr)

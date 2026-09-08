@@ -170,12 +170,9 @@ void ScriptedInstance_PTR::OnCreatureEnterCombat(Creature* creature)
 {
     if (creature->IsWorldBoss())
     {
-        std::map<ObjectGuid, time_t>::iterator it = boss_expirations.find(creature->GetObjectGuid());
-        if (it == boss_expirations.end())
-        {
-            boss_expirations[creature->GetObjectGuid()] = time(nullptr);
+        auto const [it, inserted] = boss_expirations.try_emplace(creature->GetObjectGuid(), time(nullptr));
+        if (inserted)
             creature->MonsterSay("Remaining time before despawn: 30 minutes.");
-        }
     }
     ScriptedInstance::OnCreatureEnterCombat(creature);
 }

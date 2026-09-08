@@ -1939,8 +1939,9 @@ void ObjectMgr::LoadCreatures(bool reload)
         if (skip)
             continue;
 
-        bool alreadyPresent = reload && m_CreatureDataMap.find(guid) != m_CreatureDataMap.end();
-        CreatureData& data = m_CreatureDataMap[guid];
+        auto const [dataItr, inserted] = m_CreatureDataMap.try_emplace(guid);
+        bool const alreadyPresent = reload && !inserted;
+        CreatureData& data = dataItr->second;
 
         data.creature_id[0]     = fields[ 1].GetUInt32();
         data.creature_id[1]     = fields[ 2].GetUInt32();
@@ -2070,8 +2071,9 @@ void ObjectMgr::LoadGameobjects(bool reload)
             continue;
         }
 
-        bool alreadyPresent = reload && m_GameObjectDataMap.find(guid) != m_GameObjectDataMap.end();
-        GameObjectData& data = m_GameObjectDataMap[guid];
+        auto const [dataItr, inserted] = m_GameObjectDataMap.try_emplace(guid);
+        bool const alreadyPresent = reload && !inserted;
+        GameObjectData& data = dataItr->second;
 
         data.id               = entry;
         data.position.mapId   = fields[ 2].GetUInt32();
