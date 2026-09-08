@@ -566,7 +566,6 @@ inline ByteBuffer &operator>>(ByteBuffer &b, std::vector<T> &v)
     uint32 vsize;
     b >> vsize;
     v.clear();
-    v.reserve(vsize);
     while(vsize--)
     {
         T t;
@@ -593,7 +592,6 @@ inline ByteBuffer &operator>>(ByteBuffer &b, std::list<T> &v)
     uint32 vsize;
     b >> vsize;
     v.clear();
-    v.reserve(vsize);
     while(vsize--)
     {
         T t;
