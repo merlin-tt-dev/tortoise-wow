@@ -1,16 +1,22 @@
 diff --git a/dep/src/CMakeLists.txt b/dep/src/CMakeLists.txt
+index 660ac0f..038e7cb 100644
 --- a/dep/src/CMakeLists.txt
 +++ b/dep/src/CMakeLists.txt
-@@ -1,4 +1,4 @@
+@@ -16,7 +16,7 @@
+ # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ #
+ 
 -if (MINGW)
 +if(MINGW AND CMAKE_SIZEOF_VOID_P EQUAL 4)
      add_subdirectory(libseh)
  endif()
  add_subdirectory(g3dlite)
 diff --git a/dep/src/g3dlite/CMakeLists.txt b/dep/src/g3dlite/CMakeLists.txt
+index 2036914..4bc20f0 100644
 --- a/dep/src/g3dlite/CMakeLists.txt
 +++ b/dep/src/g3dlite/CMakeLists.txt
-@@ -1,6 +1,6 @@
+@@ -78,7 +78,7 @@ SET_TARGET_PROPERTIES (g3dlite PROPERTIES FOLDER "3rd Party")
+ 
  if(WIN32)
    include_directories(${CMAKE_SOURCE_DIR}/dep/windows/include/zlib)
 -  if(MINGW)

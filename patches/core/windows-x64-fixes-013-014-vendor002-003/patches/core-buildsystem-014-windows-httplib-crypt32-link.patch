@@ -1,7 +1,8 @@
 diff --git a/src/shared/CMakeLists.txt b/src/shared/CMakeLists.txt
+index dfad818..95fe0c2 100644
 --- a/src/shared/CMakeLists.txt
 +++ b/src/shared/CMakeLists.txt
-@@ -2,4 +2,8 @@
+@@ -239,6 +239,10 @@ if(MINGW)
    target_link_libraries(shared PUBLIC ${ACE_LIBRARIES} -lws2_32)
  endif()
  
@@ -10,3 +11,5 @@ diff --git a/src/shared/CMakeLists.txt b/src/shared/CMakeLists.txt
 +endif()
 +
  target_link_libraries(shared PUBLIC re2::re2)
+ target_link_libraries(shared PUBLIC fmt)
+ 

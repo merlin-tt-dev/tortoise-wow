@@ -1,7 +1,8 @@
 diff --git a/dep/dpp/CMakeLists.txt b/dep/dpp/CMakeLists.txt
+index 2a92b0e..3d467c8 100644
 --- a/dep/dpp/CMakeLists.txt
 +++ b/dep/dpp/CMakeLists.txt
-@@ -1,6 +1,13 @@
+@@ -30,7 +30,14 @@ if(UNIX)
  else()
    include_directories(${CMAKE_SOURCE_DIR}/dep/windows/include/zlib)
    if(MINGW)
@@ -16,10 +17,33 @@ diff --git a/dep/dpp/CMakeLists.txt b/dep/dpp/CMakeLists.txt
 +    target_link_libraries(dpp PUBLIC ws2_32)
    endif()
  endif()
+ 
+diff --git a/src/mangosd/CMakeLists.txt b/src/mangosd/CMakeLists.txt
+index 6c667b7..04ca115 100644
+--- a/src/mangosd/CMakeLists.txt
++++ b/src/mangosd/CMakeLists.txt
+@@ -136,10 +136,14 @@ if(WIN32)
+   target_link_libraries(${EXECUTABLE_NAME}
+     zlib
+     optimized ${MYSQL_LIBRARY}
+-    optimized ${OPENSSL_LIBRARIES}
+     debug ${MYSQL_DEBUG_LIBRARY}
+-    debug ${OPENSSL_DEBUG_LIBRARIES}
+   )
++  foreach(_mangosd_openssl_library ${OPENSSL_LIBRARIES})
++    target_link_libraries(${EXECUTABLE_NAME} optimized ${_mangosd_openssl_library})
++  endforeach()
++  foreach(_mangosd_openssl_library ${OPENSSL_DEBUG_LIBRARIES})
++    target_link_libraries(${EXECUTABLE_NAME} debug ${_mangosd_openssl_library})
++  endforeach()
+   if(MINGW)
+     target_link_libraries(${EXECUTABLE_NAME}
+       -lws2_32
 diff --git a/src/realmd/CMakeLists.txt b/src/realmd/CMakeLists.txt
+index d152b9b..ce3eaba 100644
 --- a/src/realmd/CMakeLists.txt
 +++ b/src/realmd/CMakeLists.txt
-@@ -1,9 +1,13 @@
+@@ -76,10 +76,14 @@ target_link_libraries(${EXECUTABLE_NAME}
  if(WIN32)
    target_link_libraries(${EXECUTABLE_NAME}
      optimized ${MYSQL_LIBRARY}
@@ -35,21 +59,4 @@ diff --git a/src/realmd/CMakeLists.txt b/src/realmd/CMakeLists.txt
 +  endforeach()
  
  if (ENABLE_PROFILING)
-diff --git a/src/mangosd/CMakeLists.txt b/src/mangosd/CMakeLists.txt
---- a/src/mangosd/CMakeLists.txt
-+++ b/src/mangosd/CMakeLists.txt
-@@ -2,8 +2,12 @@
-   target_link_libraries(${EXECUTABLE_NAME}
-     zlib
-     optimized ${MYSQL_LIBRARY}
--    optimized ${OPENSSL_LIBRARIES}
-     debug ${MYSQL_DEBUG_LIBRARY}
--    debug ${OPENSSL_DEBUG_LIBRARIES}
-   )
-+  foreach(_mangosd_openssl_library ${OPENSSL_LIBRARIES})
-+    target_link_libraries(${EXECUTABLE_NAME} optimized ${_mangosd_openssl_library})
-+  endforeach()
-+  foreach(_mangosd_openssl_library ${OPENSSL_DEBUG_LIBRARIES})
-+    target_link_libraries(${EXECUTABLE_NAME} debug ${_mangosd_openssl_library})
-+  endforeach()
-   if(MINGW)
+       target_link_libraries(${EXECUTABLE_NAME}

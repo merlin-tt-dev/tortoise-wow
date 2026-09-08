@@ -1,26 +1,22 @@
 diff --git a/dep/include/g3dlite/G3D/platform.h b/dep/include/g3dlite/G3D/platform.h
+index 9c83195..51c283a 100644
 --- a/dep/include/g3dlite/G3D/platform.h
 +++ b/dep/include/g3dlite/G3D/platform.h
-@@ -2,5 +2,6 @@
+@@ -66,6 +66,7 @@ These control the version of Winsock used by G3D.
      #define G3D_WINDOWS
      #undef __MSVCRT_VERSION__
      #define __MSVCRT_VERSION__ 0x0601
 +    #include <winsock2.h>
      #include <windows.h>
  #elif  defined(__FreeBSD__) || defined(__OpenBSD__)
-diff --git a/dep/src/g3dlite/debugAssert.cpp b/dep/src/g3dlite/debugAssert.cpp
---- a/dep/src/g3dlite/debugAssert.cpp
-+++ b/dep/src/g3dlite/debugAssert.cpp
-@@ -1,4 +1,4 @@
-         // Make sure the message got translated into something.
--        LPTSTR realLastErr;
-+        LPCTSTR realLastErr;
-         if (NULL != formatMsg) {
-             realLastErr = formatMsg;
+     #define G3D_FREEBSD
 diff --git a/dep/src/g3dlite/FileSystem.cpp b/dep/src/g3dlite/FileSystem.cpp
+index 06e6ff0..dac1dbf 100644
 --- a/dep/src/g3dlite/FileSystem.cpp
 +++ b/dep/src/g3dlite/FileSystem.cpp
-@@ -1,4 +1,7 @@
+@@ -26,6 +26,9 @@
+     // Needed for _findfirst
+ #   include <io.h>
  #  ifdef __MINGW32__
 +#    ifdef stat64
 +#      undef stat64
@@ -28,3 +24,16 @@ diff --git a/dep/src/g3dlite/FileSystem.cpp b/dep/src/g3dlite/FileSystem.cpp
  #    define stat64 stat
  #  else
  #    define stat64 _stat64
+diff --git a/dep/src/g3dlite/debugAssert.cpp b/dep/src/g3dlite/debugAssert.cpp
+index cfccf9a..3c3e43a 100644
+--- a/dep/src/g3dlite/debugAssert.cpp
++++ b/dep/src/g3dlite/debugAssert.cpp
+@@ -99,7 +99,7 @@ static void createErrorMessage(
+         }
+ 
+         // Make sure the message got translated into something.
+-        LPTSTR realLastErr;
++        LPCTSTR realLastErr;
+         if (NULL != formatMsg) {
+             realLastErr = formatMsg;
+         } else {
