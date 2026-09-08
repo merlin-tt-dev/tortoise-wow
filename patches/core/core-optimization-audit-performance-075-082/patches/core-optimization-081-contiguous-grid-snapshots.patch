@@ -1,0 +1,145 @@
+diff --git a/src/game/Objects/GameObject.cpp b/src/game/Objects/GameObject.cpp
+index 20ff2de..5fa3402 100644
+--- a/src/game/Objects/GameObject.cpp
++++ b/src/game/Objects/GameObject.cpp
+@@ -53,6 +53,8 @@
+ #include "SuspiciousStatisticMgr.h"
+ #include "PerfStats.h"
+ 
++#include <vector>
++
+ bool QuaternionData::isUnit() const
+ {
+     return fabs(x * x + y * y + z * z + w * w - 1.0f) < 1e-5f;
+@@ -1517,9 +1519,9 @@ void GameObject::Use(Unit* user)
+ 
+             if (GetFactionTemplateId() && !GetGOInfo()->chest.minSuccessOpens && !GetGOInfo()->chest.maxSuccessOpens)
+             {
+-                std::list<Unit*> targets;
++                std::vector<Unit*> targets;
+                 MaNGOS::AnyFriendlyUnitInObjectRangeCheck check(this, 10.0f);
+-                MaNGOS::UnitListSearcher<MaNGOS::AnyFriendlyUnitInObjectRangeCheck> searcher(targets, check);
++                MaNGOS::UnitListSearcher<MaNGOS::AnyFriendlyUnitInObjectRangeCheck, std::vector<Unit*>> searcher(targets, check);
+                 Cell::VisitAllObjects(this, searcher, 10.0f);
+                 for (Unit* attacker : targets)
+                 {
+diff --git a/src/game/Objects/Player.cpp b/src/game/Objects/Player.cpp
+index 6db1264..3b8cdd9 100644
+--- a/src/game/Objects/Player.cpp
++++ b/src/game/Objects/Player.cpp
+@@ -20,6 +20,7 @@
+  */
+ 
+ #include <unordered_map>
++#include <vector>
+ #include <cmath>
+ #include <iostream>
+ #include <ctime>
+@@ -24312,10 +24313,10 @@ void Player::HandleStealthedUnitsDetection()
+     if (!FindMap())
+         return;
+ 
+-    std::list<Unit*> stealthedUnits;
++    std::vector<Unit*> stealthedUnits;
+ 
+     MaNGOS::AnyStealthedCheck u_check(this);
+-    MaNGOS::UnitListSearcher<MaNGOS::AnyStealthedCheck > searcher(stealthedUnits, u_check);
++    MaNGOS::UnitListSearcher<MaNGOS::AnyStealthedCheck, std::vector<Unit*>> searcher(stealthedUnits, u_check);
+     Cell::VisitAllObjects(this, searcher, sWorld.getConfig(CONFIG_FLOAT_MAX_PLAYERS_STEALTH_DETECT_RANGE));
+ 
+     WorldObject const* viewPoint = GetCamera().GetBody();
+diff --git a/src/game/Objects/Unit.cpp b/src/game/Objects/Unit.cpp
+index 717413c..d0df751 100644
+--- a/src/game/Objects/Unit.cpp
++++ b/src/game/Objects/Unit.cpp
+@@ -10933,8 +10933,10 @@ void Unit::CombatStopInRange(float dist)
+ 
+ uint32 Unit::DespawnNearCreaturesByEntry(uint32 entry, float range)
+ {
+-    std::list<Creature*> creatures;
+-    GetCreatureListWithEntryInGrid(creatures, entry, range);
++    std::vector<Creature*> creatures;
++    MaNGOS::AllCreaturesOfEntryInRange check(this, entry, range);
++    MaNGOS::CreatureListSearcher<MaNGOS::AllCreaturesOfEntryInRange, std::vector<Creature*>> searcher(creatures, check);
++    Cell::VisitGridObjects(this, searcher, range);
+     uint32 count = 0;
+     for (const auto& it : creatures)
+     {
+@@ -10954,13 +10956,15 @@ uint32 Unit::RespawnNearCreaturesByEntry(uint32 entry, float range)
+         range = GetMap()->GetVisibilityDistance();
+ 
+     uint32 count = 0;
+-    std::list<Creature*> lList;
+-    GetCreatureListWithEntryInGrid(lList, entry, range);
+-    for (const auto& it : lList)
++    std::vector<Creature*> creatures;
++    MaNGOS::AllCreaturesOfEntryInRange check(this, entry, range);
++    MaNGOS::CreatureListSearcher<MaNGOS::AllCreaturesOfEntryInRange, std::vector<Creature*>> searcher(creatures, check);
++    Cell::VisitGridObjects(this, searcher, range);
++    for (Creature* creature : creatures)
+     {
+-        if (!it->IsAlive())
++        if (!creature->IsAlive())
+         {
+-            it->Respawn();
++            creature->Respawn();
+             ++count;
+         }
+     }
+diff --git a/src/game/Spells/Spell.cpp b/src/game/Spells/Spell.cpp
+index 3ff8c9f..66bc800 100644
+--- a/src/game/Spells/Spell.cpp
++++ b/src/game/Spells/Spell.cpp
+@@ -53,6 +53,8 @@
+ #include "CharacterDatabaseCache.h"
+ #include "GameObjectAI.h"
+ #include "ZoneScript.h"
++
++#include <vector>
+ #include "Unit.h"
+ #include "MountManager.hpp"
+ #include "CompanionManager.hpp"
+@@ -2612,7 +2614,7 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList&
+ 
+             SpellScriptTargetBounds bounds = sSpellMgr.GetSpellScriptTargetBounds(m_spellInfo->Id);
+ 
+-            std::list<GameObject*> tempTargetGOList;
++            std::vector<GameObject*> tempTargetGOList;
+ 
+             for (SpellScriptTarget::const_iterator i_spellST = bounds.first; i_spellST != bounds.second; ++i_spellST)
+             {
+@@ -2623,7 +2625,7 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList&
+                 {
+                     // search all GO's with entry, within range of m_destN
+                     MaNGOS::GameObjectEntryInPosRangeCheck go_check(*m_caster, i_spellST->second.targetEntry, x, y, z, radius);
+-                    MaNGOS::GameObjectListSearcher<MaNGOS::GameObjectEntryInPosRangeCheck> checker(tempTargetGOList, go_check);
++                    MaNGOS::GameObjectListSearcher<MaNGOS::GameObjectEntryInPosRangeCheck, std::vector<GameObject*>> checker(tempTargetGOList, go_check);
+                     Cell::VisitGridObjects(m_caster, checker, radius);
+                 }
+             }
+diff --git a/src/game/Threat/ThreatManager.cpp b/src/game/Threat/ThreatManager.cpp
+index b3a1ed7..cb3ae17 100644
+--- a/src/game/Threat/ThreatManager.cpp
++++ b/src/game/Threat/ThreatManager.cpp
+@@ -32,6 +32,8 @@
+ #include "Chat.h"
+ #include "GridSearchers.h"
+ 
++#include <vector>
++
+ //==============================================================
+ //================= ThreatCalcHelper ===========================
+ //==============================================================
+@@ -546,8 +548,10 @@ void ThreatManager::UnitDetailedThreatSituation(Creature* creature, Player* requ
+         std::vector<std::string> pSecondMessage;   // players that are 2nd on threat
+         pSecondMessage.reserve(5);
+ 
+-		std::list<Creature*> hCreatureNear;
+-		GetHostileCreaturesListInRange(hCreatureNear, requester, 5.0f);
++        std::vector<Creature*> hCreatureNear;
++        MaNGOS::AllHostileCreaturesInRange hostileCheck(requester, 5.0f);
++        MaNGOS::CreatureListSearcher<MaNGOS::AllHostileCreaturesInRange, std::vector<Creature*>> hostileSearcher(hCreatureNear, hostileCheck);
++        Cell::VisitGridObjects(requester, hostileSearcher, 5.0f);
+ 
+ 		int creatureIndex = 0;
+ 

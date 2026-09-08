@@ -1,0 +1,27 @@
+Validation status: PASS (apply/whitespace/sequential reconstruction)
+
+Source of truth:
+  /mnt/data/tortoise-wow.tar.xz
+
+Fresh reconstruction performed:
+  archive source baseline (through applied 041)
+  -> archived patches 042-062
+  -> existing patches 063-074
+  -> this bundle 075-082
+
+Result:
+  SEQUENTIAL 042-082 PASS
+
+Per patch checks:
+  git -c core.whitespace=trailing-space,space-before-tab,tab-in-indent apply --check --whitespace=error-all PATCH
+  git -c core.whitespace=trailing-space,space-before-tab,tab-in-indent apply --numstat --whitespace=error-all PATCH
+  git apply PATCH
+  git diff --check
+
+Final checks:
+  PASS - git diff --check
+  PASS - no src conflict markers beginning '<<<<<<< ' or '>>>>>>> '
+  PASS - no newly-added leading-tab indentation in src
+
+Build status:
+  NOT CLAIMED by this validation. Full Linux/MinGW/MSVC builds are separate gates.

@@ -1,0 +1,9 @@
+# Apply on top of dev-clean with core-optimization-074 already applied.
+patches/core-optimization-audit-075-deferred-associative-construction.patch
+patches/core-optimization-audit-076-threat-report-semantic-compile-fixes.patch
+patches/core-optimization-audit-077-bytebuffer-deserialize-safe-growth.patch
+patches/core-optimization-audit-078-motionmaster-empty-reserve-semantics.patch
+patches/core-optimization-audit-079-account-warning-substr-semantics.patch
+patches/core-optimization-audit-080-guild-petition-signature-snapshot.patch
+patches/core-optimization-081-contiguous-grid-snapshots.patch
+patches/core-optimization-082-channel-broadcaster-event-wakeup.patch

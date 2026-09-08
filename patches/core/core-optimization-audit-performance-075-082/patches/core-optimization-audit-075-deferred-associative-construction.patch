@@ -1,0 +1,37 @@
+diff --git a/src/game/Maps/GridMap.cpp b/src/game/Maps/GridMap.cpp
+index 920b939..5b323bf 100644
+--- a/src/game/Maps/GridMap.cpp
++++ b/src/game/Maps/GridMap.cpp
+@@ -1243,9 +1243,12 @@ TerrainInfo* TerrainManager::LoadTerrain(const uint32 mapId)
+ {
+     Guard _guard(*this);
+ 
+-    auto const [iter, inserted] = i_TerrainMap.try_emplace(mapId);
+-    if (inserted)
+-        iter->second = std::make_unique<TerrainInfo>(mapId);
++    auto iter = i_TerrainMap.find(mapId);
++    if (iter == i_TerrainMap.end())
++    {
++        auto terrain = std::make_unique<TerrainInfo>(mapId);
++        iter = i_TerrainMap.emplace(mapId, std::move(terrain)).first;
++    }
+ 
+     return iter->second.get();
+ }
+diff --git a/src/game/Weather.cpp b/src/game/Weather.cpp
+index 7fcb71a..0793073 100644
+--- a/src/game/Weather.cpp
++++ b/src/game/Weather.cpp
+@@ -357,7 +357,11 @@ WeatherSystem::~WeatherSystem() = default;
+ /// Find or Create a Weather object by the given zoneid
+ Weather* WeatherSystem::FindOrCreateWeather(uint32 zoneId)
+ {
+-    auto const [itr, inserted] = m_weathers.try_emplace(zoneId, zoneId, sWeatherMgr.GetWeatherChances(zoneId));
++    auto itr = m_weathers.find(zoneId);
++    if (itr != m_weathers.end())
++        return &itr->second;
++
++    itr = m_weathers.try_emplace(zoneId, zoneId, sWeatherMgr.GetWeatherChances(zoneId)).first;
+     return &itr->second;
+ }
+ 

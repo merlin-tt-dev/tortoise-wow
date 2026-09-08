@@ -1,0 +1,13 @@
+30a884b1b1e9ee9e5babbb21b972fe0e257b7cc9894faee760f104e3db48182d  ./APPLY-ORDER.txt
+4ddd6604e345731eafd20b22d1a1af076d788656c2d7e7f5e5136af9ebdc6538  ./AUDIT-TEST.sh
+6ffc283a30ae21643eeac19c827ae70d7e64c0d435d67747e672d4c81bfcf1c7  ./README.md
+0ac61c31a23a2af8ddc1af6405ec2291828ca0d5995196b09e1fc336e23c6d66  ./SEMANTIC-AUDIT.md
+fe85c2690c528c6ad0340abbf20dc0a1bacce642ddfcbfd91ecccad67c6cb111  ./VALIDATION.txt
+05a4e04f7b0ccd8df317b45c2b1d0c7c56d8c66bfeab6547fb019fe2de49dbab  ./patches/core-optimization-081-contiguous-grid-snapshots.patch
+fc67dcd4c9e59eec5af84f7d22d4a39428192c3ccbda36c2034365f5c34d557e  ./patches/core-optimization-082-channel-broadcaster-event-wakeup.patch
+7ff1a80cb98b902afb170924d1ff9e1a8b1f7030c77b1ef426e3f24ad23dfdac  ./patches/core-optimization-audit-075-deferred-associative-construction.patch
+a6601c469daa0fb80a576cfaf0ad28eed314fc34b69f75fc214cb8d2118cd6c2  ./patches/core-optimization-audit-076-threat-report-semantic-compile-fixes.patch
+fde2fee428c8218923e625ff54d4f2783275c423ffe00ee434bcb0b6c4c88b2a  ./patches/core-optimization-audit-077-bytebuffer-deserialize-safe-growth.patch
+8c6b113d498ea2cb593b4c703f92f7894337a22f3877e2d3e1f944bc105956c4  ./patches/core-optimization-audit-078-motionmaster-empty-reserve-semantics.patch
+dcc2d0945722579e20e6faa452386b6fc25684c2c95cad7049ec7e27a009cb93  ./patches/core-optimization-audit-079-account-warning-substr-semantics.patch
+700b22ce6863e48af44910cb5764a281108ff3ae233b7c00a1f98cb5f7a0e70c  ./patches/core-optimization-audit-080-guild-petition-signature-snapshot.patch
