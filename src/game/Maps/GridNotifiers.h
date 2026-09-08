@@ -304,13 +304,13 @@ namespace MaNGOS
         template<class NOT_INTERESTED> void Visit(GridRefManager<NOT_INTERESTED> &) {}
     };
 
-    template<class Check>
+    template<class Check, class Container = std::list<GameObject*>>
         struct GameObjectListSearcher
     {
-        std::list<GameObject*> &i_objects;
+        Container& i_objects;
         Check& i_check;
 
-        GameObjectListSearcher(std::list<GameObject*> &objects, Check & check) : i_objects(objects),i_check(check) {}
+        GameObjectListSearcher(Container& objects, Check& check) : i_objects(objects), i_check(check) {}
 
         void Visit(GameObjectMapType &m);
 
@@ -429,13 +429,13 @@ namespace MaNGOS
         template<class NOT_INTERESTED> void Visit(GridRefManager<NOT_INTERESTED> &) {}
     };
 
-    template<class Check>
+    template<class Check, class Container = std::list<Creature*>>
         struct CreatureListSearcher
     {
-        std::list<Creature*> &i_objects;
+        Container& i_objects;
         Check& i_check;
 
-        CreatureListSearcher(std::list<Creature*> &objects, Check & check) : i_objects(objects),i_check(check) {}
+        CreatureListSearcher(Container& objects, Check& check) : i_objects(objects), i_check(check) {}
 
         void Visit(CreatureMapType &m);
 
@@ -486,14 +486,14 @@ namespace MaNGOS
         template<class NOT_INTERESTED> void Visit(GridRefManager<NOT_INTERESTED> &) {}
     };
 
-    template<class Check>
+    template<class Check, class Container = std::list<Player*>>
     struct PlayerListSearcher
     {
-        std::list<Player*> &i_objects;
+        Container& i_objects;
         Check& i_check;
 
-        PlayerListSearcher(std::list<Player*> &objects, Check & check)
-            : i_objects(objects),i_check(check) {}
+        PlayerListSearcher(Container& objects, Check& check)
+            : i_objects(objects), i_check(check) {}
 
         void Visit(PlayerMapType &m);
 

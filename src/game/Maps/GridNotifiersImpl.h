@@ -416,8 +416,8 @@ void MaNGOS::GameObjectLastSearcher<Check>::Visit(GameObjectMapType& m)
     }
 }
 
-template<class Check>
-void MaNGOS::GameObjectListSearcher<Check>::Visit(GameObjectMapType& m)
+template<class Check, class Container>
+void MaNGOS::GameObjectListSearcher<Check, Container>::Visit(GameObjectMapType& m)
 {
     for (auto & itr : m)
         if (i_check(itr.getSource()))
@@ -535,8 +535,8 @@ void MaNGOS::CreatureLastSearcher<Check>::Visit(CreatureMapType& m)
     }
 }
 
-template<class Check>
-void MaNGOS::CreatureListSearcher<Check>::Visit(CreatureMapType &m)
+template<class Check, class Container>
+void MaNGOS::CreatureListSearcher<Check, Container>::Visit(CreatureMapType &m)
 {
     for(auto & itr : m)
         if (i_check(itr.getSource()))
@@ -570,8 +570,8 @@ void MaNGOS::PlayerLastSearcher<Check>::Visit(PlayerMapType &m)
     }
 }
 
-template<class Check>
-void MaNGOS::PlayerListSearcher<Check>::Visit(PlayerMapType &m)
+template<class Check, class Container>
+void MaNGOS::PlayerListSearcher<Check, Container>::Visit(PlayerMapType &m)
 {
     for(auto & itr : m)
         if (i_check(itr.getSource()))
