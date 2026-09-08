@@ -1,4 +1,3 @@
-#include <thread>
 #include <chrono>
 #include "ChannelBroadcaster.h"
 #include "ChannelMgr.h"
@@ -29,6 +28,13 @@ void ChannelBroadcaster::Stop()
 	{
 		return;
 	}
+
+    {
+        std::lock_guard<std::mutex> lock(StateMutex);
+        bStopRequested = true;
+        bShouldSentMessages = false;
+    }
+    StateChanged.notify_all();
 	
 	if (Worker->joinable())
 	{
@@ -41,53 +47,87 @@ void ChannelBroadcaster::Stop()
 
 void ChannelBroadcaster::EnableSendingMessages()
 {
-	bShouldSentMessages.store(true);
-	while (!bIsWorking.load() && !sWorld.IsStopped())
+    std::unique_lock<std::mutex> lock(StateMutex);
+    bShouldSentMessages = true;
+    StateChanged.notify_all();
+    StateChanged.wait(lock, [this]()
 	{
-		std::this_thread::sleep_for(std::chrono::milliseconds(0));
-	}
+        return bIsWorking || bStopRequested || sWorld.IsStopped();
+    });
 }
 
 void ChannelBroadcaster::DisableSendingMessages()
 {
-	bShouldSentMessages.store(false);
-	while (bIsWorking.load())
+    std::unique_lock<std::mutex> lock(StateMutex);
+    bShouldSentMessages = false;
+    StateChanged.notify_all();
+    StateChanged.wait(lock, [this]()
 	{
-		std::this_thread::sleep_for(std::chrono::milliseconds(0));
-	}
+        return !bIsWorking;
+    });
 }
 
 void ChannelBroadcaster::EnqueueMessage(std::string&& Message, const std::string& ChannelName, ObjectGuid PlayerGuid, uint32 Language, Team ChannelTeam, bool bSkipChecks)
 {
 	MessageQueue.enqueue(ChannelMessage{std::move(Message), ChannelName, PlayerGuid, Language, ChannelTeam, bSkipChecks });
+    StateChanged.notify_one();
 }
 
 void ChannelBroadcaster::ThreadProc()
 {
-	while (!sWorld.IsStopped())
+    for (;;)
 	{
-		while (bShouldSentMessages.load() && !sWorld.IsStopped())
 		{
-			bIsWorking.store(true);
+            std::unique_lock<std::mutex> lock(StateMutex);
+            StateChanged.wait(lock, [this]()
+            {
+                return bShouldSentMessages || bStopRequested || sWorld.IsStopped();
+            });
 
+            if (bStopRequested || sWorld.IsStopped())
+                break;
+
+            bIsWorking = true;
+            StateChanged.notify_all();
+        }
+
+        for (;;)
+        {
+            {
+                std::lock_guard<std::mutex> lock(StateMutex);
+                if (!bShouldSentMessages || bStopRequested || sWorld.IsStopped())
+                    break;
+            }
 
 			constexpr int32 MessageLimit = 5;
 			int32 MessageIterator = 0;
 
-
 			ChannelMessage msg;
-			while (MessageIterator < 5 && MessageQueue.try_dequeue(msg))
+            while (MessageIterator < MessageLimit && MessageQueue.try_dequeue(msg))
 			{
-				ChannelMessage& ChanMsg = msg;
+                ChannelMgr* ChannelManager = channelMgr(msg.ChannelTeam);
+                Channel* TargetChannel = ChannelManager->GetOrCreateChannel(msg.ChannelName);
+                TargetChannel->Say(msg.PlayerGuid, msg.Message.c_str(), msg.Language, msg.bSkipChecks);
+                ++MessageIterator;
+            }
 
-				ChannelMgr* ChannelManager = channelMgr(ChanMsg.ChannelTeam);
-				Channel* TargetChannel = ChannelManager->GetOrCreateChannel(ChanMsg.ChannelName);
-				TargetChannel->Say(ChanMsg.PlayerGuid, ChanMsg.Message.c_str(), ChanMsg.Language, ChanMsg.bSkipChecks);
-				MessageIterator++;
+            if (MessageIterator == 0)
+            {
+                std::unique_lock<std::mutex> lock(StateMutex);
+                StateChanged.wait_for(lock, std::chrono::milliseconds(1));
 			}
 		}
-		bIsWorking.store(false);
 
-		std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        {
+            std::lock_guard<std::mutex> lock(StateMutex);
+            bIsWorking = false;
+        }
+        StateChanged.notify_all();
+    }
+
+    {
+        std::lock_guard<std::mutex> lock(StateMutex);
+        bIsWorking = false;
 	}
+    StateChanged.notify_all();
 }

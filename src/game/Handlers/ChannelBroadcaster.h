@@ -3,7 +3,9 @@
 #include "SharedDefines.h"
 #include "ObjectGuid.h"
 #include "Utilities/readerwriterqueue.h"
-#include <atomic>
+#include <condition_variable>
+#include <mutex>
+#include <thread>
 
 
 struct ChannelMessage
@@ -42,6 +44,9 @@ protected:
 	
 	char CacheLineDelimiter[4096];
 
-	std::atomic_bool bShouldSentMessages = false;
-	std::atomic_bool bIsWorking = false;
+    std::mutex StateMutex;
+    std::condition_variable StateChanged;
+    bool bShouldSentMessages = false;
+    bool bIsWorking = false;
+    bool bStopRequested = false;
 };
