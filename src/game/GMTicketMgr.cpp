@@ -286,15 +286,16 @@ void GmTicket::TeleportTo(Player* player) const
     player->TeleportTo(_mapId, _posX, _posY, _posZ, 0.0f, 0);
 }
 
-void GmTicket::SetChatLog(std::list<uint32> time, std::string const& log)
+void GmTicket::SetChatLog(std::list<uint32> const& time, std::string const& log)
 {
     std::stringstream ss(log);
     std::stringstream newss;
     std::string line;
-    while (std::getline(ss, line) && !time.empty())
+    auto timeItr = time.begin();
+    while (std::getline(ss, line) && timeItr != time.end())
     {
-        newss << secsToTimeString(time.front()) << ": " << line << "\n";
-        time.pop_front();
+        newss << secsToTimeString(*timeItr) << ": " << line << "\n";
+        ++timeItr;
     }
 
     _chatLog = newss.str();

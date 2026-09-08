@@ -150,7 +150,7 @@ public:
     std::string FormatMessageString(ChatHandler& handler, const char* szClosedName, const char* szAssignedToName, const char* szUnassignedName, const char* szDeletedName, const char* szCompletedName) const;
     const char* GetTicketCategoryName(TicketType category) const;
 
-    void SetChatLog(std::list<uint32> time, std::string const& log);
+    void SetChatLog(std::list<uint32> const& time, std::string const& log);
     std::string const& GetChatLog() const { return _chatLog; }
 
     TicketType GetTicketType() const { return _ticketType; }
