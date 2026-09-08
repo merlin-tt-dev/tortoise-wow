@@ -197,7 +197,7 @@ class Log : public MaNGOS::Singleton<Log, MaNGOS::ClassLevelLockable<Log, std::m
         void InitSmartlogEntries(std::string const& str);
         void InitSmartlogGuids(std::string const& str);
 
-        void LogDiscord(LogFile type, std::string log);
+        void LogDiscord(LogFile type, std::string const& log);
 
         template<typename... Args>
         void out(LogFile type, const char* str, Args... args)

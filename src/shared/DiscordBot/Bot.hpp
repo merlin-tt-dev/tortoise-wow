@@ -38,7 +38,7 @@ namespace DiscordBot
         Bot(Bot&&) = delete;
 
         void Setup(std::string token);
-        void SendMessageToChannel(uint64_t channelId, std::string message, MessagePriority priority = MessagePriority::Drop);
+        void SendMessageToChannel(uint64_t channelId, std::string const& message, MessagePriority priority = MessagePriority::Drop);
         void Stop();
 
         void WorkerThread();

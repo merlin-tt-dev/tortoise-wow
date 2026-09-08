@@ -33,7 +33,7 @@ namespace DiscordBot
         return _core.get();
     }
 
-    void Bot::SendMessageToChannel(uint64_t channelId, std::string message, MessagePriority priority)
+    void Bot::SendMessageToChannel(uint64_t channelId, std::string const& message, MessagePriority priority)
     {
         if (!_core || !_running)
             return;

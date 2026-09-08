@@ -132,7 +132,7 @@ void Log::InitSmartlogGuids(const std::string& str)
     }
 }
 
-void Log::LogDiscord(LogFile type, std::string log)
+void Log::LogDiscord(LogFile type, std::string const& log)
 {
 #ifdef USING_DISCORD_BOT
     static const std::unordered_map<LogFile, uint64_t> ChannelLookup =
@@ -140,10 +140,11 @@ void Log::LogDiscord(LogFile type, std::string log)
        // {LOG_MONEY_TRADES, 1078715732013105252}
     };
 
-    if (ChannelLookup.find(type) == ChannelLookup.end())
+    auto channelItr = ChannelLookup.find(type);
+    if (channelItr == ChannelLookup.end())
         return;
 
-    sDiscordBot->SendMessageToChannel(ChannelLookup.find(type)->second, std::move(log));
+    sDiscordBot->SendMessageToChannel(channelItr->second, log);
 #endif
 }
 
