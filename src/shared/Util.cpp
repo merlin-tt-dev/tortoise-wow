@@ -792,6 +792,7 @@ void InternalThreadName(const char* name)
 
 		pThreadCall(GetCurrentThread(), wc);
 	}
+#ifdef _MSC_VER
 	else
 	{
 		THREAD_NAME tn;
@@ -807,6 +808,7 @@ void InternalThreadName(const char* name)
 		{
 		}
 	}
+#endif
 }
 
 #else
