@@ -195,10 +195,11 @@ void LFTManager::HandleNewGroup(Player* player, std::vector<std::string> const& 
         listing.category = 4;
     listing.limit = ParseRoleCounts(fields[4]);
 
-    m_listings[listing.id] = listing;
-    SaveListingToDB(m_listings[listing.id]);
+    uint32 const listingId = listing.id;
+    ListingsMap::iterator listingItr = m_listings.insert_or_assign(listingId, std::move(listing)).first;
+    SaveListingToDB(listingItr->second);
     BroadcastGroupsList();
-    SendGroupDetails(player, m_listings[listing.id]);
+    SendGroupDetails(player, m_listings[listingId]);
 }
 
 void LFTManager::HandleUpdateGroup(Player* player, std::vector<std::string> const& fields)
@@ -402,8 +403,9 @@ void LFTManager::LoadListingsFromDB()
         listing.signups[2] = DeserializeSignups(fields[18].GetCppString());
         RecountListing(listing);
 
-        m_nextListingId = std::max(m_nextListingId, listing.id + 1);
-        m_listings[listing.id] = listing;
+        uint32 const listingId = listing.id;
+        m_nextListingId = std::max(m_nextListingId, listingId + 1);
+        m_listings.insert_or_assign(listingId, std::move(listing));
     } while (result->NextRow());
 }
 
