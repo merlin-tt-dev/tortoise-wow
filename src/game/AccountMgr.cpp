@@ -445,7 +445,7 @@ void AccountMgr::LoadAccountWarnings(bool silent)
     {
         Field* fields = banresult->Fetch();
         std::string warning = fields[1].GetCppString();
-        warning.erase(0, 5);
+        warning = warning.substr(5);
         m_accountData[fields[0].GetUInt32()].LastWarning = std::move(warning);
     } while (banresult->NextRow());
 }
