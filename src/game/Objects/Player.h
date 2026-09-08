@@ -50,6 +50,7 @@
 #include <cstddef>
 #include <any>
 #include <deque>
+#include <utility>
 
 struct Mail;
 class Channel;
@@ -1204,14 +1205,15 @@ class Player final: public Unit
 
         std::optional<std::string> GetPlayerVariable(PlayerVariables variable) const
         {
-            if (m_variables.find(variable) != m_variables.end())
-                return m_variables.find(variable)->second;
+            auto itr = m_variables.find(variable);
+            if (itr != m_variables.end())
+                return itr->second;
             return {};
         }
 
         void SetPlayerVariable(PlayerVariables variable, std::string value)
         {
-            m_variables[variable] = value;
+            m_variables[variable] = std::move(value);
         }
 
 
