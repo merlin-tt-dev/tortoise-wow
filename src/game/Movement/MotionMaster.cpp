@@ -215,7 +215,7 @@ void MotionMaster::DirectClean(bool reset, bool all)
     // because Finalize calls CreatureAI::MovementInform that can call MovePoint / ...
 
     std::vector<MovementGenerator*> mvtGensToFinalize;
-    mvtGensToFinalize.reserve(all ? size() : size() - 1);
+    mvtGensToFinalize.reserve(all ? size() : (size() > 1 ? size() - 1 : 0));
     while (all ? !empty() : size() > 1)
     {
         MovementGenerator *curr = top();
