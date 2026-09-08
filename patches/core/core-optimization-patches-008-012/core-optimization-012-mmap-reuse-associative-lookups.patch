@@ -1,0 +1,146 @@
+diff --git a/src/game/Maps/MoveMap.cpp b/src/game/Maps/MoveMap.cpp
+index b9045f2..1bfecdb 100644
+--- a/src/game/Maps/MoveMap.cpp
++++ b/src/game/Maps/MoveMap.cpp
+@@ -208,25 +208,27 @@ bool MMapManager::loadMap(uint32 mapId, int32 x, int32 y)
+ bool MMapManager::unloadMap(uint32 mapId, int32 x, int32 y)
+ {
+     // check if we have this map loaded
+-    if (loadedMMaps.find(mapId) == loadedMMaps.end())
++    auto const mapIt = loadedMMaps.find(mapId);
++    if (mapIt == loadedMMaps.end())
+     {
+         // file may not exist, therefore not loaded
+         DEBUG_LOG("MMAP:unloadMap: Asked to unload not loaded navmesh map. %03u%02i%02i.mmtile", mapId, x, y);
+         return false;
+     }
+ 
+-    MMapData* mmap = loadedMMaps[mapId];
++    MMapData* mmap = mapIt->second;
+ 
+     // check if we have this tile loaded
+     uint32 packedGridPos = packTileID(x, y);
+-    if (mmap->mmapLoadedTiles.find(packedGridPos) == mmap->mmapLoadedTiles.end())
++    auto const tileIt = mmap->mmapLoadedTiles.find(packedGridPos);
++    if (tileIt == mmap->mmapLoadedTiles.end())
+     {
+         // file may not exist, therefore not loaded
+         DEBUG_LOG("MMAP:unloadMap: Asked to unload not loaded navmesh tile. %03u%02i%02i.mmtile", mapId, x, y);
+         return false;
+     }
+ 
+-    dtTileRef tileRef = mmap->mmapLoadedTiles[packedGridPos];
++    dtTileRef tileRef = tileIt->second;
+ 
+     // unload, and mark as non loaded
+     dtStatus dtResult = mmap->navMesh->removeTile(tileRef, nullptr, nullptr);
+@@ -240,7 +242,7 @@ bool MMapManager::unloadMap(uint32 mapId, int32 x, int32 y)
+     }
+     else
+     {
+-        mmap->mmapLoadedTiles.erase(packedGridPos);
++        mmap->mmapLoadedTiles.erase(tileIt);
+         --loadedTiles;
+         return true;
+     }
+@@ -250,7 +252,8 @@ bool MMapManager::unloadMap(uint32 mapId, int32 x, int32 y)
+ 
+ bool MMapManager::unloadMap(uint32 mapId)
+ {
+-    if (loadedMMaps.find(mapId) == loadedMMaps.end())
++    auto const mapIt = loadedMMaps.find(mapId);
++    if (mapIt == loadedMMaps.end())
+     {
+         // file may not exist, therefore not loaded
+         DEBUG_LOG("MMAP:unloadMap: Asked to unload not loaded navmesh map %03u", mapId);
+@@ -258,7 +261,7 @@ bool MMapManager::unloadMap(uint32 mapId)
+     }
+ 
+     // unload all tiles from given map
+-    MMapData* mmap = loadedMMaps[mapId];
++    MMapData* mmap = mapIt->second;
+     for (MMapTileSet::iterator i = mmap->mmapLoadedTiles.begin(); i != mmap->mmapLoadedTiles.end(); ++i)
+     {
+         uint32 x = (i->first >> 16);
+@@ -271,7 +274,7 @@ bool MMapManager::unloadMap(uint32 mapId)
+     }
+ 
+     delete mmap;
+-    loadedMMaps.erase(mapId);
++    loadedMMaps.erase(mapIt);
+     DETAIL_LOG("MMAP:unloadMap: Unloaded %03i.mmap", mapId);
+ 
+     return true;
+@@ -280,24 +283,26 @@ bool MMapManager::unloadMap(uint32 mapId)
+ bool MMapManager::unloadMapInstance(uint32 mapId, std::thread::id instanceId)
+ {
+     // check if we have this map loaded
+-    if (loadedMMaps.find(mapId) == loadedMMaps.end())
++    auto const mapIt = loadedMMaps.find(mapId);
++    if (mapIt == loadedMMaps.end())
+     {
+         // file may not exist, therefore not loaded
+         DEBUG_LOG("MMAP:unloadMapInstance: Asked to unload not loaded navmesh map %03u", mapId);
+         return false;
+     }
+ 
+-    MMapData* mmap = loadedMMaps[mapId];
+-    if (mmap->navMeshQueries.find(instanceId) == mmap->navMeshQueries.end())
++    MMapData* mmap = mapIt->second;
++    auto const queryIt = mmap->navMeshQueries.find(instanceId);
++    if (queryIt == mmap->navMeshQueries.end())
+     {
+         DEBUG_LOG("MMAP:unloadMapInstance: Asked to unload not loaded dtNavMeshQuery mapId %03u instanceId %u", mapId, instanceId);
+         return false;
+     }
+ 
+-    dtNavMeshQuery* query = mmap->navMeshQueries[instanceId];
++    dtNavMeshQuery* query = queryIt->second;
+ 
+     dtFreeNavMeshQuery(query);
+-    mmap->navMeshQueries.erase(instanceId);
++    mmap->navMeshQueries.erase(queryIt);
+     DETAIL_LOG("MMAP:unloadMapInstance: Unloaded mapId %03u instanceId %u", mapId, instanceId);
+ 
+     return true;
+@@ -305,19 +310,21 @@ bool MMapManager::unloadMapInstance(uint32 mapId, std::thread::id instanceId)
+ 
+ dtNavMesh const* MMapManager::GetNavMesh(uint32 mapId)
+ {
+-    if (loadedMMaps.find(mapId) == loadedMMaps.end())
++    auto const mapIt = loadedMMaps.find(mapId);
++    if (mapIt == loadedMMaps.end())
+         return nullptr;
+ 
+-    return loadedMMaps[mapId]->navMesh;
++    return mapIt->second->navMesh;
+ }
+ 
+ dtNavMeshQuery const* MMapManager::GetNavMeshQuery(uint32 mapId)
+ {
+-    if (loadedMMaps.find(mapId) == loadedMMaps.end())
++    auto const mapIt = loadedMMaps.find(mapId);
++    if (mapIt == loadedMMaps.end())
+         return nullptr;
+ 
+     std::thread::id tid= std::this_thread::get_id();
+-    MMapData* mmap = loadedMMaps[mapId];
++    MMapData* mmap = mapIt->second;
+     std::shared_lock<std::shared_mutex> lock(mmap->navMeshQueries_lock);
+ 
+     NavMeshQuerySet::iterator it = mmap->navMeshQueries.find(tid);
+@@ -417,11 +424,12 @@ bool MMapManager::loadGameObject(uint32 displayId)
+ 
+ dtNavMeshQuery const* MMapManager::GetModelNavMeshQuery(uint32 displayId)
+ {
+-    if (loadedModels.find(displayId) == loadedModels.end())
++    auto const modelIt = loadedModels.find(displayId);
++    if (modelIt == loadedModels.end())
+         return nullptr;
+ 
+     std::thread::id tid = std::this_thread::get_id();
+-    MMapData* mmap = loadedModels[displayId];
++    MMapData* mmap = modelIt->second;
+     if (mmap->navMeshQueries.find(tid) == mmap->navMeshQueries.end())
+     {
+         std::unique_lock<std::mutex> g(lockForModels);

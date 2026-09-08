@@ -1,0 +1,5 @@
+883a93bb3a27b242bd4407eca0913bfeceba84ce0e5339ed96c420c16deb902a  core-optimization-008-antispam-formatting-without-regex.patch
+2d2b44aa068c4a034ec45827a04d645e082a5854db023b7b41f03de9a4ca761c  core-optimization-009-warden-anticheat-filesystem-scan.patch
+b91a7eca07476e11b837e48e68061408cb730a17ba26a540bd461fc939b03c3e  core-optimization-010-warden-md5-evp.patch
+801d349122d0e1c95a6c1c519c7c8212b339113f7b45f39873fd725e9b25361f  core-optimization-011-pdump-filesystem-scans.patch
+8bc6d251722d40d283ffd53b62127e6f5a6f942adf08a292dbadcbe514548644  core-optimization-012-mmap-reuse-associative-lookups.patch

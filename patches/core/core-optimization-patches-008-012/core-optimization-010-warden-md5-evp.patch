@@ -1,0 +1,78 @@
+diff --git a/src/game/Anticheat/WardenAnticheat/WardenMac.cpp b/src/game/Anticheat/WardenAnticheat/WardenMac.cpp
+index 068b255..7a8d270 100644
+--- a/src/game/Anticheat/WardenAnticheat/WardenMac.cpp
++++ b/src/game/Anticheat/WardenAnticheat/WardenMac.cpp
+@@ -21,7 +21,7 @@
+ #include "Log.h"
+ #include "Opcodes.h"
+ #include "ByteBuffer.h"
+-#include <openssl/md5.h>
++#include <openssl/evp.h>
+ #include "World.h"
+ #include "Player.h"
+ #include "Util.h"
+@@ -74,10 +74,10 @@ ClientWardenModule* WardenMac::GetModuleForClient()
+     memcpy(mod->Key, m_selectedModule->moduleKey.data(), 16);
+ 
+     // md5 hash
+-    MD5_CTX ctx;
+-    MD5_Init(&ctx);
+-    MD5_Update(&ctx, mod->CompressedData, len);
+-    MD5_Final((uint8*)&mod->Id, &ctx);
++    unsigned int digestLength = 0;
++    int const digestResult = EVP_Digest(mod->CompressedData, len, mod->Id, &digestLength, EVP_md5(), nullptr);
++    MANGOS_ASSERT(digestResult == 1);
++    MANGOS_ASSERT(digestLength == sizeof(mod->Id));
+ 
+     return mod;
+ }
+@@ -211,11 +211,11 @@ void WardenMac::HandleData(ByteBuffer &buff)
+         found = true;
+     }
+ 
+-    MD5_CTX ctx;
+-    MD5_Init(&ctx);
+-    MD5_Update(&ctx, str.c_str(), str.size());
+     uint8 ourMD5Hash[16];
+-    MD5_Final(ourMD5Hash, &ctx);
++    unsigned int digestLength = 0;
++    int const digestResult = EVP_Digest(str.data(), str.size(), ourMD5Hash, &digestLength, EVP_md5(), nullptr);
++    MANGOS_ASSERT(digestResult == 1);
++    MANGOS_ASSERT(digestLength == sizeof(ourMD5Hash));
+ 
+     uint8 theirsMD5Hash[16];
+     buff.read(theirsMD5Hash, 16);
+diff --git a/src/game/Anticheat/WardenAnticheat/WardenMgr.cpp b/src/game/Anticheat/WardenAnticheat/WardenMgr.cpp
+index caae53a..11315a5 100644
+--- a/src/game/Anticheat/WardenAnticheat/WardenMgr.cpp
++++ b/src/game/Anticheat/WardenAnticheat/WardenMgr.cpp
+@@ -25,7 +25,7 @@
+ #include "Warden.h"
+ #include <filesystem>
+ #include <mutex>
+-#include <openssl/md5.h>
++#include <openssl/evp.h>
+ #include "Anticheat.h"
+ 
+ WardenMgr::WardenMgr() : CheckStore(), CheckResultStore() { }
+@@ -197,11 +197,15 @@ void WardenMgr::LoadWardenModule(std::string module_name)
+         fread(module.binaryData.data(), len, 1, pBinFile);
+ 
+         // Calculate MD5 hash.
+-        MD5_CTX ctx;
+-        MD5_Init(&ctx);
+-        MD5_Update(&ctx, module.binaryData.data(), len);
+-        module.binaryHash.resize(MD5_DIGEST_LENGTH);
+-        MD5_Final(&module.binaryHash[0], &ctx);
++        int const hashSize = EVP_MD_size(EVP_md5());
++        MANGOS_ASSERT(hashSize > 0);
++        module.binaryHash.resize(static_cast<size_t>(hashSize));
++
++        unsigned int digestLength = 0;
++        int const digestResult = EVP_Digest(module.binaryData.data(), len, module.binaryHash.data(),
++                                            &digestLength, EVP_md5(), nullptr);
++        MANGOS_ASSERT(digestResult == 1);
++        MANGOS_ASSERT(digestLength == module.binaryHash.size());
+ 
+         fclose(pBinFile);
+     }
