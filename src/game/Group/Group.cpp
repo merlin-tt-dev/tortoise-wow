@@ -325,7 +325,7 @@ bool Group::IsCrossfaction() const
 
 bool Group::UpdateCrossfaction()
 {
-    const auto hordeCount = std::count_if(m_memberSlots.begin(), m_memberSlots.end(), [this](auto member) {
+    const auto hordeCount = std::count_if(m_memberSlots.begin(), m_memberSlots.end(), [this](auto const& member) {
         Player* player = sObjectAccessor.FindPlayerNotInWorld(member.guid);
         auto playerCacheData = sObjectMgr.GetPlayerDataByGUID(member.guid.GetCounter());
 

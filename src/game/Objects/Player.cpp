@@ -25690,7 +25690,7 @@ void Player::SendAddonMessage(std::string const& prefix, std::string const& mess
 
 uint32 Player::GetTotalQuestCount()
 {
-    return std::count_if(mQuestStatus.begin(), mQuestStatus.end(), [](decltype(mQuestStatus)::value_type value) -> bool {
+    return std::count_if(mQuestStatus.begin(), mQuestStatus.end(), [](decltype(mQuestStatus)::value_type const& value) -> bool {
         return value.second.uState != QUEST_DELETED && value.second.m_rewarded;
     });
 }
