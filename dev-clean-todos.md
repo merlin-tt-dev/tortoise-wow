@@ -1,6 +1,6 @@
 # dev-clean TODOs
 
-Stand: 2026-09-07
+Stand: 2026-09-08
 
 Zweck dieser Datei: laufende Fehler-, Audit- und Aufräumliste für `dev-clean`.
 
@@ -60,7 +60,7 @@ TODO:
 - Plausibilitäts-/Größenlimit für `numChars`.
 - Thread-Safety beim Lesen laufender Logdateien sicherstellen.
 
-### 3. `dev-clean` Full-Build-Audit vollständig grün bekommen
+### 3. `dev-clean` Full-Build-Audit plattformübergreifend grün halten
 
 Audit-Skript:
 
@@ -74,6 +74,15 @@ Erwartete Baseline:
 - Scripts ON
 - Extractors OFF
 - Discord/DPP ON
+
+Aktueller Build-Stand:
+
+- [x] Linux native: Full Build grün.
+- [x] Windows x64 / MinGW: Compile + Link vollständig grün; `realmd.exe` und
+      `mangosd.exe` werden erfolgreich erzeugt.
+- [x] Windows x64 / MinGW damit grundsätzlich als funktionsfähiger Buildpfad verifiziert.
+- [ ] Verbleibende externe ACE-Warnungen separat behandeln; kein Build-Blocker.
+- [ ] Windows x64 / MSVC mit echtem `cl.exe` separat verifizieren.
 
 Vorgehen bei jedem Fehlschlag:
 
@@ -91,8 +100,9 @@ Vorgehen bei jedem Fehlschlag:
 8. committen
 9. Audit von vorn starten
 
-Erst wenn der Full-Build komplett grün ist, gilt der Commit als belastbare
-`dev-clean`-Baseline.
+Linux native und Windows x64 / MinGW bilden damit bereits belastbare Build-Baselines.
+Der noch offene MSVC-x64-Audit ist ein zusätzlicher Compiler-/ABI-Gate und kein Hinweis
+darauf, dass der Windows-Build grundsätzlich defekt ist.
 
 ---
 
@@ -184,6 +194,25 @@ TODO, optional vor endgültigem Baseline-Freeze:
 
 Kein funktionaler Build-Blocker.
 
+### 9. GitHub Actions: echter MSVC-x64-Build
+
+Ziel:
+
+- `dev-clean` zusätzlich auf einem nativen Windows-x64-Runner mit echtem MSVC prüfen.
+- Kein Wine/MinGW/clang-cl als Ersatz für diesen finalen Compiler-Gate.
+
+TODO:
+
+- GitHub-Actions-Workflow für `windows-2022` oder einen gleichwertigen x64-Windows-Runner anlegen.
+- Visual Studio 2022 / MSVC x64 explizit verwenden.
+- ACE x64 reproduzierbar bereitstellen oder im Workflow bauen und cachen.
+- vorhandene Windows-Abhängigkeiten (OpenSSL, MySQL, zlib usw.) gegen MSVC x64 verifizieren.
+- Configure + vollständigen Release/Debug-Build durchführen.
+- `realmd.exe` und `mangosd.exe` als erfolgreiche Link-Ziele prüfen.
+- Workflow erst als required Baseline-Gate betrachten, wenn er reproduzierbar grün ist.
+
+Kein aktueller Build-Blocker: Windows x64 / MinGW ist bereits vollständig linkfähig.
+
 ---
 
 ## Bereits erledigt / verifiziert
@@ -215,10 +244,12 @@ Kein funktionaler Build-Blocker.
 
 ### Gate A – `dev-clean`
 
-- [ ] `core-full-build-audit.sh` komplett grün
-- [ ] `git status` danach leer
+- [x] Linux native Full-Build-Audit grün
+- [x] Windows x64 / MinGW Full-Build-Audit grün (Compile + Link)
+- [ ] Windows x64 / MSVC via GitHub Actions grün
+- [ ] `git status` nach finalen Audits leer
 - [ ] `git diff --check` leer
-- [ ] finalen grünen Commit als Baseline festhalten
+- [ ] finalen plattformübergreifend grünen Commit als Baseline festhalten
 
 ### Gate B – einzelne Modulbranches
 
