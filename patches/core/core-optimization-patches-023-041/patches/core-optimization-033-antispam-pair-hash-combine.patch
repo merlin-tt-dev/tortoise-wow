@@ -1,0 +1,17 @@
+diff --git a/src/game/Anticheat/Antispam/Antispam.h b/src/game/Anticheat/Antispam/Antispam.h
+index ca2d8d6..087c5cc 100644
+--- a/src/game/Anticheat/Antispam/Antispam.h
++++ b/src/game/Anticheat/Antispam/Antispam.h
+@@ -83,9 +83,9 @@ struct pair_hash {
+         auto h1 = std::hash<T1>{}(p.first);
+         auto h2 = std::hash<T2>{}(p.second);
+ 
+-        // Mainly for demonstration purposes, i.e. works but is overly simple
+-        // In the real world, use sth. like boost.hash_combine
+-        return h1 ^ h2;
++        // Combine asymmetrically to avoid the systematic (a,b)/(b,a) collision
++        // of a plain XOR while keeping the hash inexpensive.
++        return h1 ^ (h2 + 0x9e3779b9U + (h1 << 6) + (h1 >> 2));
+     }
+ };
+ 

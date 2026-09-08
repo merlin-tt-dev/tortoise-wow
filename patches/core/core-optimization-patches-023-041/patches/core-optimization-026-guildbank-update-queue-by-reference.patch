@@ -1,0 +1,13 @@
+diff --git a/src/game/GuildBank/GuildBank.cpp b/src/game/GuildBank/GuildBank.cpp
+index 5a12a94..43e1a88 100644
+--- a/src/game/GuildBank/GuildBank.cpp
++++ b/src/game/GuildBank/GuildBank.cpp
+@@ -317,7 +317,7 @@ void GuildBank::SaveToDB()
+ 	// Save Items
+ 	if (!b_itemUpdateQueue.empty())
+ 	{
+-		for (auto item : b_itemUpdateQueue)
++        for (auto& item : b_itemUpdateQueue)
+ 		{
+ 			switch (item.state)
+ 			{

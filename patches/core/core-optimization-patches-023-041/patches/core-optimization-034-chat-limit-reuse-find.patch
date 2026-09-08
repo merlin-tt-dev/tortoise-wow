@@ -1,0 +1,17 @@
+diff --git a/src/game/Handlers/ChatHandler.cpp b/src/game/Handlers/ChatHandler.cpp
+index 507213e..142c710 100644
+--- a/src/game/Handlers/ChatHandler.cpp
++++ b/src/game/Handlers/ChatHandler.cpp
+@@ -1098,9 +1098,10 @@ bool WorldSession::HandleTurtleAddonMessages(uint32 lang, uint32 type, std::stri
+             int limit = 4;                                 // default low limit
+             bool tankMode = strstr(msg.c_str(), "_TM");       // tank mode
+ 
+-            if (msg.find("limit=") != std::string::npos)       // limit= key found
++            size_t const limitPos = msg.find("limit=");
++            if (limitPos != std::string::npos)                  // limit= key found
+             {
+-                msg = msg.substr(msg.find("limit=") + 6, 2);   // 6 = "limit=".length(), 2 = read only 2 digits
++                msg = msg.substr(limitPos + 6, 2);               // 6 = "limit=".length(), 2 = read only 2 digits
+ 
+                 std::string limitString = msg;
+ 

@@ -1,0 +1,13 @@
+diff --git a/src/game/Anticheat/Antispam/Antispam.cpp b/src/game/Anticheat/Antispam/Antispam.cpp
+index 7403115..df61e97 100644
+--- a/src/game/Anticheat/Antispam/Antispam.cpp
++++ b/src/game/Anticheat/Antispam/Antispam.cpp
+@@ -270,7 +270,7 @@ bool Antispam::AddMessage(std::string const& msg, uint32 language, uint32 type,
+     messageBlock.guildId = guild ? guild->GetId() : 0;
+ 
+     std::lock_guard<std::mutex> guard(m_messageMutex);
+-    m_messageQueue.push_back(messageBlock);
++    m_messageQueue.push_back(std::move(messageBlock));
+     return false;
+ }
+ 

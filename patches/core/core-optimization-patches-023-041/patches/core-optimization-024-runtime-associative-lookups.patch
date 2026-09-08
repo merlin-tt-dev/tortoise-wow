@@ -1,0 +1,67 @@
+diff --git a/src/game/AccountMgr.cpp b/src/game/AccountMgr.cpp
+index b76c8a0..23ba2f5 100644
+--- a/src/game/AccountMgr.cpp
++++ b/src/game/AccountMgr.cpp
+@@ -687,16 +687,8 @@ bool AccountMgr::CheckInstanceCount(uint32 accountId, uint32 instanceId, uint32
+ 
+ void AccountMgr::AddInstanceEnterTime(uint32 accountId, uint32 instanceId, time_t enterTime)
+ {
+-    AccountInstanceEnterTimesMap::iterator it = m_instanceEnterTimes.find(accountId);
+-    if (it == m_instanceEnterTimes.end())
+-    {
+-        InstanceEnterTimesMap resetTimes;
+-        resetTimes[instanceId] = enterTime;
+-        m_instanceEnterTimes[accountId] = resetTimes;
+-        return;
+-    }
+-
+-    it->second[instanceId] = enterTime;
++    auto accountEntry = m_instanceEnterTimes.try_emplace(accountId);
++    accountEntry.first->second[instanceId] = enterTime;
+ }
+ 
+ uint32 AccountMgr::GetFlags(uint32 accountId)
+diff --git a/src/game/DynamicVisibilityMgr.cpp b/src/game/DynamicVisibilityMgr.cpp
+index 5a0d4fa..854a042 100644
+--- a/src/game/DynamicVisibilityMgr.cpp
++++ b/src/game/DynamicVisibilityMgr.cpp
+@@ -39,13 +39,9 @@ void DynamicVisibilityMgr::InitVisibilities(bool reload)
+     for (auto& visSettings : _areaSettings)
+     {
+         if (reload)
+-        {
+-            auto itr = _currentVisibilities.find(visSettings.first);
+-            if (itr == _currentVisibilities.end())
+-                _currentVisibilities[visSettings.first] = visSettings.second.MaxVisibilityDistance;
+-        }
++            _currentVisibilities.try_emplace(visSettings.first, visSettings.second.MaxVisibilityDistance);
+         else
+-            _currentVisibilities[visSettings.first] = visSettings.second.MaxVisibilityDistance;
++            _currentVisibilities.insert_or_assign(visSettings.first, visSettings.second.MaxVisibilityDistance);
+         
+     }
+ }
+diff --git a/src/game/HttpApi/TransferController.cpp b/src/game/HttpApi/TransferController.cpp
+index b460f7f..1bdf37d 100644
+--- a/src/game/HttpApi/TransferController.cpp
++++ b/src/game/HttpApi/TransferController.cpp
+@@ -243,14 +243,17 @@ namespace HttpApi
+         {
+             *guidPtr = guid;
+ 
+-            if (!charName.empty() && transferredNames.find(charName) != transferredNames.end())
++            if (!charName.empty())
+             {
++                auto transferredItr = transferredNames.find(charName);
+                 auto now = time(nullptr);
+-                if (now - transferredNames[charName] < 60)
++                if (transferredItr != transferredNames.end() && now - transferredItr->second < 60)
+                 {
+                     sLog.out(LOG_API, "ALREADY IMPORTED CHAR. Aborting. AccountId:%u, newGuid:%u,playername:%s", accountId, guid, charName.c_str());
+                     CharacterDatabase.PExecute("UPDATE `characters` SET `account` = 0 WHERE `guid` = %u", guid);
+                 }
++                else if (transferredItr == transferredNames.end())
++                    transferredNames.emplace(charName, now);
+             }
+             else
+                 transferredNames[charName] = time(nullptr);

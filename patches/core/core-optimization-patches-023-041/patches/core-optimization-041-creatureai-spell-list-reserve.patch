@@ -1,0 +1,20 @@
+diff --git a/src/game/AI/CreatureAI.cpp b/src/game/AI/CreatureAI.cpp
+index 83221b8..9c4b694 100644
+--- a/src/game/AI/CreatureAI.cpp
++++ b/src/game/AI/CreatureAI.cpp
+@@ -188,11 +188,10 @@ void CreatureAI::SetSpellsList(uint32 entry)
+ void CreatureAI::SetSpellsList(const CreatureSpellsList *pSpellsList)
+ {
+     m_CreatureSpells.clear();
+-    for (const auto & entry : *pSpellsList)
+-    {
+-        m_CreatureSpells.push_back(CreatureAISpellsEntry(entry));
+-    }
+-    m_CreatureSpells.shrink_to_fit();
++    m_CreatureSpells.reserve(pSpellsList->size());
++    for (const auto& entry : *pSpellsList)
++        m_CreatureSpells.emplace_back(entry);
++
+     m_uiCastingDelay = CREATURE_CASTING_DELAY;
+ }
+ 

@@ -1,0 +1,51 @@
+diff --git a/src/game/Objects/UpdateData.cpp b/src/game/Objects/UpdateData.cpp
+index c3c9f71..a7c8a1e 100644
+--- a/src/game/Objects/UpdateData.cpp
++++ b/src/game/Objects/UpdateData.cpp
+@@ -53,18 +53,12 @@ void UpdateData::AddOutOfRangeGUID(ObjectGuid const &guid)
+ 
+ ByteBuffer& UpdateData::AddUpdateBlockAndGetBuffer()
+ {
+-    if (m_datas.empty())
+-        m_datas.push_back(UpdatePacket());
+-    std::list<UpdatePacket>::iterator it = m_datas.end();
+-    --it;
+-    if (it->data.wpos() > MAX_UNCOMPRESSED_PACKET_SIZE)
+-    {
+-        m_datas.push_back(UpdatePacket());
+-        it = m_datas.end();
+-        --it;
+-    }
+-    ++it->blockCount;
+-    return it->data;
++    if (m_datas.empty() || m_datas.back().data.wpos() > MAX_UNCOMPRESSED_PACKET_SIZE)
++        m_datas.emplace_back();
++
++    UpdatePacket& packet = m_datas.back();
++    ++packet.blockCount;
++    return packet.data;
+ }
+ 
+ inline libdeflate_compressor* GetCompressor()
+diff --git a/src/game/Objects/UpdateData.h b/src/game/Objects/UpdateData.h
+index d2828ab..44f65f7 100644
+--- a/src/game/Objects/UpdateData.h
++++ b/src/game/Objects/UpdateData.h
+@@ -25,6 +25,8 @@
+ #include "ByteBuffer.h"
+ #include "ObjectGuid.h"
+ 
++#include <deque>
++
+ class WorldPacket;
+ class WorldSession;
+ class WorldObject;
+@@ -89,7 +91,7 @@ class UpdateData
+ 
+     protected:
+         ObjectGuidSet m_outOfRangeGUIDs;
+-        std::list<UpdatePacket> m_datas;
++        std::deque<UpdatePacket> m_datas;
+ };
+ 
+ class MovementData

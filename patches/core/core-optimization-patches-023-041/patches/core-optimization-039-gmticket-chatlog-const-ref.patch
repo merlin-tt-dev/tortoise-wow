@@ -1,0 +1,38 @@
+diff --git a/src/game/GMTicketMgr.cpp b/src/game/GMTicketMgr.cpp
+index 626bf7e..89f0f3c 100644
+--- a/src/game/GMTicketMgr.cpp
++++ b/src/game/GMTicketMgr.cpp
+@@ -286,15 +286,16 @@ void GmTicket::TeleportTo(Player* player) const
+     player->TeleportTo(_mapId, _posX, _posY, _posZ, 0.0f, 0);
+ }
+ 
+-void GmTicket::SetChatLog(std::list<uint32> time, std::string const& log)
++void GmTicket::SetChatLog(std::list<uint32> const& time, std::string const& log)
+ {
+     std::stringstream ss(log);
+     std::stringstream newss;
+     std::string line;
+-    while (std::getline(ss, line) && !time.empty())
++    auto timeItr = time.begin();
++    while (std::getline(ss, line) && timeItr != time.end())
+     {
+-        newss << secsToTimeString(time.front()) << ": " << line << "\n";
+-        time.pop_front();
++        newss << secsToTimeString(*timeItr) << ": " << line << "\n";
++        ++timeItr;
+     }
+ 
+     _chatLog = newss.str();
+diff --git a/src/game/GMTicketMgr.h b/src/game/GMTicketMgr.h
+index e4f69e6..dc103dd 100644
+--- a/src/game/GMTicketMgr.h
++++ b/src/game/GMTicketMgr.h
+@@ -150,7 +150,7 @@ public:
+     std::string FormatMessageString(ChatHandler& handler, const char* szClosedName, const char* szAssignedToName, const char* szUnassignedName, const char* szDeletedName, const char* szCompletedName) const;
+     const char* GetTicketCategoryName(TicketType category) const;
+ 
+-    void SetChatLog(std::list<uint32> time, std::string const& log);
++    void SetChatLog(std::list<uint32> const& time, std::string const& log);
+     std::string const& GetChatLog() const { return _chatLog; }
+ 
+     TicketType GetTicketType() const { return _ticketType; }
