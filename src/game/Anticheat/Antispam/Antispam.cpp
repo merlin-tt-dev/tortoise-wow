@@ -1,4 +1,3 @@
-#include <regex>
 #include <string>
 #include <algorithm>
 #include <cctype>
@@ -14,6 +13,74 @@
 #include "Antispam.h"
 
 #include <any>
+
+namespace
+{
+bool IsAsciiWordCharacter(unsigned char c)
+{
+    return (c >= '0' && c <= '9') ||
+           (c >= 'A' && c <= 'Z') ||
+           (c >= 'a' && c <= 'z') ||
+           c == '_';
+}
+
+void RemoveChatFormatting(std::string& message)
+{
+    size_t read = 0;
+    size_t write = 0;
+
+    while (read < message.size())
+    {
+        bool isColorTag = read + 10 <= message.size() &&
+                          message[read] == '|' && message[read + 1] == 'c';
+
+        if (isColorTag)
+        {
+            for (size_t i = read + 2; i < read + 10; ++i)
+            {
+                if (!IsAsciiWordCharacter(static_cast<unsigned char>(message[i])))
+                {
+                    isColorTag = false;
+                    break;
+                }
+            }
+        }
+
+        if (isColorTag)
+        {
+            read += 10;
+            continue;
+        }
+
+        message[write++] = message[read++];
+    }
+    message.resize(write);
+
+    read = 0;
+    write = 0;
+    while (read < message.size())
+    {
+        if (read + 4 <= message.size() &&
+            message[read] == '|' && message[read + 1] == 'h' &&
+            message[read + 2] == '|' && message[read + 3] == 'r')
+        {
+            read += 4;
+            continue;
+        }
+
+        message[write++] = message[read++];
+    }
+    message.resize(write);
+
+    size_t const linkStart = message.find("|H");
+    if (linkStart == std::string::npos)
+        return;
+
+    size_t const linkEnd = message.rfind("|h");
+    if (linkEnd != std::string::npos && linkEnd >= linkStart + 3)
+        message.erase(linkStart, linkEnd + 2 - linkStart);
+}
+}
 
 Antispam sAntispam;
 
@@ -424,13 +491,7 @@ std::string Antispam::NormalizeMessage(const std::string& msg, uint32 mask)
         mask = m_fullyNormalizeMask;
 
     if (mask & NF_CUT_COLOR)
-    {
-        static std::regex regex1("(\\|c\\w{8})");
-        static std::regex regex2("(\\|H[\\w|\\W]{1,}\\|h)");
-        newMsg = std::regex_replace(newMsg, regex1, "");
-        ReplaceAll(newMsg, "|h|r", "");
-        newMsg = std::regex_replace(newMsg, regex2, "");
-    }
+        RemoveChatFormatting(newMsg);
 
     if (mask & NF_REPLACE_WORDS)
         for (auto& e : m_replacement)
