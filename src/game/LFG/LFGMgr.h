@@ -118,7 +118,7 @@ class LFGQueue
         typedef std::map<uint32, LFGGroupQueueInfo> QueuedGroupsMap;
         QueuedGroupsMap m_QueuedGroups;
 
-        void FindInArea(std::list<ObjectGuid>& players, uint32 area, uint32 team, ObjectGuid const& exclude);
+        uint32 FindInArea(ObjectGuid& firstPlayer, uint32 limit, uint32 area, uint32 team, ObjectGuid const& exclude);
         bool FindRoleToGroup(ObjectGuid playerGuid, Group* group, ClassRoles role);
 
         uint32 _groupSize = 5;
