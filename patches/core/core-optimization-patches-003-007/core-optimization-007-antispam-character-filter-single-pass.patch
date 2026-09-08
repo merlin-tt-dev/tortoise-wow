@@ -1,0 +1,49 @@
+diff --git a/src/game/Anticheat/Antispam/Antispam.cpp b/src/game/Anticheat/Antispam/Antispam.cpp
+index 39198e8..3b4330f 100644
+--- a/src/game/Anticheat/Antispam/Antispam.cpp
++++ b/src/game/Anticheat/Antispam/Antispam.cpp
+@@ -1,6 +1,7 @@
+ #include <regex>
+ #include <string>
+ #include <algorithm>
++#include <cctype>
+ 
+ #include "Database/DatabaseEnv.h"
+ #include "Util.h"
+@@ -435,28 +436,15 @@ std::string Antispam::NormalizeMessage(const std::string& msg, uint32 mask)
+         for (auto& e : m_replacement)
+             ReplaceAll(newMsg, e.first, e.second);
+     
+-    if (mask & NF_CUT_CTRL)
++    if (mask & (NF_CUT_CTRL | NF_CUT_PUNCT | NF_CUT_SPACE | NF_CUT_NUMBERS))
+     {
+-        static std::regex regex4("([[:cntrl:]]+)");
+-        newMsg = std::regex_replace(newMsg, regex4, "");
+-    }
+-
+-    if (mask & NF_CUT_PUNCT)
+-    {
+-        static std::regex regex5("([[:punct:]]+)");
+-        newMsg = std::regex_replace(newMsg, regex5, "");
+-    }
+-
+-    if (mask & NF_CUT_SPACE)
+-    {
+-        static std::regex regex6("(\\s+|_)");
+-        newMsg = std::regex_replace(newMsg, regex6, "");
+-    }
+-
+-    if (mask & NF_CUT_NUMBERS)
+-    {
+-        static std::regex regex3("(\\d+)");
+-        newMsg = std::regex_replace(newMsg, regex3, "");
++        newMsg.erase(std::remove_if(newMsg.begin(), newMsg.end(), [mask](unsigned char c)
++        {
++            return ((mask & NF_CUT_CTRL) && std::iscntrl(c)) ||
++                   ((mask & NF_CUT_PUNCT) && std::ispunct(c)) ||
++                   ((mask & NF_CUT_SPACE) && (std::isspace(c) || c == '_')) ||
++                   ((mask & NF_CUT_NUMBERS) && std::isdigit(c));
++        }), newMsg.end());
+     }
+ 
+     if (mask & NF_REPLACE_UNICODE)

@@ -1,0 +1,5 @@
+0348c2a842f87cd74e6ff861292b562022df68fe80b3c5a46a263039ea26fac4  core-optimization-003-precompile-gold-removal-regex.patch
+7fbd2049961cea2b0d0caf1d21df421a806707a56f5d45855bd22ffe9f522627  core-optimization-004-move-anticheat-transient-inserts.patch
+eb0d2f4129734e9c5b623280ccb8c98c69c7544dd8ae6c93bc07f27190956c47  core-optimization-005-massmail-move-semantics.patch
+63b2d0b2f58cd884bc0d4b45299d30e80e3a03b0766bcf7740d87f7827cf2386  core-optimization-006-warden-filesystem-module-scan.patch
+70771e6af4ae3d9d95650d64b50154f162032c09b61d81f5380cdfc7472a4a0d  core-optimization-007-antispam-character-filter-single-pass.patch

@@ -1,0 +1,22 @@
+diff --git a/src/game/Mail/MassMailMgr.h b/src/game/Mail/MassMailMgr.h
+index 0fa89ba..a658a3f 100644
+--- a/src/game/Mail/MassMailMgr.h
++++ b/src/game/Mail/MassMailMgr.h
+@@ -109,12 +109,12 @@ class MassMailMgr
+                 MANGOS_ASSERT(mailProto);
+             }
+ 
+-            MassMail(MassMail const& massmail)
+-                : m_protoMail(std::move(const_cast<MassMail&>(massmail).m_protoMail)), m_sender(massmail.m_sender)
+-            {
+-            }
++            MassMail(MassMail const&) = delete;
++            MassMail& operator=(MassMail const&) = delete;
++            MassMail(MassMail&&) = default;
++            MassMail& operator=(MassMail&&) = default;
+ 
+-            /// m_protoMail is owned by MassMail, so at copy original MassMail field set to nullptr
++            /// m_protoMail is exclusively owned by MassMail, so MassMail is move-only.
+             std::unique_ptr<MailDraft> m_protoMail;
+ 
+             MailSender m_sender;
