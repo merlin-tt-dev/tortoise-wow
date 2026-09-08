@@ -1,0 +1,20 @@
+diff --git a/dep/src/CMakeLists.txt b/dep/src/CMakeLists.txt
+--- a/dep/src/CMakeLists.txt
++++ b/dep/src/CMakeLists.txt
+@@ -1,4 +1,4 @@
+-if (MINGW)
++if(MINGW AND CMAKE_SIZEOF_VOID_P EQUAL 4)
+     add_subdirectory(libseh)
+ endif()
+ add_subdirectory(g3dlite)
+diff --git a/dep/src/g3dlite/CMakeLists.txt b/dep/src/g3dlite/CMakeLists.txt
+--- a/dep/src/g3dlite/CMakeLists.txt
++++ b/dep/src/g3dlite/CMakeLists.txt
+@@ -1,6 +1,6 @@
+ if(WIN32)
+   include_directories(${CMAKE_SOURCE_DIR}/dep/windows/include/zlib)
+-  if(MINGW)
++  if(MINGW AND CMAKE_SIZEOF_VOID_P EQUAL 4)
+     target_link_libraries(g3dlite zlib libseh)
+   else()
+     target_link_libraries(g3dlite zlib)

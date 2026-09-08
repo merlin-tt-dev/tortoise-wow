@@ -1,0 +1,12 @@
+diff --git a/src/shared/CMakeLists.txt b/src/shared/CMakeLists.txt
+--- a/src/shared/CMakeLists.txt
++++ b/src/shared/CMakeLists.txt
+@@ -2,4 +2,8 @@
+   target_link_libraries(shared PUBLIC ${ACE_LIBRARIES} -lws2_32)
+ endif()
+ 
++if(WIN32)
++  target_link_libraries(shared PUBLIC crypt32)
++endif()
++
+ target_link_libraries(shared PUBLIC re2::re2)

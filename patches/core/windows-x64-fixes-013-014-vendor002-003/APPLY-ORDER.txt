@@ -1,0 +1,4 @@
+01 core-buildsystem-013-windows-openssl-dpp-link-dependencies.patch
+02 core-buildsystem-014-windows-httplib-crypt32-link.patch
+03 core-vendor-002-g3dlite-mingw64-warning-cleanup.patch
+04 core-vendor-003-libseh-mingw64-disable-unused-seh.patch

@@ -1,0 +1,4 @@
+65947ea7b4c313cc62316ac3a4ec9aca7b829dcbb7a0217e257f5df99cc77840  patches/core-buildsystem-013-windows-openssl-dpp-link-dependencies.patch
+45539d5cf3adae98d23c396c5d34a7f969d3d5b635ba88ad792d38d989064034  patches/core-buildsystem-014-windows-httplib-crypt32-link.patch
+61284109a135a8b98807051a4bffbfb194514f97d06b31ad8d882ad69a5d7532  patches/core-vendor-002-g3dlite-mingw64-warning-cleanup.patch
+32657f975d1c63a56bff9f6d4985ec4ab5dcee2794369588d4359a9d45602546  patches/core-vendor-003-libseh-mingw64-disable-unused-seh.patch
