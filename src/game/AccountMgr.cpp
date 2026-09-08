@@ -156,14 +156,15 @@ AccountOpResult AccountMgr::ChangePassword(uint32 accid, std::string new_passwd,
     return AOR_OK;
 }
 
-uint32 AccountMgr::GetId(std::string username)
+uint32 AccountMgr::GetId(std::string const& username)
 {
     auto itr = m_accountNameToId.find(username);
     if (itr != m_accountNameToId.end())
         return itr->second;
 
-    LoginDatabase.escape_string(username);
-    QueryResult *result = LoginDatabase.PQuery("SELECT id FROM account WHERE username = '%s'", username.c_str());
+    std::string escapedUsername = username;
+    LoginDatabase.escape_string(escapedUsername);
+    QueryResult *result = LoginDatabase.PQuery("SELECT id FROM account WHERE username = '%s'", escapedUsername.c_str());
     if (!result)
         return 0;
     else
@@ -332,7 +333,7 @@ bool AccountMgr::normalizeString(std::string& utf8str)
     return WStrToUtf8(wstr_buf, utf8str);
 }
 
-std::string AccountMgr::CalculateShaPassHash(std::string& name, std::string& password)
+std::string AccountMgr::CalculateShaPassHash(std::string const& name, std::string const& password)
 {
     Sha1Hash sha;
     sha.Initialize();

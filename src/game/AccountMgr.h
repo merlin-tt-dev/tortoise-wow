@@ -104,7 +104,7 @@ class AccountMgr
         AccountOpResult ChangePassword(uint32 accid, std::string new_passwd, std::string username="");
         bool CheckPassword(uint32 accid, std::string passwd, std::string username="");
 
-        uint32 GetId(std::string username);
+        uint32 GetId(std::string const& username);
 
         void Load();
         AccountTypes GetSecurity(uint32 acc_id);
@@ -114,7 +114,7 @@ class AccountMgr
 
         bool GetName(uint32 acc_id, std::string &name);
         uint32 GetCharactersCount(uint32 acc_id);
-        std::string CalculateShaPassHash(std::string& name, std::string& password);
+        std::string CalculateShaPassHash(std::string const& name, std::string const& password);
 
         bool IsTraineeGM(uint32 accId) const
         {
