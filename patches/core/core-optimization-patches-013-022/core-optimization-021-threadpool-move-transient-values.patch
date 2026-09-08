@@ -1,0 +1,69 @@
+diff --git a/src/shared/ThreadPool.cpp b/src/shared/ThreadPool.cpp
+index c3d8907..ebfd16e 100644
+--- a/src/shared/ThreadPool.cpp
++++ b/src/shared/ThreadPool.cpp
+@@ -26,7 +26,7 @@
+ #endif
+ 
+ ThreadPool::ThreadPool(int numThreads, std::string InName, ClearMode when, ErrorHandling mode) :
+-    m_errorHandling(mode), m_size(numThreads), m_clearMode(when), m_active(0), Name(InName)
++    m_errorHandling(mode), m_size(numThreads), m_clearMode(when), m_active(0), Name(std::move(InName))
+ {
+     m_workers.reserve(m_size);
+ }
+@@ -103,7 +103,7 @@ ThreadPool &ThreadPool::operator<<(Callable packaged_task)
+         throw "Attempt to append a task to a load being processed!";
+     if (m_clearMode == ClearMode::AT_NEXT_WORKLOAD && m_dirty)
+         clearWorkload();
+-    m_workload.emplace_back(packaged_task);
++    m_workload.emplace_back(std::move(packaged_task));
+     return *this;
+ }
+ 
+@@ -114,7 +114,7 @@ void ThreadPool::clearWorkload()
+ }
+ 
+ ThreadPool::worker::worker(ThreadPool *pool, std::string InName, int id, ThreadPool::ErrorHandling mode) :
+-    id(id), Name(InName), errorHandling(mode), pool(pool), thread([this](){this->loop_wrapper();})
++    id(id), Name(std::move(InName)), errorHandling(mode), pool(pool), thread([this](){this->loop_wrapper();})
+ {
+ }
+ 
+@@ -181,8 +181,8 @@ void ThreadPool::worker::loop_wrapper()
+ void ThreadPool::worker::prepare(ThreadPool::Callable pre, ThreadPool::Callable post)
+ {
+     busy = true;
+-    this->pre = pre;
+-    this->post = post;
++    this->pre = std::move(pre);
++    this->post = std::move(post);
+ }
+ 
+ void ThreadPool::worker::loop()
+@@ -222,7 +222,7 @@ void ThreadPool::worker::loop()
+ }
+ 
+ ThreadPool::worker_mq::worker_mq(ThreadPool *pool, std::string InName, int id, ThreadPool::ErrorHandling mode) :
+-    worker(pool, InName, id,mode)
++    worker(pool, std::move(InName), id,mode)
+ {
+ }
+ 
+@@ -243,7 +243,7 @@ void ThreadPool::worker_mq::prepare(ThreadPool::Callable pre, ThreadPool::Callab
+ }
+ 
+ ThreadPool::worker_sq::worker_sq(ThreadPool *pool, std::string InName, int id, ThreadPool::ErrorHandling mode) :
+-    worker(pool, InName, id,mode)
++    worker(pool, std::move(InName), id,mode)
+ {
+ }
+ 
+@@ -259,7 +259,7 @@ void ThreadPool::worker_sq::doWork()
+ 
+ template <class T>
+ ThreadPool::worker_mysql<T>::worker_mysql(ThreadPool *tp, std::string InName, int id, ThreadPool::ErrorHandling e):
+-    T(tp, InName, id, e)
++    T(tp, std::move(InName), id, e)
+ {
+ }
+ 

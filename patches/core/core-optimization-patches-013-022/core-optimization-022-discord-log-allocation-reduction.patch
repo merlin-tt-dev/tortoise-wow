@@ -1,0 +1,66 @@
+diff --git a/src/shared/DiscordBot/Bot.cpp b/src/shared/DiscordBot/Bot.cpp
+index f0bef41..5363c30 100644
+--- a/src/shared/DiscordBot/Bot.cpp
++++ b/src/shared/DiscordBot/Bot.cpp
+@@ -33,7 +33,7 @@ namespace DiscordBot
+         return _core.get();
+     }
+ 
+-    void Bot::SendMessageToChannel(uint64_t channelId, std::string message, MessagePriority priority)
++    void Bot::SendMessageToChannel(uint64_t channelId, std::string const& message, MessagePriority priority)
+     {
+         if (!_core || !_running)
+             return;
+diff --git a/src/shared/DiscordBot/Bot.hpp b/src/shared/DiscordBot/Bot.hpp
+index 2f11adc..2881371 100644
+--- a/src/shared/DiscordBot/Bot.hpp
++++ b/src/shared/DiscordBot/Bot.hpp
+@@ -38,7 +38,7 @@ namespace DiscordBot
+         Bot(Bot&&) = delete;
+ 
+         void Setup(std::string token);
+-        void SendMessageToChannel(uint64_t channelId, std::string message, MessagePriority priority = MessagePriority::Drop);
++        void SendMessageToChannel(uint64_t channelId, std::string const& message, MessagePriority priority = MessagePriority::Drop);
+         void Stop();
+ 
+         void WorkerThread();
+diff --git a/src/shared/Log.cpp b/src/shared/Log.cpp
+index dae0b52..a297232 100644
+--- a/src/shared/Log.cpp
++++ b/src/shared/Log.cpp
+@@ -132,7 +132,7 @@ void Log::InitSmartlogGuids(const std::string& str)
+     }
+ }
+ 
+-void Log::LogDiscord(LogFile type, std::string log)
++void Log::LogDiscord(LogFile type, std::string const& log)
+ {
+ #ifdef USING_DISCORD_BOT
+     static const std::unordered_map<LogFile, uint64_t> ChannelLookup =
+@@ -140,10 +140,11 @@ void Log::LogDiscord(LogFile type, std::string log)
+        // {LOG_MONEY_TRADES, 1078715732013105252}
+     };
+ 
+-    if (ChannelLookup.find(type) == ChannelLookup.end())
++    auto channelItr = ChannelLookup.find(type);
++    if (channelItr == ChannelLookup.end())
+         return;
+ 
+-    sDiscordBot->SendMessageToChannel(ChannelLookup.find(type)->second, std::move(log));
++    sDiscordBot->SendMessageToChannel(channelItr->second, log);
+ #endif
+ }
+ 
+diff --git a/src/shared/Log.h b/src/shared/Log.h
+index 073316d..d0a4c5d 100644
+--- a/src/shared/Log.h
++++ b/src/shared/Log.h
+@@ -197,7 +197,7 @@ class Log : public MaNGOS::Singleton<Log, MaNGOS::ClassLevelLockable<Log, std::m
+         void InitSmartlogEntries(std::string const& str);
+         void InitSmartlogGuids(std::string const& str);
+ 
+-        void LogDiscord(LogFile type, std::string log);
++        void LogDiscord(LogFile type, std::string const& log);
+ 
+         template<typename... Args>
+         void out(LogFile type, const char* str, Args... args)

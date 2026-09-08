@@ -1,0 +1,13 @@
+diff --git a/src/game/Objects/Player.cpp b/src/game/Objects/Player.cpp
+index 79dfdeb..1100486 100644
+--- a/src/game/Objects/Player.cpp
++++ b/src/game/Objects/Player.cpp
+@@ -21306,7 +21306,7 @@ void Player::LearnQuestRewardedSpells()
+ 
+ void Player::LearnGameMasterSpells()
+ {
+-    const std::list<uint32> aGameMasterSpellList =
++    static constexpr uint32 aGameMasterSpellList[] =
+     {
+         56043, // Debug: Next DisplayID
+         56044, // Debug: Previous DisplayID

@@ -1,0 +1,26 @@
+diff --git a/src/game/Group/Group.cpp b/src/game/Group/Group.cpp
+index 6207ad2..4167b34 100644
+--- a/src/game/Group/Group.cpp
++++ b/src/game/Group/Group.cpp
+@@ -325,7 +325,7 @@ bool Group::IsCrossfaction() const
+ 
+ bool Group::UpdateCrossfaction()
+ {
+-    const auto hordeCount = std::count_if(m_memberSlots.begin(), m_memberSlots.end(), [this](auto member) {
++    const auto hordeCount = std::count_if(m_memberSlots.begin(), m_memberSlots.end(), [this](auto const& member) {
+         Player* player = sObjectAccessor.FindPlayerNotInWorld(member.guid);
+         auto playerCacheData = sObjectMgr.GetPlayerDataByGUID(member.guid.GetCounter());
+ 
+diff --git a/src/game/Objects/Player.cpp b/src/game/Objects/Player.cpp
+index 0007815..61514ee 100644
+--- a/src/game/Objects/Player.cpp
++++ b/src/game/Objects/Player.cpp
+@@ -25690,7 +25690,7 @@ void Player::SendAddonMessage(std::string const& prefix, std::string const& mess
+ 
+ uint32 Player::GetTotalQuestCount()
+ {
+-    return std::count_if(mQuestStatus.begin(), mQuestStatus.end(), [](decltype(mQuestStatus)::value_type value) -> bool {
++    return std::count_if(mQuestStatus.begin(), mQuestStatus.end(), [](decltype(mQuestStatus)::value_type const& value) -> bool {
+         return value.second.uState != QUEST_DELETED && value.second.m_rewarded;
+     });
+ }

@@ -1,0 +1,102 @@
+diff --git a/src/game/GuildBank/GuildBank.cpp b/src/game/GuildBank/GuildBank.cpp
+index c7bb6a0..1e9c59c 100644
+--- a/src/game/GuildBank/GuildBank.cpp
++++ b/src/game/GuildBank/GuildBank.cpp
+@@ -976,7 +976,7 @@ void GuildBank::SendTabItems(std::string msg)
+ 		messages.push_back("TabItems:" + std::to_string(tab) + ":end");
+ 	}
+ 
+-	for (const auto msg : messages)
++    for (const auto& msg : messages)
+ 		_player->SendAddonMessage(prefix, msg);
+ }
+ 
+@@ -2261,7 +2261,7 @@ void GuildBank::SendTabLog(std::string msg)
+ 		messages.push_back("TabLog:" + std::to_string(tab) + ":end");
+ 	}
+ 
+-	for (const auto msg : messages)
++    for (const auto& msg : messages)
+ 		_player->SendAddonMessage(prefix, msg);
+ }
+ 
+@@ -2305,7 +2305,7 @@ void GuildBank::SendMoneyLog(std::string msg)
+ 		messages.push_back("MoneyLog:end");
+ 	}
+ 
+-	for (const auto msg : messages)
++    for (const auto& msg : messages)
+ 		_player->SendAddonMessage(prefix, msg);
+ }
+ 
+diff --git a/src/game/Objects/Player.cpp b/src/game/Objects/Player.cpp
+index 79dfdeb..9e20844 100644
+--- a/src/game/Objects/Player.cpp
++++ b/src/game/Objects/Player.cpp
+@@ -25658,22 +25658,32 @@ void Player::UpdateAppearance()
+     DeMorph();
+ }
+ 
+-void Player::SendAddonMessage(std::string prefix, std::string message)
++void Player::SendAddonMessage(std::string const& prefix, std::string const& message)
+ {
++    std::string payload;
++    payload.reserve(prefix.size() + 1 + message.size());
++    payload.append(prefix);
++    payload.push_back('\t');
++    payload.append(message);
++
+     WorldPacket data;
+     ChatHandler::BuildChatPacket(data, CHAT_MSG_GUILD,
+-        (prefix + "\t" + message).c_str(), Language(LANG_ADDON), GetChatTag(),
+-        GetObjectGuid(), GetName());
++        payload.c_str(), Language(LANG_ADDON), GetChatTag(), GetObjectGuid(), GetName());
+ 
+     GetSession()->SendPacket(&data);
+ }
+ 
+-void Player::SendAddonMessage(std::string prefix, std::string message, Player* from)
++void Player::SendAddonMessage(std::string const& prefix, std::string const& message, Player* from)
+ {
++    std::string payload;
++    payload.reserve(prefix.size() + 1 + message.size());
++    payload.append(prefix);
++    payload.push_back('\t');
++    payload.append(message);
++
+     WorldPacket data;
+     ChatHandler::BuildChatPacket(data, CHAT_MSG_GUILD,
+-        (prefix + "\t" + message).c_str(), Language(LANG_ADDON), GetChatTag(),
+-        from->GetObjectGuid(), from->GetName());
++        payload.c_str(), Language(LANG_ADDON), GetChatTag(), from->GetObjectGuid(), from->GetName());
+ 
+     GetSession()->SendPacket(&data);
+ }
+diff --git a/src/game/Objects/Player.h b/src/game/Objects/Player.h
+index 9bedf89..61a135b 100644
+--- a/src/game/Objects/Player.h
++++ b/src/game/Objects/Player.h
+@@ -3119,8 +3119,8 @@ public:
+ 
+         // General send addon message
+     public:
+-        void SendAddonMessage(std::string prefix, std::string message);
+-        void SendAddonMessage(std::string prefix, std::string message, Player* from);
++        void SendAddonMessage(std::string const& prefix, std::string const& message);
++        void SendAddonMessage(std::string const& prefix, std::string const& message, Player* from);
+ };
+ 
+ void AddItemsSetItem(Player*player,Item* item);
+diff --git a/src/game/TransmogMgr.cpp b/src/game/TransmogMgr.cpp
+index cc1e9ad..a05777e 100644
+--- a/src/game/TransmogMgr.cpp
++++ b/src/game/TransmogMgr.cpp
+@@ -518,7 +518,7 @@ void TransmogMgr::SendAvailableTransmogs(uint8 InventorySlotId, uint32 destItemI
+ 
+ 	_owner->SendAddonMessage(prefix, "AvailableTransmogs:" + std::to_string(InventorySlotId) + ":" + std::to_string(numPossibleTransmogs) + ":start");
+ 
+-	for (const auto msg : messages)
++    for (const auto& msg : messages)
+ 		_owner->SendAddonMessage(prefix, msg);
+ }
+ 
