@@ -215,6 +215,7 @@ void MotionMaster::DirectClean(bool reset, bool all)
     // because Finalize calls CreatureAI::MovementInform that can call MovePoint / ...
 
     std::vector<MovementGenerator*> mvtGensToFinalize;
+    mvtGensToFinalize.reserve(all ? size() : size() - 1);
     while (all ? !empty() : size() > 1)
     {
         MovementGenerator *curr = top();
@@ -250,6 +251,7 @@ void MotionMaster::DelayedClean(bool reset, bool all)
         m_expList = new ExpireList();
 
     std::vector<MovementGenerator*> mvtGensToFinalize;
+    mvtGensToFinalize.reserve(all ? size() : size() - 1);
     while (all ? !empty() : size() > 1)
     {
         MovementGenerator *curr = top();
@@ -275,6 +277,7 @@ void MotionMaster::DirectExpire(bool reset)
 
     // also drop stored under top() targeted motions
     std::vector<MovementGenerator*> mvtGensToFinalize;
+    mvtGensToFinalize.reserve(size());
     while (!empty() && (top()->GetMovementGeneratorType() == CHASE_MOTION_TYPE || top()->GetMovementGeneratorType() == FOLLOW_MOTION_TYPE) && (curr->GetMovementGeneratorType() != DISTANCING_MOTION_TYPE))
     {
         MovementGenerator *temp = top();
@@ -320,6 +323,7 @@ void MotionMaster::DelayedExpire(bool reset)
 
     // also drop stored under top() targeted motions
     std::vector<MovementGenerator*> mvtGensToFinalize;
+    mvtGensToFinalize.reserve(size());
     while (!empty() && (top()->GetMovementGeneratorType() == CHASE_MOTION_TYPE || top()->GetMovementGeneratorType() == FOLLOW_MOTION_TYPE) && (curr->GetMovementGeneratorType() != DISTANCING_MOTION_TYPE))
     {
         MovementGenerator *temp = top();
