@@ -213,9 +213,9 @@ void AccountMgr::LoadGmLevels()
         case SEC_DEVELOPER:
         case SEC_ADMINISTRATOR:
         case SEC_SIGMACHAD:
-            if (m_accountSecurity.find(accountId) == m_accountSecurity.end() ||
-                m_accountSecurity[accountId] < secu)
-                m_accountSecurity[accountId] = secu;
+            auto [securityItr, inserted] = m_accountSecurity.emplace(accountId, secu);
+            if (!inserted && securityItr->second < secu)
+                securityItr->second = secu;
             break;
         }
     } while (result->NextRow());

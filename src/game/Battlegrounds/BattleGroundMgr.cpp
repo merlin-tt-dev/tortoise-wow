@@ -1398,11 +1398,12 @@ void BattleGroundMgr::ReloadBGPlayerCounts()
     {
         for (auto& bg : bgSet)
         {
-            if (newPlayerCounts.find(bg.second->GetTypeID()) == newPlayerCounts.end())
+            auto countItr = newPlayerCounts.find(bg.second->GetTypeID());
+            if (countItr == newPlayerCounts.end())
                 continue;
 
-            bg.second->SetMinPlayersPerTeam(newPlayerCounts[bg.second->GetTypeID()].first);
-            bg.second->SetMaxPlayersPerTeam(newPlayerCounts[bg.second->GetTypeID()].second);
+            bg.second->SetMinPlayersPerTeam(countItr->second.first);
+            bg.second->SetMaxPlayersPerTeam(countItr->second.second);
         }
     }
 }

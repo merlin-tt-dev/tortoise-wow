@@ -657,7 +657,7 @@ SqlStatement Database::CreateStatement(SqlStatementID& index, const char * fmt )
         if(iter == m_stmtRegistry.end())
         {
             nId = ++m_iStmtIndex;
-            m_stmtRegistry[szFmt] = nId;
+            m_stmtRegistry.emplace(std::move(szFmt), nId);
         }
         else
             nId = iter->second;
