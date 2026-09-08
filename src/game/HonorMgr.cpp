@@ -324,13 +324,12 @@ void HonorMaintenancer::CreateCalculationReport()
         return;
     }
 
-    ofs << "Honor Rank Point Decay" << std::endl << std::endl;
-    ofs << "Tracked players: " << m_weeklyScores.size() << std::endl << std::endl;
-    ofs << std::flush;
+    ofs << "Honor Rank Point Decay\n\n";
+    ofs << "Tracked players: " << m_weeklyScores.size() << "\n\n";
 
-    for (auto& pair : m_weeklyScores)
+    for (auto const& pair : m_weeklyScores)
     {
-        auto ws = pair.second;
+        auto const& ws = pair.second;
 
         ofs << "Guid: " << pair.first
             << ", HK: " << ws.hk
@@ -339,7 +338,7 @@ void HonorMaintenancer::CreateCalculationReport()
             << ", oldRp: " << ws.oldRp
             << ", earning: " << ws.earning
             << ", newRp: " << ws.newRp
-            << ", standing: " << ws.standing << std::endl << std::flush;
+            << ", standing: " << ws.standing << '\n';
     }
 
     ofs.close();
