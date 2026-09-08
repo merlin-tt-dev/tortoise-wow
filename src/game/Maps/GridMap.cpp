@@ -1243,9 +1243,12 @@ TerrainInfo* TerrainManager::LoadTerrain(const uint32 mapId)
 {
     Guard _guard(*this);
 
-    auto const [iter, inserted] = i_TerrainMap.try_emplace(mapId);
-    if (inserted)
-        iter->second = std::make_unique<TerrainInfo>(mapId);
+    auto iter = i_TerrainMap.find(mapId);
+    if (iter == i_TerrainMap.end())
+    {
+        auto terrain = std::make_unique<TerrainInfo>(mapId);
+        iter = i_TerrainMap.emplace(mapId, std::move(terrain)).first;
+    }
 
     return iter->second.get();
 }

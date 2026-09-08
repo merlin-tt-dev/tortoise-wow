@@ -357,7 +357,11 @@ WeatherSystem::~WeatherSystem() = default;
 /// Find or Create a Weather object by the given zoneid
 Weather* WeatherSystem::FindOrCreateWeather(uint32 zoneId)
 {
-    auto const [itr, inserted] = m_weathers.try_emplace(zoneId, zoneId, sWeatherMgr.GetWeatherChances(zoneId));
+    auto itr = m_weathers.find(zoneId);
+    if (itr != m_weathers.end())
+        return &itr->second;
+
+    itr = m_weathers.try_emplace(zoneId, zoneId, sWeatherMgr.GetWeatherChances(zoneId)).first;
     return &itr->second;
 }
 
