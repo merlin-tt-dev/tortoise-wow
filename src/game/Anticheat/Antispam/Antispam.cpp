@@ -274,15 +274,6 @@ bool Antispam::AddMessage(std::string const& msg, uint32 language, uint32 type, 
     return false;
 }
 
-struct FindMsg
-{
-    FindMsg(const std::string& m) : msg(m) {}
-    bool operator()(const std::string& s) { return s == msg; }
-
-    private:
-        const std::string& msg;
-};
-
 void Antispam::ProcessMessages(uint32 diff)
 {
     if (m_updateTimer <= diff)
@@ -347,10 +338,13 @@ void Antispam::ProcessMessages(uint32 diff)
 
             LowGuidPair lowGuidPair(guidFrom, guidTo);
 
-            m_messageRepeats[type][guidFrom].push_back(messageBlock.msg);
+            auto& repeatCounts = m_messageRepeats[type][guidFrom];
+            uint32 repeats = ++repeatCounts[messageBlock.msg];
 
-            auto counter = m_messageCounters[type].find(guidFrom);
-            auto hasCounter = counter != m_messageCounters[type].end();
+            auto counterEntry = m_messageCounters[type].try_emplace(
+                guidFrom, MessageCounter{1, 0, messageBlock.time, false});
+            auto counter = counterEntry.first;
+            bool hasCounter = !counterEntry.second;
 
             if (hasCounter)
             {
@@ -358,19 +352,9 @@ void Antispam::ProcessMessages(uint32 diff)
                 counter->second.timeDiff = counter->second.timeDiff + (messageBlock.time - counter->second.timeLast);
                 counter->second.timeLast = messageBlock.time;
             }
-            else
-            {
-                MessageCounter messageCounter;
-                messageCounter.count = 1;
-                messageCounter.timeDiff = 0;
-                messageCounter.timeLast = messageBlock.time;
-                messageCounter.detectMarker = false;
-                m_messageCounters[type][guidFrom] = messageCounter;
-            }
 
             if (hasCounter)
             {
-                auto repeats = std::count_if(m_messageRepeats[type][guidFrom].begin(), m_messageRepeats[type][guidFrom].end(), FindMsg(messageBlock.msg));
                 if (repeats > m_messageRepeatCount)
                 {
                     ApplySanction(messageBlock, DETECT_FLOOD, repeats);
@@ -407,7 +391,7 @@ void Antispam::ProcessMessages(uint32 diff)
                         continue;
                     }
                     else
-                        m_messageBlocks[type][lowGuidPair] = messageBlock;
+                        m_messageBlocks[type].emplace(lowGuidPair, messageBlock);
                 }
                 else if (FilterMessage(messageBlock))
                 {
@@ -423,7 +407,7 @@ void Antispam::ProcessMessages(uint32 diff)
                 continue;
             }
             else if (!m_frequencyCount)
-                m_messageBlocks[type][lowGuidPair] = messageBlock;
+                m_messageBlocks[type].insert_or_assign(lowGuidPair, messageBlock);
         }
 
         switch (messageBlock.type)

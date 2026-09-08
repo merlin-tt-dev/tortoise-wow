@@ -92,7 +92,8 @@ struct pair_hash {
 typedef std::pair<uint32, uint32> LowGuidPair;
 typedef std::unordered_map<LowGuidPair, MessageBlock, pair_hash> MessageBlocks;
 typedef std::unordered_map<uint32, MessageCounter> MessageCounters;
-typedef std::unordered_map<uint32, std::list<std::string>> MessageRepeats;
+typedef std::unordered_map<std::string, uint32> MessageRepeatCounts;
+typedef std::unordered_map<uint32, MessageRepeatCounts> MessageRepeats;
 
 class Antispam : public AntispamInterface
 {
