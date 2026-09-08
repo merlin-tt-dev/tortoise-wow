@@ -126,18 +126,18 @@ MailDraft::MailDraft(uint16 mailTemplateId, bool need_items, LocaleConstant loca
  * @param subject The subject of the mail.
  * @param itemText The text of the body of the mail.
  */
-MailDraft::MailDraft(std::string subject, std::string text) : m_mailTemplateId(0), m_mailTemplateItemsNeed(false), m_subject(subject),
-    m_bodyId(!text.empty() ? sObjectMgr.CreateItemText(text) : 0), m_money(0), m_COD(0)
+MailDraft::MailDraft(std::string subject, std::string text) : m_mailTemplateId(0), m_mailTemplateItemsNeed(false), m_subject(std::move(subject)),
+    m_bodyId(!text.empty() ? sObjectMgr.CreateItemText(std::move(text)) : 0), m_money(0), m_COD(0)
 {
 
 }
 
 MailDraft& MailDraft::SetSubjectAndBody(std::string subject, std::string text)
 {
-    m_subject = subject;
+    m_subject = std::move(subject);
 
     MANGOS_ASSERT(!m_bodyId);
-    m_bodyId = !text.empty() ? sObjectMgr.CreateItemText(text) : 0;
+    m_bodyId = !text.empty() ? sObjectMgr.CreateItemText(std::move(text)) : 0;
 
     return *this;
 }

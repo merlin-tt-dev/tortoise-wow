@@ -40,6 +40,7 @@
 #include "Common.h"
 #include "ObjectGuid.h"
 #include <map>
+#include <utility>
 
 struct AuctionEntry;
 class Item;
@@ -209,7 +210,7 @@ class MailDraft
          * @param itemTextId The id of the body of the mail.
          */
         MailDraft(std::string subject, uint32 itemTextId = 0)
-            : m_mailTemplateId(0), m_mailTemplateItemsNeed(false), m_subject(subject), m_bodyId(itemTextId), m_money(0), m_COD(0) {}
+            : m_mailTemplateId(0), m_mailTemplateItemsNeed(false), m_subject(std::move(subject)), m_bodyId(itemTextId), m_money(0), m_COD(0) {}
         /**
          * Creates a new MailDraft object using subject and contect texts.
          *
@@ -231,7 +232,7 @@ class MailDraft
     public:                                                 // modifiers
 
         // this two modifiers expected to be applied in normal case to blank draft and exclusively, It DON'T must overwrite already set itemTextId, in other cases it will work and with mixed cases but this will be not normal way use.
-        MailDraft& SetSubjectAndBodyId(std::string subject, uint32 itemTextId) { m_subject = subject; MANGOS_ASSERT(!m_bodyId); m_bodyId = itemTextId; return *this; }
+        MailDraft& SetSubjectAndBodyId(std::string subject, uint32 itemTextId) { m_subject = std::move(subject); MANGOS_ASSERT(!m_bodyId); m_bodyId = itemTextId; return *this; }
         MailDraft& SetSubjectAndBody(std::string subject, std::string text);
         MailDraft& SetMailTemplate(uint16 mailTemplateId, bool need_items = true) { m_mailTemplateId = mailTemplateId, m_mailTemplateItemsNeed = need_items; return *this; }
 
