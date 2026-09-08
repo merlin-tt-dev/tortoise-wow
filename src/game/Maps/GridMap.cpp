@@ -1237,27 +1237,17 @@ TerrainManager::TerrainManager()
     mLiquidTypes[21] = std::make_unique<LiquidTypeEntry>(21, 25, 2, 28801);
 }
 
-TerrainManager::~TerrainManager()
-{
-    for (auto& it : i_TerrainMap)
-        delete it.second;
-}
+TerrainManager::~TerrainManager() = default;
 
 TerrainInfo* TerrainManager::LoadTerrain(const uint32 mapId)
 {
     Guard _guard(*this);
 
-    TerrainInfo* ptr = nullptr;
-    TerrainDataMap::const_iterator iter = i_TerrainMap.find(mapId);
-    if (iter == i_TerrainMap.end())
-    {
-        ptr = new TerrainInfo(mapId);
-        i_TerrainMap[mapId] = ptr;
-    }
-    else
-        ptr = (*iter).second;
+    auto const [iter, inserted] = i_TerrainMap.try_emplace(mapId);
+    if (inserted)
+        iter->second = std::make_unique<TerrainInfo>(mapId);
 
-    return ptr;
+    return iter->second.get();
 }
 
 void TerrainManager::UnloadTerrain(const uint32 mapId)
@@ -1270,13 +1260,10 @@ void TerrainManager::UnloadTerrain(const uint32 mapId)
     TerrainDataMap::iterator iter = i_TerrainMap.find(mapId);
     if (iter != i_TerrainMap.end())
     {
-        TerrainInfo* ptr = (*iter).second;
+        TerrainInfo* ptr = iter->second.get();
         // lets check if this object can be actually freed
         if (!ptr->IsReferenced())
-        {
             i_TerrainMap.erase(iter);
-            delete ptr;
-        }
     }
 }
 
@@ -1289,9 +1276,6 @@ void TerrainManager::Update(const uint32 diff)
 
 void TerrainManager::UnloadAll()
 {
-    for (auto& it : i_TerrainMap)
-        delete it.second;
-
     i_TerrainMap.clear();
 }
 

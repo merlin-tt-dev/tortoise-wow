@@ -205,7 +205,7 @@ class TerrainInfo : public Referencable<AtomicLong>
 
 class TerrainManager : public MaNGOS::Singleton<TerrainManager, MaNGOS::ClassLevelLockable<TerrainManager, std::mutex> >
 {
-        typedef std::unordered_map<uint32,  TerrainInfo*> TerrainDataMap;
+        typedef std::unordered_map<uint32, std::unique_ptr<TerrainInfo>> TerrainDataMap;
         friend class MaNGOS::OperatorNew<TerrainManager>;
 
     public:
