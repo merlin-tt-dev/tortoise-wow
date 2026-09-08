@@ -58,29 +58,39 @@ void PlayerBroadcaster::SendPacket(const WorldPacket& packet)
 
 void PlayerBroadcaster::ProcessQueue(uint32& num_packets)
 {
-    if (m_queue.empty())
-        return;
-
-    std::scoped_lock lock{ m_queue_lock, m_listeners_lock };
-    auto queue = std::move(m_queue);
-
-    lastUpdatePackets = queue.size() * m_listeners.size();
-    num_packets += lastUpdatePackets;
-
-    for (auto& data : queue)
+    std::vector<BroadcastData> queue;
     {
-        // Send to self?
-        if (data.sendToSelf && data.except != GetGUID())
-            SendPacket(data.packet);
+        std::lock_guard<std::mutex> guard(m_queue_lock);
+        if (m_queue.empty())
+            return;
 
-        for (const auto& itr : m_listeners)
+        queue.swap(m_queue);
+    }
+
+    {
+        std::lock_guard<std::mutex> guard(m_listeners_lock);
+        lastUpdatePackets = queue.size() * m_listeners.size();
+        num_packets += lastUpdatePackets;
+
+        for (auto& data : queue)
         {
-            if (itr.first == data.except)
-                continue;
+            if (data.sendToSelf && data.except != GetGUID())
+                SendPacket(data.packet);
 
-            itr.second->SendPacket(data.packet);
+            for (const auto& itr : m_listeners)
+            {
+                if (itr.first == data.except)
+                    continue;
+
+                itr.second->SendPacket(data.packet);
+            }
         }
     }
+
+    queue.clear();
+    std::lock_guard<std::mutex> guard(m_queue_lock);
+    if (m_queue.empty())
+        m_queue.swap(queue);
 }
 
 void PlayerBroadcaster::QueuePacket(WorldPacket packet, bool self, ObjectGuid except)
