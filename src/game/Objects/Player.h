@@ -3119,8 +3119,8 @@ public:
 
         // General send addon message
     public:
-        void SendAddonMessage(std::string prefix, std::string message);
-        void SendAddonMessage(std::string prefix, std::string message, Player* from);
+        void SendAddonMessage(std::string const& prefix, std::string const& message);
+        void SendAddonMessage(std::string const& prefix, std::string const& message, Player* from);
 };
 
 void AddItemsSetItem(Player*player,Item* item);

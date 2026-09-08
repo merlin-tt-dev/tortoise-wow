@@ -976,7 +976,7 @@ void GuildBank::SendTabItems(std::string msg)
 		messages.push_back("TabItems:" + std::to_string(tab) + ":end");
 	}
 
-	for (const auto msg : messages)
+    for (const auto& msg : messages)
 		_player->SendAddonMessage(prefix, msg);
 }
 
@@ -2261,7 +2261,7 @@ void GuildBank::SendTabLog(std::string msg)
 		messages.push_back("TabLog:" + std::to_string(tab) + ":end");
 	}
 
-	for (const auto msg : messages)
+    for (const auto& msg : messages)
 		_player->SendAddonMessage(prefix, msg);
 }
 
@@ -2305,7 +2305,7 @@ void GuildBank::SendMoneyLog(std::string msg)
 		messages.push_back("MoneyLog:end");
 	}
 
-	for (const auto msg : messages)
+    for (const auto& msg : messages)
 		_player->SendAddonMessage(prefix, msg);
 }
 

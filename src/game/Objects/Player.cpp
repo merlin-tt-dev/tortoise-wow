@@ -25658,22 +25658,32 @@ void Player::UpdateAppearance()
     DeMorph();
 }
 
-void Player::SendAddonMessage(std::string prefix, std::string message)
+void Player::SendAddonMessage(std::string const& prefix, std::string const& message)
 {
+    std::string payload;
+    payload.reserve(prefix.size() + 1 + message.size());
+    payload.append(prefix);
+    payload.push_back('\t');
+    payload.append(message);
+
     WorldPacket data;
     ChatHandler::BuildChatPacket(data, CHAT_MSG_GUILD,
-        (prefix + "\t" + message).c_str(), Language(LANG_ADDON), GetChatTag(),
-        GetObjectGuid(), GetName());
+        payload.c_str(), Language(LANG_ADDON), GetChatTag(), GetObjectGuid(), GetName());
 
     GetSession()->SendPacket(&data);
 }
 
-void Player::SendAddonMessage(std::string prefix, std::string message, Player* from)
+void Player::SendAddonMessage(std::string const& prefix, std::string const& message, Player* from)
 {
+    std::string payload;
+    payload.reserve(prefix.size() + 1 + message.size());
+    payload.append(prefix);
+    payload.push_back('\t');
+    payload.append(message);
+
     WorldPacket data;
     ChatHandler::BuildChatPacket(data, CHAT_MSG_GUILD,
-        (prefix + "\t" + message).c_str(), Language(LANG_ADDON), GetChatTag(),
-        from->GetObjectGuid(), from->GetName());
+        payload.c_str(), Language(LANG_ADDON), GetChatTag(), from->GetObjectGuid(), from->GetName());
 
     GetSession()->SendPacket(&data);
 }

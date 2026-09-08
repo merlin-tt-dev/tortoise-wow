@@ -518,7 +518,7 @@ void TransmogMgr::SendAvailableTransmogs(uint8 InventorySlotId, uint32 destItemI
 
 	_owner->SendAddonMessage(prefix, "AvailableTransmogs:" + std::to_string(InventorySlotId) + ":" + std::to_string(numPossibleTransmogs) + ":start");
 
-	for (const auto msg : messages)
+    for (const auto& msg : messages)
 		_owner->SendAddonMessage(prefix, msg);
 }
 
