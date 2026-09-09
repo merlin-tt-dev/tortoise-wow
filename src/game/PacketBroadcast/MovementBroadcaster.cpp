@@ -65,6 +65,11 @@ void MovementBroadcaster::RemovePlayer(const std::shared_ptr<PlayerBroadcaster>&
 
     if (it != m_thread_players[index].end())
         m_thread_players[index].erase(it);
+
+    // Before the player snapshot optimization, this exclusive thread lock also
+    // waited for any active ProcessQueue() call. Preserve that completion
+    // contract explicitly while keeping network I/O outside this lock.
+    player->StopProcessing();
 }
 
 void MovementBroadcasterWorker::run()
