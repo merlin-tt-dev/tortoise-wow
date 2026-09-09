@@ -399,14 +399,10 @@ bool LFTManager::TryBuildOfferForInstance(std::string const& instance)
 {
     std::map<ObjectGuid, uint8> selectedRoles;
     bool foundOffer = false;
-    std::vector<ObjectGuid> queueOrder = GetQueueOrder();
+    std::vector<QueueMap::const_iterator> queueOrder = GetQueueOrder();
 
-    for (ObjectGuid const& seedGuid : queueOrder)
+    for (QueueMap::const_iterator seed : queueOrder)
     {
-        QueueMap::const_iterator seed = m_queue.find(seedGuid);
-        if (seed == m_queue.end())
-            continue;
-
         if (m_playerOffers.find(seed->first) != m_playerOffers.end() || !HasInstance(seed->second.instances, instance))
             continue;
 
@@ -416,14 +412,10 @@ bool LFTManager::TryBuildOfferForInstance(std::string const& instance)
         uint8 healers = 0;
         uint8 damage = 0;
 
-        for (ObjectGuid const& candidateGuid : queueOrder)
+        for (QueueMap::const_iterator itr : queueOrder)
         {
             if (selected.size() >= 5)
                 break;
-
-            QueueMap::iterator itr = m_queue.find(candidateGuid);
-            if (itr == m_queue.end())
-                continue;
 
             if (selected.find(itr->first) != selected.end() || m_playerOffers.find(itr->first) != m_playerOffers.end())
                 continue;
@@ -435,16 +427,12 @@ bool LFTManager::TryBuildOfferForInstance(std::string const& instance)
                 continue;
 
             ObjectGuid blockLeader = itr->second.queueLeaderGuid.IsEmpty() ? itr->first : itr->second.queueLeaderGuid;
-            std::vector<ObjectGuid> block;
-            for (ObjectGuid const& blockGuid : queueOrder)
+            std::vector<QueueMap::const_iterator> block;
+            for (QueueMap::const_iterator blockItr : queueOrder)
             {
-                QueueMap::const_iterator blockItr = m_queue.find(blockGuid);
-                if (blockItr == m_queue.end())
-                    continue;
-
                 ObjectGuid otherLeader = blockItr->second.queueLeaderGuid.IsEmpty() ? blockItr->first : blockItr->second.queueLeaderGuid;
                 if (otherLeader == blockLeader)
-                    block.push_back(blockItr->first);
+                    block.push_back(blockItr);
             }
 
             std::map<ObjectGuid, uint8> blockRoles;
@@ -453,10 +441,10 @@ bool LFTManager::TryBuildOfferForInstance(std::string const& instance)
             uint8 blockDamage = damage;
             bool blockFits = true;
 
-            for (ObjectGuid const& guid : block)
+            for (QueueMap::const_iterator queued : block)
             {
-                QueueMap::const_iterator queued = m_queue.find(guid);
-                if (queued == m_queue.end() || selected.find(guid) != selected.end() ||
+                ObjectGuid const& guid = queued->first;
+                if (selected.find(guid) != selected.end() ||
                     m_playerOffers.find(guid) != m_playerOffers.end() || !HasInstance(queued->second.instances, instance) ||
                     !CanQueuedPlayersGroup(seed->second, queued->second))
                 {
@@ -660,25 +648,20 @@ std::vector<ObjectGuid> LFTManager::GetPartyMembers(Player* leader) const
     return members;
 }
 
-std::vector<ObjectGuid> LFTManager::GetQueueOrder() const
+std::vector<LFTManager::QueueMap::const_iterator> LFTManager::GetQueueOrder() const
 {
-    std::vector<ObjectGuid> order;
+    std::vector<QueueMap::const_iterator> order;
     order.reserve(m_queue.size());
 
     for (QueueMap::const_iterator itr = m_queue.begin(); itr != m_queue.end(); ++itr)
-        order.push_back(itr->first);
+        order.push_back(itr);
 
-    std::sort(order.begin(), order.end(), [this](ObjectGuid const& leftGuid, ObjectGuid const& rightGuid)
+    std::sort(order.begin(), order.end(), [](QueueMap::const_iterator left, QueueMap::const_iterator right)
     {
-        QueueMap::const_iterator left = m_queue.find(leftGuid);
-        QueueMap::const_iterator right = m_queue.find(rightGuid);
-        if (left == m_queue.end() || right == m_queue.end())
-            return leftGuid < rightGuid;
-
         if (left->second.queueOrder != right->second.queueOrder)
             return left->second.queueOrder < right->second.queueOrder;
 
-        return leftGuid < rightGuid;
+        return left->first < right->first;
     });
 
     return order;

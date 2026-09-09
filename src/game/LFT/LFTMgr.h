@@ -138,7 +138,7 @@ class LFTManager
         Listing* GetListing(uint32 id);
         Player* GetPlayer(ObjectGuid const& guid) const;
         std::vector<ObjectGuid> GetPartyMembers(Player* leader) const;
-        std::vector<ObjectGuid> GetQueueOrder() const;
+        std::vector<QueueMap::const_iterator> GetQueueOrder() const;
         std::vector<std::string> GetSharedInstances(std::vector<std::string> const& requested) const;
         uint8 ParseRoleMask(std::string const& roles) const;
         std::array<uint8, 3> ParseRoleCounts(std::string const& roles) const;
