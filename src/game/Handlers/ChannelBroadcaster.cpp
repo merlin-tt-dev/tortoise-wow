@@ -68,14 +68,14 @@ void ChannelBroadcaster::DisableSendingMessages()
 
 void ChannelBroadcaster::EnqueueMessage(std::string&& Message, const std::string& ChannelName, ObjectGuid PlayerGuid, uint32 Language, Team ChannelTeam, bool bSkipChecks)
 {
-    MessageQueue.enqueue(ChannelMessage{std::move(Message), ChannelName, PlayerGuid, Language, ChannelTeam, bSkipChecks });
-
-    // Synchronize with the consumer's empty-queue wait so a notification cannot
-    // be lost between its queue check and entering the wait state.
+    // ReaderWriterQueue is SPSC. AsyncSay can be called by multiple producer
+    // threads, so serialize producer access while also synchronizing the queue
+    // transition with the consumer's empty-queue wait predicate.
     {
         std::lock_guard<std::mutex> lock(StateMutex);
-        StateChanged.notify_one();
+        MessageQueue.enqueue(ChannelMessage{std::move(Message), ChannelName, PlayerGuid, Language, ChannelTeam, bSkipChecks });
     }
+    StateChanged.notify_one();
 }
 
 void ChannelBroadcaster::ThreadProc()
