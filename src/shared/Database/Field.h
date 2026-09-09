@@ -24,6 +24,8 @@
 
 #include "Common.h"
 
+#include <string_view>
+
 class Field
 {
     public:
@@ -51,7 +53,26 @@ class Field
             return mValue ? mValue : "";                    // std::string s = 0 have undefine result in C++
         }
         float GetFloat() const { return mValue ? static_cast<float>(atof(mValue)) : 0.0f; }
-        bool GetBool() const { return mValue ? atoi(mValue) > 0 : false; }
+        bool GetBool() const
+        {
+            if (!mValue)
+                return false;
+
+            if (mType == DB_TYPE_BOOL)
+            {
+                std::string_view value(mValue);
+                if (value.size() == 1 && (value[0] == 't' || value[0] == 'T'))
+                    return true;
+                if (value.size() == 4 &&
+                    (value[0] == 't' || value[0] == 'T') &&
+                    (value[1] == 'r' || value[1] == 'R') &&
+                    (value[2] == 'u' || value[2] == 'U') &&
+                    (value[3] == 'e' || value[3] == 'E'))
+                    return true;
+            }
+
+            return atoi(mValue) > 0;
+        }
         int32 GetInt32() const { return mValue ? static_cast<int32>(atol(mValue)) : int32(0); }
         uint8 GetUInt8() const { return mValue ? static_cast<uint8>(atol(mValue)) : uint8(0); }
         uint16 GetUInt16() const { return mValue ? static_cast<uint16>(atol(mValue)) : uint16(0); }

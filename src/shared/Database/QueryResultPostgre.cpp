@@ -50,14 +50,10 @@ bool QueryResultPostgre::NextRow()
         return false;
     }
 
-    char* pPQgetvalue;
-    for (int j = 0; j < mFieldCount; j++)
+    for (uint32 j = 0; j < mFieldCount; ++j)
     {
-        pPQgetvalue = PQgetvalue(mResult, mTableIndex, j);
-        if(pPQgetvalue && !(*pPQgetvalue))
-            pPQgetvalue = nullptr;
-
-        mCurrentRow[j].SetValue(pPQgetvalue);
+        const char* value = PQgetisnull(mResult, mTableIndex, j) ? nullptr : PQgetvalue(mResult, mTableIndex, j);
+        mCurrentRow[j].SetValue(value);
     }
     ++mTableIndex;
 
