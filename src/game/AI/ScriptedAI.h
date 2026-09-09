@@ -8,6 +8,7 @@
 #include "CreatureAI.h"
 #include "Creature.h"
 #include "ScriptMgr.h"
+#include <vector>
 
 #define CAST_AI(a,b)    (dynamic_cast<a*>(b))
 
@@ -120,10 +121,10 @@ struct ScriptedAI : CreatureAI
     void DoTeleportPlayer(Unit* pUnit, float fX, float fY, float fZ, float fO);
 
     // Returns a list of friendly CC'd units within range
-    std::list<Creature*> DoFindFriendlyCC(float fRange);
+    std::vector<Creature*> DoFindFriendlyCC(float fRange);
 
     // Returns a list of all friendly units missing a specific buff within range
-    std::list<Creature*> DoFindFriendlyMissingBuff(float fRange, uint32 uiSpellId);
+    std::vector<Creature*> DoFindFriendlyMissingBuff(float fRange, uint32 uiSpellId);
 
     // Return a player with at least minimumRange from m_creature
     Player* GetPlayerAtMinimumRange(float fMinimumRange);
