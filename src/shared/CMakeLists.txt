@@ -54,7 +54,6 @@ set (shared_SRCS
     Database/DBCStore.h
     Database/Field.h
     Database/MySQLDelayThread.h
-    Database/PGSQLDelayThread.h
     Database/QueryResult.h
     Database/QueryResultMysql.h
     Database/QueryResultPostgre.h
