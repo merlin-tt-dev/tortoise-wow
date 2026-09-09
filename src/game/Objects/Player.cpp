@@ -2547,9 +2547,10 @@ bool Player::SwitchInstance(uint32 newInstanceId)
 
     {
         std::shared_lock<std::shared_mutex> lock(m_visibleGUIDs_lock);
+        WorldPacket data(SMSG_DESTROY_OBJECT, 8);
         for (const ObjectGuid& guid : m_visibleGUIDs)
         {
-            WorldPacket data(SMSG_DESTROY_OBJECT, 8);
+            data.clear();
             data << guid;
             GetSession()->SendPacket(&data);
         }
@@ -23930,11 +23931,13 @@ void Player::SendDestroyGroupMembers(bool includingSelf)
     if (Group* group = GetGroup())
     {
         std::unique_lock<std::shared_mutex> lock(m_visibleGUIDs_lock);
+        WorldPacket data(SMSG_DESTROY_OBJECT, 8);
         for (const Group::MemberSlot& itr : group->GetMemberSlots())
         {
             if (!includingSelf && itr.guid == GetObjectGuid())
                 continue;
-            WorldPacket data(SMSG_DESTROY_OBJECT, 8);
+
+            data.clear();
             data << itr.guid;
             GetSession()->SendPacket(&data);
             m_visibleGUIDs.erase(itr.guid);
