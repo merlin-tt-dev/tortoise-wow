@@ -1,0 +1,53 @@
+diff --git a/src/game/AuctionHouse/AuctionHouseMgr.cpp b/src/game/AuctionHouse/AuctionHouseMgr.cpp
+index 47a8988..c9e854c 100644
+--- a/src/game/AuctionHouse/AuctionHouseMgr.cpp
++++ b/src/game/AuctionHouse/AuctionHouseMgr.cpp
+@@ -550,8 +550,10 @@ void AuctionHouseMgr::LoadAuctions()
+ void AuctionHouseMgr::AddAItem(Item* it)
+ {
+     MANGOS_ASSERT(it);
+-    MANGOS_ASSERT(mAitems.find(it->GetGUIDLow()) == mAitems.end());
+-    mAitems[it->GetGUIDLow()] = it;
++    auto itemInsert = mAitems.emplace(it->GetGUIDLow(), it);
++    MANGOS_ASSERT(itemInsert.second);
++    if (!itemInsert.second)
++        itemInsert.first->second = it;
+ }
+ 
+ bool AuctionHouseMgr::RemoveAItem(uint32 id)
+diff --git a/src/game/ObjectAccessor.cpp b/src/game/ObjectAccessor.cpp
+index 61272a2..b35c982 100644
+--- a/src/game/ObjectAccessor.cpp
++++ b/src/game/ObjectAccessor.cpp
+@@ -220,8 +220,10 @@ ObjectAccessor::AddCorpse(Corpse *corpse)
+     MANGOS_ASSERT(corpse && corpse->GetType() != CORPSE_BONES);
+ 
+     Guard guard(i_corpseGuard);
+-    MANGOS_ASSERT(i_player2corpse.find(corpse->GetOwnerGuid()) == i_player2corpse.end());
+-    i_player2corpse[corpse->GetOwnerGuid()] = corpse;
++    auto corpseInsert = i_player2corpse.emplace(corpse->GetOwnerGuid(), corpse);
++    MANGOS_ASSERT(corpseInsert.second);
++    if (!corpseInsert.second)
++        corpseInsert.first->second = corpse;
+ 
+     // build mapid*cellid -> guid_set map
+     CellPair cell_pair = MaNGOS::ComputeCellPair(corpse->GetPositionX(), corpse->GetPositionY());
+diff --git a/src/game/PlayerDump.cpp b/src/game/PlayerDump.cpp
+index 25d5544..5f17de8 100644
+--- a/src/game/PlayerDump.cpp
++++ b/src/game/PlayerDump.cpp
+@@ -171,12 +171,8 @@ bool changetoknth(std::string &str, int n, char const* with, bool insert = false
+ 
+ uint32 registerNewGuid(uint32 oldGuid, std::map<uint32, uint32>& guidMap, uint32 newguid)
+ {
+-    std::map<uint32, uint32>::const_iterator itr = guidMap.find(oldGuid);
+-    if (itr != guidMap.end())
+-        return itr->second;
+-
+-    guidMap[oldGuid] = newguid;
+-    return newguid;
++    auto guidInsert = guidMap.emplace(oldGuid, newguid);
++    return guidInsert.first->second;
+ }
+ 
+ bool changeGuid(std::string &str, int n, std::map<uint32, uint32>& guidMap, uint32 newGuid, bool nonzero = false)

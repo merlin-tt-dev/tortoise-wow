@@ -1,0 +1,57 @@
+diff --git a/src/game/World.cpp b/src/game/World.cpp
+index 7a12bcd..327289d 100644
+--- a/src/game/World.cpp
++++ b/src/game/World.cpp
+@@ -2805,9 +2805,8 @@ namespace MaNGOS
+ 
+         while (char* line = lineFromMessage(pos))
+         {
+-            WorldPacket* data = new WorldPacket();
+-            ChatHandler::BuildChatPacket(*data, CHAT_MSG_SYSTEM, line);
+-            data_list.push_back(data);
++            data_list.emplace_back();
++            ChatHandler::BuildChatPacket(data_list.back(), CHAT_MSG_SYSTEM, line);
+         }
+     }
+ }
+diff --git a/src/game/World.h b/src/game/World.h
+index 4462ffa..e5cab49 100644
+--- a/src/game/World.h
++++ b/src/game/World.h
+@@ -821,7 +821,7 @@ namespace MaNGOS
+     class WorldWorldTextBuilder
+     {
+     public:
+-        typedef std::vector<WorldPacket*> WorldPacketList;
++        typedef std::vector<WorldPacket> WorldPacketList;
+         explicit WorldWorldTextBuilder(int32 textId, va_list* args = nullptr) : i_textId(textId), i_args(args) {}
+         void operator()(WorldPacketList& data_list, int32 loc_idx);
+     private:
+@@ -999,15 +999,9 @@ class World
+         class LocalizedPacketListDo
+         {
+         public:
+-            typedef std::vector<WorldPacket*> WorldPacketList;
++            typedef std::vector<WorldPacket> WorldPacketList;
+             explicit LocalizedPacketListDo(Builder& builder) : i_builder(builder) {}
+ 
+-            ~LocalizedPacketListDo()
+-            {
+-                for (size_t i = 0; i < i_data_cache.size(); ++i)
+-                    for (size_t j = 0; j < i_data_cache[i].size(); ++j)
+-                        delete i_data_cache[i][j];
+-            }
+             void operator()(Player* p)
+             {
+                 int32 loc_idx = GetSessionDbLocaleIndex(p);
+@@ -1027,8 +1021,8 @@ class World
+                 else
+                     data_list = &i_data_cache[cache_idx];
+ 
+-                for (auto& i : *data_list)
+-                    SendDirectMessage(p, i);
++                for (auto& packet : *data_list)
++                    SendDirectMessage(p, &packet);
+             }
+ 
+         private:

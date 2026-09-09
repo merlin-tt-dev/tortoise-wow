@@ -1,0 +1,8 @@
+3366ad270ce00fdc0bfc8c65b91ca1565ddfcb3b7e905dec0f7b4926211881c9  ./APPLY-ORDER.txt
+ac4a731ca382e2707682cddd355abc026c4ad4fa85af9a48ea9aa2639b1ab8a3  ./AUDIT-TEST-RUN.txt
+777bf0014e4751f49e20c9a005a4673095b607fa54b35eda040b11d754d107cb  ./AUDIT-TEST.sh
+f3a25ed875003c4bbfbb2f5d6f24dc2d54fa500f903868e4fc95d3314d5d0997  ./README.md
+64641eec4ccbfffd49bb42b2ec008362ea714ce7dcba9c4b599e27f111d0ed44  ./SEMANTIC-AUDIT.md
+67323cde81a7465d41a01211b572a35b0d0a38d5e80c284f71f4c598edd1878b  ./VALIDATION.txt
+341acb04117b74d88bd20f7a0ce2942c42fd0968a4f694af013906cd47447999  ./patches/core-optimization-103-chat-packet-message-views.patch
+3977fe5a3d6f71d9476935ec3a82b9696e5f045539ba2d0d51c05de8f876b280  ./patches/core-optimization-104-worldtext-nonmutating-line-split.patch

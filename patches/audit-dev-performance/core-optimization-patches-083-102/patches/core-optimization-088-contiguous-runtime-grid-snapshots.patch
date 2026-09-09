@@ -1,0 +1,132 @@
+diff --git a/src/game/AI/ScriptedAI.cpp b/src/game/AI/ScriptedAI.cpp
+index 0d38f0d..508455f 100644
+--- a/src/game/AI/ScriptedAI.cpp
++++ b/src/game/AI/ScriptedAI.cpp
+@@ -230,29 +230,26 @@ Player* ScriptedAI::GetPlayerAtMinimumRange(float fMinimumRange)
+  */
+ Player* ScriptedAI::GetRandomPlayerInRange(const float radius, const bool mustBeAlive, const std::list<Player*>* excludedPlayers) const
+ {
+-    std::list<Player*> players;
+-    GetPlayersWithinRange(players, radius);
++    std::vector<Player*> players;
++    MaNGOS::AnyPlayerInObjectRangeCheck check(m_creature, radius);
++    MaNGOS::PlayerListSearcher<MaNGOS::AnyPlayerInObjectRangeCheck, std::vector<Player*>> searcher(players, check);
++    Cell::VisitWorldObjects(m_creature, searcher, radius);
++
+     if (excludedPlayers != nullptr)
+     {
+-        players.remove_if([excludedPlayers, mustBeAlive](Player* player)
++        players.erase(std::remove_if(players.begin(), players.end(), [excludedPlayers, mustBeAlive](Player* player)
+         {
+             if (mustBeAlive && player->IsDead())
+-            {
+                 return true;
+-            }
+ 
+             return std::find(excludedPlayers->begin(), excludedPlayers->end(), player) != excludedPlayers->end();
+-        });
++        }), players.end());
+     }
+ 
+     if (players.empty())
+-    {
+         return nullptr;
+-    }
+ 
+-    auto iterator = players.begin();
+-    advance(iterator, rand() % players.size());
+-    return *iterator;
++    return players[rand() % players.size()];
+ }
+ 
+ void ScriptedAI::GetPlayersWithinRange(std::list<Player*>& players, float range) const
+diff --git a/src/game/Maps/ZoneScript.cpp b/src/game/Maps/ZoneScript.cpp
+index 1cce18e..48f9698 100644
+--- a/src/game/Maps/ZoneScript.cpp
++++ b/src/game/Maps/ZoneScript.cpp
+@@ -321,9 +321,9 @@ bool OPvPCapturePoint::Update(uint32 diff)
+         }
+     }
+ 
+-    std::list<Player*> players;
++    std::vector<Player*> players;
+     MaNGOS::AnyPlayerInObjectRangeCheck checker(m_capturePoint, radius, true);
+-    MaNGOS::PlayerListSearcher<MaNGOS::AnyPlayerInObjectRangeCheck> searcher(players, checker);
++    MaNGOS::PlayerListSearcher<MaNGOS::AnyPlayerInObjectRangeCheck, std::vector<Player*>> searcher(players, checker);
+     Cell::VisitWorldObjects(m_capturePoint, searcher, radius);
+ 
+     for (auto const& player : players)
+diff --git a/src/game/Objects/Creature.cpp b/src/game/Objects/Creature.cpp
+index 32d4cc0..38b09eb 100644
+--- a/src/game/Objects/Creature.cpp
++++ b/src/game/Objects/Creature.cpp
+@@ -133,7 +133,7 @@ bool AssistDelayEvent::Execute(uint64 /*e_time*/, uint32 /*p_time*/)
+     return true;
+ }
+ 
+-AssistDelayEvent::AssistDelayEvent(ObjectGuid victim, Unit& owner, std::list<Creature*> const& assistants) : BasicEvent(), m_victimGuid(victim), m_owner(owner)
++AssistDelayEvent::AssistDelayEvent(ObjectGuid victim, Unit& owner, std::vector<Creature*> const& assistants) : BasicEvent(), m_victimGuid(victim), m_owner(owner)
+ {
+     // Pushing guids because in delay can happen some creature gets despawned => invalid pointer
+     m_assistantGuids.reserve(assistants.size());
+@@ -2263,10 +2263,10 @@ void Creature::CallAssistance()
+         float radius = sWorld.getConfig(CONFIG_FLOAT_CREATURE_FAMILY_ASSISTANCE_RADIUS);
+         if (radius > 0)
+         {
+-            std::list<Creature*> assistList;
++            std::vector<Creature*> assistList;
+ 
+             MaNGOS::AnyAssistCreatureInRangeCheck u_check(this, GetVictim(), radius);
+-            MaNGOS::CreatureListSearcher<MaNGOS::AnyAssistCreatureInRangeCheck> searcher(assistList, u_check);
++            MaNGOS::CreatureListSearcher<MaNGOS::AnyAssistCreatureInRangeCheck, std::vector<Creature*>> searcher(assistList, u_check);
+             Cell::VisitGridObjects(this, searcher, radius);
+ 
+             if (!GetVictim()) // May be invalidated by AI at grid activation ...
+diff --git a/src/game/Objects/Creature.h b/src/game/Objects/Creature.h
+index 0631241..6b73312 100644
+--- a/src/game/Objects/Creature.h
++++ b/src/game/Objects/Creature.h
+@@ -35,6 +35,7 @@
+ #include "Util.h"
+ 
+ #include <list>
++#include <vector>
+ 
+ class SpellEntry;
+ 
+@@ -1145,7 +1146,7 @@ class Creature : public Unit
+ class AssistDelayEvent : public BasicEvent
+ {
+     public:
+-        AssistDelayEvent(ObjectGuid victim, Unit& owner, std::list<Creature*> const& assistants);
++        AssistDelayEvent(ObjectGuid victim, Unit& owner, std::vector<Creature*> const& assistants);
+ 
+         bool Execute(uint64 e_time, uint32 p_time) override;
+     private:
+diff --git a/src/game/Spells/SpellEffects.cpp b/src/game/Spells/SpellEffects.cpp
+index ff33cd7..f4cb139 100644
+--- a/src/game/Spells/SpellEffects.cpp
++++ b/src/game/Spells/SpellEffects.cpp
+@@ -60,6 +60,9 @@
+ #include "Chat.h"
+ #include "CompanionManager.hpp"
+ #include "ScriptObjects.h"
++#include "GridNotifiers.h"
++#include "GridNotifiersImpl.h"
++#include "CellImpl.h"
+ #include "MountManager.hpp"
+ #include "ToyManager.hpp"
+ 
+@@ -4102,8 +4105,10 @@ void Spell::EffectScriptEffect(SpellEffectIndex eff_idx)
+                 }
+                 case 30882: // EPL PvP A Game of Towers: Tower Capture Test (DND)
+                 {
+-                    std::list<Player*> players;
+-                    m_casterUnit->GetAlivePlayerListInRange(m_casterUnit, players, VISIBILITY_DISTANCE_NORMAL);
++                    std::vector<Player*> players;
++                    MaNGOS::AnyPlayerInObjectRangeCheck checker(m_casterUnit, VISIBILITY_DISTANCE_NORMAL, true);
++                    MaNGOS::PlayerListSearcher<MaNGOS::AnyPlayerInObjectRangeCheck, std::vector<Player*>> searcher(players, checker);
++                    Cell::VisitWorldObjects(m_casterUnit, searcher, VISIBILITY_DISTANCE_NORMAL);
+                     for (const auto& pTarget : players)
+                     {
+                         if (!pTarget->IsFriendlyTo(m_casterUnit))

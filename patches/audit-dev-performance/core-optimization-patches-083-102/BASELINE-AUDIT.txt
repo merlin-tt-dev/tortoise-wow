@@ -1,0 +1,15 @@
+Source of truth used for this corrected bundle:
+  /mnt/data/tortoise-wow.tar(1).xz
+SHA256:
+  16aef1c17c073d6c1b91a6dc58ec25f833b21039ec3e94f1ff20471c313512e2
+
+Direct source-state check on the exact extracted archive before applying this bundle:
+  076 reverse-apply check: PASS (already present)
+  077 reverse-apply check: PASS (already present)
+  078 reverse-apply check: PASS (already present)
+  079 reverse-apply check: PASS (already present)
+  080 reverse-apply check: PASS (already present)
+  081 reverse-apply check: PASS (already present)
+  082 reverse-apply check: PASS (already present)
+
+Therefore the corrected sequence begins at 083. No source state was reconstructed from historical patches.

@@ -1,0 +1,89 @@
+diff --git a/src/game/PacketBroadcast/PlayerBroadcaster.cpp b/src/game/PacketBroadcast/PlayerBroadcaster.cpp
+index b55d7a9..fef0dd5 100644
+--- a/src/game/PacketBroadcast/PlayerBroadcaster.cpp
++++ b/src/game/PacketBroadcast/PlayerBroadcaster.cpp
+@@ -27,6 +27,31 @@ void PlayerBroadcaster::ChangeSocket(WorldSocket* new_socket)
+     m_socket = new_socket;
+ }
+ 
++bool PlayerBroadcaster::BeginProcessing()
++{
++    std::lock_guard<std::mutex> guard(m_processing_lock);
++    if (!m_processing_enabled)
++        return false;
++
++    ++m_active_processing;
++    return true;
++}
++
++void PlayerBroadcaster::FinishProcessing()
++{
++    std::lock_guard<std::mutex> guard(m_processing_lock);
++    ASSERT(m_active_processing > 0);
++    if (--m_active_processing == 0)
++        m_processing_idle.notify_all();
++}
++
++void PlayerBroadcaster::StopProcessing()
++{
++    std::unique_lock<std::mutex> guard(m_processing_lock);
++    m_processing_enabled = false;
++    m_processing_idle.wait(guard, [this]() { return m_active_processing == 0; });
++}
++
+ void PlayerBroadcaster::WaitForListenerBatches(std::unique_lock<std::mutex>& lock)
+ {
+     m_listeners_idle.wait(lock, [this]() { return m_active_listener_batches == 0; });
+@@ -74,6 +99,11 @@ void PlayerBroadcaster::SendPacket(const WorldPacket& packet)
+ 
+ void PlayerBroadcaster::ProcessQueue(uint32& num_packets)
+ {
++    if (!BeginProcessing())
++        return;
++
++    ProcessingGuard processingGuard(*this);
++
+     std::vector<BroadcastData> queue;
+     {
+         std::lock_guard<std::mutex> guard(m_queue_lock);
+@@ -153,6 +183,8 @@ ObjectGuid PlayerBroadcaster::GetGUID() const
+ 
+ void PlayerBroadcaster::FreeAtLogout()
+ {
++    StopProcessing();
++
+     if (m_socket)
+     {
+         m_socket->RemoveReference();
+diff --git a/src/game/PacketBroadcast/PlayerBroadcaster.h b/src/game/PacketBroadcast/PlayerBroadcaster.h
+index dfb71dd..08bc5fd 100644
+--- a/src/game/PacketBroadcast/PlayerBroadcaster.h
++++ b/src/game/PacketBroadcast/PlayerBroadcaster.h
+@@ -35,6 +35,27 @@ class PlayerBroadcaster final
+     std::size_t m_active_listener_batches = 0;
+     std::mutex m_queue_lock;
+ 
++    std::mutex m_processing_lock;
++    std::condition_variable m_processing_idle;
++    std::size_t m_active_processing = 0;
++    bool m_processing_enabled = true;
++
++    class ProcessingGuard final
++    {
++    public:
++        explicit ProcessingGuard(PlayerBroadcaster& owner) : m_owner(owner) {}
++        ~ProcessingGuard() { m_owner.FinishProcessing(); }
++
++        ProcessingGuard(ProcessingGuard const&) = delete;
++        ProcessingGuard& operator=(ProcessingGuard const&) = delete;
++
++    private:
++        PlayerBroadcaster& m_owner;
++    };
++
++    bool BeginProcessing();
++    void FinishProcessing();
++    void StopProcessing();
+     void WaitForListenerBatches(std::unique_lock<std::mutex>& lock);
+     void FinishListenerBatch();
+     void ProcessQueue(uint32& num_packets);

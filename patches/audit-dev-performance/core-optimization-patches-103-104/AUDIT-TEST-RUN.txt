@@ -1,0 +1,8 @@
+==> core-optimization-103-chat-packet-message-views.patch
+9	7	src/game/Chat/Chat.cpp
+2	1	src/game/Chat/Chat.h
+==> core-optimization-104-worldtext-nonmutating-line-split.patch
+16	6	src/game/World.cpp
+2	7	src/game/World.h
+PASS: strict sequential audit completed in isolated temporary worktree.
+PASS: integration tree HEAD/status unchanged.

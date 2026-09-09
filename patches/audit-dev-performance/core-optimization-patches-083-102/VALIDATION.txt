@@ -1,0 +1,33 @@
+Validation date: 2026-09-09
+Target: audits/dev-performance
+Source of truth: exact uploaded archive tortoise-wow.tar(1).xz
+Source archive SHA256: 16aef1c17c073d6c1b91a6dc58ec25f833b21039ec3e94f1ff20471c313512e2
+
+Baseline audit on an untouched extraction of the uploaded archive:
+  core-optimization-audit-076: git apply --reverse --check PASS
+  core-optimization-audit-077: git apply --reverse --check PASS
+  core-optimization-audit-078: git apply --reverse --check PASS
+  core-optimization-audit-079: git apply --reverse --check PASS
+  core-optimization-audit-080: git apply --reverse --check PASS
+  core-optimization-081:       git apply --reverse --check PASS
+  core-optimization-082:       git apply --reverse --check PASS
+
+Conclusion: 076-082 source changes are already present in the supplied baseline. They are intentionally NOT included in this corrected bundle.
+
+Bundle 083-102 validation:
+  Patch count: 20
+  Exact sequential order: PASS
+  For every patch:
+    git -c core.whitespace=trailing-space,space-before-tab,tab-in-indent apply --check --whitespace=error-all : PASS
+    git -c core.whitespace=trailing-space,space-before-tab,tab-in-indent apply --numstat --whitespace=error-all : PASS
+    git apply : PASS
+    git diff --check : PASS
+  Changed-file conflict-marker scan: PASS
+  Newly-added C/C++ tab-indentation scan: PASS
+  Isolated temporary worktree audit: PASS
+  Real integration tree HEAD unchanged by audit: PASS
+  Real integration tree status unchanged by audit: PASS
+
+A second real sequential application was performed in a disposable repository initialized directly from the exact uploaded archive. Each patch was committed separately to create the baseline for the 103-104 continuation. Final status after 083-102 integration: clean.
+
+Full Linux/MinGW build: NOT claimed by this validation; use the normal build gate.

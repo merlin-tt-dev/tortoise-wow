@@ -1,0 +1,2 @@
+core-optimization-103-chat-packet-message-views.patch
+core-optimization-104-worldtext-nonmutating-line-split.patch

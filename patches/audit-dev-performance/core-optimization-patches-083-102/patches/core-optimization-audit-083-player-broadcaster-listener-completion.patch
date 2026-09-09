@@ -1,0 +1,119 @@
+diff --git a/src/game/PacketBroadcast/PlayerBroadcaster.cpp b/src/game/PacketBroadcast/PlayerBroadcaster.cpp
+index 6970d2b..b55d7a9 100644
+--- a/src/game/PacketBroadcast/PlayerBroadcaster.cpp
++++ b/src/game/PacketBroadcast/PlayerBroadcaster.cpp
+@@ -27,26 +27,42 @@ void PlayerBroadcaster::ChangeSocket(WorldSocket* new_socket)
+     m_socket = new_socket;
+ }
+ 
++void PlayerBroadcaster::WaitForListenerBatches(std::unique_lock<std::mutex>& lock)
++{
++    m_listeners_idle.wait(lock, [this]() { return m_active_listener_batches == 0; });
++}
++
++void PlayerBroadcaster::FinishListenerBatch()
++{
++    std::lock_guard<std::mutex> guard(m_listeners_lock);
++    ASSERT(m_active_listener_batches > 0);
++    if (--m_active_listener_batches == 0)
++        m_listeners_idle.notify_all();
++}
++
+ void PlayerBroadcaster::AddListener(Player const* player)
+ {
+     ASSERT(player);
+     if (player->GetObjectGuid() == m_self)
+         return;
+ 
+-    const std::lock_guard<std::mutex> guard(m_listeners_lock);
++    std::unique_lock<std::mutex> guard(m_listeners_lock);
++    WaitForListenerBatches(guard);
+     m_listeners[player->GetObjectGuid()] = player->m_broadcaster;
+ }
+ 
+ void PlayerBroadcaster::RemoveListener(Player const* player)
+ {
+     ASSERT(player);
+-    const std::lock_guard<std::mutex> guard(m_listeners_lock);
++    std::unique_lock<std::mutex> guard(m_listeners_lock);
++    WaitForListenerBatches(guard);
+     m_listeners.erase(player->GetObjectGuid());
+ }
+ 
+ void PlayerBroadcaster::ClearListeners()
+ {
+-    const std::lock_guard<std::mutex> guard(m_listeners_lock);
++    std::unique_lock<std::mutex> guard(m_listeners_lock);
++    WaitForListenerBatches(guard);
+     m_listeners.clear();
+ }
+ 
+@@ -72,25 +88,35 @@ void PlayerBroadcaster::ProcessQueue(uint32& num_packets)
+         std::lock_guard<std::mutex> guard(m_listeners_lock);
+         listeners.reserve(m_listeners.size());
+         listeners.insert(listeners.end(), m_listeners.begin(), m_listeners.end());
++        ++m_active_listener_batches;
+     }
+ 
+     lastUpdatePackets = queue.size() * listeners.size();
+     num_packets += lastUpdatePackets;
+ 
+-    for (auto& data : queue)
++    try
+     {
+-        if (data.sendToSelf && data.except != GetGUID())
+-            SendPacket(data.packet);
+-
+-        for (const auto& itr : listeners)
++        for (auto& data : queue)
+         {
+-            if (itr.first == data.except)
+-                continue;
++            if (data.sendToSelf && data.except != GetGUID())
++                SendPacket(data.packet);
++
++            for (const auto& itr : listeners)
++            {
++                if (itr.first == data.except)
++                    continue;
+ 
+-            itr.second->SendPacket(data.packet);
++                itr.second->SendPacket(data.packet);
++            }
+         }
+     }
++    catch (...)
++    {
++        FinishListenerBatch();
++        throw;
++    }
+ 
++    FinishListenerBatch();
+     queue.clear();
+     std::lock_guard<std::mutex> guard(m_queue_lock);
+     if (m_queue.empty())
+diff --git a/src/game/PacketBroadcast/PlayerBroadcaster.h b/src/game/PacketBroadcast/PlayerBroadcaster.h
+index 98c87af..dfb71dd 100644
+--- a/src/game/PacketBroadcast/PlayerBroadcaster.h
++++ b/src/game/PacketBroadcast/PlayerBroadcaster.h
+@@ -6,6 +6,7 @@
+ #include "WorldSocket.h"
+ #include "WorldPacket.h"
+ #include "Opcodes.h"
++#include <condition_variable>
+ #include <list>
+ #include <vector>
+ #include <cstddef>
+@@ -30,8 +31,12 @@ class PlayerBroadcaster final
+     std::map<ObjectGuid, std::shared_ptr<PlayerBroadcaster> > m_listeners;
+     std::vector<BroadcastData> m_queue;
+     std::mutex m_listeners_lock;
++    std::condition_variable m_listeners_idle;
++    std::size_t m_active_listener_batches = 0;
+     std::mutex m_queue_lock;
+ 
++    void WaitForListenerBatches(std::unique_lock<std::mutex>& lock);
++    void FinishListenerBatch();
+     void ProcessQueue(uint32& num_packets);
+     void SendPacket(const WorldPacket& packet);
+ 

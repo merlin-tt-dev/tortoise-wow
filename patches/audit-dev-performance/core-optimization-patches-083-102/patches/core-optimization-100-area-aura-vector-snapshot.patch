@@ -1,0 +1,30 @@
+diff --git a/src/game/Spells/SpellAuras.cpp b/src/game/Spells/SpellAuras.cpp
+index 61ec4af..73b965c 100644
+--- a/src/game/Spells/SpellAuras.cpp
++++ b/src/game/Spells/SpellAuras.cpp
+@@ -611,7 +611,7 @@ void AreaAura::Update(uint32 diff)
+             Unit* owner = caster->GetCharmerOrOwner();
+             if (!owner)
+                 owner = caster;
+-            Spell::UnitList targets;
++            std::vector<Unit*> targets;
+ 
+             switch (m_areaAuraType)
+             {
+@@ -691,14 +691,14 @@ void AreaAura::Update(uint32 diff)
+                 case AREA_AURA_FRIEND:
+                 {
+                     MaNGOS::AnyFriendlyUnitInObjectRangeCheck u_check(caster, m_radius);
+-                    MaNGOS::UnitListSearcher<MaNGOS::AnyFriendlyUnitInObjectRangeCheck> searcher(targets, u_check);
++                    MaNGOS::UnitListSearcher<MaNGOS::AnyFriendlyUnitInObjectRangeCheck, std::vector<Unit*>> searcher(targets, u_check);
+                     Cell::VisitAllObjects(caster, searcher, m_radius);
+                     break;
+                 }
+                 case AREA_AURA_ENEMY:
+                 {
+                     MaNGOS::AnyAoETargetUnitInObjectRangeCheck u_check(caster, caster, m_radius); // No GetCharmer in searcher
+-                    MaNGOS::UnitListSearcher<MaNGOS::AnyAoETargetUnitInObjectRangeCheck> searcher(targets, u_check);
++                    MaNGOS::UnitListSearcher<MaNGOS::AnyAoETargetUnitInObjectRangeCheck, std::vector<Unit*>> searcher(targets, u_check);
+                     Cell::VisitAllObjects(caster, searcher, m_radius);
+                     break;
+                 }

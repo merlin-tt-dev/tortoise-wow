@@ -1,0 +1,59 @@
+==> core-optimization-audit-083-player-broadcaster-listener-completion.patch
+37	11	src/game/PacketBroadcast/PlayerBroadcaster.cpp
+5	0	src/game/PacketBroadcast/PlayerBroadcaster.h
+==> core-optimization-audit-084-movement-broadcaster-removal-completion.patch
+32	0	src/game/PacketBroadcast/PlayerBroadcaster.cpp
+21	0	src/game/PacketBroadcast/PlayerBroadcaster.h
+==> core-optimization-audit-085-channel-broadcaster-producer-serialization.patch
+5	5	src/game/Handlers/ChannelBroadcaster.cpp
+==> core-optimization-audit-086-movement-removal-exact-completion.patch
+5	0	src/game/PacketBroadcast/MovementBroadcaster.cpp
+==> core-optimization-audit-087-threat-report-name-separator-semantics.patch
+15	10	src/game/Threat/ThreatManager.cpp
+==> core-optimization-088-contiguous-runtime-grid-snapshots.patch
+8	11	src/game/AI/ScriptedAI.cpp
+2	2	src/game/Maps/ZoneScript.cpp
+3	3	src/game/Objects/Creature.cpp
+2	1	src/game/Objects/Creature.h
+7	2	src/game/Spells/SpellEffects.cpp
+==> core-optimization-089-map-instance-workload-reuse.patch
+6	3	src/game/Maps/MapManager.cpp
+==> core-optimization-090-spell-power-chain-range-lookups.patch
+39	52	src/game/Spells/SpellMgr.cpp
+4	5	src/game/Spells/SpellMgr.h
+==> core-optimization-091-reuse-destroy-packet-buffers.patch
+5	2	src/game/Objects/Player.cpp
+==> core-optimization-092-lft-queue-iterator-order.patch
+1	1	src/game/LFT/LFTMgr.h
+14	31	src/game/LFT/LFTQeueue.cpp
+==> core-optimization-093-mmap-loader-raii.patch
+78	74	src/game/Maps/MoveMap.cpp
+==> core-optimization-094-mmap-model-query-locking.patch
+21	18	src/game/Maps/MoveMap.cpp
+0	1	src/game/Maps/MoveMap.h
+==> core-optimization-095-async-packet-worker-wakeup.patch
+23	6	src/game/World.cpp
+4	0	src/game/World.h
+==> core-optimization-096-data-path-gridmap-filenames.patch
+18	16	src/game/Maps/GridMap.cpp
+1	1	src/game/World.h
+==> core-optimization-097-database-escape-buffer-reuse.patch
+4	6	src/shared/Database/Database.cpp
+==> core-optimization-098-session-string-accessor-references.patch
+2	2	src/game/WorldSession.h
+==> core-optimization-099-scriptedai-friendly-vector-snapshots.patch
+6	8	src/game/AI/GenericSpellAI.cpp
+6	6	src/game/AI/ScriptedAI.cpp
+3	2	src/game/AI/ScriptedAI.h
+2	6	src/scripts/dungeons/molten_core/boss_sulfuron_harbinger.cpp
+==> core-optimization-100-area-aura-vector-snapshot.patch
+3	3	src/game/Spells/SpellAuras.cpp
+==> core-optimization-101-associative-insertion-single-lookups.patch
+4	2	src/game/AuctionHouse/AuctionHouseMgr.cpp
+4	2	src/game/ObjectAccessor.cpp
+2	6	src/game/PlayerDump.cpp
+==> core-optimization-102-worldtext-contiguous-packet-cache.patch
+2	3	src/game/World.cpp
+4	10	src/game/World.h
+PASS: strict sequential audit completed in isolated temporary worktree.
+PASS: integration tree HEAD/status unchanged.
