@@ -394,13 +394,12 @@ class SpellMgr
         bool IsMorePowerfulSpell(uint32 powerfullSpell, uint32 otherSpell, SpellGroup group) const
         {
             // The most powerfull spell appears after less powerfull spells in the list.
-            for (const auto& itr : mSpellGroupSpell)
+            SpellGroupSpellMapBounds groupRange = mSpellGroupSpell.equal_range(group);
+            for (auto itr = groupRange.first; itr != groupRange.second; ++itr)
             {
-                if (itr.first != group)
-                    continue;
-                if (itr.second == powerfullSpell)
+                if (itr->second == powerfullSpell)
                     return false;
-                if (itr.second == otherSpell)
+                if (itr->second == otherSpell)
                     return true;
             }
 

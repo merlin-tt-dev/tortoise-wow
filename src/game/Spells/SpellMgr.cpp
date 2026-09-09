@@ -617,81 +617,68 @@ void SpellMgr::LoadSpellGroupStackRules()
 
 bool SpellMgr::ListMorePowerfulSpells(uint32 spellId, std::vector<uint32>& list) const
 {
-    std::vector<uint32> spellGroupIds;
-    std::vector<uint32>::iterator spellGroupIdsIt;
+    bool foundPowerChainGroup = false;
+
     // first = groupid, second = spellId
-    for (const auto& itr : mSpellGroupSpell)
+    for (const auto& member : mSpellGroupSpell)
     {
-        if (itr.second == spellId)
-        {
-            // Un sort peut etre dans plusieurs groupes. On s'interesse au groupe 'SPELL_GROUP_STACK_RULE_POWERFULL_CHAIN'
-            SpellGroupStackMap::const_iterator found = mSpellGroupStack.find(itr.first);
-            // Ce groupe n'a pas de regle ... Pas d'entree dans 'spell_group_stack_rule' ?
-            if (found == mSpellGroupStack.end())
-                continue;
-            SpellGroupStackRule stackRule = found->second;
-            if (stackRule == SPELL_GROUP_STACK_RULE_POWERFULL_CHAIN)
-            {
-                spellGroupIds.push_back(itr.first);
-            }
-        }
-    }
-    if (spellGroupIds.empty())
-        return false;
-    for (spellGroupIdsIt = spellGroupIds.begin(); spellGroupIdsIt != spellGroupIds.end(); ++spellGroupIdsIt)
-    {
+        if (member.second != spellId)
+            continue;
+
+        SpellGroupStackMap::const_iterator found = mSpellGroupStack.find(member.first);
+        if (found == mSpellGroupStack.end() || found->second != SPELL_GROUP_STACK_RULE_POWERFULL_CHAIN)
+            continue;
+
+        foundPowerChainGroup = true;
+        SpellGroupSpellMapBounds groupRange = mSpellGroupSpell.equal_range(member.first);
         bool spellPassed = false;
-        for (const auto& itr : mSpellGroupSpell)
+        for (auto itr = groupRange.first; itr != groupRange.second; ++itr)
         {
-            if (itr.first != *(spellGroupIdsIt))
-                continue;
             if (!spellPassed)
             {
-                if (itr.second == spellId)
+                if (itr->second == spellId)
                     spellPassed = true;
                 continue;
             }
-            list.push_back(itr.second);
+
+            list.push_back(itr->second);
         }
         MANGOS_ASSERT(spellPassed == true);
     }
+
+    if (!foundPowerChainGroup)
+        return false;
+
     return !list.empty();
 }
 
 bool SpellMgr::ListLessPowerfulSpells(uint32 spellId, std::vector<uint32>& list) const
 {
-    std::vector<uint32> spellGroupIds;
-    std::vector<uint32>::iterator spellGroupIdsIt;
+    bool foundPowerChainGroup = false;
+
     // first = groupid, second = spellId
-    for (const auto& itr : mSpellGroupSpell)
+    for (const auto& member : mSpellGroupSpell)
     {
-        if (itr.second == spellId)
+        if (member.second != spellId)
+            continue;
+
+        SpellGroupStackMap::const_iterator found = mSpellGroupStack.find(member.first);
+        if (found == mSpellGroupStack.end() || found->second != SPELL_GROUP_STACK_RULE_POWERFULL_CHAIN)
+            continue;
+
+        foundPowerChainGroup = true;
+        SpellGroupSpellMapBounds groupRange = mSpellGroupSpell.equal_range(member.first);
+        for (auto itr = groupRange.first; itr != groupRange.second; ++itr)
         {
-            // Un sort peut etre dans plusieurs groupes. On s'interesse au groupe 'SPELL_GROUP_STACK_RULE_POWERFULL_CHAIN'
-            SpellGroupStackMap::const_iterator found = mSpellGroupStack.find(itr.first);
-            // Ce groupe n'a pas de regle ... Pas d'entree dans 'spell_group_stack_rule' ?
-            if (found == mSpellGroupStack.end())
-                continue;
-            SpellGroupStackRule stackRule = found->second;
-            if (stackRule == SPELL_GROUP_STACK_RULE_POWERFULL_CHAIN)
-            {
-                spellGroupIds.push_back(itr.first);
-            }
-        }
-    }
-    if (spellGroupIds.empty())
-        return false;
-    for (spellGroupIdsIt = spellGroupIds.begin(); spellGroupIdsIt != spellGroupIds.end(); ++spellGroupIdsIt)
-    {
-        for (const auto& itr : mSpellGroupSpell)
-        {
-            if (itr.first != *(spellGroupIdsIt))
-                continue;
-            if (itr.second == spellId)
+            if (itr->second == spellId)
                 break;
-            list.push_back(itr.second);
+            list.push_back(itr->second);
         }
     }
+
+    if (!foundPowerChainGroup)
+        return false;
+
     return !list.empty();
 }
 
