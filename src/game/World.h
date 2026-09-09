@@ -954,7 +954,7 @@ class World
         LocaleConstant GetDefaultDbcLocale() const { return m_defaultDbcLocale; }
 
         /// Get the path where data (dbc, maps) are stored on disk
-        std::string GetDataPath() const { return m_dataPath; }
+        std::string const& GetDataPath() const { return m_dataPath; }
 
         /// Get the path where honor logs are stored on disk
         std::string GetHonorPath() const { return m_honorPath; }

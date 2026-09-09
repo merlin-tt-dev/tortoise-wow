@@ -597,16 +597,18 @@ GridMapLiquidStatus GridMap::getLiquidStatus(float x, float y, float z, uint8 Re
 
 bool GridMap::ExistMap(uint32 mapid, int gx, int gy)
 {
-    int len = sWorld.GetDataPath().length() + strlen("maps/%03u%02u%02u.map") + 1;
-    char* tmp = new char[len];
-    snprintf(tmp, len, (char*)(sWorld.GetDataPath() + "maps/%03u%02u%02u.map").c_str(), mapid, gy, gx);
+    char mapFileName[64];
+    snprintf(mapFileName, sizeof(mapFileName), "maps/%03u%02u%02u.map", mapid, gy, gx);
+    std::string const& dataPath = sWorld.GetDataPath();
+    std::string fileName;
+    fileName.reserve(dataPath.size() + strlen(mapFileName));
+    fileName.append(dataPath).append(mapFileName);
 
-    FILE* pf = fopen(tmp, "rb");
+    FILE* pf = fopen(fileName.c_str(), "rb");
 
     if (!pf)
     {
-        sLog.outError("Check existing of map file '%s': not exist!", tmp);
-        delete[] tmp;
+        sLog.outError("Check existing of map file '%s': not exist!", fileName.c_str());
         return false;
     }
 
@@ -615,13 +617,11 @@ bool GridMap::ExistMap(uint32 mapid, int gx, int gy)
     if (header.mapMagic     != *((uint32 const*)(MAP_MAGIC)) ||
             header.versionMagic != *((uint32 const*)(MAP_VERSION_MAGIC)))
     {
-        sLog.outError("Map file '%s' is non-compatible version (outdated?). Please, create new using ad.exe program.", tmp);
-        delete[] tmp;
+        sLog.outError("Map file '%s' is non-compatible version (outdated?). Please, create new using ad.exe program.", fileName.c_str());
         fclose(pf);                                         // close file before return
         return false;
     }
 
-    delete[] tmp;
     fclose(pf);
     return true;
 }
@@ -1161,17 +1161,19 @@ GridMap* TerrainInfo::LoadMapAndVMap(const uint32 x, const uint32 y)
             GridMap* map = new GridMap();
 
             // map file name
-            int len = sWorld.GetDataPath().length() + strlen("maps/%03u%02u%02u.map") + 1;
-            char* tmp = new char[len];
-            snprintf(tmp, len, (char*)(sWorld.GetDataPath() + "maps/%03u%02u%02u.map").c_str(), m_mapId, y, x);
+            char mapFileName[64];
+            snprintf(mapFileName, sizeof(mapFileName), "maps/%03u%02u%02u.map", m_mapId, y, x);
+            std::string const& dataPath = sWorld.GetDataPath();
+            std::string fileName;
+            fileName.reserve(dataPath.size() + strlen(mapFileName));
+            fileName.append(dataPath).append(mapFileName);
 
-            if (!map->loadData(tmp))
+            if (!map->loadData(fileName.c_str()))
             {
-                sLog.outError("Error load map file: \n %s\n", tmp);
+                sLog.outError("Error load map file: \n %s\n", fileName.c_str());
                 // ASSERT(false);
             }
 
-            delete[] tmp;
             m_GridMaps[x][y] = map;
 
             // load VMAPs for current map/grid...
