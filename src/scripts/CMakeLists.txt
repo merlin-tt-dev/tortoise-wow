@@ -1,7 +1,7 @@
 
 set(LIBRARY_NAME scripts)
 
-set (SCRIPTS_SRCS 
+set (SCRIPTS_SRCS
 
 ScriptLoader.cpp
 ScriptLoader.h
@@ -484,7 +484,7 @@ include_directories(
   ${CMAKE_BINARY_DIR}/src/shared
   ${TBB_INCLUDE_DIRS}
   ${ACE_INCLUDE_DIR}
-  ${MYSQL_INCLUDE_DIR}
+  ${DATABASE_INCLUDE_DIRS}
 )
 
 add_library(${LIBRARY_NAME} STATIC

@@ -51,6 +51,13 @@ option(ENABLE_LSAN "Enables Leak Sanitizer" OFF)
 # Allow enabling official Turtle addon support
 option(ALLOW_TURTLE_ADDONS "Allow Turtle addons" ON)
 
+set(DATABASE_BACKEND "MYSQL" CACHE STRING "Database backend: MYSQL or POSTGRESQL")
+set_property(CACHE DATABASE_BACKEND PROPERTY STRINGS MYSQL POSTGRESQL)
+string(TOUPPER "${DATABASE_BACKEND}" DATABASE_BACKEND)
+if(NOT DATABASE_BACKEND STREQUAL "MYSQL" AND NOT DATABASE_BACKEND STREQUAL "POSTGRESQL")
+  message(FATAL_ERROR "Unsupported DATABASE_BACKEND='${DATABASE_BACKEND}'. Use MYSQL or POSTGRESQL.")
+endif()
+
 ConfigureModuleBuildOptions()
 
 if(UNIX)
@@ -142,7 +149,7 @@ if(WIN32)
       message(FATAL_ERROR "Only Visual Studio 2015 or newer is supported")
     endif()
   endif()
-  
+
   # Added by Giperion, in WIN32 output all compiled files in one directory.
   # Keep cross-compiled artifacts out of the source tree.
   if(CMAKE_CROSSCOMPILING)
@@ -272,20 +279,28 @@ if(NOT USE_STD_MALLOC)
       ${TBB_LIBRARIES}
     )
   endif()
-  
+
   if (WIN32)
     list (GET TBB_LIBRARIES 1 TBB_SINGLE_FILEDIRECTORY)
     get_filename_component(TBB_LIB_DIRECTORY "${TBB_SINGLE_FILEDIRECTORY}" DIRECTORY)
     link_directories(${TBB_LIB_DIRECTORY})
   endif()
-  
+
 endif()
 
-# Win32 delifered packages
+# Win32 delivered packages
 if(WIN32)
+  if(NOT DATABASE_BACKEND STREQUAL "MYSQL")
+    message(FATAL_ERROR "PostgreSQL builds are currently supported on UNIX only; bundled Windows dependencies provide MySQL only.")
+  endif()
+
   set(MYSQL_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/dep/windows/include/mysql)
   set(MYSQL_LIBRARY ${CMAKE_SOURCE_DIR}/dep/windows/lib/${DEP_ARCH}_release/${MYSQL_IMPORT_LIBRARY})
   set(MYSQL_DEBUG_LIBRARY ${CMAKE_SOURCE_DIR}/dep/windows/lib/${DEP_DEBUG_ARCH}/${MYSQL_IMPORT_LIBRARY})
+  set(DATABASE_INCLUDE_DIRS ${MYSQL_INCLUDE_DIR})
+  set(DATABASE_LIBRARIES ${MYSQL_LIBRARY})
+  set(DATABASE_DEBUG_LIBRARIES ${MYSQL_DEBUG_LIBRARY})
+  set(DATABASE_DEFINITION DO_MYSQL)
   set(OPENSSL_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/dep/windows/include/openssl)
   set(OPENSSL_LIBRARIES ${CMAKE_SOURCE_DIR}/dep/windows/lib/${DEP_ARCH}_release/libssl.lib ${CMAKE_SOURCE_DIR}/dep/windows/lib/${DEP_ARCH}_release/libcrypto.lib)
   set(OPENSSL_DEBUG_LIBRARIES ${CMAKE_SOURCE_DIR}/dep/windows/lib/${DEP_DEBUG_ARCH}/libssl.lib ${CMAKE_SOURCE_DIR}/dep/windows/lib/${DEP_DEBUG_ARCH}/libcrypto.lib)
@@ -297,7 +312,18 @@ endif()
 
 # *nix-specific packages
 if(UNIX)
-  find_package(MySQL REQUIRED)
+  if(DATABASE_BACKEND STREQUAL "POSTGRESQL")
+    find_package(PostgreSQL REQUIRED)
+    set(DATABASE_INCLUDE_DIRS ${PostgreSQL_INCLUDE_DIRS})
+    set(DATABASE_LIBRARIES ${PostgreSQL_LIBRARIES})
+    set(DATABASE_DEFINITION DO_POSTGRESQL)
+  else()
+    find_package(MySQL REQUIRED)
+    set(DATABASE_INCLUDE_DIRS ${MYSQL_INCLUDE_DIR})
+    set(DATABASE_LIBRARIES ${MYSQL_LIBRARY})
+    set(DATABASE_DEFINITION DO_MYSQL)
+  endif()
+
   find_package(OpenSSL REQUIRED)
   find_package(ZLIB REQUIRED)
 endif()
@@ -333,7 +359,7 @@ else()
     OUTPUT_STRIP_TRAILING_WHITESPACE
     ERROR_QUIET
   )
-  
+
   if(NOT rev_hash)
     # No valid ways available to find/set the revision/hash, so let's force some defaults
     message(STATUS "
@@ -463,7 +489,7 @@ if(UNIX)
     set(DEFINITIONS ${DEFINITIONS} ENABLE_LSAN)
     message(STATUS "Compiling with LSAN ENABLED")
   endif()
-  
+
   if(GCC_SANITIZE)
     set(BUILD_ADDITIONAL_FLAGS "${BUILD_ADDITIONAL_FLAGS} -fno-omit-frame-pointer -fno-optimize-sibling-calls")
     set(BUILD_ADDITIONAL_FLAGS "${BUILD_ADDITIONAL_FLAGS} -fsanitize=address")
@@ -516,7 +542,7 @@ if(MSVC)
   #if(PLATFORM MATCHES X86)
   #  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /LARGEADDRESSAWARE")
   #endif()
-  
+
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /bigobj")
 endif()
 
@@ -570,7 +596,7 @@ endif()
 # Don't place this above 'dep' subdirectory! Because of defines build will crash.
 set(DEFINITIONS
   ${DEFINITIONS}
-  DO_MYSQL
+  ${DATABASE_DEFINITION}
   TW_SOURCE_MODULES_DIR="${CMAKE_SOURCE_DIR}/modules"
 )
 

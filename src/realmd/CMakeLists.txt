@@ -16,7 +16,7 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 set(EXECUTABLE_NAME realmd)
-set (EXECUTABLE_SRCS 
+set (EXECUTABLE_SRCS
 	AuthCodes.h
 	AuthSocket.h
 	BufferedSocket.h
@@ -35,7 +35,7 @@ if(WIN32)
   list(APPEND EXECUTABLE_SRCS
     realmd.rc
   )
-  
+
   if(MSVC)
     set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /D__ACE_INLINE__")
   endif()
@@ -46,7 +46,7 @@ include_directories(
   ${CMAKE_SOURCE_DIR}/src/framework
   ${CMAKE_BINARY_DIR}
   ${CMAKE_BINARY_DIR}/src/shared
-  ${MYSQL_INCLUDE_DIR}
+  ${DATABASE_INCLUDE_DIRS}
   ${ACE_INCLUDE_DIR}
   ${OPENSSL_INCLUDE_DIR}
 )
@@ -75,8 +75,8 @@ target_link_libraries(${EXECUTABLE_NAME}
 
 if(WIN32)
   target_link_libraries(${EXECUTABLE_NAME}
-    optimized ${MYSQL_LIBRARY}
-    debug ${MYSQL_DEBUG_LIBRARY}
+    optimized ${DATABASE_LIBRARIES}
+    debug ${DATABASE_DEBUG_LIBRARIES}
   )
   foreach(_realmd_openssl_library ${OPENSSL_LIBRARIES})
     target_link_libraries(${EXECUTABLE_NAME} optimized ${_realmd_openssl_library})
@@ -103,7 +103,7 @@ endif()
 
 if(UNIX)
   target_link_libraries(${EXECUTABLE_NAME}
-    ${MYSQL_LIBRARY}
+    ${DATABASE_LIBRARIES}
     ${OPENSSL_LIBRARIES}
     ${OPENSSL_EXTRA_LIBRARIES}
   )

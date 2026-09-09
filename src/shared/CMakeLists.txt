@@ -16,7 +16,7 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 # Glob only and not recurse, there are other libs for that
-set (shared_SRCS 
+set (shared_SRCS
     ByteBuffer.h
     Common.h
     DelayExecutor.h
@@ -114,12 +114,12 @@ if(USE_DISCORD_BOT)
       DiscordBot/toojpeg.hpp
       DiscordBot/toojpeg.cpp
       DiscordBot/QrCodeGen.hpp
-      DiscordBot/QrCodeGen.cpp	 
+      DiscordBot/QrCodeGen.cpp
     )
 endif()
 
 if(USE_LIBCURL)
-  set (shared_SRCS 
+  set (shared_SRCS
     ${shared_SRCS}
     SendgridMail.h
     MailerService.h
@@ -135,7 +135,7 @@ if(WIN32)
     PosixDaemon.cpp
     revision.h
   )
-  
+
 	if (ENABLE_PROFILING)
 		include_directories(
 			${OPTICK_INCLUDE_DIR}
@@ -149,7 +149,7 @@ if(WIN32)
       )
     endif()
 
-    set (shared_SRCS 
+    set (shared_SRCS
     ${shared_SRCS}
     Turtle.natvis
     )
@@ -200,7 +200,7 @@ include_directories(
   ${CMAKE_SOURCE_DIR}/src/framework
   ${CMAKE_BINARY_DIR}
   ${ACE_INCLUDE_DIR}
-  ${MYSQL_INCLUDE_DIR} 
+  ${DATABASE_INCLUDE_DIRS}
   ${OPENSSL_INCLUDE_DIR}
 )
 

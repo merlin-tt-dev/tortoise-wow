@@ -15,7 +15,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-set (game_SRCS 
+set (game_SRCS
     AccountMgr.cpp
     AuraRemovalMgr.cpp
     AutoBroadCastMgr.cpp
@@ -463,7 +463,7 @@ if(USE_DISCORD_BOT)
       DiscordBot/LoginCommandHandler.cpp
       DiscordBot/LoginCommandHandler.hpp
       DiscordBot/PlayerCommandHandler.cpp
-      DiscordBot/PlayerCommandHandler.hpp 
+      DiscordBot/PlayerCommandHandler.hpp
     )
 endif()
 
@@ -550,7 +550,7 @@ include_directories(
   ${CMAKE_SOURCE_DIR}/src/shared
   ${CMAKE_BINARY_DIR}
   ${CMAKE_BINARY_DIR}/src/shared
-  ${MYSQL_INCLUDE_DIR}
+  ${DATABASE_INCLUDE_DIRS}
   ${TBB_INCLUDE_DIRS}
   ${ACE_INCLUDE_DIR}
   ${OPENSSL_INCLUDE_DIR}
