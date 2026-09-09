@@ -1,0 +1,53 @@
+diff --git a/src/game/Maps/MapManager.cpp b/src/game/Maps/MapManager.cpp
+index ed3b49b..78bebc4 100644
+--- a/src/game/Maps/MapManager.cpp
++++ b/src/game/Maps/MapManager.cpp
+@@ -297,7 +297,7 @@ void MapManager::CreateNewInstancesForPlayers()
+         std::this_thread::sleep_for(std::chrono::milliseconds(20));
+ 
+         CreateNewInstancesForPlayersSync();
+-    } while (asyncMapUpdating);
++    } while (asyncMapUpdating.load());
+ }
+ 
+ void MapManager::CreateNewInstancesForPlayersSync()
+@@ -344,7 +344,7 @@ void MapManager::Update(uint32 diff)
+     ExecuteDelayedPlayerTeleports();
+ 
+     uint32 mapsDiff = (uint32)i_timer.GetCurrent();
+-    asyncMapUpdating = true;
++    asyncMapUpdating.store(true);
+ 	sWorld.GetChannelBroadcaster()->EnableSendingMessages(); // should be active only on async map updating
+ 
+     int continentsIdx = 0;
+@@ -414,7 +414,7 @@ void MapManager::Update(uint32 diff)
+ 
+     sWorld.GetChannelBroadcaster()->DisableSendingMessages();
+     SwitchPlayersInstances();
+-    asyncMapUpdating = false;
++    asyncMapUpdating.store(false);
+ 
+     CreateNewInstancesForPlayersSync();
+ 
+@@ -1071,7 +1071,7 @@ void MapManager::ScheduleFarTeleport(Player *player, ScheduledTeleportData *data
+ {
+     // If we're not in the middle of an async update, it's safe to execute the
+     // teleport immediately.
+-    if (!asyncMapUpdating)
++    if (!asyncMapUpdating.load())
+     {
+         player->ExecuteTeleportFar(data);
+         delete data;
+diff --git a/src/game/Maps/MapManager.h b/src/game/Maps/MapManager.h
+index 3c1cde6..2d306be 100644
+--- a/src/game/Maps/MapManager.h
++++ b/src/game/Maps/MapManager.h
+@@ -229,7 +229,7 @@ class MapManager : public MaNGOS::Singleton<MapManager, MaNGOS::ClassLevelLockab
+ 
+         std::unique_ptr<ThreadPool> m_threads;
+         std::unique_ptr<ThreadPool> m_continentThreads;
+-        bool asyncMapUpdating = false;
++        std::atomic_bool asyncMapUpdating{false};
+ 
+         // Instanced continent zones
+         const static int LAST_CONTINENT_ID = 2;

@@ -1,0 +1,132 @@
+diff --git a/src/game/Chat/Chat.cpp b/src/game/Chat/Chat.cpp
+index 3a0b154..a2cd4a3 100644
+--- a/src/game/Chat/Chat.cpp
++++ b/src/game/Chat/Chat.cpp
+@@ -1285,21 +1285,36 @@ bool ChatHandler::hasStringAbbr(const char* name, const char* part)
+     return true;
+ }
+ 
++bool ChatHandler::LineFromMessage(std::string_view& text, std::string_view& line)
++{
++    size_t lineStart = text.find_first_not_of('\n');
++    if (lineStart == std::string_view::npos)
++        return false;
++
++    text.remove_prefix(lineStart);
++    size_t lineEnd = text.find('\n');
++    line = text.substr(0, lineEnd);
++
++    if (lineEnd == std::string_view::npos)
++        text = {};
++    else
++        text.remove_prefix(lineEnd + 1);
++
++    return true;
++}
++
+ void ChatHandler::SendSysMessage(const char *str)
+ {
+     WorldPacket data;
++    std::string_view text = str;
++    std::string_view line;
+ 
+-    // need copy to prevent corruption by strtok call in LineFromMessage original string
+-    char* buf = mangos_strdup(str);
+-    char* pos = buf;
+-
+-    while (char* line = LineFromMessage(pos))
++    while (LineFromMessage(text, line))
+     {
+         ChatHandler::BuildChatPacket(data, CHAT_MSG_SYSTEM, line);
+         m_session->SendPacket(&data);
+     }
+ 
+-    delete [] buf;
+     SetSentErrorMessage(true);
+ }
+ 
+@@ -1307,18 +1322,14 @@ void ChatHandler::SendGlobalSysMessage(const char *str)
+ {
+     // Chat output
+     WorldPacket data;
++    std::string_view text = str;
++    std::string_view line;
+ 
+-    // need copy to prevent corruption by strtok call in LineFromMessage original string
+-    char* buf = mangos_strdup(str);
+-    char* pos = buf;
+-
+-    while (char* line = LineFromMessage(pos))
++    while (LineFromMessage(text, line))
+     {
+         ChatHandler::BuildChatPacket(data, CHAT_MSG_SYSTEM, line);
+         sWorld.SendGlobalMessage(&data);
+     }
+-
+-    delete [] buf;
+ }
+ 
+ void ChatHandler::SendSysMessage(int32 entry)
+diff --git a/src/game/Chat/Chat.h b/src/game/Chat/Chat.h
+index 43dc00a..f2fe3e2 100644
+--- a/src/game/Chat/Chat.h
++++ b/src/game/Chat/Chat.h
+@@ -101,7 +101,7 @@ class ChatHandler
+ 
+         static void LoadRbacPermissions();
+ 
+-        static char* LineFromMessage(char*& pos) { char* start = strtok(pos,"\n"); pos = nullptr; return start; }
++        static bool LineFromMessage(std::string_view& text, std::string_view& line);
+ 
+         // function with different implementation for chat/console
+         virtual const char *GetMangosString(int32 entry) const;
+diff --git a/src/game/World.cpp b/src/game/World.cpp
+index 8512f96..72b71af 100644
+--- a/src/game/World.cpp
++++ b/src/game/World.cpp
+@@ -2801,22 +2801,11 @@ namespace MaNGOS
+ 
+     void MaNGOS::WorldWorldTextBuilder::do_helper(WorldPacketList& data_list, std::string_view text)
+     {
+-        while (!text.empty())
++        std::string_view line;
++        while (ChatHandler::LineFromMessage(text, line))
+         {
+-            size_t lineStart = text.find_first_not_of('\n');
+-            if (lineStart == std::string_view::npos)
+-                break;
+-
+-            text.remove_prefix(lineStart);
+-            size_t lineEnd = text.find('\n');
+-            std::string_view line = text.substr(0, lineEnd);
+-
+             data_list.emplace_back();
+             ChatHandler::BuildChatPacket(data_list.back(), CHAT_MSG_SYSTEM, line);
+-
+-            if (lineEnd == std::string_view::npos)
+-                break;
+-            text.remove_prefix(lineEnd + 1);
+         }
+     }
+ }
+@@ -2952,17 +2941,13 @@ void World::SendGlobalText(const char* text, WorldSession *self)
+ {
+     WorldPacket data;
+ 
+-    // need copy to prevent corruption by strtok call in LineFromMessage original string
+-    char* buf = mangos_strdup(text);
+-    char* pos = buf;
+-
+-    while (char* line = ChatHandler::LineFromMessage(pos))
++    std::string_view message = text;
++    std::string_view line;
++    while (ChatHandler::LineFromMessage(message, line))
+     {
+         ChatHandler::BuildChatPacket(data, CHAT_MSG_SYSTEM, line);
+         SendGlobalMessage(&data, self);
+     }
+-
+-    delete [] buf;
+ }
+ 
+ /// Send a packet to all players (or players selected team) in the zone (except self if mentioned)

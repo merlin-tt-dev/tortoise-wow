@@ -1,0 +1,30 @@
+Validation status: PASS (patch-level / semantic audit)
+
+Baseline:
+- audits/dev-performance source state with patch 104 integrated.
+- Validation used an isolated disposable worktree at that exact source state.
+
+Sequential validation:
+- 19/19 patches 105 through 123 applied in numeric order.
+- For every patch:
+  - git -c core.whitespace=trailing-space,space-before-tab,tab-in-indent apply --check --whitespace=error-all : PASS
+  - git -c core.whitespace=trailing-space,space-before-tab,tab-in-indent apply --numstat --whitespace=error-all : PASS
+  - git apply : PASS
+  - git diff --check : PASS
+  - newly-added tab indentation scan : PASS
+  - added conflict-marker scan : PASS
+- Final source tree after applying 105-123 matched the audited working source state exactly.
+
+Additional semantic tests:
+- Tokenizer: 200,000 randomized old/new inputs incl. embedded NULs: PASS
+- deprecated string formatting: 200,000 randomized old/new cases: PASS
+- SqlQueryHolder ownership state machine: 200,000 randomized traces: PASS
+- UpdateMask bit/wire layout: 200,000 randomized operation traces: PASS
+- Warden pad/reverse bytes: 200,000 randomized cases: PASS
+- system-message line splitting: 250,000 randomized strtok old/new cases incl. embedded NULs: PASS
+
+Not claimed:
+- Linux full build green
+- MinGW full build green
+- PostgreSQL backend functional/green
+Those remain separate build/integration gates.

@@ -1,0 +1,44 @@
+diff --git a/src/shared/Database/SqlDelayThread.cpp b/src/shared/Database/SqlDelayThread.cpp
+index d5cc959..0ea73c1 100644
+--- a/src/shared/Database/SqlDelayThread.cpp
++++ b/src/shared/Database/SqlDelayThread.cpp
+@@ -60,7 +60,7 @@ void SqlDelayThread::run()
+     const uint32 pingEveryLoop = m_dbEngine->GetPingIntervall() / loopSleepms;
+ 
+     uint32 loopCounter = 0;
+-    while (m_running)
++    while (m_running.load())
+     {
+         // if the running state gets turned off while sleeping
+         // empty the queue before exiting
+@@ -84,7 +84,7 @@ void SqlDelayThread::run()
+ 
+ void SqlDelayThread::Stop()
+ {
+-    m_running = false;
++    m_running.store(false);
+ }
+ 
+ void SqlDelayThread::ProcessRequests()
+diff --git a/src/shared/Database/SqlDelayThread.h b/src/shared/Database/SqlDelayThread.h
+index 4514ffc..eb74683 100644
+--- a/src/shared/Database/SqlDelayThread.h
++++ b/src/shared/Database/SqlDelayThread.h
+@@ -24,6 +24,8 @@
+ 
+ #include "LockedQueue.h"
+ 
++#include <atomic>
++
+ class Database;
+ class SqlOperation;
+ class SqlConnection;
+@@ -37,7 +39,7 @@ class SqlDelayThread
+         Database *m_dbEngine;                               ///< Pointer to used Database engine
+         SqlQueue m_serialDelayQueue;
+         SqlConnection *m_dbConnection;                     ///< Pointer to DB connection
+-        volatile bool m_running;
++        std::atomic_bool m_running;
+         const char* Name;
+ 
+ 

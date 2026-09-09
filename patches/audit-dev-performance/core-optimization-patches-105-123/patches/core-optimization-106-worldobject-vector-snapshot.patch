@@ -1,0 +1,93 @@
+diff --git a/src/game/Maps/GridNotifiers.h b/src/game/Maps/GridNotifiers.h
+index e1a1ddb..f56263f 100644
+--- a/src/game/Maps/GridNotifiers.h
++++ b/src/game/Maps/GridNotifiers.h
+@@ -219,13 +219,13 @@ namespace MaNGOS
+         template<class NOT_INTERESTED> void Visit(GridRefManager<NOT_INTERESTED> &) {}
+     };
+ 
+-    template<class Check>
++    template<class Check, class Container = std::list<WorldObject*>>
+         struct WorldObjectListSearcher
+     {
+-        std::list<WorldObject*> &i_objects;
++        Container& i_objects;
+         Check& i_check;
+ 
+-        WorldObjectListSearcher(std::list<WorldObject*> &objects, Check & check) : i_objects(objects),i_check(check) {}
++        WorldObjectListSearcher(Container& objects, Check& check) : i_objects(objects), i_check(check) {}
+ 
+         void Visit(PlayerMapType &m);
+         void Visit(CreatureMapType &m);
+diff --git a/src/game/Maps/GridNotifiersImpl.h b/src/game/Maps/GridNotifiersImpl.h
+index b692e7d..d1e2110 100644
+--- a/src/game/Maps/GridNotifiersImpl.h
++++ b/src/game/Maps/GridNotifiersImpl.h
+@@ -347,40 +347,40 @@ void MaNGOS::WorldObjectSearcher<Check>::Visit(DynamicObjectMapType &m)
+     }
+ }
+ 
+-template<class Check>
+-void MaNGOS::WorldObjectListSearcher<Check>::Visit(PlayerMapType& m)
++template<class Check, class Container>
++void MaNGOS::WorldObjectListSearcher<Check, Container>::Visit(PlayerMapType& m)
+ {
+     for(auto & itr : m)
+         if (i_check(itr.getSource()))
+             i_objects.push_back(itr.getSource());
+ }
+ 
+-template<class Check>
+-void MaNGOS::WorldObjectListSearcher<Check>::Visit(CreatureMapType& m)
++template<class Check, class Container>
++void MaNGOS::WorldObjectListSearcher<Check, Container>::Visit(CreatureMapType& m)
+ {
+     for(auto & itr : m)
+         if (i_check(itr.getSource()))
+             i_objects.push_back(itr.getSource());
+ }
+ 
+-template<class Check>
+-void MaNGOS::WorldObjectListSearcher<Check>::Visit(CorpseMapType& m)
++template<class Check, class Container>
++void MaNGOS::WorldObjectListSearcher<Check, Container>::Visit(CorpseMapType& m)
+ {
+     for(auto & itr : m)
+         if (i_check(itr.getSource()))
+             i_objects.push_back(itr.getSource());
+ }
+ 
+-template<class Check>
+-void MaNGOS::WorldObjectListSearcher<Check>::Visit(GameObjectMapType& m)
++template<class Check, class Container>
++void MaNGOS::WorldObjectListSearcher<Check, Container>::Visit(GameObjectMapType& m)
+ {
+     for(auto & itr : m)
+         if (i_check(itr.getSource()))
+             i_objects.push_back(itr.getSource());
+ }
+ 
+-template<class Check>
+-void MaNGOS::WorldObjectListSearcher<Check>::Visit(DynamicObjectMapType& m)
++template<class Check, class Container>
++void MaNGOS::WorldObjectListSearcher<Check, Container>::Visit(DynamicObjectMapType& m)
+ {
+     for(auto & itr : m)
+         if (i_check(itr.getSource()))
+diff --git a/src/game/Maps/ScriptCommands.cpp b/src/game/Maps/ScriptCommands.cpp
+index 9282df6..e7d1681 100644
+--- a/src/game/Maps/ScriptCommands.cpp
++++ b/src/game/Maps/ScriptCommands.cpp
+@@ -1990,10 +1990,10 @@ bool Map::ScriptCommand_StartScriptForAll(const ScriptInfo& script, WorldObject*
+         return ShouldAbortScript(script);
+     }
+ 
+-    std::list<WorldObject *> targets;
++    std::vector<WorldObject*> targets;
+ 
+     MaNGOS::AllWorldObjectsInRange u_check(source, script.startScriptForAll.searchRadius);
+-    MaNGOS::WorldObjectListSearcher<MaNGOS::AllWorldObjectsInRange> searcher(targets, u_check);
++    MaNGOS::WorldObjectListSearcher<MaNGOS::AllWorldObjectsInRange, std::vector<WorldObject*>> searcher(targets, u_check);
+ 
+     Cell::VisitAllObjects(source, searcher, script.startScriptForAll.searchRadius);
+ 

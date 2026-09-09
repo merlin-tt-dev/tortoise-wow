@@ -1,0 +1,44 @@
+diff --git a/src/game/ObjectMgr.cpp b/src/game/ObjectMgr.cpp
+index 648fa51..285fa77 100644
+--- a/src/game/ObjectMgr.cpp
++++ b/src/game/ObjectMgr.cpp
+@@ -472,10 +472,11 @@ uint32 ObjectMgr::GetPlayerWorldMaskByGUID(const uint64 guid)
+ }
+ void ObjectMgr::SetPlayerWorldMask(const uint64 guid, uint32 newWorldMask)
+ {
+-    if (m_PlayerPhases[GUID_LOPART(guid)] == newWorldMask)
++    uint32& currentMask = m_PlayerPhases[GUID_LOPART(guid)];
++    if (currentMask == newWorldMask)
+         return;
+ 
+-    m_PlayerPhases[GUID_LOPART(guid)] = newWorldMask;
++    currentMask = newWorldMask;
+ }
+ 
+ uint32 ObjectMgr::GetSavedVariable(uint32 index, uint32 defaultValue, bool *exist)
+diff --git a/src/game/WorldSession.cpp b/src/game/WorldSession.cpp
+index 253adaf..312aec7 100644
+--- a/src/game/WorldSession.cpp
++++ b/src/game/WorldSession.cpp
+@@ -1142,15 +1142,17 @@ WorldSession::PacketAllowResult WorldSession::AllowPacket(uint16 opcode, uint64
+         case CMSG_PET_NAME_QUERY:
+         case CMSG_GUILD_QUERY:
+         {
++            auto& requeueState = m_requeuePacketCount[opcode];
++
+             //If last packet was 4 seconds ago then just let it go through anyway
+-            if (time - m_requeuePacketCount[opcode].first > 3)
++            if (time - requeueState.first > 3)
+             {
+-                m_requeuePacketCount[opcode].first = time;
+-                m_requeuePacketCount[opcode].second = 0;
++                requeueState.first = time;
++                requeueState.second = 0;
+                 return PacketAllowResult::Allowed;
+             }
+ 
+-            uint32& count = m_requeuePacketCount[opcode].second;
++            uint32& count = requeueState.second;
+             ++count;
+             if (count > 1000)
+             {

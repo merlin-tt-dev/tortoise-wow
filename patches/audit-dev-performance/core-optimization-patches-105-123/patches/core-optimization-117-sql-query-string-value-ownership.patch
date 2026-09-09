@@ -1,0 +1,124 @@
+diff --git a/src/shared/Database/SqlOperations.cpp b/src/shared/Database/SqlOperations.cpp
+index 9909feb..b34de95 100644
+--- a/src/shared/Database/SqlOperations.cpp
++++ b/src/shared/Database/SqlOperations.cpp
+@@ -34,7 +34,7 @@ bool SqlPlainRequest::Execute(SqlConnection *conn)
+ {
+     /// just do it
+     LOCK_DB_CONN(conn);
+-    return conn->Execute(m_sql);
++    return conn->Execute(m_sql.c_str());
+ }
+ 
+ bool SqlMultilineRequest::Execute(SqlConnection* conn)
+@@ -100,7 +100,7 @@ bool SqlQuery::Execute(SqlConnection *conn)
+ 
+     LOCK_DB_CONN(conn);
+     /// execute the query and store the result in the callback
+-    m_callback->SetResult(conn->Query(m_sql));
++    m_callback->SetResult(conn->Query(m_sql.c_str()));
+     /// add the callback to the sql result queue of the thread it originated from
+     m_queue->add(m_callback);
+ 
+@@ -197,15 +197,16 @@ bool SqlQueryHolder::SetQuery(size_t index, const char *sql)
+         return false;
+     }
+ 
+-    if(m_queries[index].first != nullptr)
++    if (m_queries[index].first)
+     {
+         sLog.outError("Attempt assign query to holder index (" SIZEFMTD ") where other query stored (Old: [%s] New: [%s])",
+-            index,m_queries[index].first,sql);
++            index, m_queries[index].first->c_str(), sql);
+         return false;
+     }
+ 
+     /// not executed yet, just stored (it's not called a holder for nothing)
+-    m_queries[index] = SqlResultPair(mangos_strdup(sql), (QueryResult*)nullptr);
++    m_queries[index].first.emplace(sql);
++    m_queries[index].second = nullptr;
+     return true;
+ }
+ 
+@@ -236,12 +237,8 @@ QueryResult* SqlQueryHolder::GetResult(size_t index)
+ {
+     if(index < m_queries.size())
+     {
+-        /// the query strings are freed on the first GetResult or in the destructor
+-        if(m_queries[index].first != nullptr)
+-        {
+-            delete [] (const_cast<char*>(m_queries[index].first));
+-            m_queries[index].first = nullptr;
+-        }
++        /// the query strings are released on the first GetResult or in the destructor
++        m_queries[index].first.reset();
+         /// when you get a result aways remember to delete it!
+         return m_queries[index].second;
+     }
+@@ -262,10 +259,9 @@ SqlQueryHolder::~SqlQueryHolder()
+     {
+         /// if the result was never used, free the resources
+         /// results used already (getresult called) are expected to be deleted
+-        if(m_queries[i].first != nullptr)
++        if (m_queries[i].first)
+         {
+-            delete [] (const_cast<char*>(m_queries[i].first));
+-            if(m_queries[i].second)
++            if (m_queries[i].second)
+             {
+                 delete m_queries[i].second;
+                 m_queries[i].second = nullptr;
+@@ -305,9 +301,9 @@ bool SqlQueryHolderEx::Execute(SqlConnection *conn)
+     for(size_t i = 0; i < queries.size(); i++)
+     {
+         /// execute all queries in the holder and pass the results
+-        char const *sql = queries[i].first;
++        std::optional<std::string> const& sql = queries[i].first;
+         if (sql)
+-            m_holder->SetResult(i, conn->Query(sql));
++            m_holder->SetResult(i, conn->Query(sql->c_str()));
+     }
+ 
+     /// sync with the caller thread
+diff --git a/src/shared/Database/SqlOperations.h b/src/shared/Database/SqlOperations.h
+index 011d1eb..f41816c 100644
+--- a/src/shared/Database/SqlOperations.h
++++ b/src/shared/Database/SqlOperations.h
+@@ -65,10 +65,9 @@ class SqlOperation
+ class SqlPlainRequest : public SqlOperation
+ {
+     private:
+-        const char *m_sql;
++        std::string m_sql;
+     public:
+-        SqlPlainRequest(const char *sql) : m_sql(mangos_strdup(sql)){}
+-        ~SqlPlainRequest() { char* tofree = const_cast<char*>(m_sql); delete [] tofree; }
++        SqlPlainRequest(const char *sql) : m_sql(sql) {}
+         bool Execute(SqlConnection *conn);
+ };
+ 
+@@ -135,13 +134,12 @@ class SqlResultQueue : public LockedQueue<MaNGOS::IQueryCallback* , std::mutex>
+ class SqlQuery : public SqlOperation
+ {
+     private:
+-        const char *m_sql;
++        std::string m_sql;
+         MaNGOS::IQueryCallback * m_callback;
+         SqlResultQueue * m_queue;
+     public:
+         SqlQuery(const char *sql, MaNGOS::IQueryCallback * callback, SqlResultQueue * queue)
+-            : m_sql(mangos_strdup(sql)), m_callback(callback), m_queue(queue) {}
+-        ~SqlQuery() { char* tofree = const_cast<char*>(m_sql); delete [] tofree; }
++            : m_sql(sql), m_callback(callback), m_queue(queue) {}
+         bool Execute(SqlConnection *conn);
+ };
+ 
+@@ -149,7 +147,7 @@ class SqlQueryHolder
+ {
+     friend class SqlQueryHolderEx;
+     private:
+-        typedef std::pair<const char*, QueryResult*> SqlResultPair;
++        typedef std::pair<std::optional<std::string>, QueryResult*> SqlResultPair;
+         std::vector<SqlResultPair> m_queries;
+ 
+         uint32 serialId;

@@ -1,0 +1,48 @@
+diff --git a/src/shared/Util.cpp b/src/shared/Util.cpp
+index 8fd8d30..83b2fad 100644
+--- a/src/shared/Util.cpp
++++ b/src/shared/Util.cpp
+@@ -49,15 +49,14 @@ static MTRandTSS mtRand;
+ IPerfMonitor* gPerfMonitorInterface = nullptr;
+ 
+ Tokenizer::Tokenizer(const std::string &src, const char sep, uint32 vectorReserve)
++    : m_str(src)
+ {
+-    m_str = new char[src.length() + 1];
+-    memcpy(m_str, src.c_str(), src.length() + 1);
+ 
+     if (vectorReserve)
+         m_storage.reserve(vectorReserve);
+ 
+-    char* posold = m_str;
+-    char* posnew = m_str;
++    char* posold = m_str.data();
++    char* posnew = m_str.data();
+ 
+     for (;;)
+     {
+diff --git a/src/shared/Util.h b/src/shared/Util.h
+index f5a91fe..833097e 100644
+--- a/src/shared/Util.h
++++ b/src/shared/Util.h
+@@ -54,7 +54,10 @@ public:
+ 
+ public:
+     Tokenizer(std::string const& src, char const sep, uint32 vectorReserve = 0);
+-    ~Tokenizer() { delete[] m_str; }
++    Tokenizer(Tokenizer const&) = delete;
++    Tokenizer& operator=(Tokenizer const&) = delete;
++    Tokenizer(Tokenizer&&) = delete;
++    Tokenizer& operator=(Tokenizer&&) = delete;
+ 
+     const_iterator begin() const { return m_storage.begin(); }
+     const_iterator end() const { return m_storage.end(); }
+@@ -65,7 +68,7 @@ public:
+     const_reference operator [] (size_type i) const { return m_storage[i]; }
+ 
+ private:
+-    char* m_str;
++    std::string m_str;
+     StorageType m_storage;
+ };
+ 

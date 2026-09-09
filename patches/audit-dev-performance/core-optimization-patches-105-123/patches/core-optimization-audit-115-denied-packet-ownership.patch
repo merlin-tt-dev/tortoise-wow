@@ -1,0 +1,15 @@
+diff --git a/src/game/WorldSession.cpp b/src/game/WorldSession.cpp
+index f087d39..253adaf 100644
+--- a/src/game/WorldSession.cpp
++++ b/src/game/WorldSession.cpp
+@@ -446,7 +446,10 @@ void WorldSession::ProcessPackets(PacketFilter& updater)
+         _receivedPacketType[updater.PacketProcessType()] = true;
+         auto packetAllowed = AllowPacket(packet->GetOpcode(), timeNow);
+         if (packetAllowed == PacketAllowResult::Denied)
++        {
++            delete packet;
+             break;
++        }
+ 
+         if (packetAllowed == PacketAllowResult::Requeue)
+         {

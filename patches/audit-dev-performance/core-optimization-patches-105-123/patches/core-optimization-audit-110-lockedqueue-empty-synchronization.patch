@@ -1,0 +1,26 @@
+diff --git a/src/shared/Database/Database.cpp b/src/shared/Database/Database.cpp
+index a681119..e34744d 100644
+--- a/src/shared/Database/Database.cpp
++++ b/src/shared/Database/Database.cpp
+@@ -598,7 +598,7 @@ void Database::AddToSerialDelayQueue(SqlOperation *op)
+ 
+ bool Database::HasAsyncQuery()
+ {
+-    bool hasQuery = !m_delayQueue->empty_unsafe();
++    bool hasQuery = !m_delayQueue->empty();
+ 
+     for (uint32 i = 0; i < m_numAsyncWorkers && !hasQuery; ++i)
+         hasQuery = m_threadsBodies[i]->HasAsyncQuery();
+diff --git a/src/shared/Database/SqlDelayThread.cpp b/src/shared/Database/SqlDelayThread.cpp
+index 1a0325d..d5cc959 100644
+--- a/src/shared/Database/SqlDelayThread.cpp
++++ b/src/shared/Database/SqlDelayThread.cpp
+@@ -42,7 +42,7 @@ void SqlDelayThread::addSerialOperation(SqlOperation *op)
+ 
+ bool SqlDelayThread::HasAsyncQuery()
+ {
+-    return !m_serialDelayQueue.empty_unsafe();
++    return !m_serialDelayQueue.empty();
+ }
+ 
+ void SqlDelayThread::run()

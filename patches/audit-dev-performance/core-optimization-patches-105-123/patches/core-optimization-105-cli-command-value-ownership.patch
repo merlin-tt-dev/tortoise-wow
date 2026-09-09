@@ -1,0 +1,76 @@
+diff --git a/src/game/DiscordBot/GMCommandHandler.cpp b/src/game/DiscordBot/GMCommandHandler.cpp
+index ae7d536..56de5da 100644
+--- a/src/game/DiscordBot/GMCommandHandler.cpp
++++ b/src/game/DiscordBot/GMCommandHandler.cpp
+@@ -72,7 +72,7 @@ namespace DiscordBot
+ 
+ 
+ 
+-        CliCommandHolder* cmd = new CliCommandHolder(authinfo->gameAccountId, (AccountTypes)authinfo->securityLevel, std::make_pair(this, src), commandParam.c_str(), &CommandPrint, &CommandFinished);
++        CliCommandHolder* cmd = new CliCommandHolder(authinfo->gameAccountId, (AccountTypes)authinfo->securityLevel, std::make_pair(this, src), std::move(commandParam), &CommandPrint, &CommandFinished);
+         sWorld.QueueCliCommand(cmd);
+     }
+ 
+diff --git a/src/game/World.cpp b/src/game/World.cpp
+index 2d036db..8512f96 100644
+--- a/src/game/World.cpp
++++ b/src/game/World.cpp
+@@ -3580,7 +3580,7 @@ void World::ProcessCliCommands()
+         CliCommandHolder::Print* zprint = command->m_print;
+         std::any callbackArg = command->m_callbackArg;
+         CliHandler handler(command->m_cliAccountId, command->m_cliAccessLevel, callbackArg, zprint);
+-        handler.ParseCommands(command->m_command);
++        handler.ParseCommands(command->m_command.c_str());
+ 
+         if (command->m_commandFinished)
+             command->m_commandFinished(callbackArg, !handler.HasSentErrorMessage());
+@@ -3605,7 +3605,7 @@ void World::LoadPendingCommands(QueryResult* pResult)
+         std::string command = fields[1].GetCppString();
+ 
+         sLog.outBasic("Loaded command %u from database: %s", id, command.c_str());
+-        QueueCliCommand(new CliCommandHolder(0, SEC_CONSOLE, nullptr, command.c_str(), &utf8print, &commandFinished));
++        QueueCliCommand(new CliCommandHolder(0, SEC_CONSOLE, nullptr, std::move(command), &utf8print, &commandFinished));
+         LoginDatabase.PExecute("DELETE FROM `pending_commands` WHERE `id`=%u", id);
+ 
+     } while (pResult->NextRow());
+diff --git a/src/game/World.h b/src/game/World.h
+index 49f1d70..0bcaa60 100644
+--- a/src/game/World.h
++++ b/src/game/World.h
+@@ -800,19 +800,15 @@ struct CliCommandHolder
+     uint32 m_cliAccountId;                                  // 0 for console and real account id for RA/soap
+     AccountTypes m_cliAccessLevel;
+     std::any m_callbackArg;
+-    char *m_command;
++    std::string m_command;
+     Print* m_print;
+     CommandFinished* m_commandFinished;
+ 
+-    CliCommandHolder(uint32 accountId, AccountTypes cliAccessLevel, std::any callbackArg, const char *command, Print* zprint, CommandFinished* commandFinished)
+-        : m_cliAccountId(accountId), m_cliAccessLevel(cliAccessLevel), m_callbackArg(callbackArg), m_print(zprint), m_commandFinished(commandFinished)
++    CliCommandHolder(uint32 accountId, AccountTypes cliAccessLevel, std::any callbackArg, std::string command, Print* zprint, CommandFinished* commandFinished)
++        : m_cliAccountId(accountId), m_cliAccessLevel(cliAccessLevel), m_callbackArg(std::move(callbackArg)),
++          m_command(std::move(command)), m_print(zprint), m_commandFinished(commandFinished)
+     {
+-        size_t len = strlen(command)+1;
+-        m_command = new char[len];
+-        memcpy(m_command, command, len);
+     }
+-
+-    ~CliCommandHolder() { delete[] m_command; }
+ };
+ 
+ class ThreadPool;
+diff --git a/src/mangosd/CliRunnable.cpp b/src/mangosd/CliRunnable.cpp
+index d4991fb..4944934 100644
+--- a/src/mangosd/CliRunnable.cpp
++++ b/src/mangosd/CliRunnable.cpp
+@@ -583,7 +583,7 @@ void CliRunnable::operator()()
+                 continue;
+             }
+ 
+-            sWorld.QueueCliCommand(new CliCommandHolder(0, SEC_CONSOLE, nullptr, command.c_str(), &utf8print, &commandFinished));
++            sWorld.QueueCliCommand(new CliCommandHolder(0, SEC_CONSOLE, nullptr, std::move(command), &utf8print, &commandFinished));
+         }
+         else if (feof(stdin))
+         {

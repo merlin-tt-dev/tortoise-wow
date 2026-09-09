@@ -1,0 +1,58 @@
+diff --git a/src/shared/Database/DatabaseMysql.cpp b/src/shared/Database/DatabaseMysql.cpp
+index c68494c..020af94 100644
+--- a/src/shared/Database/DatabaseMysql.cpp
++++ b/src/shared/Database/DatabaseMysql.cpp
+@@ -276,10 +276,10 @@ QueryNamedResult* MySQLConnection::QueryNamed(const char *sql)
+     for (uint32 i = 0; i < fieldCount; i++)
+         names[i] = fields[i].name;
+ 
+-    QueryResultMysql *queryResult = new QueryResultMysql(result, fields, rowCount, fieldCount);
++    auto queryResult = std::make_unique<QueryResultMysql>(result, fields, rowCount, fieldCount);
+ 
+     queryResult->NextRow();
+-    return new QueryNamedResult(queryResult,names);
++    return new QueryNamedResult(std::move(queryResult), std::move(names));
+ }
+ 
+ bool MySQLConnection::ExecuteMultiline(const char* sql)
+diff --git a/src/shared/Database/DatabasePostgre.cpp b/src/shared/Database/DatabasePostgre.cpp
+index ec1ceee..bb48b4b 100644
+--- a/src/shared/Database/DatabasePostgre.cpp
++++ b/src/shared/Database/DatabasePostgre.cpp
+@@ -150,10 +150,10 @@ QueryNamedResult* PostgreSQLConnection::QueryNamed(const char *sql)
+     for (uint32 i = 0; i < fieldCount; i++)
+         names[i] = PQfname(result, i);
+ 
+-    QueryResultPostgre * queryResult = new QueryResultPostgre(result, rowCount, fieldCount);
++    auto queryResult = std::make_unique<QueryResultPostgre>(result, rowCount, fieldCount);
+ 
+     queryResult->NextRow();
+-    return new QueryNamedResult(queryResult,names);
++    return new QueryNamedResult(std::move(queryResult), std::move(names));
+ }
+ 
+ bool PostgreSQLConnection::ExecuteMultiline(const char* sql)
+diff --git a/src/shared/Database/QueryResult.h b/src/shared/Database/QueryResult.h
+index 9a2530c..1de456a 100644
+--- a/src/shared/Database/QueryResult.h
++++ b/src/shared/Database/QueryResult.h
+@@ -62,8 +62,8 @@ typedef std::vector<std::string> QueryFieldNames;
+ class QueryNamedResult
+ {
+     public:
+-        explicit QueryNamedResult(QueryResult* query, QueryFieldNames const& names) : mQuery(query), mFieldNames(names) {}
+-        ~QueryNamedResult() { delete mQuery; }
++        explicit QueryNamedResult(std::unique_ptr<QueryResult> query, QueryFieldNames names)
++            : mQuery(std::move(query)), mFieldNames(std::move(names)) {}
+ 
+         // compatible interface with QueryResult
+         bool NextRow() { return mQuery->NextRow(); }
+@@ -88,7 +88,7 @@ class QueryNamedResult
+         }
+ 
+     protected:
+-        QueryResult *mQuery;
++        std::unique_ptr<QueryResult> mQuery;
+         QueryFieldNames mFieldNames;
+ };
+ 
