@@ -45,23 +45,33 @@ DatabasePostgre::DatabasePostgre()
 
 DatabasePostgre::~DatabasePostgre()
 {
-
+    StopServer();
+    --db_count;
 }
 
 SqlConnection * DatabasePostgre::CreateConnection()
 {
-    return new PostgreSQLConnection();
+    return new PostgreSQLConnection(*this);
 }
 
 PostgreSQLConnection::~PostgreSQLConnection()
 {
-    PQfinish(mPGconn);
+    FreePreparedStatements();
+    if (mPGconn)
+        PQfinish(mPGconn);
 }
 
 bool PostgreSQLConnection::OpenConnection(bool reconnect)
 {
-    if (m_socket)
-        mPGconn = PQsetdbLogin(nullptr, m_port_or_socket == "localhost" ? nullptr : m_port_or_socket.c_str(), nullptr, nullptr, m_database.c_str(), m_user.c_str(), m_password.c_str());
+    if (reconnect && mPGconn)
+    {
+        FreePreparedStatements();
+        PQfinish(mPGconn);
+        mPGconn = nullptr;
+    }
+
+    if (m_use_socket)
+        mPGconn = PQsetdbLogin(nullptr, m_port_or_socket.empty() ? nullptr : m_port_or_socket.c_str(), nullptr, nullptr, m_database.c_str(), m_user.c_str(), m_password.c_str());
     else
         mPGconn = PQsetdbLogin(m_host.c_str(), m_port_or_socket.c_str(), nullptr, nullptr, m_database.c_str(), m_user.c_str(), m_password.c_str());
 

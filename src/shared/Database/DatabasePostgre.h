@@ -38,22 +38,22 @@
 class PostgreSQLConnection : public SqlConnection
 {
     public:
-        PostgreSQLConnection() : mPGconn(nullptr) {}
-        ~PostgreSQLConnection();
+        explicit PostgreSQLConnection(Database& db) : SqlConnection(db), mPGconn(nullptr) {}
+        ~PostgreSQLConnection() override;
 
-        bool OpenConnection(bool reconnect);
+        bool OpenConnection(bool reconnect) override;
 
-        QueryResult* Query(const char *sql);
+        QueryResult* Query(const char *sql) override;
 
-        QueryNamedResult* QueryNamed(const char *sql);
-        bool Execute(const char *sql);
-        bool ExecuteMultiline(const char* sql);
+        QueryNamedResult* QueryNamed(const char *sql) override;
+        bool Execute(const char *sql) override;
+        bool ExecuteMultiline(const char* sql) override;
 
-        unsigned long escape_string(char *to, const char *from, unsigned long length);
+        unsigned long escape_string(char *to, const char *from, unsigned long length) override;
 
-        bool BeginTransaction();
-        bool CommitTransaction();
-        bool RollbackTransaction();
+        bool BeginTransaction() override;
+        bool CommitTransaction() override;
+        bool RollbackTransaction() override;
 
     private:
         bool _TransactionCmd(const char *sql);
@@ -68,13 +68,13 @@ class DatabasePostgre : public Database
 
     public:
         DatabasePostgre();
-        ~DatabasePostgre();
+        ~DatabasePostgre() override;
 
         //! Initializes Postgres and connects to a server.
         /*! infoString should be formated like hostname;username;password;database. */
 
     protected:
-        virtual SqlConnection * CreateConnection();
+        SqlConnection* CreateConnection() override;
 
     private:
         static size_t db_count;
