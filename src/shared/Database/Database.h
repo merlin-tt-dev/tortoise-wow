@@ -244,7 +244,7 @@ class Database
         //allocate index for prepared statement with SQL request 'fmt'
         SqlStatement CreateStatement(SqlStatementID& index, const char * fmt);
         //get prepared statement format string
-        std::string GetStmtString(const int stmtId) const;
+        std::string const& GetStmtString(const int stmtId) const;
 
         operator bool () const { return !m_pQueryConnections.empty() && m_pAsyncConn != 0; }
 
@@ -356,6 +356,7 @@ class Database
 
         typedef std::unordered_map<std::string, int> PreparedStmtRegistry;
         PreparedStmtRegistry m_stmtRegistry;                 ///<
+        std::vector<std::string const*> m_stmtStringsById;
 
         int m_iStmtIndex;
 

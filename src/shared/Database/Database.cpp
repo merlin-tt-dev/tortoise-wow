@@ -64,7 +64,7 @@ SqlPreparedStatement * SqlConnection::GetStmt( int nIndex )
     if(m_holder[nIndex] == nullptr)
     {
         //obtain SQL request string
-        std::string fmt = m_db.GetStmtString(nIndex);
+        std::string const& fmt = m_db.GetStmtString(nIndex);
         MANGOS_ASSERT(fmt.length());
         //allocate SQlPreparedStatement object
         pStmt = CreateStatement(fmt);
@@ -654,8 +654,19 @@ SqlStatement Database::CreateStatement(SqlStatementID& index, const char * fmt )
         PreparedStmtRegistry::const_iterator iter = m_stmtRegistry.find(szFmt);
         if(iter == m_stmtRegistry.end())
         {
-            nId = ++m_iStmtIndex;
-            m_stmtRegistry.emplace(std::move(szFmt), nId);
+            nId = m_iStmtIndex + 1;
+            auto const [insertedIter, inserted] = m_stmtRegistry.emplace(std::move(szFmt), nId);
+            MANGOS_ASSERT(inserted);
+            try
+            {
+                m_stmtStringsById.push_back(&insertedIter->first);
+            }
+            catch (...)
+            {
+                m_stmtRegistry.erase(insertedIter);
+                throw;
+            }
+            m_iStmtIndex = nId;
         }
         else
             nId = iter->second;
@@ -667,21 +678,16 @@ SqlStatement Database::CreateStatement(SqlStatementID& index, const char * fmt )
     return SqlStatement(index, *this);
 }
 
-std::string Database::GetStmtString(const int stmtId) const
+std::string const& Database::GetStmtString(const int stmtId) const
 {
+    static const std::string empty;
+
     LOCK_GUARD _guard(m_stmtGuard);
 
-    if(stmtId == -1 || stmtId > m_iStmtIndex)
-        return std::string();
+    if (stmtId < 0 || static_cast<size_t>(stmtId) >= m_stmtStringsById.size())
+        return empty;
 
-    PreparedStmtRegistry::const_iterator iter_last = m_stmtRegistry.end();
-    for(PreparedStmtRegistry::const_iterator iter = m_stmtRegistry.begin(); iter != iter_last; ++iter)
-    {
-        if(iter->second == stmtId)
-            return iter->first;
-    }
-
-    return std::string();
+    return *m_stmtStringsById[stmtId];
 }
 
 //HELPER CLASSES AND FUNCTIONS
