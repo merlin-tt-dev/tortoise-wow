@@ -2254,18 +2254,19 @@ bool ChatHandler::isValidChatMessage(const char* message)
     return validSequence == validSequenceIterator;
 }
 
-void ChatHandler::BuildChatPacket(WorldPacket& data, ChatMsg msgtype, const std::string& message, Language language /*= LANG_UNIVERSAL*/, uint32 chatTag /*= CHAT_TAG_NONE*/,
+void ChatHandler::BuildChatPacket(WorldPacket& data, ChatMsg msgtype, std::string_view message, Language language /*= LANG_UNIVERSAL*/, uint32 chatTag /*= CHAT_TAG_NONE*/,
                                   ObjectGuid const& senderGuid /*= ObjectGuid()*/, char const* senderName /*= nullptr*/,
                                   ObjectGuid const& targetGuid /*= ObjectGuid()*/, char const* targetName /*= nullptr*/,
                                   char const* channelName /*= nullptr*/, uint8 playerRank /*= 0*/)
 {
-    std::string messageFinal;
+    std::string taggedMessage;
+    std::string_view messageFinal = message;
     if (chatTag == CHAT_TAG_GM && language != LANG_ADDON)
     {
-        messageFinal = std::string("|c1049e6ff") + message + "|r";
+        taggedMessage.reserve(message.size() + 12);
+        taggedMessage.append("|c1049e6ff").append(message.data(), message.size()).append("|r");
+        messageFinal = taggedMessage;
     }
-    else
-        messageFinal = message;
 
     data.Initialize(SMSG_MESSAGECHAT);
     data << uint8(msgtype);
@@ -2314,8 +2315,9 @@ void ChatHandler::BuildChatPacket(WorldPacket& data, ChatMsg msgtype, const std:
     if (messageFinal.empty())
         return;
 
-    data << uint32(messageFinal.length() + 1);
-    data << messageFinal;
+    data << uint32(messageFinal.size() + 1);
+    data.append(reinterpret_cast<uint8 const*>(messageFinal.data()), messageFinal.size());
+    data << uint8(0);
     data << uint8(chatTag);
 }
 
