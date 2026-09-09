@@ -330,7 +330,7 @@ class WorldSession
 
         AccountTypes GetSecurity() const { return _security; }
         uint32 GetAccountId() const { return _accountId; }
-        std::string GetUsername() const { return m_username; }
+        std::string const& GetUsername() const { return m_username; }
         void SetUsername(std::string const& s) { m_username = s; }
         void SetJoinTimeStamp(uint32 timestamp) { m_joinTimestamp = timestamp; }
         uint32 GetJoinTimeStamp() const { return m_joinTimestamp; }
@@ -338,7 +338,7 @@ class WorldSession
 
         bool HadQueue() const { return m_hadQueue; }
 
-        std::string GetEmail() const { return m_email; }
+        std::string const& GetEmail() const { return m_email; }
         void SetEmail(std::string const& s) { m_email = s; }
         bool HasChineseEmail() const;
         Player* GetPlayer() const { return _player; }
