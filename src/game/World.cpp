@@ -2805,9 +2805,8 @@ namespace MaNGOS
 
         while (char* line = lineFromMessage(pos))
         {
-            WorldPacket* data = new WorldPacket();
-            ChatHandler::BuildChatPacket(*data, CHAT_MSG_SYSTEM, line);
-            data_list.push_back(data);
+            data_list.emplace_back();
+            ChatHandler::BuildChatPacket(data_list.back(), CHAT_MSG_SYSTEM, line);
         }
     }
 }

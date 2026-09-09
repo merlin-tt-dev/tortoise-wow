@@ -821,7 +821,7 @@ namespace MaNGOS
     class WorldWorldTextBuilder
     {
     public:
-        typedef std::vector<WorldPacket*> WorldPacketList;
+        typedef std::vector<WorldPacket> WorldPacketList;
         explicit WorldWorldTextBuilder(int32 textId, va_list* args = nullptr) : i_textId(textId), i_args(args) {}
         void operator()(WorldPacketList& data_list, int32 loc_idx);
     private:
@@ -999,15 +999,9 @@ class World
         class LocalizedPacketListDo
         {
         public:
-            typedef std::vector<WorldPacket*> WorldPacketList;
+            typedef std::vector<WorldPacket> WorldPacketList;
             explicit LocalizedPacketListDo(Builder& builder) : i_builder(builder) {}
 
-            ~LocalizedPacketListDo()
-            {
-                for (size_t i = 0; i < i_data_cache.size(); ++i)
-                    for (size_t j = 0; j < i_data_cache[i].size(); ++j)
-                        delete i_data_cache[i][j];
-            }
             void operator()(Player* p)
             {
                 int32 loc_idx = GetSessionDbLocaleIndex(p);
@@ -1027,8 +1021,8 @@ class World
                 else
                     data_list = &i_data_cache[cache_idx];
 
-                for (auto& i : *data_list)
-                    SendDirectMessage(p, i);
+                for (auto& packet : *data_list)
+                    SendDirectMessage(p, &packet);
             }
 
         private:
