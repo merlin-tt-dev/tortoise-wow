@@ -250,7 +250,10 @@ void World::InternalShutdown()
         m_autoPDumpThread.join();
 
     if (m_asyncPacketsThread.joinable())
+    {
+        m_asyncPacketsCv.notify_all();
         m_asyncPacketsThread.join();
+    }
 
     if (m_shopThread.joinable())
     {
@@ -2459,11 +2462,17 @@ void World::ProcessAsyncPackets()
     thread_name("AsyncPackets");
     while (!sWorld.IsStopped())
     {
-        do
         {
-            std::this_thread::sleep_for(std::chrono::milliseconds(20));
-        } while (!m_canProcessAsyncPackets);
-        
+            std::unique_lock<std::mutex> lock(m_asyncPacketsMutex);
+            m_asyncPacketsCv.wait(lock, [this]
+            {
+                return m_canProcessAsyncPackets || sWorld.IsStopped();
+            });
+
+            if (sWorld.IsStopped())
+                break;
+        }
+
         for (auto const& itr : m_sessions)
         {
             WorldSession* pSession = itr.second;
@@ -2472,6 +2481,7 @@ void World::ProcessAsyncPackets()
             updater.SetProcessType(PACKET_PROCESS_DB_QUERY);
             pSession->ProcessPackets(updater);
 
+            std::lock_guard<std::mutex> lock(m_asyncPacketsMutex);
             if (!m_canProcessAsyncPackets)
                 break;
         }
@@ -2527,7 +2537,10 @@ void World::Update(uint32 diff)
         CharacterDatabase.AsyncPQuery(&TotalMoneyCallback, money, "SELECT ROUND(SUM(money) / 10000) FROM characters");
     }
 
-    m_canProcessAsyncPackets = false;
+    {
+        std::lock_guard<std::mutex> lock(m_asyncPacketsMutex);
+        m_canProcessAsyncPackets = false;
+    }
 
     if (m_timers[WUPDATE_COMMANDS].Passed())
     {
@@ -2537,7 +2550,11 @@ void World::Update(uint32 diff)
 
     /// <li> Handle session updates
     UpdateSessions(diff);
-    m_canProcessAsyncPackets = true;
+    {
+        std::lock_guard<std::mutex> lock(m_asyncPacketsMutex);
+        m_canProcessAsyncPackets = true;
+    }
+    m_asyncPacketsCv.notify_one();
 
     /// <li> Update uptime table
     if (m_timers[WUPDATE_UPTIME].Passed())

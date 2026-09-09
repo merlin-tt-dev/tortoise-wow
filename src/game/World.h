@@ -47,6 +47,8 @@
 #include <unordered_map>
 #include <atomic>
 #include <thread>
+#include <mutex>
+#include <condition_variable>
 #include <any>
 
 class Object;
@@ -1385,6 +1387,8 @@ class World
         std::set<uint32> m_lockedCharacterGuids;
         std::thread m_asyncPacketsThread;
         bool m_canProcessAsyncPackets;
+        std::mutex m_asyncPacketsMutex;
+        std::condition_variable m_asyncPacketsCv;
         void ProcessAsyncPackets();
         std::thread m_shopThread;
 
