@@ -47,6 +47,7 @@
 #include <unordered_map>
 #include <atomic>
 #include <thread>
+#include <string_view>
 #include <mutex>
 #include <condition_variable>
 #include <any>
@@ -825,13 +826,7 @@ namespace MaNGOS
         explicit WorldWorldTextBuilder(int32 textId, va_list* args = nullptr) : i_textId(textId), i_args(args) {}
         void operator()(WorldPacketList& data_list, int32 loc_idx);
     private:
-        char* lineFromMessage(char*& pos)
-        {
-            char* start = strtok(pos, "\n");
-            pos = nullptr;
-            return start;
-        }
-        void do_helper(WorldPacketList& data_list, char* text);
+        void do_helper(WorldPacketList& data_list, std::string_view text);
 
         int32 i_textId;
         va_list* i_args;

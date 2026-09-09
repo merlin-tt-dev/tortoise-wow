@@ -2793,20 +2793,30 @@ namespace MaNGOS
             vsnprintf(str, 2048, text, ap);
             va_end(ap);
 
-            do_helper(data_list, &str[0]);
+            do_helper(data_list, str);
         }
         else
-            do_helper(data_list, (char*)text);
+            do_helper(data_list, text);
     }
 
-    void MaNGOS::WorldWorldTextBuilder::do_helper(WorldPacketList& data_list, char* text)
+    void MaNGOS::WorldWorldTextBuilder::do_helper(WorldPacketList& data_list, std::string_view text)
     {
-        char* pos = text;
-
-        while (char* line = lineFromMessage(pos))
+        while (!text.empty())
         {
+            size_t lineStart = text.find_first_not_of('\n');
+            if (lineStart == std::string_view::npos)
+                break;
+
+            text.remove_prefix(lineStart);
+            size_t lineEnd = text.find('\n');
+            std::string_view line = text.substr(0, lineEnd);
+
             data_list.emplace_back();
             ChatHandler::BuildChatPacket(data_list.back(), CHAT_MSG_SYSTEM, line);
+
+            if (lineEnd == std::string_view::npos)
+                break;
+            text.remove_prefix(lineEnd + 1);
         }
     }
 }
