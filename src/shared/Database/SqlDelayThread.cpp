@@ -60,7 +60,7 @@ void SqlDelayThread::run()
     const uint32 pingEveryLoop = m_dbEngine->GetPingIntervall() / loopSleepms;
 
     uint32 loopCounter = 0;
-    while (m_running)
+    while (m_running.load())
     {
         // if the running state gets turned off while sleeping
         // empty the queue before exiting
@@ -84,7 +84,7 @@ void SqlDelayThread::run()
 
 void SqlDelayThread::Stop()
 {
-    m_running = false;
+    m_running.store(false);
 }
 
 void SqlDelayThread::ProcessRequests()

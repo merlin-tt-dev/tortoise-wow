@@ -24,6 +24,8 @@
 
 #include "LockedQueue.h"
 
+#include <atomic>
+
 class Database;
 class SqlOperation;
 class SqlConnection;
@@ -37,7 +39,7 @@ class SqlDelayThread
         Database *m_dbEngine;                               ///< Pointer to used Database engine
         SqlQueue m_serialDelayQueue;
         SqlConnection *m_dbConnection;                     ///< Pointer to DB connection
-        volatile bool m_running;
+        std::atomic_bool m_running;
         const char* Name;
 
 
