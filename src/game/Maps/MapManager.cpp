@@ -297,7 +297,7 @@ void MapManager::CreateNewInstancesForPlayers()
         std::this_thread::sleep_for(std::chrono::milliseconds(20));
 
         CreateNewInstancesForPlayersSync();
-    } while (asyncMapUpdating);
+    } while (asyncMapUpdating.load());
 }
 
 void MapManager::CreateNewInstancesForPlayersSync()
@@ -344,7 +344,7 @@ void MapManager::Update(uint32 diff)
     ExecuteDelayedPlayerTeleports();
 
     uint32 mapsDiff = (uint32)i_timer.GetCurrent();
-    asyncMapUpdating = true;
+    asyncMapUpdating.store(true);
 	sWorld.GetChannelBroadcaster()->EnableSendingMessages(); // should be active only on async map updating
 
     int continentsIdx = 0;
@@ -414,7 +414,7 @@ void MapManager::Update(uint32 diff)
 
     sWorld.GetChannelBroadcaster()->DisableSendingMessages();
     SwitchPlayersInstances();
-    asyncMapUpdating = false;
+    asyncMapUpdating.store(false);
 
     CreateNewInstancesForPlayersSync();
 
@@ -1071,7 +1071,7 @@ void MapManager::ScheduleFarTeleport(Player *player, ScheduledTeleportData *data
 {
     // If we're not in the middle of an async update, it's safe to execute the
     // teleport immediately.
-    if (!asyncMapUpdating)
+    if (!asyncMapUpdating.load())
     {
         player->ExecuteTeleportFar(data);
         delete data;
