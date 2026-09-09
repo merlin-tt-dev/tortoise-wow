@@ -27,26 +27,42 @@ void PlayerBroadcaster::ChangeSocket(WorldSocket* new_socket)
     m_socket = new_socket;
 }
 
+void PlayerBroadcaster::WaitForListenerBatches(std::unique_lock<std::mutex>& lock)
+{
+    m_listeners_idle.wait(lock, [this]() { return m_active_listener_batches == 0; });
+}
+
+void PlayerBroadcaster::FinishListenerBatch()
+{
+    std::lock_guard<std::mutex> guard(m_listeners_lock);
+    ASSERT(m_active_listener_batches > 0);
+    if (--m_active_listener_batches == 0)
+        m_listeners_idle.notify_all();
+}
+
 void PlayerBroadcaster::AddListener(Player const* player)
 {
     ASSERT(player);
     if (player->GetObjectGuid() == m_self)
         return;
 
-    const std::lock_guard<std::mutex> guard(m_listeners_lock);
+    std::unique_lock<std::mutex> guard(m_listeners_lock);
+    WaitForListenerBatches(guard);
     m_listeners[player->GetObjectGuid()] = player->m_broadcaster;
 }
 
 void PlayerBroadcaster::RemoveListener(Player const* player)
 {
     ASSERT(player);
-    const std::lock_guard<std::mutex> guard(m_listeners_lock);
+    std::unique_lock<std::mutex> guard(m_listeners_lock);
+    WaitForListenerBatches(guard);
     m_listeners.erase(player->GetObjectGuid());
 }
 
 void PlayerBroadcaster::ClearListeners()
 {
-    const std::lock_guard<std::mutex> guard(m_listeners_lock);
+    std::unique_lock<std::mutex> guard(m_listeners_lock);
+    WaitForListenerBatches(guard);
     m_listeners.clear();
 }
 
@@ -72,25 +88,35 @@ void PlayerBroadcaster::ProcessQueue(uint32& num_packets)
         std::lock_guard<std::mutex> guard(m_listeners_lock);
         listeners.reserve(m_listeners.size());
         listeners.insert(listeners.end(), m_listeners.begin(), m_listeners.end());
+        ++m_active_listener_batches;
     }
 
     lastUpdatePackets = queue.size() * listeners.size();
     num_packets += lastUpdatePackets;
 
-    for (auto& data : queue)
+    try
     {
-        if (data.sendToSelf && data.except != GetGUID())
-            SendPacket(data.packet);
-
-        for (const auto& itr : listeners)
+        for (auto& data : queue)
         {
-            if (itr.first == data.except)
-                continue;
+            if (data.sendToSelf && data.except != GetGUID())
+                SendPacket(data.packet);
 
-            itr.second->SendPacket(data.packet);
+            for (const auto& itr : listeners)
+            {
+                if (itr.first == data.except)
+                    continue;
+
+                itr.second->SendPacket(data.packet);
+            }
         }
     }
+    catch (...)
+    {
+        FinishListenerBatch();
+        throw;
+    }
 
+    FinishListenerBatch();
     queue.clear();
     std::lock_guard<std::mutex> guard(m_queue_lock);
     if (m_queue.empty())

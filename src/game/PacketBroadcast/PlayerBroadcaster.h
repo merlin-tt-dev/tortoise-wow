@@ -6,6 +6,7 @@
 #include "WorldSocket.h"
 #include "WorldPacket.h"
 #include "Opcodes.h"
+#include <condition_variable>
 #include <list>
 #include <vector>
 #include <cstddef>
@@ -30,8 +31,12 @@ class PlayerBroadcaster final
     std::map<ObjectGuid, std::shared_ptr<PlayerBroadcaster> > m_listeners;
     std::vector<BroadcastData> m_queue;
     std::mutex m_listeners_lock;
+    std::condition_variable m_listeners_idle;
+    std::size_t m_active_listener_batches = 0;
     std::mutex m_queue_lock;
 
+    void WaitForListenerBatches(std::unique_lock<std::mutex>& lock);
+    void FinishListenerBatch();
     void ProcessQueue(uint32& num_packets);
     void SendPacket(const WorldPacket& packet);
 
