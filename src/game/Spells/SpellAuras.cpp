@@ -2282,10 +2282,10 @@ void NotifyAuraScriptsCastSpeedChanged(Unit* target)
 void NotifyAuraScriptsCharmStateChanged(Unit* caster, Unit* target, bool apply)
 {
     std::vector<SpellAuraHolder*> holders;
-    if (caster)
-        holders.reserve(holders.size() + caster->GetSpellAuraHolderMap().size());
+    size_t holderCapacity = caster ? caster->GetSpellAuraHolderMap().size() : 0;
     if (target && target != caster)
-        holders.reserve(holders.size() + target->GetSpellAuraHolderMap().size());
+        holderCapacity += target->GetSpellAuraHolderMap().size();
+    holders.reserve(holderCapacity);
 
     if (caster)
         for (auto const& itr : caster->GetSpellAuraHolderMap())
