@@ -271,13 +271,11 @@ void Database::escape_string(std::string& str)
     if (str.empty())
         return;
 
-    int bufSize = str.size() * 2 + 1;
-    char* buf = new char[bufSize + 1];
+    std::string source = std::move(str);
+    str.resize(source.size() * 2 + 1);
     //we don't care what connection to use - escape string will be the same
-    m_pQueryConnections[0]->escape_string(buf, str.c_str(), str.size());
-    buf[bufSize] = 0;
-    str = buf;
-    delete[] buf;
+    unsigned long escapedLength = m_pQueryConnections[0]->escape_string(str.data(), source.c_str(), source.size());
+    str.resize(escapedLength);
 }
 
 SqlConnection * Database::getQueryConnection()
