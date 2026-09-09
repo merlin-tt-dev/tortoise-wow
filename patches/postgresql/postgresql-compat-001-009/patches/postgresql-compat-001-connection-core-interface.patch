@@ -1,0 +1,97 @@
+diff --git a/src/shared/Database/DatabasePostgre.cpp b/src/shared/Database/DatabasePostgre.cpp
+index bb48b4b..dc37af0 100644
+--- a/src/shared/Database/DatabasePostgre.cpp
++++ b/src/shared/Database/DatabasePostgre.cpp
+@@ -45,23 +45,33 @@ DatabasePostgre::DatabasePostgre()
+ 
+ DatabasePostgre::~DatabasePostgre()
+ {
+-
++    StopServer();
++    --db_count;
+ }
+ 
+ SqlConnection * DatabasePostgre::CreateConnection()
+ {
+-    return new PostgreSQLConnection();
++    return new PostgreSQLConnection(*this);
+ }
+ 
+ PostgreSQLConnection::~PostgreSQLConnection()
+ {
+-    PQfinish(mPGconn);
++    FreePreparedStatements();
++    if (mPGconn)
++        PQfinish(mPGconn);
+ }
+ 
+ bool PostgreSQLConnection::OpenConnection(bool reconnect)
+ {
+-    if (m_socket)
+-        mPGconn = PQsetdbLogin(nullptr, m_port_or_socket == "localhost" ? nullptr : m_port_or_socket.c_str(), nullptr, nullptr, m_database.c_str(), m_user.c_str(), m_password.c_str());
++    if (reconnect && mPGconn)
++    {
++        FreePreparedStatements();
++        PQfinish(mPGconn);
++        mPGconn = nullptr;
++    }
++
++    if (m_use_socket)
++        mPGconn = PQsetdbLogin(nullptr, m_port_or_socket.empty() ? nullptr : m_port_or_socket.c_str(), nullptr, nullptr, m_database.c_str(), m_user.c_str(), m_password.c_str());
+     else
+         mPGconn = PQsetdbLogin(m_host.c_str(), m_port_or_socket.c_str(), nullptr, nullptr, m_database.c_str(), m_user.c_str(), m_password.c_str());
+ 
+diff --git a/src/shared/Database/DatabasePostgre.h b/src/shared/Database/DatabasePostgre.h
+index a0b0b10..7e12167 100644
+--- a/src/shared/Database/DatabasePostgre.h
++++ b/src/shared/Database/DatabasePostgre.h
+@@ -38,22 +38,22 @@
+ class PostgreSQLConnection : public SqlConnection
+ {
+     public:
+-        PostgreSQLConnection() : mPGconn(nullptr) {}
+-        ~PostgreSQLConnection();
++        explicit PostgreSQLConnection(Database& db) : SqlConnection(db), mPGconn(nullptr) {}
++        ~PostgreSQLConnection() override;
+ 
+-        bool OpenConnection(bool reconnect);
++        bool OpenConnection(bool reconnect) override;
+ 
+-        QueryResult* Query(const char *sql);
++        QueryResult* Query(const char *sql) override;
+ 
+-        QueryNamedResult* QueryNamed(const char *sql);
+-        bool Execute(const char *sql);
+-        bool ExecuteMultiline(const char* sql);
++        QueryNamedResult* QueryNamed(const char *sql) override;
++        bool Execute(const char *sql) override;
++        bool ExecuteMultiline(const char* sql) override;
+ 
+-        unsigned long escape_string(char *to, const char *from, unsigned long length);
++        unsigned long escape_string(char *to, const char *from, unsigned long length) override;
+ 
+-        bool BeginTransaction();
+-        bool CommitTransaction();
+-        bool RollbackTransaction();
++        bool BeginTransaction() override;
++        bool CommitTransaction() override;
++        bool RollbackTransaction() override;
+ 
+     private:
+         bool _TransactionCmd(const char *sql);
+@@ -68,13 +68,13 @@ class DatabasePostgre : public Database
+ 
+     public:
+         DatabasePostgre();
+-        ~DatabasePostgre();
++        ~DatabasePostgre() override;
+ 
+         //! Initializes Postgres and connects to a server.
+         /*! infoString should be formated like hostname;username;password;database. */
+ 
+     protected:
+-        virtual SqlConnection * CreateConnection();
++        SqlConnection* CreateConnection() override;
+ 
+     private:
+         static size_t db_count;

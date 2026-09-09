@@ -1,0 +1,9 @@
+postgresql-compat-001-connection-core-interface.patch
+postgresql-compat-002-libpq-result-raii.patch
+postgresql-compat-003-result-value-semantics.patch
+postgresql-compat-004-cmake-backend-selection.patch
+postgresql-compat-005-multiline-execution.patch
+postgresql-compat-006-autoupdater-metadata-dialect.patch
+postgresql-compat-007-remove-obsolete-pgsql-delay-thread.patch
+postgresql-compat-008-connection-recovery.patch
+postgresql-compat-009-database-thread-lifecycle.patch

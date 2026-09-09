@@ -1,0 +1,13 @@
+Validation status: PASS for patch/application and CMake configuration gates.
+
+- strict sequential apply 001 -> 009 from the exact post-123 baseline: PASS
+- git apply --check --whitespace=error-all per patch: PASS
+- git apply --numstat --whitespace=error-all per patch: PASS
+- git diff --check after every patch: PASS
+- conflict-marker scan: PASS
+- CMake default MYSQL configuration (temporary ACE discovery shim): PASS
+- CMake POSTGRESQL configuration with system libpq 17.10 (temporary ACE discovery shim): PASS
+- PostgreSQL discovery: PASS
+- CMake Configure/Generate: PASS for both backend selections
+
+No full C++ link/build is claimed in this environment because ACE is not installed here. The user's normal Linux/Windows build gates remain authoritative.
