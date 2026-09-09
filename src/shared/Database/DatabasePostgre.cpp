@@ -106,13 +106,46 @@ bool PostgreSQLConnection::OpenConnection(bool reconnect)
     return true;
 }
 
+bool PostgreSQLConnection::Reconnect()
+{
+    if (!mPGconn)
+        return OpenConnection(false);
+
+    sLog.outString("Reconnection attempt to PostgreSQL database %s (on %s)", m_database.c_str(), m_host.c_str());
+    PQreset(mPGconn);
+    if (PQstatus(mPGconn) != CONNECTION_OK)
+    {
+        sLog.outError("Could not reconnect to PostgreSQL database at %s: %s", m_host.c_str(), PQerrorMessage(mPGconn));
+        return false;
+    }
+
+    FreePreparedStatements();
+    sLog.outString("Successfully reconnected to PostgreSQL database %s @%s:%s.", m_database.c_str(), m_host.c_str(), m_port_or_socket.c_str());
+    return true;
+}
+
+PGresult* PostgreSQLConnection::_Execute(const char* sql, bool allowReconnect)
+{
+    PGresult* result = PQexec(mPGconn, sql);
+    if (!allowReconnect || PQstatus(mPGconn) != CONNECTION_BAD)
+        return result;
+
+    if (result)
+        PQclear(result);
+
+    if (!Reconnect())
+        return nullptr;
+
+    return PQexec(mPGconn, sql);
+}
+
 bool PostgreSQLConnection::_Query(const char *sql, PGresult** pResult, uint64* pRowCount, uint32* pFieldCount)
 {
     if (!mPGconn)
         return false;
 
     uint32 _s = WorldTimer::getMSTime();
-    PGResultPtr result(PQexec(mPGconn, sql));
+    PGResultPtr result(_Execute(sql, true));
     if (!result)
         return false;
 
@@ -180,7 +213,7 @@ bool PostgreSQLConnection::ExecuteMultiline(const char* sql)
         return false;
 
     uint32 start = WorldTimer::getMSTime();
-    PGResultPtr result(PQexec(mPGconn, sql));
+    PGResultPtr result(_Execute(sql, true));
     if (!result)
         return false;
 
@@ -203,7 +236,7 @@ bool PostgreSQLConnection::Execute(const char *sql)
 
     uint32 _s = WorldTimer::getMSTime();
 
-    PGResultPtr result(PQexec(mPGconn, sql));
+    PGResultPtr result(_Execute(sql, true));
     if (!result)
         return false;
 
@@ -223,7 +256,7 @@ bool PostgreSQLConnection::_TransactionCmd(const char *sql)
     if (!mPGconn)
         return false;
 
-    PGResultPtr result(PQexec(mPGconn, sql));
+    PGResultPtr result(_Execute(sql, false));
     if (!result)
         return false;
 

@@ -56,6 +56,8 @@ class PostgreSQLConnection : public SqlConnection
         bool RollbackTransaction() override;
 
     private:
+        bool Reconnect();
+        PGresult* _Execute(const char* sql, bool allowReconnect);
         bool _TransactionCmd(const char *sql);
         bool _Query(const char *sql, PGresult **pResult, uint64* pRowCount, uint32* pFieldCount);
 
