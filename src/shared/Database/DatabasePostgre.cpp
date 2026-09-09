@@ -28,6 +28,22 @@
 #include "Database/SqlOperations.h"
 #include "Timer.h"
 
+#include <memory>
+
+namespace
+{
+    struct PGResultDeleter
+    {
+        void operator()(PGresult* result) const
+        {
+            if (result)
+                PQclear(result);
+        }
+    };
+
+    using PGResultPtr = std::unique_ptr<PGresult, PGResultDeleter>;
+}
+
 size_t DatabasePostgre::db_count = 0;
 
 DatabasePostgre::DatabasePostgre()
@@ -96,33 +112,25 @@ bool PostgreSQLConnection::_Query(const char *sql, PGresult** pResult, uint64* p
         return false;
 
     uint32 _s = WorldTimer::getMSTime();
-    // Send the query
-    *pResult = PQexec(mPGconn, sql);
-    if(!*pResult )
+    PGResultPtr result(PQexec(mPGconn, sql));
+    if (!result)
         return false;
 
-    if (PQresultStatus(*pResult) != PGRES_TUPLES_OK)
+    if (PQresultStatus(result.get()) != PGRES_TUPLES_OK)
     {
-        sLog.outErrorDb( "SQL : %s", sql );
-        sLog.outErrorDb( "SQL %s", PQerrorMessage(mPGconn));
-        PQclear(*pResult);
+        sLog.outErrorDb("SQL : %s", sql);
+        sLog.outErrorDb("SQL %s", PQerrorMessage(mPGconn));
         return false;
     }
-    else
-    {
-        DEBUG_FILTER_LOG(LOG_FILTER_SQL_TEXT, "[%u ms] SQL: %s", WorldTimer::getMSTimeDiff(_s,WorldTimer::getMSTime()), sql );
-    }
 
-    *pRowCount = PQntuples(*pResult);
-    *pFieldCount = PQnfields(*pResult);
-    // end guarded block
+    DEBUG_FILTER_LOG(LOG_FILTER_SQL_TEXT, "[%u ms] SQL: %s", WorldTimer::getMSTimeDiff(_s, WorldTimer::getMSTime()), sql);
 
+    *pRowCount = PQntuples(result.get());
+    *pFieldCount = PQnfields(result.get());
     if (!*pRowCount)
-    {
-        PQclear(*pResult);
         return false;
-    }
 
+    *pResult = result.release();
     return true;
 }
 
@@ -178,19 +186,18 @@ bool PostgreSQLConnection::Execute(const char *sql)
 
     uint32 _s = WorldTimer::getMSTime();
 
-    PGresult *res = PQexec(mPGconn, sql);
-    if (PQresultStatus(res) != PGRES_COMMAND_OK)
+    PGResultPtr result(PQexec(mPGconn, sql));
+    if (!result)
+        return false;
+
+    if (PQresultStatus(result.get()) != PGRES_COMMAND_OK)
     {
-        sLog.outErrorDb( "SQL: %s", sql );
-        sLog.outErrorDb( "SQL %s", PQerrorMessage(mPGconn) );
+        sLog.outErrorDb("SQL: %s", sql);
+        sLog.outErrorDb("SQL %s", PQerrorMessage(mPGconn));
         return false;
     }
-    else
-    {
-        DEBUG_FILTER_LOG(LOG_FILTER_SQL_TEXT, "[%u ms] SQL: %s", WorldTimer::getMSTimeDiff(_s,WorldTimer::getMSTime()), sql );
-    }
 
-    PQclear(res);
+    DEBUG_FILTER_LOG(LOG_FILTER_SQL_TEXT, "[%u ms] SQL: %s", WorldTimer::getMSTimeDiff(_s, WorldTimer::getMSTime()), sql);
     return true;
 }
 
@@ -199,17 +206,18 @@ bool PostgreSQLConnection::_TransactionCmd(const char *sql)
     if (!mPGconn)
         return false;
 
-    PGresult *res = PQexec(mPGconn, sql);
-    if (PQresultStatus(res) != PGRES_COMMAND_OK)
+    PGResultPtr result(PQexec(mPGconn, sql));
+    if (!result)
+        return false;
+
+    if (PQresultStatus(result.get()) != PGRES_COMMAND_OK)
     {
         sLog.outError("SQL: %s", sql);
         sLog.outError("SQL ERROR: %s", PQerrorMessage(mPGconn));
         return false;
     }
-    else
-    {
-        DEBUG_LOG("SQL: %s", sql);
-    }
+
+    DEBUG_LOG("SQL: %s", sql);
     return true;
 }
 
@@ -233,7 +241,15 @@ unsigned long PostgreSQLConnection::escape_string(char *to, const char *from, un
     if (!mPGconn || !to || !from || !length)
         return 0;
 
-    return PQescapeString(to, from, length);
+    int error = 0;
+    unsigned long escapedLength = PQescapeStringConn(mPGconn, to, from, length, &error);
+    if (error)
+    {
+        sLog.outErrorDb("PostgreSQL string escaping failed: %s", PQerrorMessage(mPGconn));
+        return 0;
+    }
+
+    return escapedLength;
 }
 
 #endif
