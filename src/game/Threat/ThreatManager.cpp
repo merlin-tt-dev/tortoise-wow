@@ -32,6 +32,7 @@
 #include "Chat.h"
 #include "GridSearchers.h"
 
+#include <string_view>
 #include <vector>
 
 //==============================================================
@@ -462,8 +463,9 @@ void ThreatManager::UnitDetailedThreatSituation(Creature* creature, Player* requ
     if (!hostileTarget || creature->GetThreatManager().isThreatListEmpty())
         return;
 
-    std::string const& tankName = hostileTarget->GetName();
-    std::string const& requesterName = requester->GetName();
+    const std::string_view tankName = hostileTarget->GetName();
+    const char* const requesterName = requester->GetName();
+    const std::string_view requesterNameView = requesterName;
     constexpr char threatSeparator = ':';
     constexpr char rowSeparator = ';';
     constexpr char normalModePrefix[] = "TWTv4=";  // threat api version
@@ -494,7 +496,7 @@ void ThreatManager::UnitDetailedThreatSituation(Creature* creature, Player* requ
     for (HostileReference* ref : threatList)
     {
         ++myPos;
-        if (ref->getTarget()->GetName() == requesterName)
+        if (requesterNameView == ref->getTarget()->GetName())
             break;
     }
 
@@ -519,7 +521,7 @@ void ThreatManager::UnitDetailedThreatSituation(Creature* creature, Player* requ
             continue;
 
         Unit* const target = ref->getTarget();
-        isTanking = target->GetName() == tankName;
+        isTanking = tankName == target->GetName();
         isMelee = ref->getSourceUnit()->CanReachWithMeleeAutoAttack(target);
 
         threatPct = isTanking ? 100 : threatValue * 100 / (tankThreat * (isMelee ? 1.1 : 1.3));
@@ -565,7 +567,7 @@ void ThreatManager::UnitDetailedThreatSituation(Creature* creature, Player* requ
 					continue;
                 if (!hostileCreature->GetThreatManager().getHostileTarget() || hostileCreature->GetThreatManager().isThreatListEmpty())
 					continue;
-                if (hostileCreature->GetThreatManager().getHostileTarget()->GetName() != requesterName)
+                if (requesterNameView != hostileCreature->GetThreatManager().getHostileTarget()->GetName())
 					continue;
 
                 ThreatList const& hThreatList = hostileCreature->GetThreatManager().getThreatList();
@@ -576,14 +578,14 @@ void ThreatManager::UnitDetailedThreatSituation(Creature* creature, Player* requ
                 ThreatList::const_iterator hatedPlayers = hThreatList.begin();
 
                 //if im 1st on threat, send 2nd, else im not 1st on threat, send 1st, begin()
-                if ((*hatedPlayers)->getTarget()->GetName() == requesterName)
+                if (requesterNameView == (*hatedPlayers)->getTarget()->GetName())
                     ++hatedPlayers;
 
                 HostileReference* const hatedPlayer = *hatedPlayers;
 
 				int tTankThreat = 0;
                 for (HostileReference* tankThreatRef : hThreatList)
-                    if (tankThreatRef->getTarget()->GetName() == requesterName)
+                    if (requesterNameView == tankThreatRef->getTarget()->GetName())
                     {
                         tTankThreat = (int)round(tankThreatRef->getThreat());
                         break;
@@ -600,9 +602,12 @@ void ThreatManager::UnitDetailedThreatSituation(Creature* creature, Player* requ
 
                 std::string tMsg;
                 tMsg.reserve(64);
-                tMsg += hostileCreature->GetName() + threatSeparator;						 // creature name
-                tMsg += std::to_string(hostileCreature->GetGUIDLow()) + threatSeparator;	 // creature guid
-                tMsg += hatedPlayer->getTarget()->GetName() + threatSeparator;   // player name
+                tMsg += hostileCreature->GetName();                                  // creature name
+                tMsg += threatSeparator;
+                tMsg += std::to_string(hostileCreature->GetGUIDLow());                 // creature guid
+                tMsg += threatSeparator;
+                tMsg += hatedPlayer->getTarget()->GetName();                           // player name
+                tMsg += threatSeparator;
 				tMsg += std::to_string(tThreatPct);                                  // player's threat percent
 
                 pSecondMessage.push_back(std::move(tMsg));
