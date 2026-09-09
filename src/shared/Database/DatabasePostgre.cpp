@@ -176,7 +176,24 @@ QueryNamedResult* PostgreSQLConnection::QueryNamed(const char *sql)
 
 bool PostgreSQLConnection::ExecuteMultiline(const char* sql)
 {
-    return false; //not supported for now.
+    if (!mPGconn)
+        return false;
+
+    uint32 start = WorldTimer::getMSTime();
+    PGResultPtr result(PQexec(mPGconn, sql));
+    if (!result)
+        return false;
+
+    ExecStatusType status = PQresultStatus(result.get());
+    if (status != PGRES_COMMAND_OK && status != PGRES_TUPLES_OK)
+    {
+        sLog.outErrorDb("SQL: %s", sql);
+        sLog.outErrorDb("SQL %s", PQerrorMessage(mPGconn));
+        return false;
+    }
+
+    DEBUG_FILTER_LOG(LOG_FILTER_SQL_TEXT, "[%u ms] SQL: %s", WorldTimer::getMSTimeDiff(start, WorldTimer::getMSTime()), sql);
+    return true;
 }
 
 bool PostgreSQLConnection::Execute(const char *sql)
