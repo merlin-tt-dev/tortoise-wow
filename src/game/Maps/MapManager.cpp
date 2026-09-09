@@ -45,7 +45,7 @@ MapManager::MapManager()
     :
     i_gridCleanUpDelay(sWorld.getConfig(CONFIG_UINT32_INTERVAL_GRIDCLEAN)),
     i_MaxInstanceId(RESERVED_INSTANCES_LAST),
-    m_threads(new ThreadPool(sWorld.getConfig(CONFIG_UINT32_MAPUPDATE_INSTANCED_UPDATE_THREADS), "MapManager"))
+    m_threads(new ThreadPool(sWorld.getConfig(CONFIG_UINT32_MAPUPDATE_INSTANCED_UPDATE_THREADS), "MapManager", ThreadPool::ClearMode::NEVER))
 {
     i_timer.SetInterval(sWorld.getConfig(CONFIG_UINT32_INTERVAL_MAPUPDATE));
     m_threads->start<ThreadPool::MySQL<>>();
@@ -394,10 +394,13 @@ void MapManager::Update(uint32 diff)
                                                                        ThreadPool::Callable());
 
     std::chrono::high_resolution_clock::time_point start;
+    bool firstInstancePass = true;
     do {
         start = std::chrono::high_resolution_clock::now();
-        std::future<void> f = m_threads->processWorkload(instancesUpdaters,
-                                                         ThreadPool::Callable());
+        std::future<void> f = firstInstancePass
+            ? m_threads->processWorkload(std::move(instancesUpdaters), ThreadPool::Callable())
+            : m_threads->processWorkload(ThreadPool::Callable());
+        firstInstancePass = false;
 
         if (f.valid())
             f.wait();
