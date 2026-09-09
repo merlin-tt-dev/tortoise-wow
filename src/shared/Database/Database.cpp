@@ -598,7 +598,7 @@ void Database::AddToSerialDelayQueue(SqlOperation *op)
 
 bool Database::HasAsyncQuery()
 {
-    bool hasQuery = !m_delayQueue->empty_unsafe();
+    bool hasQuery = !m_delayQueue->empty();
 
     for (uint32 i = 0; i < m_numAsyncWorkers && !hasQuery; ++i)
         hasQuery = m_threadsBodies[i]->HasAsyncQuery();

@@ -42,7 +42,7 @@ void SqlDelayThread::addSerialOperation(SqlOperation *op)
 
 bool SqlDelayThread::HasAsyncQuery()
 {
-    return !m_serialDelayQueue.empty_unsafe();
+    return !m_serialDelayQueue.empty();
 }
 
 void SqlDelayThread::run()
