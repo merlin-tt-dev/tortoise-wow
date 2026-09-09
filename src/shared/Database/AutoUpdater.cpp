@@ -132,6 +132,25 @@ namespace DBUpdater
 
     std::unordered_map<std::string, Migration> AutoUpdater::LoadDatabaseMigrations(DatabaseType* targetDatabase) const
     {
+#ifdef DO_POSTGRESQL
+        targetDatabase->DirectPExecute("CREATE TABLE IF NOT EXISTS \"%s\" ("
+            "\"Id\" BIGSERIAL PRIMARY KEY,"
+            "\"Name\" VARCHAR(255) NOT NULL DEFAULT '0',"
+            "\"Module\" VARCHAR(255) NOT NULL DEFAULT '',"
+            "\"Hash\" VARCHAR(128) NOT NULL DEFAULT '0',"
+            "\"AppliedAt\" TIMESTAMP NOT NULL"
+            ")", MigrationTable);
+
+        std::unique_ptr<QueryResult> moduleColumnResult(targetDatabase->PQuery(
+            "SELECT 1 FROM information_schema.columns "
+            "WHERE table_schema = current_schema() AND table_name = '%s' AND column_name = 'Module'",
+            MigrationTable));
+        if (!moduleColumnResult)
+            targetDatabase->DirectPExecute("ALTER TABLE \"%s\" ADD COLUMN \"Module\" VARCHAR(255) NOT NULL DEFAULT ''", MigrationTable);
+
+        std::unique_ptr<QueryResult> tableResult(targetDatabase->PQuery(
+            "SELECT \"Name\", \"Hash\", \"Module\" FROM \"%s\"", MigrationTable));
+#else
         targetDatabase->DirectPExecute("CREATE TABLE IF NOT EXISTS `%s` (\
             `Id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,\
             `Name` VARCHAR(255) NOT NULL DEFAULT \'0\' COLLATE \'utf8_general_ci\',\
@@ -144,30 +163,27 @@ namespace DBUpdater
             ENGINE = InnoDB\
             ;", MigrationTable);
 
-        std::unique_ptr<QueryResult> moduleColumnResult = std::unique_ptr<QueryResult>{ targetDatabase->PQuery("SHOW COLUMNS FROM `%s` LIKE 'Module'", MigrationTable) };
+        std::unique_ptr<QueryResult> moduleColumnResult(targetDatabase->PQuery("SHOW COLUMNS FROM `%s` LIKE 'Module'", MigrationTable));
         if (!moduleColumnResult)
             targetDatabase->DirectPExecute("ALTER TABLE `%s` ADD COLUMN `Module` VARCHAR(255) NOT NULL DEFAULT '' COLLATE 'utf8_general_ci' AFTER `Name`", MigrationTable);
 
+        std::unique_ptr<QueryResult> tableResult(targetDatabase->PQuery("SELECT `Name`, `Hash`, `Module` FROM `%s`", MigrationTable));
+#endif
+
         std::unordered_map<std::string, Migration> dbMigrations;
-
+        if (!tableResult)
         {
-            std::unique_ptr<QueryResult> tableResult = std::unique_ptr<QueryResult>{ targetDatabase->PQuery("SELECT `Name`, `Hash`, `Module` FROM `%s`", MigrationTable) };
-
-            if (!tableResult)
-            {
-                sLog.outInfo("[DB Auto-Updater] No DB migrations found, table %s is empty.", MigrationTable);
-                return {};
-            }
-
-
-            do {
-                auto fields = tableResult->Fetch();
-                auto hash = fields[1].GetCppString();
-                auto module = fields[2].GetCppString();
-
-                dbMigrations.insert({ GetMigrationKey(module, hash), Migration{ hash, fields[0].GetCppString(), module } });
-            } while (tableResult->NextRow());
+            sLog.outInfo("[DB Auto-Updater] No DB migrations found, table %s is empty.", MigrationTable);
+            return {};
         }
+
+        do
+        {
+            Field* fields = tableResult->Fetch();
+            std::string hash = fields[1].GetCppString();
+            std::string module = fields[2].GetCppString();
+            dbMigrations.insert({ GetMigrationKey(module, hash), Migration{ hash, fields[0].GetCppString(), module } });
+        } while (tableResult->NextRow());
 
         return dbMigrations;
     }
@@ -438,8 +454,13 @@ namespace DBUpdater
             targetDatabase->Execute(query.c_str());
         }
 
+#ifdef DO_POSTGRESQL
+        targetDatabase->PExecute("INSERT INTO \"%s\" (\"Name\", \"Module\", \"Hash\", \"AppliedAt\") VALUES ('%s', '%s', '%s', NOW())",
+            MigrationTable, migration.Name.c_str(), migration.Module.c_str(), migration.Hash.c_str());
+#else
         targetDatabase->PExecute("INSERT INTO `%s` (`Name`, `Module`, `Hash`, `AppliedAt`) VALUES (\'%s\', \'%s\', \'%s\', NOW());",
             MigrationTable, migration.Name.c_str(), migration.Module.c_str(), migration.Hash.c_str());
+#endif
 
         bool res = targetDatabase->CommitTransactionDirect();
 
