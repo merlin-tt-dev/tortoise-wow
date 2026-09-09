@@ -420,7 +420,7 @@ bool Map::ScriptCommand_SummonCreature(ScriptInfo const& script, WorldObject* so
     if (script.summonCreature.flags & (SF_SUMMONCREATURE_UNIQUE | SF_SUMMONCREATURE_UNIQUE_TEMP))
     {
         float dist = script.summonCreature.uniqueDistance ? script.summonCreature.uniqueDistance : (pSummoner->GetDistance(x, y, z) + 50.0f) * 2;
-        std::list<Creature*> foundCreatures;
+        std::vector<Creature*> foundCreatures;
 
         GetCreatureListWithEntryInGrid(foundCreatures, pSummoner, script.summonCreature.creatureEntry, dist);
 
