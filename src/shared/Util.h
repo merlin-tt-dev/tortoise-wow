@@ -54,7 +54,10 @@ public:
 
 public:
     Tokenizer(std::string const& src, char const sep, uint32 vectorReserve = 0);
-    ~Tokenizer() { delete[] m_str; }
+    Tokenizer(Tokenizer const&) = delete;
+    Tokenizer& operator=(Tokenizer const&) = delete;
+    Tokenizer(Tokenizer&&) = delete;
+    Tokenizer& operator=(Tokenizer&&) = delete;
 
     const_iterator begin() const { return m_storage.begin(); }
     const_iterator end() const { return m_storage.end(); }
@@ -65,7 +68,7 @@ public:
     const_reference operator [] (size_type i) const { return m_storage[i]; }
 
 private:
-    char* m_str;
+    std::string m_str;
     StorageType m_storage;
 };
 

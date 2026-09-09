@@ -49,15 +49,14 @@ static MTRandTSS mtRand;
 IPerfMonitor* gPerfMonitorInterface = nullptr;
 
 Tokenizer::Tokenizer(const std::string &src, const char sep, uint32 vectorReserve)
+    : m_str(src)
 {
-    m_str = new char[src.length() + 1];
-    memcpy(m_str, src.c_str(), src.length() + 1);
 
     if (vectorReserve)
         m_storage.reserve(vectorReserve);
 
-    char* posold = m_str;
-    char* posnew = m_str;
+    char* posold = m_str.data();
+    char* posnew = m_str.data();
 
     for (;;)
     {
