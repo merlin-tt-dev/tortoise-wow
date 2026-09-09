@@ -27,6 +27,31 @@ void PlayerBroadcaster::ChangeSocket(WorldSocket* new_socket)
     m_socket = new_socket;
 }
 
+bool PlayerBroadcaster::BeginProcessing()
+{
+    std::lock_guard<std::mutex> guard(m_processing_lock);
+    if (!m_processing_enabled)
+        return false;
+
+    ++m_active_processing;
+    return true;
+}
+
+void PlayerBroadcaster::FinishProcessing()
+{
+    std::lock_guard<std::mutex> guard(m_processing_lock);
+    ASSERT(m_active_processing > 0);
+    if (--m_active_processing == 0)
+        m_processing_idle.notify_all();
+}
+
+void PlayerBroadcaster::StopProcessing()
+{
+    std::unique_lock<std::mutex> guard(m_processing_lock);
+    m_processing_enabled = false;
+    m_processing_idle.wait(guard, [this]() { return m_active_processing == 0; });
+}
+
 void PlayerBroadcaster::WaitForListenerBatches(std::unique_lock<std::mutex>& lock)
 {
     m_listeners_idle.wait(lock, [this]() { return m_active_listener_batches == 0; });
@@ -74,6 +99,11 @@ void PlayerBroadcaster::SendPacket(const WorldPacket& packet)
 
 void PlayerBroadcaster::ProcessQueue(uint32& num_packets)
 {
+    if (!BeginProcessing())
+        return;
+
+    ProcessingGuard processingGuard(*this);
+
     std::vector<BroadcastData> queue;
     {
         std::lock_guard<std::mutex> guard(m_queue_lock);
@@ -153,6 +183,8 @@ ObjectGuid PlayerBroadcaster::GetGUID() const
 
 void PlayerBroadcaster::FreeAtLogout()
 {
+    StopProcessing();
+
     if (m_socket)
     {
         m_socket->RemoveReference();

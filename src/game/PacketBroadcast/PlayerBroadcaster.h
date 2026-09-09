@@ -35,6 +35,27 @@ class PlayerBroadcaster final
     std::size_t m_active_listener_batches = 0;
     std::mutex m_queue_lock;
 
+    std::mutex m_processing_lock;
+    std::condition_variable m_processing_idle;
+    std::size_t m_active_processing = 0;
+    bool m_processing_enabled = true;
+
+    class ProcessingGuard final
+    {
+    public:
+        explicit ProcessingGuard(PlayerBroadcaster& owner) : m_owner(owner) {}
+        ~ProcessingGuard() { m_owner.FinishProcessing(); }
+
+        ProcessingGuard(ProcessingGuard const&) = delete;
+        ProcessingGuard& operator=(ProcessingGuard const&) = delete;
+
+    private:
+        PlayerBroadcaster& m_owner;
+    };
+
+    bool BeginProcessing();
+    void FinishProcessing();
+    void StopProcessing();
     void WaitForListenerBatches(std::unique_lock<std::mutex>& lock);
     void FinishListenerBatch();
     void ProcessQueue(uint32& num_packets);
