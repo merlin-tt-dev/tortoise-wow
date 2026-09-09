@@ -171,12 +171,8 @@ bool changetoknth(std::string &str, int n, char const* with, bool insert = false
 
 uint32 registerNewGuid(uint32 oldGuid, std::map<uint32, uint32>& guidMap, uint32 newguid)
 {
-    std::map<uint32, uint32>::const_iterator itr = guidMap.find(oldGuid);
-    if (itr != guidMap.end())
-        return itr->second;
-
-    guidMap[oldGuid] = newguid;
-    return newguid;
+    auto guidInsert = guidMap.emplace(oldGuid, newguid);
+    return guidInsert.first->second;
 }
 
 bool changeGuid(std::string &str, int n, std::map<uint32, uint32>& guidMap, uint32 newGuid, bool nonzero = false)

@@ -220,8 +220,10 @@ ObjectAccessor::AddCorpse(Corpse *corpse)
     MANGOS_ASSERT(corpse && corpse->GetType() != CORPSE_BONES);
 
     Guard guard(i_corpseGuard);
-    MANGOS_ASSERT(i_player2corpse.find(corpse->GetOwnerGuid()) == i_player2corpse.end());
-    i_player2corpse[corpse->GetOwnerGuid()] = corpse;
+    auto corpseInsert = i_player2corpse.emplace(corpse->GetOwnerGuid(), corpse);
+    MANGOS_ASSERT(corpseInsert.second);
+    if (!corpseInsert.second)
+        corpseInsert.first->second = corpse;
 
     // build mapid*cellid -> guid_set map
     CellPair cell_pair = MaNGOS::ComputeCellPair(corpse->GetPositionX(), corpse->GetPositionY());

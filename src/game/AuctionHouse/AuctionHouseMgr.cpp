@@ -550,8 +550,10 @@ void AuctionHouseMgr::LoadAuctions()
 void AuctionHouseMgr::AddAItem(Item* it)
 {
     MANGOS_ASSERT(it);
-    MANGOS_ASSERT(mAitems.find(it->GetGUIDLow()) == mAitems.end());
-    mAitems[it->GetGUIDLow()] = it;
+    auto itemInsert = mAitems.emplace(it->GetGUIDLow(), it);
+    MANGOS_ASSERT(itemInsert.second);
+    if (!itemInsert.second)
+        itemInsert.first->second = it;
 }
 
 bool AuctionHouseMgr::RemoveAItem(uint32 id)
