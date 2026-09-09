@@ -47,9 +47,7 @@ bool SqlDelayThread::HasAsyncQuery()
 
 void SqlDelayThread::run()
 {
-    #ifndef DO_POSTGRESQL
-    mysql_thread_init();
-    #endif
+    m_dbEngine->ThreadStart();
 
     char ThreadName[128];
     sprintf(ThreadName, "SqlDelay %s", Name);
@@ -77,9 +75,7 @@ void SqlDelayThread::run()
         }
     }
 
-    #ifndef DO_POSTGRESQL
-    mysql_thread_end();
-    #endif
+    m_dbEngine->ThreadEnd();
 }
 
 void SqlDelayThread::Stop()

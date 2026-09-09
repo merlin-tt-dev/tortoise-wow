@@ -53,7 +53,6 @@ set (shared_SRCS
     Database/DBCFileLoader.h
     Database/DBCStore.h
     Database/Field.h
-    Database/MySQLDelayThread.h
     Database/QueryResult.h
     Database/QueryResultMysql.h
     Database/QueryResultPostgre.h
