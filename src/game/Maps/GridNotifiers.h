@@ -219,13 +219,13 @@ namespace MaNGOS
         template<class NOT_INTERESTED> void Visit(GridRefManager<NOT_INTERESTED> &) {}
     };
 
-    template<class Check>
+    template<class Check, class Container = std::list<WorldObject*>>
         struct WorldObjectListSearcher
     {
-        std::list<WorldObject*> &i_objects;
+        Container& i_objects;
         Check& i_check;
 
-        WorldObjectListSearcher(std::list<WorldObject*> &objects, Check & check) : i_objects(objects),i_check(check) {}
+        WorldObjectListSearcher(Container& objects, Check& check) : i_objects(objects), i_check(check) {}
 
         void Visit(PlayerMapType &m);
         void Visit(CreatureMapType &m);

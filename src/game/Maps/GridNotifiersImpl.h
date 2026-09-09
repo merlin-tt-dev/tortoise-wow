@@ -347,40 +347,40 @@ void MaNGOS::WorldObjectSearcher<Check>::Visit(DynamicObjectMapType &m)
     }
 }
 
-template<class Check>
-void MaNGOS::WorldObjectListSearcher<Check>::Visit(PlayerMapType& m)
+template<class Check, class Container>
+void MaNGOS::WorldObjectListSearcher<Check, Container>::Visit(PlayerMapType& m)
 {
     for(auto & itr : m)
         if (i_check(itr.getSource()))
             i_objects.push_back(itr.getSource());
 }
 
-template<class Check>
-void MaNGOS::WorldObjectListSearcher<Check>::Visit(CreatureMapType& m)
+template<class Check, class Container>
+void MaNGOS::WorldObjectListSearcher<Check, Container>::Visit(CreatureMapType& m)
 {
     for(auto & itr : m)
         if (i_check(itr.getSource()))
             i_objects.push_back(itr.getSource());
 }
 
-template<class Check>
-void MaNGOS::WorldObjectListSearcher<Check>::Visit(CorpseMapType& m)
+template<class Check, class Container>
+void MaNGOS::WorldObjectListSearcher<Check, Container>::Visit(CorpseMapType& m)
 {
     for(auto & itr : m)
         if (i_check(itr.getSource()))
             i_objects.push_back(itr.getSource());
 }
 
-template<class Check>
-void MaNGOS::WorldObjectListSearcher<Check>::Visit(GameObjectMapType& m)
+template<class Check, class Container>
+void MaNGOS::WorldObjectListSearcher<Check, Container>::Visit(GameObjectMapType& m)
 {
     for(auto & itr : m)
         if (i_check(itr.getSource()))
             i_objects.push_back(itr.getSource());
 }
 
-template<class Check>
-void MaNGOS::WorldObjectListSearcher<Check>::Visit(DynamicObjectMapType& m)
+template<class Check, class Container>
+void MaNGOS::WorldObjectListSearcher<Check, Container>::Visit(DynamicObjectMapType& m)
 {
     for(auto & itr : m)
         if (i_check(itr.getSource()))

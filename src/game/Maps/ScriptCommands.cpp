@@ -1990,10 +1990,10 @@ bool Map::ScriptCommand_StartScriptForAll(const ScriptInfo& script, WorldObject*
         return ShouldAbortScript(script);
     }
 
-    std::list<WorldObject *> targets;
+    std::vector<WorldObject*> targets;
 
     MaNGOS::AllWorldObjectsInRange u_check(source, script.startScriptForAll.searchRadius);
-    MaNGOS::WorldObjectListSearcher<MaNGOS::AllWorldObjectsInRange> searcher(targets, u_check);
+    MaNGOS::WorldObjectListSearcher<MaNGOS::AllWorldObjectsInRange, std::vector<WorldObject*>> searcher(targets, u_check);
 
     Cell::VisitAllObjects(source, searcher, script.startScriptForAll.searchRadius);
 
