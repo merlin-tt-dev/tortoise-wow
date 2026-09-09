@@ -800,19 +800,15 @@ struct CliCommandHolder
     uint32 m_cliAccountId;                                  // 0 for console and real account id for RA/soap
     AccountTypes m_cliAccessLevel;
     std::any m_callbackArg;
-    char *m_command;
+    std::string m_command;
     Print* m_print;
     CommandFinished* m_commandFinished;
 
-    CliCommandHolder(uint32 accountId, AccountTypes cliAccessLevel, std::any callbackArg, const char *command, Print* zprint, CommandFinished* commandFinished)
-        : m_cliAccountId(accountId), m_cliAccessLevel(cliAccessLevel), m_callbackArg(callbackArg), m_print(zprint), m_commandFinished(commandFinished)
+    CliCommandHolder(uint32 accountId, AccountTypes cliAccessLevel, std::any callbackArg, std::string command, Print* zprint, CommandFinished* commandFinished)
+        : m_cliAccountId(accountId), m_cliAccessLevel(cliAccessLevel), m_callbackArg(std::move(callbackArg)),
+          m_command(std::move(command)), m_print(zprint), m_commandFinished(commandFinished)
     {
-        size_t len = strlen(command)+1;
-        m_command = new char[len];
-        memcpy(m_command, command, len);
     }
-
-    ~CliCommandHolder() { delete[] m_command; }
 };
 
 class ThreadPool;

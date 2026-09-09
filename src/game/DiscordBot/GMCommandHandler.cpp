@@ -72,7 +72,7 @@ namespace DiscordBot
 
 
 
-        CliCommandHolder* cmd = new CliCommandHolder(authinfo->gameAccountId, (AccountTypes)authinfo->securityLevel, std::make_pair(this, src), commandParam.c_str(), &CommandPrint, &CommandFinished);
+        CliCommandHolder* cmd = new CliCommandHolder(authinfo->gameAccountId, (AccountTypes)authinfo->securityLevel, std::make_pair(this, src), std::move(commandParam), &CommandPrint, &CommandFinished);
         sWorld.QueueCliCommand(cmd);
     }
 

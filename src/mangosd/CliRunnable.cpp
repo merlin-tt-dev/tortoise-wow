@@ -583,7 +583,7 @@ void CliRunnable::operator()()
                 continue;
             }
 
-            sWorld.QueueCliCommand(new CliCommandHolder(0, SEC_CONSOLE, nullptr, command.c_str(), &utf8print, &commandFinished));
+            sWorld.QueueCliCommand(new CliCommandHolder(0, SEC_CONSOLE, nullptr, std::move(command), &utf8print, &commandFinished));
         }
         else if (feof(stdin))
         {

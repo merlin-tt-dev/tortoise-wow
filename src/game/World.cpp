@@ -3580,7 +3580,7 @@ void World::ProcessCliCommands()
         CliCommandHolder::Print* zprint = command->m_print;
         std::any callbackArg = command->m_callbackArg;
         CliHandler handler(command->m_cliAccountId, command->m_cliAccessLevel, callbackArg, zprint);
-        handler.ParseCommands(command->m_command);
+        handler.ParseCommands(command->m_command.c_str());
 
         if (command->m_commandFinished)
             command->m_commandFinished(callbackArg, !handler.HasSentErrorMessage());
@@ -3605,7 +3605,7 @@ void World::LoadPendingCommands(QueryResult* pResult)
         std::string command = fields[1].GetCppString();
 
         sLog.outBasic("Loaded command %u from database: %s", id, command.c_str());
-        QueueCliCommand(new CliCommandHolder(0, SEC_CONSOLE, nullptr, command.c_str(), &utf8print, &commandFinished));
+        QueueCliCommand(new CliCommandHolder(0, SEC_CONSOLE, nullptr, std::move(command), &utf8print, &commandFinished));
         LoginDatabase.PExecute("DELETE FROM `pending_commands` WHERE `id`=%u", id);
 
     } while (pResult->NextRow());
