@@ -430,26 +430,29 @@ dtNavMeshQuery const* MMapManager::GetModelNavMeshQuery(uint32 displayId)
 
     std::thread::id tid = std::this_thread::get_id();
     MMapData* mmap = modelIt->second;
-    if (mmap->navMeshQueries.find(tid) == mmap->navMeshQueries.end())
-    {
-        std::unique_lock<std::mutex> g(lockForModels);
-        if (mmap->navMeshQueries.find(tid) == mmap->navMeshQueries.end())
-        {
-            // allocate mesh query
-            dtNavMeshQuery* query = dtAllocNavMeshQuery();
-            MANGOS_ASSERT(query);
-            if (dtStatusFailed(query->init(mmap->navMesh, 2048)))
-            {
-                dtFreeNavMeshQuery(query);
-                sLog.outError("MMAP:GetNavMeshQuery: Failed to initialize dtNavMeshQuery for displayid %03u tid %u", displayId, tid);
-                return nullptr;
-            }
+    std::shared_lock<std::shared_mutex> lock(mmap->navMeshQueries_lock);
 
-            DETAIL_LOG("MMAP:GetNavMeshQuery: created dtNavMeshQuery for displayid %03u tid %u", displayId, tid);
-            mmap->navMeshQueries.insert(std::pair<std::thread::id, dtNavMeshQuery*>(tid, query));
-        }
+    NavMeshQuerySet::const_iterator it = mmap->navMeshQueries.find(tid);
+    if (it != mmap->navMeshQueries.end())
+        return it->second;
+
+    lock.unlock();
+    std::unique_lock<std::shared_mutex> ulock(mmap->navMeshQueries_lock);
+    it = mmap->navMeshQueries.find(tid);
+    if (it != mmap->navMeshQueries.end())
+        return it->second;
+
+    dtNavMeshQuery* query = dtAllocNavMeshQuery();
+    MANGOS_ASSERT(query);
+    if (dtStatusFailed(query->init(mmap->navMesh, 2048)))
+    {
+        dtFreeNavMeshQuery(query);
+        sLog.outError("MMAP:GetNavMeshQuery: Failed to initialize dtNavMeshQuery for displayid %03u tid %u", displayId, tid);
+        return nullptr;
     }
 
-    return mmap->navMeshQueries[tid];
+    DETAIL_LOG("MMAP:GetNavMeshQuery: created dtNavMeshQuery for displayid %03u tid %u", displayId, tid);
+    mmap->navMeshQueries.emplace(tid, query);
+    return query;
 }
 }

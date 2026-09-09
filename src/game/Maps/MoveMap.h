@@ -102,7 +102,6 @@ namespace MMAP
             MMapDataSet loadedModels;
 
             uint32 loadedTiles;
-            std::mutex lockForModels;
     };
 
     // static class
