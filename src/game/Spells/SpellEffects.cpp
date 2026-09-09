@@ -60,6 +60,9 @@
 #include "Chat.h"
 #include "CompanionManager.hpp"
 #include "ScriptObjects.h"
+#include "GridNotifiers.h"
+#include "GridNotifiersImpl.h"
+#include "CellImpl.h"
 #include "MountManager.hpp"
 #include "ToyManager.hpp"
 
@@ -4102,8 +4105,10 @@ void Spell::EffectScriptEffect(SpellEffectIndex eff_idx)
                 }
                 case 30882: // EPL PvP A Game of Towers: Tower Capture Test (DND)
                 {
-                    std::list<Player*> players;
-                    m_casterUnit->GetAlivePlayerListInRange(m_casterUnit, players, VISIBILITY_DISTANCE_NORMAL);
+                    std::vector<Player*> players;
+                    MaNGOS::AnyPlayerInObjectRangeCheck checker(m_casterUnit, VISIBILITY_DISTANCE_NORMAL, true);
+                    MaNGOS::PlayerListSearcher<MaNGOS::AnyPlayerInObjectRangeCheck, std::vector<Player*>> searcher(players, checker);
+                    Cell::VisitWorldObjects(m_casterUnit, searcher, VISIBILITY_DISTANCE_NORMAL);
                     for (const auto& pTarget : players)
                     {
                         if (!pTarget->IsFriendlyTo(m_casterUnit))

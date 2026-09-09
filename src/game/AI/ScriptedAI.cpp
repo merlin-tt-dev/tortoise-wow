@@ -230,29 +230,26 @@ Player* ScriptedAI::GetPlayerAtMinimumRange(float fMinimumRange)
  */
 Player* ScriptedAI::GetRandomPlayerInRange(const float radius, const bool mustBeAlive, const std::list<Player*>* excludedPlayers) const
 {
-    std::list<Player*> players;
-    GetPlayersWithinRange(players, radius);
+    std::vector<Player*> players;
+    MaNGOS::AnyPlayerInObjectRangeCheck check(m_creature, radius);
+    MaNGOS::PlayerListSearcher<MaNGOS::AnyPlayerInObjectRangeCheck, std::vector<Player*>> searcher(players, check);
+    Cell::VisitWorldObjects(m_creature, searcher, radius);
+
     if (excludedPlayers != nullptr)
     {
-        players.remove_if([excludedPlayers, mustBeAlive](Player* player)
+        players.erase(std::remove_if(players.begin(), players.end(), [excludedPlayers, mustBeAlive](Player* player)
         {
             if (mustBeAlive && player->IsDead())
-            {
                 return true;
-            }
 
             return std::find(excludedPlayers->begin(), excludedPlayers->end(), player) != excludedPlayers->end();
-        });
+        }), players.end());
     }
 
     if (players.empty())
-    {
         return nullptr;
-    }
 
-    auto iterator = players.begin();
-    advance(iterator, rand() % players.size());
-    return *iterator;
+    return players[rand() % players.size()];
 }
 
 void ScriptedAI::GetPlayersWithinRange(std::list<Player*>& players, float range) const

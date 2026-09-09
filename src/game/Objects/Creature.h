@@ -35,6 +35,7 @@
 #include "Util.h"
 
 #include <list>
+#include <vector>
 
 class SpellEntry;
 
@@ -1145,7 +1146,7 @@ class Creature : public Unit
 class AssistDelayEvent : public BasicEvent
 {
     public:
-        AssistDelayEvent(ObjectGuid victim, Unit& owner, std::list<Creature*> const& assistants);
+        AssistDelayEvent(ObjectGuid victim, Unit& owner, std::vector<Creature*> const& assistants);
 
         bool Execute(uint64 e_time, uint32 p_time) override;
     private:
