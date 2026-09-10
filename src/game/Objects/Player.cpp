@@ -24568,7 +24568,9 @@ void Player::AddExclusiveVisibleObject(ObjectGuid guid)
 
 void Player::RemoveExclusiveVisibleObject(ObjectGuid guid)
 {
-    m_exclusiveVisibleObjects.remove(guid);
+    m_exclusiveVisibleObjects.erase(
+        std::remove(m_exclusiveVisibleObjects.begin(), m_exclusiveVisibleObjects.end(), guid),
+        m_exclusiveVisibleObjects.end());
 }
 
 bool Player::IsInMainCity() {

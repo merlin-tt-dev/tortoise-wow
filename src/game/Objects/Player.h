@@ -3072,7 +3072,7 @@ public:
         bool IsObjectIsExclusiveVisible(ObjectGuid guid);
         void AddExclusiveVisibleObject(ObjectGuid guid);
         void RemoveExclusiveVisibleObject(ObjectGuid guid);
-        std::list<ObjectGuid> m_exclusiveVisibleObjects;
+        std::vector<ObjectGuid> m_exclusiveVisibleObjects;
 
         // Xerron Suspend World Buffs Start
     public:
