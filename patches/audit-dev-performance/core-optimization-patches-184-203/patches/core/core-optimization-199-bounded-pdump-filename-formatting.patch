@@ -1,0 +1,26 @@
+diff --git a/src/game/Commands/Commands.cpp b/src/game/Commands/Commands.cpp
+index 36677bb..8933236 100644
+--- a/src/game/Commands/Commands.cpp
++++ b/src/game/Commands/Commands.cpp
+@@ -17411,7 +17411,7 @@ bool ChatHandler::HandlePDumpListCommand(char* args)
+         return false;
+ 
+     char fileName[32] = {};
+-    sprintf(fileName, "Char%u-", guidLow);
++    snprintf(fileName, sizeof(fileName), "Char%u-", guidLow);
+ 
+     PSendSysMessage("Searching for pdumps for guid %u:", guidLow);
+     std::error_code error;
+diff --git a/src/game/World.cpp b/src/game/World.cpp
+index 6c15f80..07e58d5 100644
+--- a/src/game/World.cpp
++++ b/src/game/World.cpp
+@@ -4869,7 +4869,7 @@ void World::AutoPDumpWorker()
+         for (auto const& guid : dumpGuids)
+         {
+             char fileName[64] = {};
+-            sprintf(fileName, "Char%u-%u.bak", guid, (uint32)GetGameTime());
++            snprintf(fileName, sizeof(fileName), "Char%u-%u.bak", guid, (uint32)GetGameTime());
+             switch (PlayerDumpWriter().WriteDump(sWorld.GetPDumpDirectory() + "/" + fileName, guid))
+             {
+                 case DUMP_SUCCESS:

@@ -1,0 +1,34 @@
+Baseline:
+  exact local source state after patch 183, itself derived from the user-supplied complete patch-163 archive plus frozen patches 164-183.
+
+Per-patch validation, all 184-203:
+  git -c core.whitespace=trailing-space,space-before-tab,tab-in-indent apply --check --whitespace=error-all PATCH
+  git -c core.whitespace=trailing-space,space-before-tab,tab-in-indent apply --numstat --whitespace=error-all PATCH
+  git apply PATCH
+  git diff --check
+  scan newly-added lines for literal TAB bytes
+  scan for conflict markers
+
+Sequential validation:
+  PASS — 20/20 patches applied in order to a fresh patch-183 baseline.
+  PASS — resulting Git tree exactly equals the audited working tree.
+  final tree: fceea675002387c07dbcd7969d08cf234673869d
+
+Differential / adversarial tests:
+  189 list::remove vs vector erase/remove survivor order: 100,000 randomized cases PASS
+  197 historical restart erase vs erase/remove_if after timer update: 150,000 randomized cases PASS
+  201 old find+miss insertion vs new ordered-map membership/insertion model: 100,000 randomized cases PASS
+  202 old first-registration-wins/duplicate path vs try_emplace model: 100,000 randomized cases PASS
+  198/199 sprintf vs snprintf fixed formats: 250,000 C++17 randomized cases PASS
+
+Additional source audits:
+  complete direct-use scans for changed membership containers
+  iterator/order/RNG exposure checks
+  raw-copy/sizeof/persistence check for removed BGData fields
+  ownership/exception check for VMap MapSpawns insertion
+  explicit STL include dependency checks for new vector/unique_ptr use
+
+Not performed here:
+  Linux full build
+  Windows/MinGW full build
+These remain user build-server gates by project workflow.

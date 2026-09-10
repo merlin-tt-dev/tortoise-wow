@@ -1,0 +1,13 @@
+diff --git a/src/game/ObjectMgr.h b/src/game/ObjectMgr.h
+index 3802291..8c9325e 100644
+--- a/src/game/ObjectMgr.h
++++ b/src/game/ObjectMgr.h
+@@ -1684,7 +1684,7 @@ class ObjectMgr
+         PetCreateSpellMap   m_PetCreateSpellMap;
+ 
+         //character reserved names
+-        typedef std::set<std::wstring> ReservedNamesMap;
++        typedef std::unordered_set<std::wstring> ReservedNamesMap;
+         ReservedNamesMap    m_ReservedNames;
+ 
+         GraveYardMap        m_GraveYardMap;

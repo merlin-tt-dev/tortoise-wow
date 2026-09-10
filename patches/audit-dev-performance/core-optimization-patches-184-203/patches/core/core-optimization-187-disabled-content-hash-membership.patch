@@ -1,0 +1,18 @@
+diff --git a/src/game/ObjectMgr.h b/src/game/ObjectMgr.h
+index b8b6438..06a0bc6 100644
+--- a/src/game/ObjectMgr.h
++++ b/src/game/ObjectMgr.h
+@@ -1463,11 +1463,11 @@ class ObjectMgr
+ 
+ 
+         // Deactivated Spells
+-        std::set<uint32>    m_DisabledSpells;
++        std::unordered_set<uint32> m_DisabledSpells;
+         void LoadSpellDisabledEntrys();
+         bool IsSpellDisabled(uint32 spellid) const { return m_DisabledSpells.count(spellid) != 0; }
+         // map_loot_disabled
+-        std::set<uint32>    m_DisabledMapLoots;
++        std::unordered_set<uint32> m_DisabledMapLoots;
+         void LoadMapLootDisabled();
+         bool IsMapLootDisabled(uint32 mapId) const { return m_DisabledMapLoots.count(mapId) != 0; }
+         // Cinematics

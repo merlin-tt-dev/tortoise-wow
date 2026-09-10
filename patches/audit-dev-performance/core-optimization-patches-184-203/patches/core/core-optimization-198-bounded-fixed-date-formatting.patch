@@ -1,0 +1,35 @@
+diff --git a/src/game/World.cpp b/src/game/World.cpp
+index 20bcb65..6c15f80 100644
+--- a/src/game/World.cpp
++++ b/src/game/World.cpp
+@@ -835,7 +835,7 @@ void World::LoadConfigSettingsCommonPart(bool reload)
+     time(&curr);                                        // get current time_t value
+     local = *(localtime(&curr));                        // dereference and assign
+     char fName[128];
+-    sprintf(fName, "%04d%02d%02d%02d%02d%02d_world.sql", local.tm_year + 1900, local.tm_mon + 1, local.tm_mday, local.tm_hour, local.tm_min, local.tm_sec);
++    snprintf(fName, sizeof(fName), "%04d%02d%02d%02d%02d%02d_world.sql", local.tm_year + 1900, local.tm_mon + 1, local.tm_mday, local.tm_hour, local.tm_min, local.tm_sec);
+     m_worldUpdatesMigration = m_worldUpdatesDirectory + "/" + fName;
+ }
+ 
+@@ -2253,7 +2253,7 @@ void LoadPlayerEggLoot();
+     time(&curr);
+     local = *(localtime(&curr));                            // dereference and assign
+     char isoDate[128];
+-    sprintf(isoDate, "%04d-%02d-%02d %02d:%02d:%02d",
++    snprintf(isoDate, sizeof(isoDate), "%04d-%02d-%02d %02d:%02d:%02d",
+             local.tm_year + 1900, local.tm_mon + 1, local.tm_mday, local.tm_hour, local.tm_min, local.tm_sec);
+ 
+     LoginDatabase.PExecute("INSERT INTO uptime (`realmid`, `starttime`, `startstring`, `uptime`, `revision`) VALUES('%u', " UI64FMTD ", '%s', 0, '%s')",
+diff --git a/src/shared/Database/Database.cpp b/src/shared/Database/Database.cpp
+index e34744d..868a519 100644
+--- a/src/shared/Database/Database.cpp
++++ b/src/shared/Database/Database.cpp
+@@ -330,7 +330,7 @@ bool Database::PExecuteLog(const char * format,...)
+         time(&curr);                                        // get current time_t value
+         local=*(localtime(&curr));                          // dereference and assign
+         char fName[128];
+-        sprintf( fName, "%04d-%02d-%02d_logSQL.sql", local.tm_year+1900, local.tm_mon+1, local.tm_mday );
++        snprintf(fName, sizeof(fName), "%04d-%02d-%02d_logSQL.sql", local.tm_year + 1900, local.tm_mon + 1, local.tm_mday);
+ 
+         FILE* log_file;
+         std::string logsDir_fname = m_logsDir+fName;

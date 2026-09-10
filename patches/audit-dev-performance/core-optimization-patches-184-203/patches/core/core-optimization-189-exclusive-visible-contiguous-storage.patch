@@ -1,0 +1,28 @@
+diff --git a/src/game/Objects/Player.cpp b/src/game/Objects/Player.cpp
+index 3765317..0e250ac 100644
+--- a/src/game/Objects/Player.cpp
++++ b/src/game/Objects/Player.cpp
+@@ -24574,7 +24574,9 @@ void Player::AddExclusiveVisibleObject(ObjectGuid guid)
+ 
+ void Player::RemoveExclusiveVisibleObject(ObjectGuid guid)
+ {
+-    m_exclusiveVisibleObjects.remove(guid);
++    m_exclusiveVisibleObjects.erase(
++        std::remove(m_exclusiveVisibleObjects.begin(), m_exclusiveVisibleObjects.end(), guid),
++        m_exclusiveVisibleObjects.end());
+ }
+ 
+ bool Player::IsInMainCity() {
+diff --git a/src/game/Objects/Player.h b/src/game/Objects/Player.h
+index a591a9c..6d492f7 100644
+--- a/src/game/Objects/Player.h
++++ b/src/game/Objects/Player.h
+@@ -3072,7 +3072,7 @@ public:
+         bool IsObjectIsExclusiveVisible(ObjectGuid guid);
+         void AddExclusiveVisibleObject(ObjectGuid guid);
+         void RemoveExclusiveVisibleObject(ObjectGuid guid);
+-        std::list<ObjectGuid> m_exclusiveVisibleObjects;
++        std::vector<ObjectGuid> m_exclusiveVisibleObjects;
+ 
+         // Xerron Suspend World Buffs Start
+     public:

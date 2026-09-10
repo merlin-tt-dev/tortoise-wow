@@ -1,0 +1,15 @@
+diff --git a/src/game/ObjectMgr.h b/src/game/ObjectMgr.h
+index b144901..3802291 100644
+--- a/src/game/ObjectMgr.h
++++ b/src/game/ObjectMgr.h
+@@ -1656,8 +1656,8 @@ class ObjectMgr
+         typedef robin_hood::unordered_map<uint32, std::string> ItemTextMap;
+         // Map quest_id->id of start item
+         typedef robin_hood::unordered_map<uint32, uint32> QuestStartingItemMap;
+-        typedef std::set<uint32> TavernAreaTriggerSet;
+-        typedef std::set<uint32> GameObjectForQuestSet;
++        typedef std::unordered_set<uint32> TavernAreaTriggerSet;
++        typedef std::unordered_set<uint32> GameObjectForQuestSet;
+ 
+         GroupMap            m_GroupMap;
+ 

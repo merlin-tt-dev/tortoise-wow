@@ -1,0 +1,13 @@
+diff --git a/src/game/MapNodes/MasterPlayer.h b/src/game/MapNodes/MasterPlayer.h
+index 3ec326b..d24feb5 100644
+--- a/src/game/MapNodes/MasterPlayer.h
++++ b/src/game/MapNodes/MasterPlayer.h
+@@ -139,7 +139,7 @@ public:
+     // GM system variables
+     uint8 m_gmInvisibilityLevel;
+     uint32 m_ExtraFlags;
+-    std::set<ObjectGuid> m_allowedWhispers;
++    std::unordered_set<ObjectGuid> m_allowedWhispers;
+ 
+     // TODO: Group ?
+ 

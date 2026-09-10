@@ -1,0 +1,13 @@
+diff --git a/src/game/Spells/SpellMgr.cpp b/src/game/Spells/SpellMgr.cpp
+index 19945a8..76db2c0 100644
+--- a/src/game/Spells/SpellMgr.cpp
++++ b/src/game/Spells/SpellMgr.cpp
+@@ -1980,7 +1980,7 @@ void SpellMgr::LoadSpellLearnSpells()
+ 
+ void SpellMgr::LoadSpellScriptTarget()
+ {
+-    std::set<uint32> conditions;
++    std::unordered_set<uint32> conditions;
+ 
+     // Load existing condition Ids so we can check for wrong condition Id later.
+     std::unique_ptr<QueryResult> result(WorldDatabase.Query("SELECT `condition_entry` FROM `conditions`"));

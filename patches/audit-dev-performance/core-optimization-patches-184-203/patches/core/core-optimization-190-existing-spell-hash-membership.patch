@@ -1,0 +1,13 @@
+diff --git a/src/game/Spells/SpellMgr.h b/src/game/Spells/SpellMgr.h
+index bf2202c..1cbfb82 100644
+--- a/src/game/Spells/SpellMgr.h
++++ b/src/game/Spells/SpellMgr.h
+@@ -777,7 +777,7 @@ class SpellMgr
+         SpellAreaForAuraMap  mSpellAreaForAuraMap;
+         SpellAreaForAreaMap  mSpellAreaForAreaMap;
+         SpellSkillBonusMap   mSpellSkillBonusMap;
+-        std::set<uint32>     mExistingSpellsSet;
++        std::unordered_set<uint32> mExistingSpellsSet;
+ 
+         // SPELL GROUPS
+         SpellSpellGroupMap mSpellSpellGroup;

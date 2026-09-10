@@ -1,0 +1,37 @@
+diff --git a/src/game/Objects/Unit.cpp b/src/game/Objects/Unit.cpp
+index 1ce6856..bc65060 100644
+--- a/src/game/Objects/Unit.cpp
++++ b/src/game/Objects/Unit.cpp
+@@ -275,16 +275,10 @@ void Unit::Update(uint32 update_diff, uint32 p_time)
+             it.RestingMsTime -= update_diff;
+     }
+     // Boucle 2 : supprimer les sorts avec Timer=0
+-    for (ProhibitSpellList::iterator it = m_prohibitSpell.begin(); it != m_prohibitSpell.end();)
++    m_prohibitSpell.erase(std::remove_if(m_prohibitSpell.begin(), m_prohibitSpell.end(), [](ProhibitSpellInfo const& info)
+     {
+-        if (it->RestingMsTime == 0)
+-        {
+-            m_prohibitSpell.erase(it);
+-            it = m_prohibitSpell.begin();
+-            continue;
+-        }
+-        ++it;
+-    }
++        return info.RestingMsTime == 0;
++    }), m_prohibitSpell.end());
+ 
+     // WARNING! Order of execution here is important, do not change.
+     // Spells must be processed with event system BEFORE they go to _UpdateSpells.
+diff --git a/src/game/Objects/Unit.h b/src/game/Objects/Unit.h
+index acbc620..789f0a8 100644
+--- a/src/game/Objects/Unit.h
++++ b/src/game/Objects/Unit.h
+@@ -1032,7 +1032,7 @@ class Unit : public WorldObject
+         virtual void ProhibitSpellSchool(SpellSchoolMask idSchoolMask, uint32 unTimeMs);
+         bool IsSpellProhibited(SpellEntry const* pSpell) const;
+     protected:
+-        typedef std::list<ProhibitSpellInfo> ProhibitSpellList;
++        typedef std::vector<ProhibitSpellInfo> ProhibitSpellList;
+         ProhibitSpellList m_prohibitSpell;
+ 
+         /*********************************************************/
