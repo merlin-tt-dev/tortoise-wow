@@ -28,8 +28,7 @@ QueryResultMysql::QueryResultMysql(MYSQL_RES *result, MYSQL_FIELD *fields, uint6
     QueryResult(rowCount, fieldCount), mResult(result)
 {
 
-    mCurrentRow = new Field[mFieldCount];
-    MANGOS_ASSERT(mCurrentRow);
+    mCurrentRow = std::make_unique<Field[]>(mFieldCount);
 
     for (uint32 i = 0; i < mFieldCount; i++)
         mCurrentRow[i].SetType(ConvertNativeType(fields[i].type));
@@ -62,11 +61,7 @@ bool QueryResultMysql::NextRow()
 
 void QueryResultMysql::EndQuery()
 {
-    if (mCurrentRow)
-    {
-        delete [] mCurrentRow;
-        mCurrentRow = 0;
-    }
+    mCurrentRow.reset();
 
     if (mResult)
     {

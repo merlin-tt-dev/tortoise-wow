@@ -27,6 +27,8 @@
 #include "Field.h"
 #include "PerfStats.h"
 
+#include <memory>
+
 class QueryResult
 {
     public:
@@ -42,7 +44,7 @@ class QueryResult
 
         virtual bool NextRow() = 0;
 
-        Field *Fetch() const { return mCurrentRow; }
+        Field *Fetch() const { return mCurrentRow.get(); }
 
         const Field & operator [] (int index) const { return mCurrentRow[index]; }
 
@@ -50,7 +52,7 @@ class QueryResult
         uint64 GetRowCount() const { return mRowCount; }
 
     protected:
-        Field* mCurrentRow;
+        std::unique_ptr<Field[]> mCurrentRow;
         uint32 mFieldCount;
         uint64 mRowCount;
 };

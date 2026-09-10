@@ -27,8 +27,7 @@ QueryResultPostgre::QueryResultPostgre(PGresult *result, uint64 rowCount, uint32
     QueryResult(rowCount, fieldCount), mResult(result),  mTableIndex(0)
 {
 
-    mCurrentRow = new Field[mFieldCount];
-    MANGOS_ASSERT(mCurrentRow);
+    mCurrentRow = std::make_unique<Field[]>(mFieldCount);
 
     for (uint32 i = 0; i < mFieldCount; i++)
         mCurrentRow[i].SetType(ConvertNativeType(PQftype( result, i )));
@@ -66,11 +65,7 @@ bool QueryResultPostgre::NextRow()
 
 void QueryResultPostgre::EndQuery()
 {
-    if (mCurrentRow)
-    {
-        delete [] mCurrentRow;
-        mCurrentRow = 0;
-    }
+    mCurrentRow.reset();
 
     if (mResult)
     {
