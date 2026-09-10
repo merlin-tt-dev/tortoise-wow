@@ -3939,6 +3939,7 @@ void Spell::EffectScriptEffect(SpellEffectIndex eff_idx)
                     // Select maintank + 4 random targets
                     std::vector<Unit*> viableTargets;
                     const ThreatList& tl = m_casterUnit->GetThreatManager().getThreatList();
+                    viableTargets.reserve(tl.size());
                     for (const auto it : tl)
                     {
                         if (it->getUnitGuid().IsPlayer())

@@ -947,6 +947,7 @@ WorldPacket Guild::BuildOnlineRosterPacket(bool sendOfficerNote)
 
     size_t onlineMembers = 0;
     std::vector<TempMemberInfo> onlineMemberCache;
+    onlineMemberCache.reserve(members.size() / 2);
 
     uint32 totalSize = 0;
     totalSize += sizeof(uint32); // count

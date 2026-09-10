@@ -10150,6 +10150,7 @@ Unit* Unit::FindLowestHpHostileUnit(const float fRange, const uint32 uiMinHPDiff
     std::vector<Unit*> targets;
 
     ThreatList const& threatList = GetThreatManager().getThreatList();
+    targets.reserve(threatList.size());
     for (const auto itr : threatList)
     {
         if (Unit* pTarget{ GetMap()->GetUnit(itr->getUnitGuid()) })
