@@ -835,7 +835,7 @@ void World::LoadConfigSettingsCommonPart(bool reload)
     time(&curr);                                        // get current time_t value
     local = *(localtime(&curr));                        // dereference and assign
     char fName[128];
-    sprintf(fName, "%04d%02d%02d%02d%02d%02d_world.sql", local.tm_year + 1900, local.tm_mon + 1, local.tm_mday, local.tm_hour, local.tm_min, local.tm_sec);
+    snprintf(fName, sizeof(fName), "%04d%02d%02d%02d%02d%02d_world.sql", local.tm_year + 1900, local.tm_mon + 1, local.tm_mday, local.tm_hour, local.tm_min, local.tm_sec);
     m_worldUpdatesMigration = m_worldUpdatesDirectory + "/" + fName;
 }
 
@@ -2253,7 +2253,7 @@ void LoadPlayerEggLoot();
     time(&curr);
     local = *(localtime(&curr));                            // dereference and assign
     char isoDate[128];
-    sprintf(isoDate, "%04d-%02d-%02d %02d:%02d:%02d",
+    snprintf(isoDate, sizeof(isoDate), "%04d-%02d-%02d %02d:%02d:%02d",
             local.tm_year + 1900, local.tm_mon + 1, local.tm_mday, local.tm_hour, local.tm_min, local.tm_sec);
 
     LoginDatabase.PExecute("INSERT INTO uptime (`realmid`, `starttime`, `startstring`, `uptime`, `revision`) VALUES('%u', " UI64FMTD ", '%s', 0, '%s')",
@@ -4869,7 +4869,7 @@ void World::AutoPDumpWorker()
         for (auto const& guid : dumpGuids)
         {
             char fileName[64] = {};
-            sprintf(fileName, "Char%u-%u.bak", guid, (uint32)GetGameTime());
+            snprintf(fileName, sizeof(fileName), "Char%u-%u.bak", guid, (uint32)GetGameTime());
             switch (PlayerDumpWriter().WriteDump(sWorld.GetPDumpDirectory() + "/" + fileName, guid))
             {
                 case DUMP_SUCCESS:

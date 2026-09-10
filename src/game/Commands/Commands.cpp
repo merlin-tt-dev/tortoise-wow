@@ -17411,7 +17411,7 @@ bool ChatHandler::HandlePDumpListCommand(char* args)
         return false;
 
     char fileName[32] = {};
-    sprintf(fileName, "Char%u-", guidLow);
+    snprintf(fileName, sizeof(fileName), "Char%u-", guidLow);
 
     PSendSysMessage("Searching for pdumps for guid %u:", guidLow);
     std::error_code error;
