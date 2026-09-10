@@ -9827,65 +9827,65 @@ void ObjectMgr::DeleteItemTransmogrifyTemplate(uint32 transmogrifyId)
 
 bool ObjectMgr::IsItemTypeTransmoggable(uint32 invType)
 {
-    std::vector<uint32> TransmoggableItemTypes = {
-    INVTYPE_HEAD,
-    INVTYPE_SHOULDERS,
-    INVTYPE_BODY,
-    INVTYPE_CHEST,
-    INVTYPE_WAIST,
-    INVTYPE_LEGS,
-    INVTYPE_FEET,
-    INVTYPE_WRISTS,
-    INVTYPE_HANDS,
-    INVTYPE_WEAPON,
-    INVTYPE_SHIELD,
-    INVTYPE_RANGED,
-    INVTYPE_CLOAK,
-    INVTYPE_2HWEAPON,
-    INVTYPE_ROBE,
-    INVTYPE_WEAPONMAINHAND,
-    INVTYPE_WEAPONOFFHAND,
-    INVTYPE_HOLDABLE,
-    INVTYPE_THROWN,
-    INVTYPE_RANGEDRIGHT,
-    INVTYPE_TABARD,
-    };
-
-    return std::find(TransmoggableItemTypes.begin(), TransmoggableItemTypes.end(), invType) != TransmoggableItemTypes.end();
+    switch (invType)
+    {
+        case INVTYPE_HEAD:
+        case INVTYPE_SHOULDERS:
+        case INVTYPE_BODY:
+        case INVTYPE_CHEST:
+        case INVTYPE_WAIST:
+        case INVTYPE_LEGS:
+        case INVTYPE_FEET:
+        case INVTYPE_WRISTS:
+        case INVTYPE_HANDS:
+        case INVTYPE_WEAPON:
+        case INVTYPE_SHIELD:
+        case INVTYPE_RANGED:
+        case INVTYPE_CLOAK:
+        case INVTYPE_2HWEAPON:
+        case INVTYPE_ROBE:
+        case INVTYPE_WEAPONMAINHAND:
+        case INVTYPE_WEAPONOFFHAND:
+        case INVTYPE_HOLDABLE:
+        case INVTYPE_THROWN:
+        case INVTYPE_RANGEDRIGHT:
+        case INVTYPE_TABARD:
+            return true;
+        default:
+            return false;
+    }
 }
 
 bool ObjectMgr::IsItemSubClassTransmoggable(uint32 subClass)
 {
-    std::vector<uint32> TransmoggableWeaponSubClasses = {
-    ITEM_SUBCLASS_WEAPON_AXE,
-    ITEM_SUBCLASS_WEAPON_AXE2,
-    ITEM_SUBCLASS_WEAPON_BOW,
-    ITEM_SUBCLASS_WEAPON_GUN,
-    ITEM_SUBCLASS_WEAPON_MACE,
-    ITEM_SUBCLASS_WEAPON_MACE2,
-    ITEM_SUBCLASS_WEAPON_POLEARM,
-    ITEM_SUBCLASS_WEAPON_SWORD,
-    ITEM_SUBCLASS_WEAPON_SWORD2,
-    ITEM_SUBCLASS_WEAPON_STAFF,
-    ITEM_SUBCLASS_WEAPON_FIST,
-    ITEM_SUBCLASS_WEAPON_MISC, // flowers etc
-    ITEM_SUBCLASS_WEAPON_DAGGER,
-    //ITEM_SUBCLASS_WEAPON_THROWN = 16,
-    //ITEM_SUBCLASS_WEAPON_SPEAR,
-    ITEM_SUBCLASS_WEAPON_CROSSBOW,
-    ITEM_SUBCLASS_WEAPON_WAND,
-    //ITEM_SUBCLASS_WEAPON_FISHING_POLE = 20
-    };
-
-    return std::find(TransmoggableWeaponSubClasses.begin(), TransmoggableWeaponSubClasses.end(), subClass) != TransmoggableWeaponSubClasses.end();
-
+    switch (subClass)
+    {
+        case ITEM_SUBCLASS_WEAPON_AXE:
+        case ITEM_SUBCLASS_WEAPON_AXE2:
+        case ITEM_SUBCLASS_WEAPON_BOW:
+        case ITEM_SUBCLASS_WEAPON_GUN:
+        case ITEM_SUBCLASS_WEAPON_MACE:
+        case ITEM_SUBCLASS_WEAPON_MACE2:
+        case ITEM_SUBCLASS_WEAPON_POLEARM:
+        case ITEM_SUBCLASS_WEAPON_SWORD:
+        case ITEM_SUBCLASS_WEAPON_SWORD2:
+        case ITEM_SUBCLASS_WEAPON_STAFF:
+        case ITEM_SUBCLASS_WEAPON_FIST:
+        case ITEM_SUBCLASS_WEAPON_MISC: // flowers etc
+        case ITEM_SUBCLASS_WEAPON_DAGGER:
+        case ITEM_SUBCLASS_WEAPON_CROSSBOW:
+        case ITEM_SUBCLASS_WEAPON_WAND:
+            return true;
+        default:
+            return false;
+    }
 }
 
 void ObjectMgr::AddPossibleTransmog(uint8 pClass, uint32 itemClass, uint32 itemSubClass, uint32 invType, uint32 displayId)
 {
-    if (std::find(NumPossibleTransmogs[pClass][itemClass][itemSubClass][invType].begin(),
-        NumPossibleTransmogs[pClass][itemClass][itemSubClass][invType].end(), displayId) == NumPossibleTransmogs[pClass][itemClass][itemSubClass][invType].end())
-        NumPossibleTransmogs[pClass][itemClass][itemSubClass][invType].push_back(displayId);
+    TransmogContainer& transmogs = NumPossibleTransmogs[pClass][itemClass][itemSubClass][invType];
+    if (std::find(transmogs.begin(), transmogs.end(), displayId) == transmogs.end())
+        transmogs.push_back(displayId);
     return;
 }
 
