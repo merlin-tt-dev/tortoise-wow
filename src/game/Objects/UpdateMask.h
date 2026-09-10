@@ -28,57 +28,38 @@
 class UpdateMask
 {
     public:
-        UpdateMask( ) : mCount( 0 ), mBlocks( 0 ), mUpdateMask( 0 ) { }
-        UpdateMask( const UpdateMask& mask ) : mUpdateMask( 0 ) { *this = mask; }
-
-        ~UpdateMask( )
-        {
-            delete [] mUpdateMask;
-        }
+        UpdateMask() : mCount(0), mBlocks(0) {}
 
         void SetBit (uint32 index)
         {
-            ( (uint8 *)mUpdateMask )[ index >> 3 ] |= 1 << ( index & 0x7 );
+            (reinterpret_cast<uint8*>(mUpdateMask.data()))[ index >> 3 ] |= 1 << ( index & 0x7 );
         }
 
         void UnsetBit (uint32 index)
         {
-            ( (uint8 *)mUpdateMask )[ index >> 3 ] &= (0xff ^ (1 <<  ( index & 0x7 ) ) );
+            (reinterpret_cast<uint8*>(mUpdateMask.data()))[ index >> 3 ] &= (0xff ^ (1 <<  ( index & 0x7 ) ) );
         }
 
         bool GetBit (uint32 index) const
         {
-            return ( ( (uint8 *)mUpdateMask)[ index >> 3 ] & ( 1 << ( index & 0x7 ) )) != 0;
+            return ( (reinterpret_cast<uint8 const*>(mUpdateMask.data()))[ index >> 3 ] & ( 1 << ( index & 0x7 ) )) != 0;
         }
 
         uint32 GetBlockCount() const { return mBlocks; }
         uint32 GetLength() const { return mBlocks << 2; }
         uint32 GetCount() const { return mCount; }
-        uint8* GetMask() { return (uint8*)mUpdateMask; }
+        uint8* GetMask() { return reinterpret_cast<uint8*>(mUpdateMask.data()); }
 
-        void SetCount (uint32 valuesCount)
+        void SetCount(uint32 valuesCount)
         {
-            delete [] mUpdateMask;
-
             mCount = valuesCount;
             mBlocks = (valuesCount + 31) / 32;
-
-            mUpdateMask = new uint32[mBlocks];
-            memset(mUpdateMask, 0, mBlocks << 2);
+            mUpdateMask.assign(mBlocks, 0);
         }
 
         void Clear()
         {
-            if (mUpdateMask)
-                memset(mUpdateMask, 0, mBlocks << 2);
-        }
-
-        UpdateMask& operator = ( const UpdateMask& mask )
-        {
-            SetCount(mask.mCount);
-            memcpy(mUpdateMask, mask.mUpdateMask, mBlocks << 2);
-
-            return *this;
+            std::fill(mUpdateMask.begin(), mUpdateMask.end(), 0);
         }
 
         void operator &= ( const UpdateMask& mask )
@@ -120,6 +101,6 @@ class UpdateMask
     private:
         uint32 mCount;
         uint32 mBlocks;
-        uint32 *mUpdateMask;
+        std::vector<uint32> mUpdateMask;
 };
 #endif
