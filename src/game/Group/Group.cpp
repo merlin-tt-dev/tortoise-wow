@@ -667,6 +667,7 @@ void Group::CalculateLFGRoles(LFGGroupQueueInfo& data)
     };
 
     std::vector<ObjectGuid> processed;
+    processed.reserve(GetMembersCount());
 
     for (const auto& citr : GetMemberSlots())
     {
