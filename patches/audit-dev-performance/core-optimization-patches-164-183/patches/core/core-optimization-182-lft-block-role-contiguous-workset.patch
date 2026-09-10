@@ -1,0 +1,42 @@
+diff --git a/src/game/LFT/LFTQeueue.cpp b/src/game/LFT/LFTQeueue.cpp
+index e458cd6..cb946ce 100644
+--- a/src/game/LFT/LFTQeueue.cpp
++++ b/src/game/LFT/LFTQeueue.cpp
+@@ -441,7 +441,8 @@ bool LFTManager::TryBuildOfferForInstance(std::string const& instance)
+                     block.push_back(blockItr);
+             }
+ 
+-            std::map<ObjectGuid, uint8> blockRoles;
++            std::vector<std::pair<ObjectGuid, uint8>> blockRoles;
++            blockRoles.reserve(block.size());
+             uint8 blockTanks = tanks;
+             uint8 blockHealers = healers;
+             uint8 blockDamage = damage;
+@@ -465,7 +466,7 @@ bool LFTManager::TryBuildOfferForInstance(std::string const& instance)
+                     break;
+                 }
+ 
+-                blockRoles[guid] = role;
++                blockRoles.emplace_back(guid, role);
+                 if (role == LFT_ROLE_TANK)
+                     ++blockTanks;
+                 else if (role == LFT_ROLE_HEALER)
+@@ -477,10 +478,15 @@ bool LFTManager::TryBuildOfferForInstance(std::string const& instance)
+             if (!blockFits || blockRoles.empty() || selected.size() + blockRoles.size() > 5)
+                 continue;
+ 
+-            for (std::map<ObjectGuid, uint8>::const_iterator roleItr = blockRoles.begin(); roleItr != blockRoles.end(); ++roleItr)
++            std::sort(blockRoles.begin(), blockRoles.end(), [](auto const& left, auto const& right)
+             {
+-                selected.push_back(roleItr->first);
+-                selectedRoles[roleItr->first] = roleItr->second;
++                return left.first < right.first;
++            });
++
++            for (auto const& role : blockRoles)
++            {
++                selected.push_back(role.first);
++                selectedRoles[role.first] = role.second;
+             }
+ 
+             tanks = blockTanks;

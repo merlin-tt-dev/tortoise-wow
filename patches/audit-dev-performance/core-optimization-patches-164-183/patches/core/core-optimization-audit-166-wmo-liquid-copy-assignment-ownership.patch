@@ -1,0 +1,59 @@
+diff --git a/src/game/vmap/WorldModel.cpp b/src/game/vmap/WorldModel.cpp
+index 29c302d..6bd78a7 100644
+--- a/src/game/vmap/WorldModel.cpp
++++ b/src/game/vmap/WorldModel.cpp
+@@ -19,6 +19,7 @@
+ #include "WorldModel.h"
+ #include "VMapDefinitions.h"
+ #include "MapTree.h"
++#include <memory>
+ #include <string.h>
+ 
+ using G3D::Vector3;
+@@ -130,27 +131,32 @@ namespace VMAP
+         if (this == &other)
+             return *this;
+ 
+-        iTilesX = other.iTilesX;
+-        iTilesY = other.iTilesY;
+-        iCorner = other.iCorner;
+-        iType = other.iType;
+-        delete[] iHeight;
+-        delete[] iFlags;
++        std::unique_ptr<float[]> newHeight;
++        std::unique_ptr<uint8[]> newFlags;
+ 
+         if (other.iHeight)
+         {
+-            iHeight = new float[(iTilesX + 1) * (iTilesY + 1)];
+-            memcpy(iHeight, other.iHeight, (iTilesX + 1) * (iTilesY + 1) * sizeof(float));
++            size_t const count = (other.iTilesX + 1) * (other.iTilesY + 1);
++            newHeight.reset(new float[count]);
++            memcpy(newHeight.get(), other.iHeight, count * sizeof(float));
+         }
+-        else
+-            iHeight = nullptr;
++
+         if (other.iFlags)
+         {
+-            iFlags = new uint8[iTilesX * iTilesY];
+-            memcpy(iFlags, other.iFlags, iTilesX * iTilesY * sizeof(uint8));
++            size_t const count = other.iTilesX * other.iTilesY;
++            newFlags.reset(new uint8[count]);
++            memcpy(newFlags.get(), other.iFlags, count * sizeof(uint8));
+         }
+-        else
+-            iFlags = nullptr;
++
++        delete[] iHeight;
++        delete[] iFlags;
++
++        iTilesX = other.iTilesX;
++        iTilesY = other.iTilesY;
++        iCorner = other.iCorner;
++        iType = other.iType;
++        iHeight = newHeight.release();
++        iFlags = newFlags.release();
+ 
+         return *this;
+     }

@@ -1,0 +1,59 @@
+diff --git a/src/game/Spells/SpellAuras.cpp b/src/game/Spells/SpellAuras.cpp
+index 55cba96..79b2f2e 100644
+--- a/src/game/Spells/SpellAuras.cpp
++++ b/src/game/Spells/SpellAuras.cpp
+@@ -57,6 +57,9 @@
+ #include "ScriptObjects.h"
+ #include "SpellClassMask.h"
+ 
++#include <algorithm>
++#include <vector>
++
+ using namespace Spells;
+ 
+ #define NULL_AURA_SLOT 0xFF
+@@ -2080,30 +2083,35 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
+             uint32 zone, area;
+             target->GetZoneAndAreaId(zone, area);
+ 
+-            std::set<uint32> spellsToCast;
+-            std::set<uint32> spellsToRemove;
++            std::vector<uint32> spellsToCast;
++            std::vector<uint32> spellsToRemove;
+ 
+             for (SpellAreaForAreaMap::const_iterator itr = saBounds.first; itr != saBounds.second; ++itr)
+             {
+                 // some auras remove at aura remove
+                 if (!itr->second->IsFitToRequirements((Player*)target, zone, area))
+                 {
+-                    spellsToRemove.insert(itr->second->spellId);
++                    spellsToRemove.push_back(itr->second->spellId);
+                 }
+                 // some auras applied at aura apply
+                 else if (itr->second->autocast)
+                 {
+                     if (!target->HasAura(itr->second->spellId, EFFECT_INDEX_0))
+-                        spellsToCast.insert(itr->second->spellId);
++                        spellsToCast.push_back(itr->second->spellId);
+                 }
+             }
+ 
+-            for (auto i : spellsToRemove)
+-                if (spellsToCast.find(i) == spellsToCast.end())
+-                    target->RemoveAurasDueToSpell(i);
++            std::sort(spellsToRemove.begin(), spellsToRemove.end());
++            spellsToRemove.erase(std::unique(spellsToRemove.begin(), spellsToRemove.end()), spellsToRemove.end());
++            std::sort(spellsToCast.begin(), spellsToCast.end());
++            spellsToCast.erase(std::unique(spellsToCast.begin(), spellsToCast.end()), spellsToCast.end());
++
++            for (uint32 spellId : spellsToRemove)
++                if (!std::binary_search(spellsToCast.begin(), spellsToCast.end(), spellId))
++                    target->RemoveAurasDueToSpell(spellId);
+ 
+-            for (auto i : spellsToCast)
+-                target->CastSpell(target, i, true);
++            for (uint32 spellId : spellsToCast)
++                target->CastSpell(target, spellId, true);
+         }
+     }
+ 

@@ -1,0 +1,45 @@
+diff --git a/src/game/vmap/WorldModel.cpp b/src/game/vmap/WorldModel.cpp
+index 6bd78a7..da4c14c 100644
+--- a/src/game/vmap/WorldModel.cpp
++++ b/src/game/vmap/WorldModel.cpp
+@@ -234,23 +234,29 @@ namespace VMAP
+     bool WmoLiquid::readFromFile(FILE* rf, WmoLiquid*& out)
+     {
+         bool result = true;
+-        WmoLiquid* liquid = new WmoLiquid();
++        std::unique_ptr<WmoLiquid> liquid(new WmoLiquid());
+         if (result && fread(&liquid->iTilesX, sizeof(uint32), 1, rf) != 1) result = false;
+         if (result && fread(&liquid->iTilesY, sizeof(uint32), 1, rf) != 1) result = false;
+         if (result && fread(&liquid->iCorner, sizeof(Vector3), 1, rf) != 1) result = false;
+         if (result && fread(&liquid->iType, sizeof(uint32), 1, rf) != 1) result = false;
+-        uint32 size = (liquid->iTilesX + 1) * (liquid->iTilesY + 1);
+-        liquid->iHeight = new float[size];
+-        if (result && fread(liquid->iHeight, sizeof(float), size, rf) != size) result = false;
+-        size = liquid->iTilesX * liquid->iTilesY;
+-        liquid->iFlags = new uint8[size];
+-        if (result && fread(liquid->iFlags, sizeof(uint8), size, rf) != size) result = false;
+-        if (!result)
++
++        if (result)
+         {
+-            delete liquid;
+-            liquid = nullptr;
++            uint32 const size = (liquid->iTilesX + 1) * (liquid->iTilesY + 1);
++            liquid->iHeight = new float[size];
++            if (fread(liquid->iHeight, sizeof(float), size, rf) != size)
++                result = false;
+         }
+-        out = liquid;
++
++        if (result)
++        {
++            uint32 const size = liquid->iTilesX * liquid->iTilesY;
++            liquid->iFlags = new uint8[size];
++            if (fread(liquid->iFlags, sizeof(uint8), size, rf) != size)
++                result = false;
++        }
++
++        out = result ? liquid.release() : nullptr;
+         return result;
+     }
+ 

@@ -1,0 +1,24 @@
+diff --git a/src/game/Objects/Unit.cpp b/src/game/Objects/Unit.cpp
+index e543e2a..1ce6856 100644
+--- a/src/game/Objects/Unit.cpp
++++ b/src/game/Objects/Unit.cpp
+@@ -10049,11 +10049,16 @@ void Unit::UpdateReactives(uint32 p_time)
+ 
+ uint8 Unit::GetEnemyCountInRadiusAround(Unit* pTarget, float radius) const
+ {
+-    std::vector<Unit*> targets;
++    struct UnitCounter
++    {
++        void push_back(Unit*) { ++count; }
++        size_t count = 0;
++    } targets;
++
+     MaNGOS::AnyUnfriendlyUnitInObjectRangeCheck u_check(pTarget, this, radius);
+-    MaNGOS::UnitListSearcher<MaNGOS::AnyUnfriendlyUnitInObjectRangeCheck, std::vector<Unit*>> searcher(targets, u_check);
++    MaNGOS::UnitListSearcher<MaNGOS::AnyUnfriendlyUnitInObjectRangeCheck, UnitCounter> searcher(targets, u_check);
+     Cell::VisitAllObjects(pTarget, searcher, radius);
+-    return targets.size();
++    return targets.count;
+ }
+ 
+ Unit* Unit::SelectRandomUnfriendlyTarget(Unit* except /*= nullptr*/, float radius /*= ATTACK_DISTANCE*/, bool inFront /*= false*/, bool isValidAttackTarget /*= false*/, bool notPvpEnabling /*= false*/) const

@@ -1,0 +1,36 @@
+diff --git a/src/game/Objects/Unit.cpp b/src/game/Objects/Unit.cpp
+index 819c452..e543e2a 100644
+--- a/src/game/Objects/Unit.cpp
++++ b/src/game/Objects/Unit.cpp
+@@ -68,6 +68,7 @@
+ #include "TWDebuff/TWDebuff.hpp"
+ 
+ #include <algorithm>
++#include <functional>
+ #include <math.h>
+ #include <optional>
+ #include <vector>
+@@ -2280,7 +2281,7 @@ void Unit::CalculateDamageAbsorbAndResist(WorldObject *pCaster, SpellSchoolMask
+ 
+                 float radius = Spells::GetSpellRadius(sSpellRadiusStore.LookupEntry((*i)->GetSpellProto()->EffectRadiusIndex[(*i)->GetEffIndex()]));
+ 
+-                std::set<Player*> allies;
++                std::vector<Player*> allies;
+                 for (GroupReference* itr = pGroup->GetFirstMember(); itr != nullptr; itr = itr->next())
+                 {
+                     if (Player* pMember = itr->getSource())
+@@ -2295,10 +2296,13 @@ void Unit::CalculateDamageAbsorbAndResist(WorldObject *pCaster, SpellSchoolMask
+                         if (!pPlayer->IsWithinDistInMap(pMember, radius))
+                             continue;
+ 
+-                        allies.insert(pMember);
++                        allies.push_back(pMember);
+                     }
+                 }
+ 
++                std::sort(allies.begin(), allies.end(), std::less<Player*>{});
++                allies.erase(std::unique(allies.begin(), allies.end()), allies.end());
++
+                 // Damage can be splitted only if there are nearby allies
+                 if (allies.empty())
+                     continue;

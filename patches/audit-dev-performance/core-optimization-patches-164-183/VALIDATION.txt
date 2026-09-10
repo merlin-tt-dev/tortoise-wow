@@ -1,0 +1,48 @@
+Core optimization 164-183 validation
+====================================
+
+BASELINE
+- Complete user-supplied archive: tortoise-wow-audits-dev-performance-patch163.tar.xz
+- Direct tree comparison against the prior local patch-163 tree: exact for source directories/root files.
+- No source tree reconstructed from GitHub chunks.
+
+SEQUENTIAL PATCH VALIDATION
+For every patch 164 through 183, in numeric order, on one fresh baseline copy:
+  git -c core.whitespace=trailing-space,space-before-tab,tab-in-indent apply --check --whitespace=error-all PATCH
+  git -c core.whitespace=trailing-space,space-before-tab,tab-in-indent apply --numstat --whitespace=error-all PATCH
+  git apply PATCH
+  git diff --check
+  scan added diff lines for literal tab bytes
+  scan added diff lines for conflict markers
+  commit validation step and continue with next patch
+
+Result: PASS 20/20
+Final validation tree vs separately audited working tree: BYTE-FOR-BYTE MATCH
+
+SEMANTIC / DIFFERENTIAL VALIDATION
+- 164 buyback membership: randomized set-vs-vector membership model: PASS
+- 165 AV formatted player message: valid MAX_PLAYER_NAME<=12 output length proven < old 200-byte buffer; constant replacements max 168 bytes; same MonsterSay/MonsterYell payload path audited: PASS
+- 168 damage shield: randomized restart/mutation set-vs-vector model covering remove/append/replace/reorder: PASS
+- 169 group split: randomized uniqueness/order model: PASS
+- 169 actual C++17 pointer-order test: std::set<P*> vs vector sort(std::less<P*>)+unique, 200,000 cases: PASS
+- 170 target icon: randomized first-encounter unique action model: PASS
+- 171 visibility workset: complete baseline repository grep proved only write was insert and zero reads/consumers: PASS
+- 172 spell-area action sets: randomized remove/cast sequence model preserving sorted unique action order: PASS
+- 173 duration entry: helper formulas compared source-to-source; DBC store runtime immutability searched: PASS
+- 174 + 182 LFT selected/block-role containers: randomized membership/size/map-order model: PASS
+- 175 UnitListSearcher contract: template implementations inspected; supplied container only receives push_back(Unit*): PASS
+- 176 whisper insert: call path proves key absent and no intervening mutation: PASS
+- 177 locale iterator lifetime: GetOrNewIndexForLocale and value-vector mutations checked; no outer map mutation/rehash: PASS
+- 178 quest item: miss/duplicate insert semantics preserved: PASS
+- 179 MMap: shared->exclusive race-resolution and loser deletion preserved: PASS
+- 180 GM listener: set insert return semantics preserved: PASS
+- 181 GM survey: randomized fixed-prefix vs set duplicate-suppression model: PASS
+- 182 block role keys proven unique from QueueMap/GetQueueOrder; explicit sort reproduces std::map key iteration: PASS
+- 183 account uniqueness: only final unique count observed; uint32 equality unchanged: PASS
+
+OWNERSHIP / FAILURE PATHS
+- 166 WmoLiquid assignment: self-assignment, successful copy, first-allocation exception and second-allocation exception paths audited. New code gives strong exception safety and fixes prior partial-state/leak risk.
+- 167 WmoLiquid read: successful binary read order unchanged; partial/truncated read and allocation-unwind paths retain local ownership until success and return null on normal read failure.
+
+BUILD GATE
+- Full Linux/MinGW build intentionally NOT run here; user runs full builds on the dedicated build server.

@@ -1,0 +1,28 @@
+diff --git a/src/game/Handlers/GMTicketHandler.cpp b/src/game/Handlers/GMTicketHandler.cpp
+index 18fa485..9d3dffe 100644
+--- a/src/game/Handlers/GMTicketHandler.cpp
++++ b/src/game/Handlers/GMTicketHandler.cpp
+@@ -164,7 +164,8 @@ void WorldSession::HandleGMSurveySubmitOpcode(WorldPacket& recvData)
+     uint32 mainSurvey; // GMSurveyCurrentSurvey.dbc, column 1 (all 9) ref to GMSurveySurveys.dbc
+     recvData >> mainSurvey;
+ 
+-    std::set<uint32> surveyIds;
++    std::array<uint32, 10> surveyIds{};
++    size_t surveyIdCount = 0;
+     // sub_survey1, r1, comment1, sub_survey2, r2, comment2, sub_survey3, r3, comment3, sub_survey4, r4, comment4, sub_survey5, r5, comment5, sub_survey6, r6, comment6, sub_survey7, r7, comment7, sub_survey8, r8, comment8, sub_survey9, r9, comment9, sub_survey10, r10, comment10,
+     for (uint8 i = 0; i < 10; i++)
+     {
+@@ -179,9 +180,12 @@ void WorldSession::HandleGMSurveySubmitOpcode(WorldPacket& recvData)
+         recvData >> comment;
+ 
+         // make sure the same sub survey is not added to DB twice
+-        if (!surveyIds.insert(subSurveyId).second)
++        auto const surveyEnd = surveyIds.begin() + surveyIdCount;
++        if (std::find(surveyIds.begin(), surveyEnd, subSurveyId) != surveyEnd)
+             continue;
+ 
++        surveyIds[surveyIdCount++] = subSurveyId;
++
+         static SqlStatementID insSubSurvey;
+         SqlStatement stmt = CharacterDatabase.CreateStatement(insSubSurvey, "INSERT INTO gm_subsurveys (surveyId, subsurveyId, `rank`, comment) VALUES (?, ?, ?, ?)");
+         stmt.addUInt32(nextSurveyID);

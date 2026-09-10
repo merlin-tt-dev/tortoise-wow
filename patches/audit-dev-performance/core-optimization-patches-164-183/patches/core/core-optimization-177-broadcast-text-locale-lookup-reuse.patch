@@ -1,0 +1,13 @@
+diff --git a/src/game/ObjectMgr.cpp b/src/game/ObjectMgr.cpp
+index 840ccc6..74b12c7 100644
+--- a/src/game/ObjectMgr.cpp
++++ b/src/game/ObjectMgr.cpp
+@@ -7379,7 +7379,7 @@ void ObjectMgr::LoadBroadcastTextLocales()
+             continue;
+         }
+ 
+-        BroadcastText& data = m_BroadcastTextLocaleMap[entry];
++        BroadcastText& data = bct->second;
+ 
+         // Load maleText
+         for (int i = 1; i < MAX_LOCALE; ++i)

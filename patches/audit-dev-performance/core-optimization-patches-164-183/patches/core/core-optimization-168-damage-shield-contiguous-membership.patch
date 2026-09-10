@@ -1,0 +1,22 @@
+diff --git a/src/game/Objects/Unit.cpp b/src/game/Objects/Unit.cpp
+index 5dea847..819c452 100644
+--- a/src/game/Objects/Unit.cpp
++++ b/src/game/Objects/Unit.cpp
+@@ -1929,13 +1929,14 @@ void Unit::DealMeleeDamage(CalcDamageInfo *damageInfo, bool durabilityLoss)
+ 
+ void Unit::TriggerDamageShields(Unit* pVictim)
+ {
+-    std::set<Aura*> alreadyDone;
+     AuraList const& vDamageShields = pVictim->GetAurasByType(SPELL_AURA_DAMAGE_SHIELD);
++    std::vector<Aura*> alreadyDone;
++    alreadyDone.reserve(vDamageShields.size());
+     for (AuraList::const_iterator i = vDamageShields.begin(); i != vDamageShields.end();)
+     {
+-        if (alreadyDone.find(*i) == alreadyDone.end())
++        if (std::find(alreadyDone.begin(), alreadyDone.end(), *i) == alreadyDone.end())
+         {
+-            alreadyDone.insert(*i);
++            alreadyDone.push_back(*i);
+             SpellEntry const* pSpellProto = (*i)->GetSpellProto();
+ 
+             // Damage shield can be resisted...

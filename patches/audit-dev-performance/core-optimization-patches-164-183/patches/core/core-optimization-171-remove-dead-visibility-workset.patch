@@ -1,0 +1,206 @@
+diff --git a/src/game/Camera.cpp b/src/game/Camera.cpp
+index 6ee5c27..0b431f2 100644
+--- a/src/game/Camera.cpp
++++ b/src/game/Camera.cpp
+@@ -140,16 +140,16 @@ void Camera::UpdateVisibilityOf(WorldObject* target)
+ }
+ 
+ template<class T>
+-void Camera::UpdateVisibilityOf(T * target, UpdateData &data, std::set<WorldObject*>& vis)
++void Camera::UpdateVisibilityOf(T * target, UpdateData &data)
+ {
+-    m_owner.template UpdateVisibilityOf<T>(m_source, target, data, vis);
++    m_owner.template UpdateVisibilityOf<T>(m_source, target, data);
+ }
+ 
+-template void Camera::UpdateVisibilityOf(Player*        , UpdateData& , std::set<WorldObject*>&);
+-template void Camera::UpdateVisibilityOf(Creature*      , UpdateData& , std::set<WorldObject*>&);
+-template void Camera::UpdateVisibilityOf(Corpse*        , UpdateData& , std::set<WorldObject*>&);
+-template void Camera::UpdateVisibilityOf(GameObject*    , UpdateData& , std::set<WorldObject*>&);
+-template void Camera::UpdateVisibilityOf(DynamicObject* , UpdateData& , std::set<WorldObject*>&);
++template void Camera::UpdateVisibilityOf(Player*        , UpdateData&);
++template void Camera::UpdateVisibilityOf(Creature*      , UpdateData&);
++template void Camera::UpdateVisibilityOf(Corpse*        , UpdateData&);
++template void Camera::UpdateVisibilityOf(GameObject*    , UpdateData&);
++template void Camera::UpdateVisibilityOf(DynamicObject* , UpdateData&);
+ 
+ void Camera::UpdateVisibilityForOwner()
+ {
+diff --git a/src/game/Camera.h b/src/game/Camera.h
+index 75ed1b3..1261c29 100644
+--- a/src/game/Camera.h
++++ b/src/game/Camera.h
+@@ -52,7 +52,7 @@ class Camera
+         void ResetView(bool update_far_sight_field = true);
+ 
+         template<class T>
+-        void UpdateVisibilityOf(T * obj, UpdateData &d, std::set<WorldObject*>& vis);
++        void UpdateVisibilityOf(T * obj, UpdateData &d);
+         void UpdateVisibilityOf(WorldObject* obj);
+ 
+         void ReceivePacket(WorldPacket *data);
+diff --git a/src/game/Maps/GridNotifiers.cpp b/src/game/Maps/GridNotifiers.cpp
+index 7144e89..79b1daa 100644
+--- a/src/game/Maps/GridNotifiers.cpp
++++ b/src/game/Maps/GridNotifiers.cpp
+@@ -59,17 +59,17 @@ VisibleNotifier::Notify()
+                 switch (itr->GetTypeId())
+                 {
+                     case TYPEID_GAMEOBJECT:
+-                        player.UpdateVisibilityOf(&player, itr->ToGameObject(), i_data, i_visibleNow);
++                        player.UpdateVisibilityOf(&player, itr->ToGameObject(), i_data);
+                         break;
+                     case TYPEID_PLAYER:
+-                        player.UpdateVisibilityOf(&player, itr->ToPlayer(), i_data, i_visibleNow);
++                        player.UpdateVisibilityOf(&player, itr->ToPlayer(), i_data);
+                         itr->ToPlayer()->UpdateVisibilityOf(itr, &player);
+                         break;
+                     case TYPEID_UNIT:
+-                        player.UpdateVisibilityOf(&player, itr->ToCreature(), i_data, i_visibleNow);
++                        player.UpdateVisibilityOf(&player, itr->ToCreature(), i_data);
+                         break;
+                     case TYPEID_DYNAMICOBJECT:
+-                        player.UpdateVisibilityOf(&player, (DynamicObject*)itr, i_data, i_visibleNow);
++                        player.UpdateVisibilityOf(&player, (DynamicObject*)itr, i_data);
+                         break;
+                     default:
+                         break;
+@@ -81,7 +81,7 @@ VisibleNotifier::Notify()
+     // Update current map active objects, modifies i_clientGUIDs so we are not sending
+     // out of range updates for an active obj
+     if (player.GetMap())
+-        player.GetMap()->UpdateActiveObjectVisibility(&player, i_clientGUIDs, i_data, i_visibleNow);
++        player.GetMap()->UpdateActiveObjectVisibility(&player, i_clientGUIDs, i_data);
+ 
+ 	for (auto iter = i_clientGUIDs.begin(); iter != i_clientGUIDs.end();)
+ 	{
+diff --git a/src/game/Maps/GridNotifiers.h b/src/game/Maps/GridNotifiers.h
+index f56263f..02f57e7 100644
+--- a/src/game/Maps/GridNotifiers.h
++++ b/src/game/Maps/GridNotifiers.h
+@@ -45,7 +45,6 @@ namespace MaNGOS
+         Camera& i_camera;
+         UpdateData i_data;
+         ObjectGuidSet i_clientGUIDs;
+-        std::set<WorldObject*> i_visibleNow;
+ 
+         explicit VisibleNotifier(Camera &c) : i_camera(c), i_clientGUIDs(c.GetOwner()->m_visibleGUIDs) {}
+         template<class T> void Visit(GridRefManager<T> &m);
+diff --git a/src/game/Maps/GridNotifiersImpl.h b/src/game/Maps/GridNotifiersImpl.h
+index d1e2110..5da80b0 100644
+--- a/src/game/Maps/GridNotifiersImpl.h
++++ b/src/game/Maps/GridNotifiersImpl.h
+@@ -39,7 +39,7 @@ inline void MaNGOS::VisibleNotifier::Visit(GridRefManager<T> &m)
+ {
+     for(typename GridRefManager<T>::iterator iter = m.begin(); iter != m.end(); ++iter)
+     {
+-        i_camera.UpdateVisibilityOf(iter->getSource(), i_data, i_visibleNow);
++        i_camera.UpdateVisibilityOf(iter->getSource(), i_data);
+         i_clientGUIDs.erase(iter->getSource()->GetObjectGuid());
+     }
+ }
+diff --git a/src/game/Maps/Map.cpp b/src/game/Maps/Map.cpp
+index d65a36e..2ec427b 100644
+--- a/src/game/Maps/Map.cpp
++++ b/src/game/Maps/Map.cpp
+@@ -1577,9 +1577,8 @@ void Map::UpdateActiveObjectVisibility(Player *player)
+     // Params for compressed data set - will only be compressed if packet size > 100 (multiple units)
+     ObjectGuidSet guids;
+     UpdateData data;
+-    std::set<WorldObject*> visibleNow;
+ 
+-    UpdateActiveObjectVisibility(player, guids, data, visibleNow);
++    UpdateActiveObjectVisibility(player, guids, data);
+ 
+     if (data.HasData())
+         data.Send(player->GetSession());
+@@ -1599,14 +1598,14 @@ void Map::UpdateActiveObjectVisibility(Player* player, ObjectGuidSet& visibleGui
+ }
+ 
+ // Support for compressed data packet
+-void Map::UpdateActiveObjectVisibility(Player *player, ObjectGuidSet &visibleGuids, UpdateData &data, std::set<WorldObject*> &visibleNow)
++void Map::UpdateActiveObjectVisibility(Player *player, ObjectGuidSet &visibleGuids, UpdateData &data)
+ {
+     for (const auto obj : m_activeNonPlayers)
+     {
+         if (obj->IsInWorld())
+         {
+             // TODO: Why is this templated? Why not just base class WorldObject for the target...?
+-            player->UpdateVisibilityOf(player->GetCamera().GetBody(), obj, data, visibleNow);
++            player->UpdateVisibilityOf(player->GetCamera().GetBody(), obj, data);
+             visibleGuids.erase(obj->GetObjectGuid());
+         }
+     }
+diff --git a/src/game/Maps/Map.h b/src/game/Maps/Map.h
+index cd74728..a5bb146 100644
+--- a/src/game/Maps/Map.h
++++ b/src/game/Maps/Map.h
+@@ -450,7 +450,7 @@ class Map : public GridRefManager<NGridType>
+ 
+         void UpdateActiveObjectVisibility(Player *player);
+         void UpdateActiveObjectVisibility(Player *player, ObjectGuidSet &visibleGuids);
+-        void UpdateActiveObjectVisibility(Player *player, ObjectGuidSet &visibleGuids, UpdateData &data, std::set<WorldObject*> &visibleNow);
++        void UpdateActiveObjectVisibility(Player *player, ObjectGuidSet &visibleGuids, UpdateData &data);
+ 
+         void resetMarkedCells() { marked_cells.reset(); }
+         bool isCellMarked(uint32 pCellId) { return marked_cells.test(pCellId); }
+diff --git a/src/game/Objects/Player.cpp b/src/game/Objects/Player.cpp
+index c1f1d53..3765317 100644
+--- a/src/game/Objects/Player.cpp
++++ b/src/game/Objects/Player.cpp
+@@ -20834,7 +20834,7 @@ void RemoveBroadcastListener(Player* target, Player* me)
+ }
+ 
+ template<class T>
+-void Player::UpdateVisibilityOf(WorldObject const* viewPoint, T* target, UpdateData& data, std::set<WorldObject*>& visibleNow)
++void Player::UpdateVisibilityOf(WorldObject const* viewPoint, T* target, UpdateData& data)
+ {
+     bool inVisibleList = IsInVisibleList(target);
+     if (inVisibleList)
+@@ -20860,7 +20860,6 @@ void Player::UpdateVisibilityOf(WorldObject const* viewPoint, T* target, UpdateD
+     {
+         if (target->IsInMap(this) && target->isWithinVisibilityDistanceOf(this, viewPoint, inVisibleList) && target->IsVisibleForInState(this, viewPoint, false))
+         {
+-            visibleNow.insert(target);
+             target->BuildCreateUpdateBlockForPlayer(&data, this);
+             std::unique_lock<std::shared_mutex> lock(m_visibleGUIDs_lock);
+             UpdateVisibilityOf_helper(m_visibleGUIDs, target);
+@@ -20872,12 +20871,19 @@ void Player::UpdateVisibilityOf(WorldObject const* viewPoint, T* target, UpdateD
+     }
+ }
+ 
+-template void Player::UpdateVisibilityOf(WorldObject const* viewPoint, Player*        target, UpdateData& data, std::set<WorldObject*>& visibleNow);
+-template void Player::UpdateVisibilityOf(WorldObject const* viewPoint, Creature*      target, UpdateData& data, std::set<WorldObject*>& visibleNow);
+-template void Player::UpdateVisibilityOf(WorldObject const* viewPoint, Corpse*        target, UpdateData& data, std::set<WorldObject*>& visibleNow);
+-template void Player::UpdateVisibilityOf(WorldObject const* viewPoint, GameObject*    target, UpdateData& data, std::set<WorldObject*>& visibleNow);
+-template void Player::UpdateVisibilityOf(WorldObject const* viewPoint, DynamicObject* target, UpdateData& data, std::set<WorldObject*>& visibleNow);
+-template void Player::UpdateVisibilityOf(WorldObject const* viewPoint, WorldObject*   target, UpdateData& data, std::set<WorldObject*>& visibleNow);
++
++
++
++
++
++
++
++template void Player::UpdateVisibilityOf(WorldObject const* viewPoint, Player*        target, UpdateData& data);
++template void Player::UpdateVisibilityOf(WorldObject const* viewPoint, Creature*      target, UpdateData& data);
++template void Player::UpdateVisibilityOf(WorldObject const* viewPoint, Corpse*        target, UpdateData& data);
++template void Player::UpdateVisibilityOf(WorldObject const* viewPoint, GameObject*    target, UpdateData& data);
++template void Player::UpdateVisibilityOf(WorldObject const* viewPoint, DynamicObject* target, UpdateData& data);
++template void Player::UpdateVisibilityOf(WorldObject const* viewPoint, WorldObject*   target, UpdateData& data);
+ 
+ void Player::SetLongSight(const Aura* aura)
+ {
+diff --git a/src/game/Objects/Player.h b/src/game/Objects/Player.h
+index 5faedba..2d83c86 100644
+--- a/src/game/Objects/Player.h
++++ b/src/game/Objects/Player.h
+@@ -2141,7 +2141,7 @@ class Player final: public Unit
+         bool IsVisibleGloballyFor(Player* pl) const;
+         void UpdateVisibilityOf(WorldObject const* viewPoint, WorldObject* target);
+         template<class T>
+-        void UpdateVisibilityOf(WorldObject const* viewPoint, T* target, UpdateData& data, std::set<WorldObject*>& visibleNow);
++        void UpdateVisibilityOf(WorldObject const* viewPoint, T* target, UpdateData& data);
+ 
+         Camera& GetCamera() { return m_camera; }
+         void ScheduleCameraUpdate(ObjectGuid guid);
