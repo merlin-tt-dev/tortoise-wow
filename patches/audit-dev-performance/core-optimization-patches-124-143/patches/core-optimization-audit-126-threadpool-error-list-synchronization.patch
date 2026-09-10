@@ -1,0 +1,58 @@
+diff --git a/src/shared/ThreadPool.cpp b/src/shared/ThreadPool.cpp
+index 2aa7f28..4326b29 100644
+--- a/src/shared/ThreadPool.cpp
++++ b/src/shared/ThreadPool.cpp
+@@ -87,6 +87,7 @@ size_t ThreadPool::size() const
+ 
+ std::vector<std::exception_ptr> ThreadPool::taskErrors() const
+ {
++    std::lock_guard<std::mutex> lock(m_errorsMutex);
+     return m_errors;
+ }
+ 
+@@ -154,7 +155,10 @@ void ThreadPool::worker::loop_wrapper()
+         try{
+             if (err_p)
+             {
+-                pool->m_errors.push_back(err_p);
++                {
++                    std::lock_guard<std::mutex> lock(pool->m_errorsMutex);
++                    pool->m_errors.push_back(err_p);
++                }
+                 std::rethrow_exception(err_p);
+             }
+         }
+@@ -210,7 +214,12 @@ void ThreadPool::worker::loop()
+             if (pool->m_status == Status::ERROR)
+             {
+                 pool->m_status = Status::READY;
+-                pool->m_result.set_exception(pool->m_errors.front());
++                std::exception_ptr error;
++                {
++                    std::lock_guard<std::mutex> lock(pool->m_errorsMutex);
++                    error = pool->m_errors.front();
++                }
++                pool->m_result.set_exception(error);
+             }
+             else
+             {
+diff --git a/src/shared/ThreadPool.h b/src/shared/ThreadPool.h
+index bbd8680..a764bf5 100644
+--- a/src/shared/ThreadPool.h
++++ b/src/shared/ThreadPool.h
+@@ -26,6 +26,7 @@
+ #include <functional>
+ #include <atomic>
+ #include <future>
++#include <mutex>
+ 
+ #ifdef WIN32
+ #undef ERROR
+@@ -206,6 +207,7 @@ private:
+     std::atomic<int> m_active;
+     std::atomic<int> m_index;
+     std::vector<std::exception_ptr> m_errors;
++    mutable std::mutex m_errorsMutex;
+     std::promise<void> m_result;
+     workers_t m_workers;
+ };

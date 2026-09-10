@@ -1,0 +1,26 @@
+diff --git a/src/shared/ThreadPool.cpp b/src/shared/ThreadPool.cpp
+index ebfd16e..2aa7f28 100644
+--- a/src/shared/ThreadPool.cpp
++++ b/src/shared/ThreadPool.cpp
+@@ -77,7 +77,7 @@ std::future<void> ThreadPool::processWorkload(workload_t &&workload, Callable pr
+ 
+ ThreadPool::Status ThreadPool::status() const
+ {
+-    return m_status;
++    return m_status.load();
+ }
+ 
+ size_t ThreadPool::size() const
+diff --git a/src/shared/ThreadPool.h b/src/shared/ThreadPool.h
+index 33ae9af..bbd8680 100644
+--- a/src/shared/ThreadPool.h
++++ b/src/shared/ThreadPool.h
+@@ -195,7 +195,7 @@ private:
+     using workers_t = std::vector<std::unique_ptr<worker>>;
+ 
+     std::string Name;
+-    Status m_status = Status::STOPPED;
++    std::atomic<Status> m_status{Status::STOPPED};
+     ErrorHandling m_errorHandling;
+     size_t m_size;
+     std::shared_mutex m_mutex;

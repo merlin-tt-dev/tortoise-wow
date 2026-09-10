@@ -1,0 +1,46 @@
+diff --git a/src/shared/Util.cpp b/src/shared/Util.cpp
+index 83b2fad..71004b7 100644
+--- a/src/shared/Util.cpp
++++ b/src/shared/Util.cpp
+@@ -41,6 +41,7 @@
+ #include <fstream>
+ #include <iomanip>
+ #include <sstream>
++#include <stdexcept>
+ #include "AllocatorWithCategory.h"
+ 
+ typedef ACE_TSS<MTRand> MTRandTSS;
+@@ -641,22 +642,20 @@ void vutf8printf(FILE *out, const char *str, va_list* ap)
+ 
+ void hexEncodeByteArray(uint8* bytes, uint32 arrayLen, std::string& result)
+ {
+-    std::ostringstream ss;
+-    for (uint32 i = 0; i<arrayLen; ++i)
++    static constexpr char hexDigits[] = "0123456789ABCDEF";
++
++    size_t const byteCount = static_cast<size_t>(arrayLen);
++    if (byteCount > result.max_size() / 2)
++        throw std::length_error("hexEncodeByteArray result too large");
++
++    std::string encoded(byteCount * 2, '\0');
++    for (uint32 i = 0; i < arrayLen; ++i)
+     {
+-        for (uint8 j = 0; j<2; ++j)
+-        {
+-            unsigned char nibble = 0x0F & (bytes[i] >> ((1 - j) * 4));
+-            char encodedNibble;
+-            if (nibble < 0x0A)
+-                encodedNibble = '0' + nibble;
+-            else
+-                encodedNibble = 'A' + nibble - 0x0A;
+-            ss << encodedNibble;
+-        }
++        encoded[2 * i] = hexDigits[bytes[i] >> 4];
++        encoded[2 * i + 1] = hexDigits[bytes[i] & 0x0F];
+     }
+ 
+-    result = ss.str();
++    result = std::move(encoded);
+ }
+ 
+ std::string ByteArrayToHexStr(uint8 const* bytes, uint32 arrayLen, bool reverse /* = false */)

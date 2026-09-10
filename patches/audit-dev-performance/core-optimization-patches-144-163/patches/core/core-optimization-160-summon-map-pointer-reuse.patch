@@ -1,0 +1,64 @@
+diff --git a/src/game/Objects/Object.cpp b/src/game/Objects/Object.cpp
+index 8747f41..8c18b7e 100644
+--- a/src/game/Objects/Object.cpp
++++ b/src/game/Objects/Object.cpp
+@@ -2090,8 +2090,8 @@ uint32 Map::GetSummonLimitForObject(uint64 guid) const
+ 
+ uint32 WorldObject::GetCreatureSummonLimit() const
+ {
+-    if (FindMap())
+-        return FindMap()->GetSummonLimitForObject(GetGUID());
++    if (Map* map = FindMap())
++        return map->GetSummonLimitForObject(GetGUID());
+     return sWorld.getConfig(CONFIG_UINT32_CREATURE_SUMMON_LIMIT);
+ }
+ 
+@@ -2102,8 +2102,8 @@ void Map::SetSummonLimitForObject(uint64 guid, uint32 limit)
+ 
+ void WorldObject::SetCreatureSummonLimit(uint32 limit)
+ {
+-    if (FindMap())
+-        return FindMap()->SetSummonLimitForObject(GetGUID(), limit);
++    if (Map* map = FindMap())
++        return map->SetSummonLimitForObject(GetGUID(), limit);
+     else
+         sLog.outError("Attempt to set summon limit for %s but object is not added to map yet!", GetObjectGuid().GetString().c_str());
+ }
+@@ -2119,8 +2119,8 @@ uint32 Map::GetSummonCountForObject(uint64 guid) const
+ 
+ uint32 WorldObject::GetCreatureSummonCount() const
+ {
+-    if (FindMap())
+-        return FindMap()->GetSummonCountForObject(GetGUID());
++    if (Map* map = FindMap())
++        return map->GetSummonCountForObject(GetGUID());
+ 
+     return 0;
+ }
+@@ -2135,12 +2135,12 @@ void Map::DecrementSummonCountForObject(uint64 guid)
+ 
+ void WorldObject::DecrementSummonCounter()
+ {
+-    if (FindMap())
++    if (Map* map = FindMap())
+     {
+-        FindMap()->DecrementSummonCountForObject(GetGUID());
++        map->DecrementSummonCountForObject(GetGUID());
+ 
+         // Stop the alert if all the minions despawned
+-        if (!FindMap()->GetSummonCountForObject(GetGUID()))
++        if (!map->GetSummonCountForObject(GetGUID()))
+             m_summonLimitAlert = 0;
+     }
+     else
+@@ -2154,8 +2154,8 @@ void Map::IncrementSummonCountForObject(uint64 guid)
+ 
+ void WorldObject::IncrementSummonCounter()
+ {
+-    if (FindMap())
+-        FindMap()->IncrementSummonCountForObject(GetGUID());
++    if (Map* map = FindMap())
++        map->IncrementSummonCountForObject(GetGUID());
+     else
+         sLog.outError("Attempt to increment summon count for %s but object is not added to map yet!", GetObjectGuid().GetString().c_str());
+ }

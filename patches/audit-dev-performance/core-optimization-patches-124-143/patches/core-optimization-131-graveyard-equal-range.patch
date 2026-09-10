@@ -1,0 +1,16 @@
+diff --git a/src/game/ObjectMgr.cpp b/src/game/ObjectMgr.cpp
+index 285fa77..a6e3a07 100644
+--- a/src/game/ObjectMgr.cpp
++++ b/src/game/ObjectMgr.cpp
+@@ -8928,8 +8928,9 @@ uint32 ObjectMgr::AddCreData(uint32 entry, uint32 /*team*/, uint32 mapId, float
+ 
+ void ObjectMgr::RemoveGraveYardLink(uint32 id, uint32 zoneId, Team team, bool inDB)
+ {
+-    GraveYardMap::iterator graveLow  = m_GraveYardMap.lower_bound(zoneId);
+-    GraveYardMap::iterator graveUp   = m_GraveYardMap.upper_bound(zoneId);
++    auto graveRange = m_GraveYardMap.equal_range(zoneId);
++    GraveYardMap::iterator graveLow = graveRange.first;
++    GraveYardMap::iterator graveUp = graveRange.second;
+     if (graveLow == graveUp)
+     {
+         //sLog.outErrorDb("Table `game_graveyard_zone` incomplete: Zone %u Team %u does not have a linked graveyard.",zoneId,team);

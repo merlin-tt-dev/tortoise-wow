@@ -1,0 +1,44 @@
+Validation status: PASS (patch-level + deep semantic audit)
+
+Baseline:
+- Ultimate source of truth: complete `audits/dev-performance` archive supplied by the user.
+- Local 143 baseline: produced by applying the separately deep-audited 124-143 bundle to a fresh 1:1 copy of that archive.
+- 144-163 work was performed only on that derived local baseline; no source-remote reconstruction was used.
+
+Sequential patch validation:
+- 20/20 patches 144 through 163 applied in `APPLY-ORDER.txt` order to a fresh detached validation worktree at the exact local 143 tree.
+- For every patch:
+  - `git -c core.whitespace=trailing-space,space-before-tab,tab-in-indent apply --check --whitespace=error-all` : PASS
+  - `git -c core.whitespace=trailing-space,space-before-tab,tab-in-indent apply --numstat --whitespace=error-all` : PASS
+  - actual `git apply` : PASS
+  - `git diff --check` : PASS
+  - actual-tab-byte scan on added indentation : PASS
+  - added conflict-marker scan : PASS
+- Final validation working-tree object after sequential apply: `0ed4fcb3c3f5a3f0ef40b38b0ebb67936daa0472`
+- Audited local 163 HEAD tree object:              `0ed4fcb3c3f5a3f0ef40b38b0ebb67936daa0472`
+- Final tree identity: PASS
+
+Focused semantic validation:
+- Transmog switch constants cross-checked against the exact accepted vector constants and enum definitions; no duplicate case values.
+- DBC `LookupEntry` inspected: pure bounds check + indexed pointer read; reuse in 146/147 cannot change store state.
+- VMap `StaticMapTree` destructor inspected: only owns/deletes internal tree-value storage; it does not mutate `VMapManager2::iInstanceMapTrees`, so 148 iterator erase remains valid.
+- CustomMerchant EventProcessor move path inspected through `AddLambdaEventAtOffset` / `LambdaBasicEvent`; closure owns the same vector contents and no reference escapes.
+- `m_spellAuraHolders` confirmed as `std::multimap<uint32, SpellAuraHolder*>`; 154 remains existence-only boolean logic.
+- LFG rolePriority full call-site search confirmed append + forward-read only; no escaped iterators/references and no list-specific API.
+- `FindMap()` confirmed as pure `m_currMap` accessor; summon counter Map methods inspected for no WorldObject reentrancy/map reassignment.
+- `mangos_strdup` ownership path traced through creature aura temporary-string conversion and matching `delete[]` releases.
+- DBC `fieldsOffset` assignment/deletion paths fully enumerated for 162.
+
+Differential / standalone tests:
+- 154 keyed stronger-aura existence model: 300,000 randomized cases during development : PASS
+- 158 list stable-sort/unique vs vector stable_sort/unique: 500,000 randomized sequences with equal spell IDs/different units : PASS
+- 163 `sprintf` vs bounded `snprintf` on fitting names: 200,000 randomized cases : PASS
+- 163 overlong-name NUL termination test : PASS
+
+Proprietary-client boundary:
+- No packet opcode/body, ByteBuffer/update-mask serialization, GUID packing, network ordering, spell RNG call count/order, or client-visible target-index mapping is modified by this block.
+- Client-facing algorithmic ordering was specifically preserved where applicable (157/158); 154 returns only boolean existence and does not select a holder.
+
+Build gate:
+- Full Linux/Windows builds are intentionally not run locally for this project block; the user performs them on the dedicated build server.
+- No full-build-green claim is made here.

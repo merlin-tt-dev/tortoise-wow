@@ -1,0 +1,35 @@
+diff --git a/src/game/Group/Group.cpp b/src/game/Group/Group.cpp
+index 4167b34..ea6dd4d 100644
+--- a/src/game/Group/Group.cpp
++++ b/src/game/Group/Group.cpp
+@@ -275,10 +275,11 @@ bool Group::AddLeaderInvite(Player *player)
+ 
+ uint32 Group::RemoveInvite(Player *player)
+ {
+-    if (m_invitees.find(player) != m_invitees.end())
++    auto itr = m_invitees.find(player);
++    if (itr != m_invitees.end())
+     {
+         ASSERT(player->GetGroupInvite() == this);
+-        m_invitees.erase(player);
++        m_invitees.erase(itr);
+         player->SetGroupInvite(nullptr);
+     }
+     return GetMembersCount();
+diff --git a/src/game/Maps/GridNotifiers.cpp b/src/game/Maps/GridNotifiers.cpp
+index ca8e66d..7144e89 100644
+--- a/src/game/Maps/GridNotifiers.cpp
++++ b/src/game/Maps/GridNotifiers.cpp
+@@ -52,9 +52,10 @@ VisibleNotifier::Notify()
+     {
+         for (const auto itr : transport->GetPassengers())
+         {
+-            if (i_clientGUIDs.find(itr->GetObjectGuid()) != i_clientGUIDs.end())
++            auto clientItr = i_clientGUIDs.find(itr->GetObjectGuid());
++            if (clientItr != i_clientGUIDs.end())
+             {
+-                i_clientGUIDs.erase(itr->GetObjectGuid());
++                i_clientGUIDs.erase(clientItr);
+                 switch (itr->GetTypeId())
+                 {
+                     case TYPEID_GAMEOBJECT:

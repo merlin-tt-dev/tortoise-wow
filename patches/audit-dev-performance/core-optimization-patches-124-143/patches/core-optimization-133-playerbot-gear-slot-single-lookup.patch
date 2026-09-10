@@ -1,0 +1,19 @@
+diff --git a/src/game/PlayerBots/PlayerBotAI.cpp b/src/game/PlayerBots/PlayerBotAI.cpp
+index 88d4f52..6f15deb 100644
+--- a/src/game/PlayerBots/PlayerBotAI.cpp
++++ b/src/game/PlayerBots/PlayerBotAI.cpp
+@@ -558,10 +558,10 @@ void PlayerBotAI::AutoEquipForLevel()
+         uint32 score = effectiveLevel * 1000 + proto.Quality * 10 + proto.ItemLevel;
+ 
+         auto it = bestBySlot.find(dest);
+-        if (it != bestBySlot.end() && it->second.score >= score)
+-            continue;
+-
+-        bestBySlot[dest] = { &proto, score };
++        if (it == bestBySlot.end())
++            bestBySlot.emplace(dest, GearChoice{ &proto, score });
++        else if (it->second.score < score)
++            it->second = { &proto, score };
+     }
+ 
+     for (auto const& it : bestBySlot)

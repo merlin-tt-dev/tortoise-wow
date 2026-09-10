@@ -1,0 +1,16 @@
+diff --git a/src/game/Spells/SpellEffects.cpp b/src/game/Spells/SpellEffects.cpp
+index 9d12e69..2f7ddd8 100644
+--- a/src/game/Spells/SpellEffects.cpp
++++ b/src/game/Spells/SpellEffects.cpp
+@@ -5346,8 +5346,9 @@ void Spell::EffectTransmitted(SpellEffectIndex eff_idx)
+     }
+     else
+     {
+-        const float min_dis{ GetSpellMinRange(sSpellRangeStore.LookupEntry(m_spellInfo->rangeIndex)) };
+-        const float max_dis{ GetSpellMaxRange(sSpellRangeStore.LookupEntry(m_spellInfo->rangeIndex)) };
++        SpellRangeEntry const* rangeEntry = sSpellRangeStore.LookupEntry(m_spellInfo->rangeIndex);
++        const float min_dis{ GetSpellMinRange(rangeEntry) };
++        const float max_dis{ GetSpellMaxRange(rangeEntry) };
+         const float dis{ rand_norm_f() * (max_dis - min_dis) + min_dis };
+ 
+         const float max_angle{ (max_dis - min_dis) / (max_dis + m_caster->GetObjectBoundingRadius()) };

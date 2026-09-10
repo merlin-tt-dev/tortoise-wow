@@ -1,0 +1,25 @@
+diff --git a/src/game/Anticheat/Warden/Warden.cpp b/src/game/Anticheat/Warden/Warden.cpp
+index 88e857d..78d08a4 100644
+--- a/src/game/Anticheat/Warden/Warden.cpp
++++ b/src/game/Anticheat/Warden/Warden.cpp
+@@ -175,7 +175,7 @@ void Warden::SendModuleToClient()
+ 
+ std::vector<std::shared_ptr<const Scan>> Warden::SelectScans(ScanFlags flags) const
+ {
+-    return std::move(sWardenScanMgr.GetRandomScans(static_cast<ScanFlags>(flags | GetScanFlags())));
++    return sWardenScanMgr.GetRandomScans(static_cast<ScanFlags>(flags | GetScanFlags()));
+ }
+ 
+ void Warden::EnqueueScans(std::vector<std::shared_ptr<const Scan>> &&scans)
+diff --git a/src/game/Anticheat/Warden/WardenScanMgr.cpp b/src/game/Anticheat/Warden/WardenScanMgr.cpp
+index 0c690e3..9da5ba6 100644
+--- a/src/game/Anticheat/Warden/WardenScanMgr.cpp
++++ b/src/game/Anticheat/Warden/WardenScanMgr.cpp
+@@ -308,5 +308,5 @@ std::vector<std::shared_ptr<const Scan>> WardenScanMgr::GetRandomScans(ScanFlags
+         reply += scan->replySize;
+     }
+ 
+-    return std::move(matches);
++    return matches;
+ }
+\ No newline at end of file

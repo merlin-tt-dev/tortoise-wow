@@ -1,0 +1,24 @@
+diff --git a/src/game/Maps/ZoneScript.cpp b/src/game/Maps/ZoneScript.cpp
+index 48f9698..89de560 100644
+--- a/src/game/Maps/ZoneScript.cpp
++++ b/src/game/Maps/ZoneScript.cpp
+@@ -492,7 +492,8 @@ bool OutdoorPvP::IsInsideObjective(Player* plr) const
+ 
+ bool OPvPCapturePoint::IsInsideObjective(Player* plr) const
+ {
+-    return m_activePlayers[plr->GetTeamId()].find(plr->GetObjectGuid()) != m_activePlayers[plr->GetTeamId()].end();
++    auto const& activePlayers = m_activePlayers[plr->GetTeamId()];
++    return activePlayers.find(plr->GetObjectGuid()) != activePlayers.end();
+ }
+ 
+ bool OutdoorPvP::HandleCustomSpell(Player* plr, uint32 spellId, GameObject* go)
+@@ -618,7 +619,8 @@ void ZoneScript::RegisterZone(uint32 zoneId)
+ 
+ bool ZoneScript::HasPlayer(Player* plr) const
+ {
+-    return m_players[plr->GetTeamId()].find(plr) != m_players[plr->GetTeamId()].end();
++    auto const& players = m_players[plr->GetTeamId()];
++    return players.find(plr) != players.end();
+ }
+ 
+ void ZoneScript::TeamCastSpell(TeamId team, int32 spellId)

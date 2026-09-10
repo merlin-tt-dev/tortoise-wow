@@ -1,0 +1,45 @@
+Validation status: PASS (patch-level / semantic audit)
+
+Baseline:
+- Exact complete `audits/dev-performance` source archive supplied with this handoff.
+- Archive contains no `.git` metadata; no HEAD/commit identity is inferred.
+- Existing bundle 105-123 was checked against the delivered source: 19/19 patches passed `git apply --reverse --check`, confirming that 105-123 are already integrated and 124 is the next free number.
+
+Sequential validation:
+- 20/20 patches 124 through 143 applied in `APPLY-ORDER.txt` order to a disposable 1:1 copy of the supplied source tree.
+- For every patch:
+  - `git -c core.whitespace=trailing-space,space-before-tab,tab-in-indent apply --check --whitespace=error-all` : PASS
+  - `git -c core.whitespace=trailing-space,space-before-tab,tab-in-indent apply --numstat --whitespace=error-all` : PASS
+  - `git apply` : PASS
+  - `git diff --check` : PASS
+  - newly-added tab-indentation scan : PASS
+  - added conflict-marker scan : PASS
+- Final source tree after sequential apply matched the audited working source tree exactly : PASS
+
+Additional semantic/differential tests:
+- `hexEncodeByteArray` + `ByteArrayToHexStr`: 300,000 randomized arrays; forward/reverse and empty inputs : PASS
+- `hexEncodeByteArray` input/result alias differential: 10,000 randomized cases where `bytes` points into the pre-call `result` storage : PASS
+- LFT `SplitPreserveEmpty`: 300,000 randomized strings including repeated delimiters, leading/trailing empties and embedded NULs : PASS
+- Spell dispel list/vector selection model: 300,000 randomized stack/priority/index traces : PASS
+- Spell chain-target list/vector model: 250,000 randomized traces with stable distance ties, LOS skips, player filtering, repeated erase/re-sort and identical RNG indices : PASS
+- Atomic enum expression compile sanity under C++17/GCC : PASS
+
+Focused source/call-site audit:
+- World lifecycle state: all `m_stopEvent`, `m_ExitCode`, and `m_worldLoopCounter` source references traced.
+- World loop counter has one writer (`WorldRunnable`) and a read-only anti-freeze observer; relaxed load/store is sufficient for the counter itself.
+- Hex helper call sites traced through account/Discord authentication, Warden logging, and AutoUpdater. Current `hexEncodeByteArray` callers do not alias input/output, but 127 was nevertheless made alias-safe to preserve the broader historical function behavior.
+- 127/128 output-size arithmetic is guarded before `2 * arrayLen`, preventing a 32-bit `size_t` wrap.
+- ThreadPool status/error accesses traced through controller, worker, shutdown and exception paths.
+- Associative erase types checked: `m_invitees` is `std::set`, `i_clientGUIDs` is `std::unordered_set`; iterator erase preserves unique-key behavior.
+- PlayerBot `GearChoice` mapped type checked as a trivial aggregate; miss/tie/overwrite semantics reconstructed.
+- ZoneScript `GetTeamId()` checked as a pure inline getter.
+- Spell chain searcher template inspected: both containers receive the same `push_back` visit order; `TargetDistanceOrderNear` comparator source inspected.
+- Dispel aura lifetime inspected through the later removal phase; source aura map is not mutated during candidate selection.
+- Detour `dtNavMesh::init` / `addTile` ownership transfer inspected in the exact bundled dependency source.
+
+Build/configure gate:
+- Local Linux CMake configure was attempted with GCC 14.2 / C++17-oriented project configuration.
+- Configure stops before project compilation because ACE is not installed in the sandbox (`This project requires ACE installed`).
+- Therefore no Linux full-build-green claim is made.
+- MinGW full build was not run.
+- PostgreSQL functional/build status is intentionally outside this branch and not claimed.

@@ -1,0 +1,39 @@
+diff --git a/src/shared/Database/SqlDelayThread.cpp b/src/shared/Database/SqlDelayThread.cpp
+index 0ea73c1..a70eca3 100644
+--- a/src/shared/Database/SqlDelayThread.cpp
++++ b/src/shared/Database/SqlDelayThread.cpp
+@@ -52,7 +52,7 @@ void SqlDelayThread::run()
+     #endif
+ 
+     char ThreadName[128];
+-    sprintf(ThreadName, "SqlDelay %s", Name);
++    snprintf(ThreadName, sizeof(ThreadName), "SqlDelay %s", Name);
+ 
+     thread_name(ThreadName);
+     const uint32 loopSleepms = 10;
+diff --git a/src/shared/Database/SqlOperations.cpp b/src/shared/Database/SqlOperations.cpp
+index b34de95..593b1b9 100644
+--- a/src/shared/Database/SqlOperations.cpp
++++ b/src/shared/Database/SqlOperations.cpp
+@@ -158,7 +158,7 @@ SqlResultQueue::SqlResultQueue(const char* Name) :
+     numUnsafeQueries(0)
+ {
+     char PoolName[128];
+-    sprintf(PoolName, "SqlCallback %s", Name);
++    snprintf(PoolName, sizeof(PoolName), "SqlCallback %s", Name);
+     m_callbackThreads.reset(new ThreadPool(6, PoolName));
+     m_callbackThreads->start<SqlResultQueueWorker>();
+ }
+diff --git a/src/shared/ThreadPool.cpp b/src/shared/ThreadPool.cpp
+index 4326b29..38657b9 100644
+--- a/src/shared/ThreadPool.cpp
++++ b/src/shared/ThreadPool.cpp
+@@ -127,7 +127,7 @@ ThreadPool::worker::~worker()
+ void ThreadPool::worker::loop_wrapper()
+ {
+     char ThreadName[128];
+-    sprintf(ThreadName, "PoolThread %s %d", Name.c_str(), id);
++    snprintf(ThreadName, sizeof(ThreadName), "PoolThread %s %d", Name.c_str(), id);
+     thread_name(ThreadName);
+     
+     if (pool->m_errorHandling == ErrorHandling::NONE)

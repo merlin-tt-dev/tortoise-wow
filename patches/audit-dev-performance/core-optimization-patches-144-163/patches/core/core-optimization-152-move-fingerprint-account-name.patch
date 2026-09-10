@@ -1,0 +1,13 @@
+diff --git a/src/game/World.cpp b/src/game/World.cpp
+index 5888325..20bcb65 100644
+--- a/src/game/World.cpp
++++ b/src/game/World.cpp
+@@ -3680,7 +3680,7 @@ std::unordered_set<std::string> World::GetAccountNamesByFingerprint(uint32 finge
+ 
+ void World::AddFingerprint(uint32 fingerprint, std::string accountName)
+ {
+-    m_fingerprintAccounts[fingerprint].insert(accountName);
++    m_fingerprintAccounts[fingerprint].insert(std::move(accountName));
+ }
+ 
+ void World::SetLastDiff(uint32 diff)

@@ -1,0 +1,26 @@
+diff --git a/src/game/Objects/Unit.cpp b/src/game/Objects/Unit.cpp
+index 2d1dc94..5dea847 100644
+--- a/src/game/Objects/Unit.cpp
++++ b/src/game/Objects/Unit.cpp
+@@ -4768,7 +4768,7 @@ public:
+     Unit*  unit;
+ };
+ 
+-typedef std::list<RemovedSpellData> RemoveSpellList;
++typedef std::vector<RemovedSpellData> RemoveSpellList;
+ 
+ void Unit::HandleTriggers(Unit* pVictim, uint32 procExtra, uint32 amount, int32 originalAmount, SpellEntry const* procSpell, ProcTriggeredList const& procTriggered)
+ {
+@@ -4873,9 +4873,9 @@ void Unit::HandleTriggers(Unit* pVictim, uint32 procExtra, uint32 amount, int32
+ 
+     if (!removedSpells.empty())
+     {
+-        // Sort spells and remove duplicates
+-        removedSpells.sort();
+-        removedSpells.unique();
++        // Sort spells and remove duplicates while preserving the old stable ordering for equal spell ids.
++        std::stable_sort(removedSpells.begin(), removedSpells.end());
++        removedSpells.erase(std::unique(removedSpells.begin(), removedSpells.end()), removedSpells.end());
+         // Remove auras from removedAuras
+         for (const auto& i : removedSpells)
+             i.unit->RemoveAurasDueToSpell(i.spellId);

@@ -1,0 +1,12 @@
+diff --git a/src/game/Guild/Guild.cpp b/src/game/Guild/Guild.cpp
+index 3e731a4..baa41e8 100644
+--- a/src/game/Guild/Guild.cpp
++++ b/src/game/Guild/Guild.cpp
+@@ -947,6 +947,7 @@ WorldPacket Guild::BuildOnlineRosterPacket(bool sendOfficerNote)
+ 
+     size_t onlineMembers = 0;
+     std::vector<TempMemberInfo> onlineMemberCache;
++    onlineMemberCache.reserve(members.size() / 2);
+ 
+     uint32 totalSize = 0;
+     totalSize += sizeof(uint32); // count

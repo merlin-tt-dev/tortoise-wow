@@ -1,0 +1,20 @@
+diff --git a/src/game/PlayerBots/PlayerBotMgr.cpp b/src/game/PlayerBots/PlayerBotMgr.cpp
+index e1ecfd5..4f94ceb 100644
+--- a/src/game/PlayerBots/PlayerBotMgr.cpp
++++ b/src/game/PlayerBots/PlayerBotMgr.cpp
+@@ -369,12 +369,9 @@ void PlayerBotMgr::AddTempBot(uint32 account, uint32 time)
+ 
+ void PlayerBotMgr::RefreshTempBot(uint32 account)
+ {
+-    if (m_tempBots.find(account) != m_tempBots.end())
+-    {
+-        uint32& delay = m_tempBots[account];
+-        if (delay < 1000)
+-            delay = 1000;
+-    }
++    auto itr = m_tempBots.find(account);
++    if (itr != m_tempBots.end() && itr->second < 1000)
++        itr->second = 1000;
+ }
+ 
+ bool PlayerBotMgr::DeleteBot(uint32 playerGUID)

@@ -1,0 +1,35 @@
+diff --git a/src/game/ObjectMgr.cpp b/src/game/ObjectMgr.cpp
+index 455a8e7..0ebe080 100644
+--- a/src/game/ObjectMgr.cpp
++++ b/src/game/ObjectMgr.cpp
+@@ -9820,7 +9820,7 @@ void ObjectMgr::DeleteItemTransmogrifyTemplate(uint32 transmogrifyId)
+     if (itr == m_itemTransmogs.end())
+         return;
+ 
+-    m_itemTransmogs.erase(transmogrifyId);
++    m_itemTransmogs.erase(itr);
+     sWorld.SendSingleItemInvalidate(transmogrifyId);
+     CharacterDatabase.PExecuteLog("DELETE FROM `item_transmogs` WHERE `ID`=%u", transmogrifyId);
+ }
+diff --git a/src/game/vmap/VMapManager2.cpp b/src/game/vmap/VMapManager2.cpp
+index 3333f43..905d1b2 100644
+--- a/src/game/vmap/VMapManager2.cpp
++++ b/src/game/vmap/VMapManager2.cpp
+@@ -119,7 +119,7 @@ void VMapManager2::unloadMap(unsigned int pMapId)
+         if (instanceTree->second->numLoadedTiles() == 0)
+         {
+             delete instanceTree->second;
+-            iInstanceMapTrees.erase(pMapId);
++            iInstanceMapTrees.erase(instanceTree);
+         }
+     }
+ }
+@@ -135,7 +135,7 @@ void VMapManager2::unloadMap(unsigned int  pMapId, int x, int y)
+         if (instanceTree->second->numLoadedTiles() == 0)
+         {
+             delete instanceTree->second;
+-            iInstanceMapTrees.erase(pMapId);
++            iInstanceMapTrees.erase(instanceTree);
+         }
+     }
+ }

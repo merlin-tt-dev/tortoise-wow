@@ -1,0 +1,17 @@
+diff --git a/src/game/ObjectMgr.cpp b/src/game/ObjectMgr.cpp
+index 212ea37..455a8e7 100644
+--- a/src/game/ObjectMgr.cpp
++++ b/src/game/ObjectMgr.cpp
+@@ -9883,9 +9883,9 @@ bool ObjectMgr::IsItemSubClassTransmoggable(uint32 subClass)
+ 
+ void ObjectMgr::AddPossibleTransmog(uint8 pClass, uint32 itemClass, uint32 itemSubClass, uint32 invType, uint32 displayId)
+ {
+-    if (std::find(NumPossibleTransmogs[pClass][itemClass][itemSubClass][invType].begin(),
+-        NumPossibleTransmogs[pClass][itemClass][itemSubClass][invType].end(), displayId) == NumPossibleTransmogs[pClass][itemClass][itemSubClass][invType].end())
+-        NumPossibleTransmogs[pClass][itemClass][itemSubClass][invType].push_back(displayId);
++    TransmogContainer& transmogs = NumPossibleTransmogs[pClass][itemClass][itemSubClass][invType];
++    if (std::find(transmogs.begin(), transmogs.end(), displayId) == transmogs.end())
++        transmogs.push_back(displayId);
+     return;
+ }
+ 

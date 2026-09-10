@@ -1,0 +1,28 @@
+diff --git a/src/game/Maps/MoveMap.cpp b/src/game/Maps/MoveMap.cpp
+index 02f31d0..8105ed1 100644
+--- a/src/game/Maps/MoveMap.cpp
++++ b/src/game/Maps/MoveMap.cpp
+@@ -177,6 +177,7 @@ bool MMapManager::loadMap(uint32 mapId, int32 x, int32 y)
+     {
+         sLog.outError("MMAP:loadMap: Bad header or data in mmap %03u%02i%02i.mmtile", mapId, x, y);
+         fclose(file);
++        dtFree(data);
+         return false;
+     }
+ 
+@@ -395,6 +396,7 @@ bool MMapManager::loadGameObject(uint32 displayId)
+     {
+         sLog.outError("MMAP:loadGameObject: Bad header or data in mmap %s", fileName.c_str());
+         fclose(file);
++        dtFree(data);
+         return false;
+     }
+ 
+@@ -406,6 +408,7 @@ bool MMapManager::loadGameObject(uint32 displayId)
+     if (dtStatusFailed(r))
+     {
+         dtFreeNavMesh(mesh);
++        dtFree(data);
+         sLog.outError("MMAP:loadGameObject: Failed to initialize dtNavMesh from file %s. Result 0x%x.", fileName.c_str(), r);
+         return false;
+     }

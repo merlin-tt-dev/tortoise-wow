@@ -1,0 +1,43 @@
+diff --git a/src/shared/Util.cpp b/src/shared/Util.cpp
+index 71004b7..158c04c 100644
+--- a/src/shared/Util.cpp
++++ b/src/shared/Util.cpp
+@@ -660,26 +660,23 @@ void hexEncodeByteArray(uint8* bytes, uint32 arrayLen, std::string& result)
+ 
+ std::string ByteArrayToHexStr(uint8 const* bytes, uint32 arrayLen, bool reverse /* = false */)
+ {
+-    int32 init = 0;
+-    int32 end = arrayLen;
+-    int8 op = 1;
++    static constexpr char hexDigits[] = "0123456789ABCDEF";
+ 
+-    if (reverse)
+-    {
+-        init = arrayLen - 1;
+-        end = -1;
+-        op = -1;
+-    }
++    std::string result;
++    size_t const byteCount = static_cast<size_t>(arrayLen);
++    if (byteCount > result.max_size() / 2)
++        throw std::length_error("ByteArrayToHexStr result too large");
+ 
+-    std::ostringstream ss;
+-    for (int32 i = init; i != end; i += op)
++    result.resize(byteCount * 2);
++    for (uint32 i = 0; i < arrayLen; ++i)
+     {
+-        char buffer[4];
+-        sprintf(buffer, "%02X", bytes[i]);
+-        ss << buffer;
++        uint32 sourceIndex = reverse ? arrayLen - i - 1 : i;
++        uint8 byte = bytes[sourceIndex];
++        result[2 * i] = hexDigits[byte >> 4];
++        result[2 * i + 1] = hexDigits[byte & 0x0F];
+     }
+ 
+-    return ss.str();
++    return result;
+ }
+ 
+ void HexStrToByteArray(std::string const& str, uint8* out, bool reverse /*= false*/)

@@ -1,0 +1,12 @@
+diff --git a/src/game/Group/Group.cpp b/src/game/Group/Group.cpp
+index ea6dd4d..de2d39f 100644
+--- a/src/game/Group/Group.cpp
++++ b/src/game/Group/Group.cpp
+@@ -667,6 +667,7 @@ void Group::CalculateLFGRoles(LFGGroupQueueInfo& data)
+     };
+ 
+     std::vector<ObjectGuid> processed;
++    processed.reserve(GetMembersCount());
+ 
+     for (const auto& citr : GetMemberSlots())
+     {
