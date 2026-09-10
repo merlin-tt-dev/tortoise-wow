@@ -26,6 +26,7 @@
 #include <functional>
 #include <atomic>
 #include <future>
+#include <mutex>
 
 #ifdef WIN32
 #undef ERROR
@@ -206,6 +207,7 @@ private:
     std::atomic<int> m_active;
     std::atomic<int> m_index;
     std::vector<std::exception_ptr> m_errors;
+    mutable std::mutex m_errorsMutex;
     std::promise<void> m_result;
     workers_t m_workers;
 };

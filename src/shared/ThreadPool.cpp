@@ -87,6 +87,7 @@ size_t ThreadPool::size() const
 
 std::vector<std::exception_ptr> ThreadPool::taskErrors() const
 {
+    std::lock_guard<std::mutex> lock(m_errorsMutex);
     return m_errors;
 }
 
@@ -154,7 +155,10 @@ void ThreadPool::worker::loop_wrapper()
         try{
             if (err_p)
             {
-                pool->m_errors.push_back(err_p);
+                {
+                    std::lock_guard<std::mutex> lock(pool->m_errorsMutex);
+                    pool->m_errors.push_back(err_p);
+                }
                 std::rethrow_exception(err_p);
             }
         }
@@ -210,7 +214,12 @@ void ThreadPool::worker::loop()
             if (pool->m_status == Status::ERROR)
             {
                 pool->m_status = Status::READY;
-                pool->m_result.set_exception(pool->m_errors.front());
+                std::exception_ptr error;
+                {
+                    std::lock_guard<std::mutex> lock(pool->m_errorsMutex);
+                    error = pool->m_errors.front();
+                }
+                pool->m_result.set_exception(error);
             }
             else
             {
