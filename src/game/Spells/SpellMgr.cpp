@@ -1980,7 +1980,7 @@ void SpellMgr::LoadSpellLearnSpells()
 
 void SpellMgr::LoadSpellScriptTarget()
 {
-    std::set<uint32> conditions;
+    std::unordered_set<uint32> conditions;
 
     // Load existing condition Ids so we can check for wrong condition Id later.
     std::unique_ptr<QueryResult> result(WorldDatabase.Query("SELECT `condition_entry` FROM `conditions`"));
