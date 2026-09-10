@@ -413,7 +413,7 @@ bool LFTManager::TryBuildOfferForInstance(std::string const& instance)
             continue;
 
         selectedRoles.clear();
-        std::set<ObjectGuid> selected;
+        std::vector<ObjectGuid> selected;
         uint8 tanks = 0;
         uint8 healers = 0;
         uint8 damage = 0;
@@ -423,7 +423,7 @@ bool LFTManager::TryBuildOfferForInstance(std::string const& instance)
             if (selected.size() >= 5)
                 break;
 
-            if (selected.find(itr->first) != selected.end() || m_playerOffers.find(itr->first) != m_playerOffers.end())
+            if (std::find(selected.begin(), selected.end(), itr->first) != selected.end() || m_playerOffers.find(itr->first) != m_playerOffers.end())
                 continue;
 
             if (!HasInstance(itr->second.instances, instance))
@@ -450,7 +450,7 @@ bool LFTManager::TryBuildOfferForInstance(std::string const& instance)
             for (QueueMap::const_iterator queued : block)
             {
                 ObjectGuid const& guid = queued->first;
-                if (selected.find(guid) != selected.end() ||
+                if (std::find(selected.begin(), selected.end(), guid) != selected.end() ||
                     m_playerOffers.find(guid) != m_playerOffers.end() || !HasInstance(queued->second.instances, instance) ||
                     !CanQueuedPlayersGroup(seed->second, queued->second))
                 {
@@ -479,7 +479,7 @@ bool LFTManager::TryBuildOfferForInstance(std::string const& instance)
 
             for (std::map<ObjectGuid, uint8>::const_iterator roleItr = blockRoles.begin(); roleItr != blockRoles.end(); ++roleItr)
             {
-                selected.insert(roleItr->first);
+                selected.push_back(roleItr->first);
                 selectedRoles[roleItr->first] = roleItr->second;
             }
 
