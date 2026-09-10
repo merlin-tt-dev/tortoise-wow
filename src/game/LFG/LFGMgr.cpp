@@ -52,6 +52,9 @@ void LFGPlayerQueueInfo::CalculateRoles(Classes playerClass)
 {
     roleMask = LFGQueue::CalculateRoles(playerClass);
 
+    if (rolePriority.empty())
+        rolePriority.reserve(PotentialRoles.size());
+
     // Determine role priority
     for (ClassRoles role : PotentialRoles)
     {

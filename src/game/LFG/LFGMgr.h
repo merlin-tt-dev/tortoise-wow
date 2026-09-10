@@ -25,7 +25,7 @@
 #ifndef MANGOSSERVER_LFGMGR_H
 #define MANGOSSERVER_LFGMGR_H
 
-#include <list>
+#include <vector>
 #include <map>
 
 #include "Policies/Singleton.h"
@@ -70,7 +70,7 @@ struct LFGPlayerQueueInfo
     bool hasQueuePriority;
     bool isHardcore = false;
     std::string name;
-    std::list<std::pair<ClassRoles, RolesPriority>> rolePriority;
+    std::vector<std::pair<ClassRoles, RolesPriority>> rolePriority;
 
     void CalculateRoles(Classes playerClass);
     RolesPriority GetRolePriority(ClassRoles role);
