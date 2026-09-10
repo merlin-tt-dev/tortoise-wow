@@ -1373,7 +1373,7 @@ class World
         std::mutex m_autoPDumpMutex;
         std::set<uint32> m_autoPDumpPendingGuids;
         std::unordered_map<uint32, std::unordered_set<time_t>> m_autoPDumpCharTimes;
-        std::set<uint32> m_lockedCharacterGuids;
+        std::unordered_set<uint32> m_lockedCharacterGuids;
         std::thread m_asyncPacketsThread;
         bool m_canProcessAsyncPackets;
         std::mutex m_asyncPacketsMutex;

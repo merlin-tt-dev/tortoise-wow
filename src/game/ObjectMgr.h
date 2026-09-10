@@ -1463,11 +1463,11 @@ class ObjectMgr
 
 
         // Deactivated Spells
-        std::set<uint32>    m_DisabledSpells;
+        std::unordered_set<uint32> m_DisabledSpells;
         void LoadSpellDisabledEntrys();
         bool IsSpellDisabled(uint32 spellid) const { return m_DisabledSpells.count(spellid) != 0; }
         // map_loot_disabled
-        std::set<uint32>    m_DisabledMapLoots;
+        std::unordered_set<uint32> m_DisabledMapLoots;
         void LoadMapLootDisabled();
         bool IsMapLootDisabled(uint32 mapId) const { return m_DisabledMapLoots.count(mapId) != 0; }
         // Cinematics
@@ -1724,16 +1724,16 @@ class ObjectMgr
         void LoadTrainers(char const* tableName, bool isTemplates);
 
         // Storing all existing IDs in database.
-        std::set<uint32> m_ItemIdSet;
-        std::set<uint32> m_QuestIdSet;
-        std::set<uint32> m_CreatureIdSet;
-        std::set<uint32> m_GameObjectIdSet;
-        std::set<uint32> m_CreatureGuidSet;
-        std::set<uint32> m_GameObjectGuidSet;
-        std::set<uint32> m_AreaTriggerIdSet;
-        std::set<uint32> m_CreatureSpellsIdSet;
-        std::set<uint32> m_VendorTemplateIdSet;
-        std::set<uint32> m_GossipMenuIdSet;
+        std::unordered_set<uint32> m_ItemIdSet;
+        std::unordered_set<uint32> m_QuestIdSet;
+        std::unordered_set<uint32> m_CreatureIdSet;
+        std::unordered_set<uint32> m_GameObjectIdSet;
+        std::unordered_set<uint32> m_CreatureGuidSet;
+        std::unordered_set<uint32> m_GameObjectGuidSet;
+        std::unordered_set<uint32> m_AreaTriggerIdSet;
+        std::unordered_set<uint32> m_CreatureSpellsIdSet;
+        std::unordered_set<uint32> m_VendorTemplateIdSet;
+        std::unordered_set<uint32> m_GossipMenuIdSet;
 
         typedef std::map<uint32,PetLevelInfo*> PetLevelInfoMap;
         // PetLevelInfoMap[creature_id][level]
