@@ -24,14 +24,12 @@ namespace DiscordBot
 
         _commandHandler->add_command(command, parameters, std::move(handler), description, guild_id);
 
-        auto itr = _commandLinks.find(command);
-
-        if (itr != _commandLinks.end())
+        auto const insertResult = _commandLinks.try_emplace(command, this);
+        if (!insertResult.second)
         {
             sLog.outDiscord("ERROR: Command link for command %s already added.", command.c_str());
             return;
         }
-        _commandLinks[command] = this;
     }
 
     bool BaseCommandHandler::CheckAllowedAccess(const dpp::user* user, std::string command)
