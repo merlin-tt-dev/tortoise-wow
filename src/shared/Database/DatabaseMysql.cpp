@@ -276,10 +276,10 @@ QueryNamedResult* MySQLConnection::QueryNamed(const char *sql)
     for (uint32 i = 0; i < fieldCount; i++)
         names[i] = fields[i].name;
 
-    QueryResultMysql *queryResult = new QueryResultMysql(result, fields, rowCount, fieldCount);
+    auto queryResult = std::make_unique<QueryResultMysql>(result, fields, rowCount, fieldCount);
 
     queryResult->NextRow();
-    return new QueryNamedResult(queryResult,names);
+    return new QueryNamedResult(std::move(queryResult), std::move(names));
 }
 
 bool MySQLConnection::ExecuteMultiline(const char* sql)

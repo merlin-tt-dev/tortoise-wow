@@ -62,8 +62,8 @@ typedef std::vector<std::string> QueryFieldNames;
 class QueryNamedResult
 {
     public:
-        explicit QueryNamedResult(QueryResult* query, QueryFieldNames const& names) : mQuery(query), mFieldNames(names) {}
-        ~QueryNamedResult() { delete mQuery; }
+        explicit QueryNamedResult(std::unique_ptr<QueryResult> query, QueryFieldNames names)
+            : mQuery(std::move(query)), mFieldNames(std::move(names)) {}
 
         // compatible interface with QueryResult
         bool NextRow() { return mQuery->NextRow(); }
@@ -88,7 +88,7 @@ class QueryNamedResult
         }
 
     protected:
-        QueryResult *mQuery;
+        std::unique_ptr<QueryResult> mQuery;
         QueryFieldNames mFieldNames;
 };
 

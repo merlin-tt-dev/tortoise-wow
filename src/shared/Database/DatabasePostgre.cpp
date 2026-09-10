@@ -150,10 +150,10 @@ QueryNamedResult* PostgreSQLConnection::QueryNamed(const char *sql)
     for (uint32 i = 0; i < fieldCount; i++)
         names[i] = PQfname(result, i);
 
-    QueryResultPostgre * queryResult = new QueryResultPostgre(result, rowCount, fieldCount);
+    auto queryResult = std::make_unique<QueryResultPostgre>(result, rowCount, fieldCount);
 
     queryResult->NextRow();
-    return new QueryNamedResult(queryResult,names);
+    return new QueryNamedResult(std::move(queryResult), std::move(names));
 }
 
 bool PostgreSQLConnection::ExecuteMultiline(const char* sql)
