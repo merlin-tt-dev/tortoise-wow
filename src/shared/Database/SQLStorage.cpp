@@ -58,9 +58,7 @@ void SQLStorageBase::prepareToLoad(uint32 maxEntry, uint32 recordCount, uint32 r
     m_maxEntry = maxEntry;
     m_recordSize = recordSize;
 
-    delete[] m_data;
-    m_data = new char[recordCount * m_recordSize];
-    memset(m_data, 0, recordCount * m_recordSize);
+    m_data = std::make_unique<char[]>(recordCount * m_recordSize);
 
     m_recordCount = 0;
 }
@@ -82,7 +80,7 @@ void SQLStorageBase::Free()
             case FT_STRING:
             {
                 for (uint32 recordItr = 0; recordItr < m_recordCount; ++recordItr)
-                    delete[] *(char**)((char*)(m_data + (recordItr * m_recordSize)) + offset);
+                    delete[] *(char**)(m_data.get() + (recordItr * m_recordSize) + offset);
 
                 offset += sizeof(char*);
                 break;
@@ -115,8 +113,7 @@ void SQLStorageBase::Free()
                 break;
         }
     }
-    delete[] m_data;
-    m_data = nullptr;
+    m_data.reset();
     m_recordCount = 0;
 }
 
@@ -130,8 +127,7 @@ void SQLStorage::EraseEntry(uint32 id)
 void SQLStorage::Free()
 {
     SQLStorageBase::Free();
-    delete[] m_Index;
-    m_Index = nullptr;
+    m_Index.clear();
 }
 
 void SQLStorage::Load(bool error_at_empty /*= true*/)
@@ -143,13 +139,11 @@ void SQLStorage::Load(bool error_at_empty /*= true*/)
 SQLStorage::SQLStorage(const char* fmt, const char* _entry_field, const char* sqlname)
 {
     Initialize(sqlname, _entry_field, fmt, fmt);
-    m_Index = nullptr;
 }
 
 SQLStorage::SQLStorage(const char* src_fmt, const char* dst_fmt, const char* _entry_field, const char* sqlname)
 {
     Initialize(sqlname, _entry_field, src_fmt, dst_fmt);
-    m_Index = nullptr;
 }
 
 void SQLStorage::prepareToLoad(uint32 maxRecordId, uint32 recordCount, uint32 recordSize)
@@ -158,8 +152,7 @@ void SQLStorage::prepareToLoad(uint32 maxRecordId, uint32 recordCount, uint32 re
     Free();
 
     // Set index array
-    m_Index = new char* [maxRecordId];
-    memset(m_Index, 0, maxRecordId * sizeof(char*));
+    m_Index.assign(maxRecordId, nullptr);
 
     SQLStorageBase::prepareToLoad(maxRecordId, recordCount, recordSize);
 }

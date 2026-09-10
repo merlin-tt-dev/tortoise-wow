@@ -23,6 +23,9 @@
 #include "Database/DatabaseEnv.h"
 #include "DBCFileLoader.h"
 
+#include <memory>
+#include <vector>
+
 class SQLStorageBase
 {
         template<class DerivedLoader, class StorageClass> friend class SQLStorageLoaderBase;
@@ -62,9 +65,9 @@ class SQLStorageBase
         };
 
         template<typename T>
-        SQLSIterator<T> begin() const { return SQLSIterator<T>(m_data, m_recordSize); }
+        SQLSIterator<T> begin() const { return SQLSIterator<T>(m_data.get(), m_recordSize); }
         template<typename T>
-        SQLSIterator<T> end() const { return SQLSIterator<T>(m_data + m_recordCount * m_recordSize, m_recordSize); }
+        SQLSIterator<T> end() const { return SQLSIterator<T>(m_data.get() + m_recordCount * m_recordSize, m_recordSize); }
 
     protected:
         SQLStorageBase();
@@ -97,7 +100,7 @@ class SQLStorageBase
         uint32 m_recordSize;
 
         // Data Storage
-        char* m_data;
+        std::unique_ptr<char[]> m_data;
 };
 
 class SQLStorage : public SQLStorageBase
@@ -133,7 +136,7 @@ class SQLStorage : public SQLStorageBase
 
     private:
         // Lookup access
-        char** m_Index;
+        std::vector<char*> m_Index;
 };
 
 class SQLHashStorage : public SQLStorageBase
