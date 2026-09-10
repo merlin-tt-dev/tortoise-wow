@@ -52,7 +52,7 @@ void SqlDelayThread::run()
     #endif
 
     char ThreadName[128];
-    sprintf(ThreadName, "SqlDelay %s", Name);
+    snprintf(ThreadName, sizeof(ThreadName), "SqlDelay %s", Name);
 
     thread_name(ThreadName);
     const uint32 loopSleepms = 10;

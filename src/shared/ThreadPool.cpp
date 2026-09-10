@@ -127,7 +127,7 @@ ThreadPool::worker::~worker()
 void ThreadPool::worker::loop_wrapper()
 {
     char ThreadName[128];
-    sprintf(ThreadName, "PoolThread %s %d", Name.c_str(), id);
+    snprintf(ThreadName, sizeof(ThreadName), "PoolThread %s %d", Name.c_str(), id);
     thread_name(ThreadName);
     
     if (pool->m_errorHandling == ErrorHandling::NONE)

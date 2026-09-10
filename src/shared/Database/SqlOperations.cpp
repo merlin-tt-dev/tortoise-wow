@@ -158,7 +158,7 @@ SqlResultQueue::SqlResultQueue(const char* Name) :
     numUnsafeQueries(0)
 {
     char PoolName[128];
-    sprintf(PoolName, "SqlCallback %s", Name);
+    snprintf(PoolName, sizeof(PoolName), "SqlCallback %s", Name);
     m_callbackThreads.reset(new ThreadPool(6, PoolName));
     m_callbackThreads->start<SqlResultQueueWorker>();
 }
