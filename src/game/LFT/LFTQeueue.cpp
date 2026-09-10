@@ -127,6 +127,7 @@ void LFTManager::HandleQueueLeave(Player* player)
 
     ObjectGuid leaderGuid = queueItr->second.queueLeaderGuid.IsEmpty() ? guid : queueItr->second.queueLeaderGuid;
     std::vector<ObjectGuid> toRemove;
+    toRemove.reserve(m_queue.size());
     for (QueueMap::const_iterator itr = m_queue.begin(); itr != m_queue.end(); ++itr)
     {
         ObjectGuid itrLeader = itr->second.queueLeaderGuid.IsEmpty() ? itr->first : itr->second.queueLeaderGuid;
@@ -344,7 +345,10 @@ void LFTManager::CancelRolecheck(RolecheckMap::iterator itr)
         return;
 
     for (ObjectGuid const& guid : itr->second.members)
-        SendQueueLeft(guid, GetPlayer(guid) ? GetPlayer(guid)->GetName() : "");
+    {
+        Player* player = GetPlayer(guid);
+        SendQueueLeft(guid, player ? player->GetName() : "");
+    }
 
     m_rolechecks.erase(itr);
 }
@@ -371,8 +375,10 @@ void LFTManager::CancelOffer(uint32 offerId, bool requeueAccepted, ObjectGuid co
         }
         else
         {
-            m_queue.erase(itr->first);
-            SendQueueLeft(itr->first, GetPlayer(itr->first) ? GetPlayer(itr->first)->GetName() : "");
+            if (queued != m_queue.end())
+                m_queue.erase(queued);
+            Player* player = GetPlayer(itr->first);
+            SendQueueLeft(itr->first, player ? player->GetName() : "");
         }
     }
 
