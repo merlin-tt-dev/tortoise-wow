@@ -112,10 +112,11 @@ void freezeDetector(uint32 _delaytime)
         uint32 curtime = WorldTimer::getMSTime();
 
         // normal work
-        if (loops != World::m_worldLoopCounter)
+        uint32 currentLoops = World::m_worldLoopCounter.load(std::memory_order_relaxed);
+        if (loops != currentLoops)
         {
             lastchange = curtime;
-            loops = World::m_worldLoopCounter;
+            loops = currentLoops;
         }
         // possible freeze
 #ifdef NDEBUG

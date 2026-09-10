@@ -77,7 +77,7 @@ std::future<void> ThreadPool::processWorkload(workload_t &&workload, Callable pr
 
 ThreadPool::Status ThreadPool::status() const
 {
-    return m_status;
+    return m_status.load();
 }
 
 size_t ThreadPool::size() const

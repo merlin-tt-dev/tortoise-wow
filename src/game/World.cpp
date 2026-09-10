@@ -123,9 +123,9 @@ namespace HttpApi
 
 #include <chrono>
 
-volatile bool World::m_stopEvent = false;
-uint8 World::m_ExitCode = SHUTDOWN_EXIT_CODE;
-volatile uint32 World::m_worldLoopCounter = 0;
+std::atomic_bool World::m_stopEvent{false};
+std::atomic<uint8> World::m_ExitCode{SHUTDOWN_EXIT_CODE};
+std::atomic<uint32> World::m_worldLoopCounter{0};
 
 float World::m_MaxVisibleDistanceOnContinents = DEFAULT_VISIBILITY_DISTANCE;
 float World::m_MaxVisibleDistanceInInstances = DEFAULT_VISIBILITY_INSTANCE;
@@ -2745,7 +2745,7 @@ void World::Update(uint32 diff)
 
 	sGuildMgr.Update(diff);
 
-    if (!m_ShutdownTimer && !m_stopEvent &&
+    if (!m_ShutdownTimer && !IsStopped() &&
         getConfig(CONFIG_UINT32_AUTO_RESTART_MAX_SERVER_UPTIME) &&
         getConfig(CONFIG_UINT32_AUTO_RESTART_MAX_SERVER_UPTIME) < GetUptime() &&
         GetGameDay() != sHonorMaintenancer.GetNextMaintenanceDay())
@@ -3246,13 +3246,13 @@ void World::_UpdateGameTime()
     m_gameDay = (m_gameTime + m_timeZoneOffset) / DAY;
 
     ///- if there is a shutdown timer
-    if (!m_stopEvent && m_ShutdownTimer > 0 && elapsed > 0)
+    if (!IsStopped() && m_ShutdownTimer > 0 && elapsed > 0)
     {
         ///- ... and it is overdue, stop the world (set m_stopEvent)
         if (m_ShutdownTimer <= elapsed)
         {
             if (!(m_ShutdownMask & SHUTDOWN_MASK_IDLE) || GetActiveAndQueuedSessionCount() == 0)
-                m_stopEvent = true;                         // exist code already set
+                m_stopEvent.store(true, std::memory_order_release); // exit code already set
             else
                 m_ShutdownTimer = 1;                        // minimum timer value to wait idle state
         }
@@ -3270,7 +3270,7 @@ void World::_UpdateGameTime()
 void World::ShutdownServ(uint32 time, uint32 options, uint8 exitcode)
 {
     // ignore if server shutdown at next tick
-    if (m_stopEvent)
+    if (IsStopped())
         return;
 
     ScriptRegistry<WorldScript>::ForEachEnabledHook(WORLDHOOK_ON_SHUTDOWN_INITIATE, [&](WorldScript* script)
@@ -3279,13 +3279,13 @@ void World::ShutdownServ(uint32 time, uint32 options, uint8 exitcode)
     });
 
     m_ShutdownMask = options;
-    m_ExitCode = exitcode;
+    m_ExitCode.store(exitcode, std::memory_order_relaxed);
 
     ///- If the shutdown time is 0, set m_stopEvent (except if shutdown is 'idle' with remaining sessions)
     if (time == 0)
     {
         if (!(options & SHUTDOWN_MASK_IDLE) || GetActiveAndQueuedSessionCount() == 0)
-            m_stopEvent = true;                             // exist code already set
+            m_stopEvent.store(true, std::memory_order_release); // exit code already set
         else
             m_ShutdownTimer = 1;                            //So that the session count is re-evaluated at next world tick
     }
@@ -3331,7 +3331,7 @@ void World::ShutdownMsg(bool show, Player* player)
 void World::ShutdownCancel()
 {
     // nothing cancel or too later
-    if (!m_ShutdownTimer || m_stopEvent)
+    if (!m_ShutdownTimer || IsStopped())
         return;
 
     ScriptRegistry<WorldScript>::ForEachEnabledHook(WORLDHOOK_ON_SHUTDOWN_CANCEL, [](WorldScript* script)
@@ -3343,7 +3343,7 @@ void World::ShutdownCancel()
 
     m_ShutdownMask = 0;
     m_ShutdownTimer = 0;
-    m_ExitCode = SHUTDOWN_EXIT_CODE;                       // to default value
+    m_ExitCode.store(SHUTDOWN_EXIT_CODE, std::memory_order_relaxed); // to default value
     SendServerMessage(msgid);
 
     DEBUG_LOG("Server %s cancelled.", (m_ShutdownMask & SHUTDOWN_MASK_RESTART ? "restart" : "shutdown"));

@@ -872,7 +872,7 @@ private:
 class World
 {
     public:
-        static volatile uint32 m_worldLoopCounter;
+        static std::atomic<uint32> m_worldLoopCounter;
 
         friend class AccountDataWrapper;
 
@@ -1079,9 +1079,13 @@ class World
         void ShutdownServ(uint32 time, uint32 options, uint8 exitcode);
         void ShutdownCancel();
         void ShutdownMsg(bool show = false, Player* player = nullptr);
-        static uint8 GetExitCode() { return m_ExitCode; }
-        static void StopNow(uint8 exitcode) { m_stopEvent = true; m_ExitCode = exitcode; }
-        static bool IsStopped() { return m_stopEvent; }
+        static uint8 GetExitCode() { return m_ExitCode.load(std::memory_order_relaxed); }
+        static void StopNow(uint8 exitcode)
+        {
+            m_ExitCode.store(exitcode, std::memory_order_relaxed);
+            m_stopEvent.store(true, std::memory_order_release);
+        }
+        static bool IsStopped() { return m_stopEvent.load(std::memory_order_acquire); }
 
         void Update(uint32 diff);
 
@@ -1279,8 +1283,8 @@ class World
         bool configNoReload(bool reload, eConfigFloatValues index, char const* fieldname, float defvalue);
         bool configNoReload(bool reload, eConfigBoolValues index, char const* fieldname, bool defvalue);
 
-        static volatile bool m_stopEvent;
-        static uint8 m_ExitCode;
+        static std::atomic_bool m_stopEvent;
+        static std::atomic<uint8> m_ExitCode;
         uint32 m_ShutdownTimer = 0;
         uint32 m_ShutdownMask = 0;
 

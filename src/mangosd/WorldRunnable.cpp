@@ -62,7 +62,8 @@ void WorldRunnable::operator()()
     {
         sPerfMonitor.FrameStart();
         sPerfMonitor.Tick.Begin();
-        ++World::m_worldLoopCounter;
+        uint32 worldLoopCounter = World::m_worldLoopCounter.load(std::memory_order_relaxed);
+        World::m_worldLoopCounter.store(worldLoopCounter + 1, std::memory_order_relaxed);
 
         currTime = WorldTimer::getMSTime();
         uint32 diff = WorldTimer::getMSTimeDiff(prevTime, currTime);
