@@ -2801,22 +2801,11 @@ namespace MaNGOS
 
     void MaNGOS::WorldWorldTextBuilder::do_helper(WorldPacketList& data_list, std::string_view text)
     {
-        while (!text.empty())
+        std::string_view line;
+        while (ChatHandler::LineFromMessage(text, line))
         {
-            size_t lineStart = text.find_first_not_of('\n');
-            if (lineStart == std::string_view::npos)
-                break;
-
-            text.remove_prefix(lineStart);
-            size_t lineEnd = text.find('\n');
-            std::string_view line = text.substr(0, lineEnd);
-
             data_list.emplace_back();
             ChatHandler::BuildChatPacket(data_list.back(), CHAT_MSG_SYSTEM, line);
-
-            if (lineEnd == std::string_view::npos)
-                break;
-            text.remove_prefix(lineEnd + 1);
         }
     }
 }
@@ -2952,17 +2941,13 @@ void World::SendGlobalText(const char* text, WorldSession *self)
 {
     WorldPacket data;
 
-    // need copy to prevent corruption by strtok call in LineFromMessage original string
-    char* buf = mangos_strdup(text);
-    char* pos = buf;
-
-    while (char* line = ChatHandler::LineFromMessage(pos))
+    std::string_view message = text;
+    std::string_view line;
+    while (ChatHandler::LineFromMessage(message, line))
     {
         ChatHandler::BuildChatPacket(data, CHAT_MSG_SYSTEM, line);
         SendGlobalMessage(&data, self);
     }
-
-    delete [] buf;
 }
 
 /// Send a packet to all players (or players selected team) in the zone (except self if mentioned)

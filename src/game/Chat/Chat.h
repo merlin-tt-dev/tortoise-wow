@@ -101,7 +101,7 @@ class ChatHandler
 
         static void LoadRbacPermissions();
 
-        static char* LineFromMessage(char*& pos) { char* start = strtok(pos,"\n"); pos = nullptr; return start; }
+        static bool LineFromMessage(std::string_view& text, std::string_view& line);
 
         // function with different implementation for chat/console
         virtual const char *GetMangosString(int32 entry) const;

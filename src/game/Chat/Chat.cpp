@@ -1285,21 +1285,36 @@ bool ChatHandler::hasStringAbbr(const char* name, const char* part)
     return true;
 }
 
+bool ChatHandler::LineFromMessage(std::string_view& text, std::string_view& line)
+{
+    size_t lineStart = text.find_first_not_of('\n');
+    if (lineStart == std::string_view::npos)
+        return false;
+
+    text.remove_prefix(lineStart);
+    size_t lineEnd = text.find('\n');
+    line = text.substr(0, lineEnd);
+
+    if (lineEnd == std::string_view::npos)
+        text = {};
+    else
+        text.remove_prefix(lineEnd + 1);
+
+    return true;
+}
+
 void ChatHandler::SendSysMessage(const char *str)
 {
     WorldPacket data;
+    std::string_view text = str;
+    std::string_view line;
 
-    // need copy to prevent corruption by strtok call in LineFromMessage original string
-    char* buf = mangos_strdup(str);
-    char* pos = buf;
-
-    while (char* line = LineFromMessage(pos))
+    while (LineFromMessage(text, line))
     {
         ChatHandler::BuildChatPacket(data, CHAT_MSG_SYSTEM, line);
         m_session->SendPacket(&data);
     }
 
-    delete [] buf;
     SetSentErrorMessage(true);
 }
 
@@ -1307,18 +1322,14 @@ void ChatHandler::SendGlobalSysMessage(const char *str)
 {
     // Chat output
     WorldPacket data;
+    std::string_view text = str;
+    std::string_view line;
 
-    // need copy to prevent corruption by strtok call in LineFromMessage original string
-    char* buf = mangos_strdup(str);
-    char* pos = buf;
-
-    while (char* line = LineFromMessage(pos))
+    while (LineFromMessage(text, line))
     {
         ChatHandler::BuildChatPacket(data, CHAT_MSG_SYSTEM, line);
         sWorld.SendGlobalMessage(&data);
     }
-
-    delete [] buf;
 }
 
 void ChatHandler::SendSysMessage(int32 entry)
