@@ -2629,9 +2629,7 @@ void ObjectMgr::LoadItemPrototypes()
         if (proto->StartQuest > 0)
         // Item starts a quest, insert it into the quest->startItem map
         {
-            if (m_QuestStartingItemsMap.find(proto->StartQuest) == m_QuestStartingItemsMap.end())
-                m_QuestStartingItemsMap.insert(robin_hood::pair<uint32, uint32>(proto->StartQuest, proto->ItemId) );
-            else
+            if (!m_QuestStartingItemsMap.emplace(proto->StartQuest, proto->ItemId).second)
                 sLog.outErrorDb("Item #%u also starts quest #%u.", i, proto->StartQuest);
         }
     }

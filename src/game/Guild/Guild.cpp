@@ -1293,12 +1293,7 @@ void Guild::SetEmblem(uint32 emblemStyle, uint32 emblemColor, uint32 borderStyle
 
 bool Guild::AddGMListener(Player* gm)
 {
-    if (m_GmListeners.find(gm->GetObjectGuid()) == m_GmListeners.end())
-    {
-        m_GmListeners.insert(gm->GetObjectGuid());
-        return true;
-    }
-    return false;
+    return m_GmListeners.insert(gm->GetObjectGuid()).second;
 }
 
 /**

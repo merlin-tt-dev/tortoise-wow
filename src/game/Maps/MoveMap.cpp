@@ -102,9 +102,7 @@ bool MMapManager::loadMapData(uint32 mapId)
     mmap_data->mmapLoadedTiles.clear();
 
     std::unique_lock<std::shared_mutex> wlock(loadedMMaps_lock);
-    if (loadedMMaps.find(mapId) == loadedMMaps.end())
-        loadedMMaps.insert(std::pair<uint32, MMapData*>(mapId, mmap_data));
-    else
+    if (!loadedMMaps.emplace(mapId, mmap_data).second)
         delete mmap_data;
 
     return true;
