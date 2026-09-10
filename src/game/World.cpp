@@ -3680,7 +3680,7 @@ std::unordered_set<std::string> World::GetAccountNamesByFingerprint(uint32 finge
 
 void World::AddFingerprint(uint32 fingerprint, std::string accountName)
 {
-    m_fingerprintAccounts[fingerprint].insert(accountName);
+    m_fingerprintAccounts[fingerprint].insert(std::move(accountName));
 }
 
 void World::SetLastDiff(uint32 diff)
