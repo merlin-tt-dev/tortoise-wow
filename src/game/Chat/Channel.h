@@ -318,7 +318,7 @@ class Channel
 
         typedef     std::map<ObjectGuid, PlayerInfo> PlayerList;
         PlayerList  m_players;
-        typedef     std::set<ObjectGuid> BannedList;
+        typedef     std::unordered_set<ObjectGuid> BannedList;
         BannedList  m_banned;
 };
 #endif

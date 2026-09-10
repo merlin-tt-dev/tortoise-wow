@@ -777,7 +777,7 @@ class SpellMgr
         SpellAreaForAuraMap  mSpellAreaForAuraMap;
         SpellAreaForAreaMap  mSpellAreaForAreaMap;
         SpellSkillBonusMap   mSpellSkillBonusMap;
-        std::set<uint32>     mExistingSpellsSet;
+        std::unordered_set<uint32> mExistingSpellsSet;
 
         // SPELL GROUPS
         SpellSpellGroupMap mSpellSpellGroup;
