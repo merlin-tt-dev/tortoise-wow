@@ -67,7 +67,7 @@ bool WhisperTargetLimits::can_whisper(const std::uint32_t target_guid, const std
     if (targets_.size() >= max_targets_)
         return false;
 
-    targets_[target_guid] = time;
+    targets_.emplace(target_guid, time);
     return true;
 }
 
