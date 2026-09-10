@@ -19,6 +19,7 @@
 #include "WorldModel.h"
 #include "VMapDefinitions.h"
 #include "MapTree.h"
+#include <memory>
 #include <string.h>
 
 using G3D::Vector3;
@@ -130,27 +131,32 @@ namespace VMAP
         if (this == &other)
             return *this;
 
+        std::unique_ptr<float[]> newHeight;
+        std::unique_ptr<uint8[]> newFlags;
+
+        if (other.iHeight)
+        {
+            size_t const count = (other.iTilesX + 1) * (other.iTilesY + 1);
+            newHeight.reset(new float[count]);
+            memcpy(newHeight.get(), other.iHeight, count * sizeof(float));
+        }
+
+        if (other.iFlags)
+        {
+            size_t const count = other.iTilesX * other.iTilesY;
+            newFlags.reset(new uint8[count]);
+            memcpy(newFlags.get(), other.iFlags, count * sizeof(uint8));
+        }
+
+        delete[] iHeight;
+        delete[] iFlags;
+
         iTilesX = other.iTilesX;
         iTilesY = other.iTilesY;
         iCorner = other.iCorner;
         iType = other.iType;
-        delete[] iHeight;
-        delete[] iFlags;
-
-        if (other.iHeight)
-        {
-            iHeight = new float[(iTilesX + 1) * (iTilesY + 1)];
-            memcpy(iHeight, other.iHeight, (iTilesX + 1) * (iTilesY + 1) * sizeof(float));
-        }
-        else
-            iHeight = nullptr;
-        if (other.iFlags)
-        {
-            iFlags = new uint8[iTilesX * iTilesY];
-            memcpy(iFlags, other.iFlags, iTilesX * iTilesY * sizeof(uint8));
-        }
-        else
-            iFlags = nullptr;
+        iHeight = newHeight.release();
+        iFlags = newFlags.release();
 
         return *this;
     }
@@ -228,23 +234,29 @@ namespace VMAP
     bool WmoLiquid::readFromFile(FILE* rf, WmoLiquid*& out)
     {
         bool result = true;
-        WmoLiquid* liquid = new WmoLiquid();
+        std::unique_ptr<WmoLiquid> liquid(new WmoLiquid());
         if (result && fread(&liquid->iTilesX, sizeof(uint32), 1, rf) != 1) result = false;
         if (result && fread(&liquid->iTilesY, sizeof(uint32), 1, rf) != 1) result = false;
         if (result && fread(&liquid->iCorner, sizeof(Vector3), 1, rf) != 1) result = false;
         if (result && fread(&liquid->iType, sizeof(uint32), 1, rf) != 1) result = false;
-        uint32 size = (liquid->iTilesX + 1) * (liquid->iTilesY + 1);
-        liquid->iHeight = new float[size];
-        if (result && fread(liquid->iHeight, sizeof(float), size, rf) != size) result = false;
-        size = liquid->iTilesX * liquid->iTilesY;
-        liquid->iFlags = new uint8[size];
-        if (result && fread(liquid->iFlags, sizeof(uint8), size, rf) != size) result = false;
-        if (!result)
+
+        if (result)
         {
-            delete liquid;
-            liquid = nullptr;
+            uint32 const size = (liquid->iTilesX + 1) * (liquid->iTilesY + 1);
+            liquid->iHeight = new float[size];
+            if (fread(liquid->iHeight, sizeof(float), size, rf) != size)
+                result = false;
         }
-        out = liquid;
+
+        if (result)
+        {
+            uint32 const size = liquid->iTilesX * liquid->iTilesY;
+            liquid->iFlags = new uint8[size];
+            if (fread(liquid->iFlags, sizeof(uint8), size, rf) != size)
+                result = false;
+        }
+
+        out = result ? liquid.release() : nullptr;
         return result;
     }
 
