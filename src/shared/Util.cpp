@@ -41,6 +41,7 @@
 #include <fstream>
 #include <iomanip>
 #include <sstream>
+#include <stdexcept>
 #include "AllocatorWithCategory.h"
 
 typedef ACE_TSS<MTRand> MTRandTSS;
@@ -641,46 +642,41 @@ void vutf8printf(FILE *out, const char *str, va_list* ap)
 
 void hexEncodeByteArray(uint8* bytes, uint32 arrayLen, std::string& result)
 {
-    std::ostringstream ss;
-    for (uint32 i = 0; i<arrayLen; ++i)
+    static constexpr char hexDigits[] = "0123456789ABCDEF";
+
+    size_t const byteCount = static_cast<size_t>(arrayLen);
+    if (byteCount > result.max_size() / 2)
+        throw std::length_error("hexEncodeByteArray result too large");
+
+    std::string encoded(byteCount * 2, '\0');
+    for (uint32 i = 0; i < arrayLen; ++i)
     {
-        for (uint8 j = 0; j<2; ++j)
-        {
-            unsigned char nibble = 0x0F & (bytes[i] >> ((1 - j) * 4));
-            char encodedNibble;
-            if (nibble < 0x0A)
-                encodedNibble = '0' + nibble;
-            else
-                encodedNibble = 'A' + nibble - 0x0A;
-            ss << encodedNibble;
-        }
+        encoded[2 * i] = hexDigits[bytes[i] >> 4];
+        encoded[2 * i + 1] = hexDigits[bytes[i] & 0x0F];
     }
 
-    result = ss.str();
+    result = std::move(encoded);
 }
 
 std::string ByteArrayToHexStr(uint8 const* bytes, uint32 arrayLen, bool reverse /* = false */)
 {
-    int32 init = 0;
-    int32 end = arrayLen;
-    int8 op = 1;
+    static constexpr char hexDigits[] = "0123456789ABCDEF";
 
-    if (reverse)
+    std::string result;
+    size_t const byteCount = static_cast<size_t>(arrayLen);
+    if (byteCount > result.max_size() / 2)
+        throw std::length_error("ByteArrayToHexStr result too large");
+
+    result.resize(byteCount * 2);
+    for (uint32 i = 0; i < arrayLen; ++i)
     {
-        init = arrayLen - 1;
-        end = -1;
-        op = -1;
+        uint32 sourceIndex = reverse ? arrayLen - i - 1 : i;
+        uint8 byte = bytes[sourceIndex];
+        result[2 * i] = hexDigits[byte >> 4];
+        result[2 * i + 1] = hexDigits[byte & 0x0F];
     }
 
-    std::ostringstream ss;
-    for (int32 i = init; i != end; i += op)
-    {
-        char buffer[4];
-        sprintf(buffer, "%02X", bytes[i]);
-        ss << buffer;
-    }
-
-    return ss.str();
+    return result;
 }
 
 void HexStrToByteArray(std::string const& str, uint8* out, bool reverse /*= false*/)
