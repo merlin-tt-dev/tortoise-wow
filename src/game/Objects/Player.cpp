@@ -18587,7 +18587,8 @@ bool Player::SaveAura(SpellAuraHolder* holder, AuraSaveStruct& saveStruct)
 void Player::_SaveInventory()
 {
     // Turtle: save buyback items in db too, so they persist through logout
-    std::set<Item*> buyBackItems;
+    std::vector<Item*> buyBackItems;
+    buyBackItems.reserve(BUYBACK_SLOT_END - BUYBACK_SLOT_START);
     for (uint8 i = BUYBACK_SLOT_START; i < BUYBACK_SLOT_END; ++i)
     {
         Item* item = m_items[i];
@@ -18620,7 +18621,7 @@ void Player::_SaveInventory()
             continue;
 
         if (item->GetState() != ITEM_REMOVED && item->GetState() != ITEM_STASHED &&
-            buyBackItems.find(item) == buyBackItems.end())
+            std::find(buyBackItems.begin(), buyBackItems.end(), item) == buyBackItems.end())
         {
             // Plusieurs tests anti dupli ...
             Item *test = GetItemByPos(item->GetBagSlot(), item->GetSlot());
