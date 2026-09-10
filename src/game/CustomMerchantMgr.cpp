@@ -360,7 +360,7 @@ void CustomMerchantMgr::ScheduleItemCacheUpdates(Player* player, std::vector<uin
         size_t batchEnd = std::min(begin + ItemCacheUpdatesPerTick, itemIds.size());
         std::vector<uint32> batch(itemIds.begin() + begin, itemIds.begin() + batchEnd);
 
-        player->m_Events.AddLambdaEventAtOffset([player, batch]()
+        player->m_Events.AddLambdaEventAtOffset([player, batch = std::move(batch)]()
         {
             if (!player->IsInWorld() || !player->GetSession())
                 return;
