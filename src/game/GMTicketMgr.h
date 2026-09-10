@@ -258,7 +258,6 @@ protected:
     uint32 _openTicketCount;
     uint64 _lastChange;
     uint64 _oldestOpenTime = 0;
-    std::set<uint32> _reloadTicketsSet;
     std::vector<std::pair<std::string, std::string>> m_ticketTemplates;
 };
 
