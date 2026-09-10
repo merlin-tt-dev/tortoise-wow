@@ -52,9 +52,10 @@ VisibleNotifier::Notify()
     {
         for (const auto itr : transport->GetPassengers())
         {
-            if (i_clientGUIDs.find(itr->GetObjectGuid()) != i_clientGUIDs.end())
+            auto clientItr = i_clientGUIDs.find(itr->GetObjectGuid());
+            if (clientItr != i_clientGUIDs.end())
             {
-                i_clientGUIDs.erase(itr->GetObjectGuid());
+                i_clientGUIDs.erase(clientItr);
                 switch (itr->GetTypeId())
                 {
                     case TYPEID_GAMEOBJECT:

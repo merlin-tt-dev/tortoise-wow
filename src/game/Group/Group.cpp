@@ -275,10 +275,11 @@ bool Group::AddLeaderInvite(Player *player)
 
 uint32 Group::RemoveInvite(Player *player)
 {
-    if (m_invitees.find(player) != m_invitees.end())
+    auto itr = m_invitees.find(player);
+    if (itr != m_invitees.end())
     {
         ASSERT(player->GetGroupInvite() == this);
-        m_invitees.erase(player);
+        m_invitees.erase(itr);
         player->SetGroupInvite(nullptr);
     }
     return GetMembersCount();
