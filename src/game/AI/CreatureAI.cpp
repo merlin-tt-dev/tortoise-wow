@@ -27,6 +27,9 @@
 #include "Totem.h"
 #include "GridSearchers.h"
 
+#include <algorithm>
+#include <vector>
+
 CreatureAI::~CreatureAI()
 {
 }
@@ -293,16 +296,16 @@ void CreatureAI::ClearTargetIcon()
     if (players.isEmpty())
         return;
 
-    std::set<Group*> instanceGroups;
+    std::vector<Group*> instanceGroups;
 
     // Clear target icon for every unique group in instance
     for (const auto& player : players)
     {
         if (Group* pGroup = player.getSource()->GetGroup())
         {
-            if (instanceGroups.find(pGroup) == instanceGroups.end())
+            if (std::find(instanceGroups.begin(), instanceGroups.end(), pGroup) == instanceGroups.end())
             {
-                instanceGroups.insert(pGroup);
+                instanceGroups.push_back(pGroup);
                 pGroup->ClearTargetIcon(m_creature->GetObjectGuid());
             }
         }

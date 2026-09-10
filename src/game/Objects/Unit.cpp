@@ -68,6 +68,7 @@
 #include "TWDebuff/TWDebuff.hpp"
 
 #include <algorithm>
+#include <functional>
 #include <math.h>
 #include <optional>
 #include <vector>
@@ -1929,13 +1930,14 @@ void Unit::DealMeleeDamage(CalcDamageInfo *damageInfo, bool durabilityLoss)
 
 void Unit::TriggerDamageShields(Unit* pVictim)
 {
-    std::set<Aura*> alreadyDone;
     AuraList const& vDamageShields = pVictim->GetAurasByType(SPELL_AURA_DAMAGE_SHIELD);
+    std::vector<Aura*> alreadyDone;
+    alreadyDone.reserve(vDamageShields.size());
     for (AuraList::const_iterator i = vDamageShields.begin(); i != vDamageShields.end();)
     {
-        if (alreadyDone.find(*i) == alreadyDone.end())
+        if (std::find(alreadyDone.begin(), alreadyDone.end(), *i) == alreadyDone.end())
         {
-            alreadyDone.insert(*i);
+            alreadyDone.push_back(*i);
             SpellEntry const* pSpellProto = (*i)->GetSpellProto();
 
             // Damage shield can be resisted...
@@ -2279,7 +2281,7 @@ void Unit::CalculateDamageAbsorbAndResist(WorldObject *pCaster, SpellSchoolMask 
 
                 float radius = Spells::GetSpellRadius(sSpellRadiusStore.LookupEntry((*i)->GetSpellProto()->EffectRadiusIndex[(*i)->GetEffIndex()]));
 
-                std::set<Player*> allies;
+                std::vector<Player*> allies;
                 for (GroupReference* itr = pGroup->GetFirstMember(); itr != nullptr; itr = itr->next())
                 {
                     if (Player* pMember = itr->getSource())
@@ -2294,9 +2296,12 @@ void Unit::CalculateDamageAbsorbAndResist(WorldObject *pCaster, SpellSchoolMask 
                         if (!pPlayer->IsWithinDistInMap(pMember, radius))
                             continue;
 
-                        allies.insert(pMember);
+                        allies.push_back(pMember);
                     }
                 }
+
+                std::sort(allies.begin(), allies.end(), std::less<Player*>{});
+                allies.erase(std::unique(allies.begin(), allies.end()), allies.end());
 
                 // Damage can be splitted only if there are nearby allies
                 if (allies.empty())
