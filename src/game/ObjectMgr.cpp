@@ -7379,7 +7379,7 @@ void ObjectMgr::LoadBroadcastTextLocales()
             continue;
         }
 
-        BroadcastText& data = m_BroadcastTextLocaleMap[entry];
+        BroadcastText& data = bct->second;
 
         // Load maleText
         for (int i = 1; i < MAX_LOCALE; ++i)
