@@ -22,6 +22,7 @@
 #include "VMapDefinitions.h"
 
 #include <set>
+#include <memory>
 #include <iomanip>
 #include <sstream>
 
@@ -234,14 +235,16 @@ bool TileAssembler::readMapSpawns()
             break;
 
         MapSpawns* current;
-        MapData::iterator map_iter = mapData.find(mapID);
-        if (map_iter == mapData.end())
+        MapData::iterator map_iter = mapData.lower_bound(mapID);
+        if (map_iter == mapData.end() || map_iter->first != mapID)
         {
             printf("spawning Map %u\n", mapID);
-            mapData[mapID] = current = new MapSpawns();
+            std::unique_ptr<MapSpawns> newMapSpawns = std::make_unique<MapSpawns>();
+            map_iter = mapData.emplace_hint(map_iter, mapID, newMapSpawns.get());
+            current = newMapSpawns.release();
         }
         else
-            current = (*map_iter).second;
+            current = map_iter->second;
 
         current->UniqueEntries.insert(pair<uint32, ModelSpawn>(spawn.ID, spawn));
         current->TileEntries.insert(pair<uint32, uint32>(StaticMapTree::packTileID(tileX, tileY), spawn.ID));
