@@ -89,16 +89,19 @@ bool DBCFileLoader::Load(const char *filename, const char *fmt)
 
     EndianConvert(stringSize);
 
-    fieldsOffset = new uint32[fieldCount];
-    fieldsOffset[0] = 0;
+    uint32* newFieldsOffset = new uint32[fieldCount];
+    newFieldsOffset[0] = 0;
     for(uint32 i = 1; i < fieldCount; i++)
     {
-        fieldsOffset[i] = fieldsOffset[i - 1];
+        newFieldsOffset[i] = newFieldsOffset[i - 1];
         if (fmt[i - 1] == 'b' || fmt[i - 1] == 'X')         // byte fields
-            fieldsOffset[i] += 1;
+            newFieldsOffset[i] += 1;
         else                                                // 4 byte fields (int32/float/strings)
-            fieldsOffset[i] += 4;
+            newFieldsOffset[i] += 4;
     }
+
+    delete [] fieldsOffset;
+    fieldsOffset = newFieldsOffset;
 
     data = new unsigned char[recordSize*recordCount+stringSize];
     stringTable = data + recordSize*recordCount;
