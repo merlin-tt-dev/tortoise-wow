@@ -982,7 +982,7 @@ class ObjectMgr
         void LoadGameObjectLocales();
         void LoadGameobjects(bool reload = false);
         void LoadItemPrototypes();
-        void FillObtainedItemsList(std::set<uint32>&);
+        void FillObtainedItemsList(std::unordered_set<uint32>&);
         void CorrectItemEffects(uint32, _ItemSpell&);
         void LoadItemRequiredTarget();
         void LoadItemLocales();
@@ -1656,8 +1656,8 @@ class ObjectMgr
         typedef robin_hood::unordered_map<uint32, std::string> ItemTextMap;
         // Map quest_id->id of start item
         typedef robin_hood::unordered_map<uint32, uint32> QuestStartingItemMap;
-        typedef std::set<uint32> TavernAreaTriggerSet;
-        typedef std::set<uint32> GameObjectForQuestSet;
+        typedef std::unordered_set<uint32> TavernAreaTriggerSet;
+        typedef std::unordered_set<uint32> GameObjectForQuestSet;
 
         GroupMap            m_GroupMap;
 
@@ -1684,7 +1684,7 @@ class ObjectMgr
         PetCreateSpellMap   m_PetCreateSpellMap;
 
         //character reserved names
-        typedef std::set<std::wstring> ReservedNamesMap;
+        typedef std::unordered_set<std::wstring> ReservedNamesMap;
         ReservedNamesMap    m_ReservedNames;
 
         GraveYardMap        m_GraveYardMap;

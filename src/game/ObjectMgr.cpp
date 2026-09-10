@@ -2199,7 +2199,7 @@ void ObjectMgr::CorrectItemEffects(uint32 itemId, _ItemSpell& itemSpell)
         itemSpell.SpellId = 0;
 }
 
-void ObjectMgr::FillObtainedItemsList(std::set<uint32>& obtainedItems)
+void ObjectMgr::FillObtainedItemsList(std::unordered_set<uint32>& obtainedItems)
 {
     // These are all the items that have been obtained by players.
     {
@@ -2348,7 +2348,7 @@ void ObjectMgr::LoadItemPrototypes()
     m_QuestStartingItemsMap.clear();
     
     // Load all currently obtained items by players.
-    std::set<uint32> obtainedItems;
+    std::unordered_set<uint32> obtainedItems;
     FillObtainedItemsList(obtainedItems);
 
     // check data correctness
