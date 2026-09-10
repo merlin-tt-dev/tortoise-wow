@@ -446,7 +446,10 @@ void WorldSession::ProcessPackets(PacketFilter& updater)
         _receivedPacketType[updater.PacketProcessType()] = true;
         auto packetAllowed = AllowPacket(packet->GetOpcode(), timeNow);
         if (packetAllowed == PacketAllowResult::Denied)
+        {
+            delete packet;
             break;
+        }
 
         if (packetAllowed == PacketAllowResult::Requeue)
         {
