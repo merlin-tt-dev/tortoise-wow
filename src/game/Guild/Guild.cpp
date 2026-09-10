@@ -1306,8 +1306,9 @@ uint32 Guild::GetAccountsNumber()
     if (m_accountsNumber)
         return m_accountsNumber;
 
-    //We use a set to be sure each element will be unique
-    std::set<uint32> accountsIdSet;
+    // We only need uniqueness here; account ordering is not observed.
+    std::unordered_set<uint32> accountsIdSet;
+    accountsIdSet.reserve(members.size());
     for (MemberList::const_iterator itr = members.begin(); itr != members.end(); ++itr)
         accountsIdSet.insert(itr->second.accountId);
 
