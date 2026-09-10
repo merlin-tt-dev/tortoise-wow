@@ -175,7 +175,7 @@ void Warden::SendModuleToClient()
 
 std::vector<std::shared_ptr<const Scan>> Warden::SelectScans(ScanFlags flags) const
 {
-    return std::move(sWardenScanMgr.GetRandomScans(static_cast<ScanFlags>(flags | GetScanFlags())));
+    return sWardenScanMgr.GetRandomScans(static_cast<ScanFlags>(flags | GetScanFlags()));
 }
 
 void Warden::EnqueueScans(std::vector<std::shared_ptr<const Scan>> &&scans)
