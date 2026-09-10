@@ -59,17 +59,17 @@ VisibleNotifier::Notify()
                 switch (itr->GetTypeId())
                 {
                     case TYPEID_GAMEOBJECT:
-                        player.UpdateVisibilityOf(&player, itr->ToGameObject(), i_data, i_visibleNow);
+                        player.UpdateVisibilityOf(&player, itr->ToGameObject(), i_data);
                         break;
                     case TYPEID_PLAYER:
-                        player.UpdateVisibilityOf(&player, itr->ToPlayer(), i_data, i_visibleNow);
+                        player.UpdateVisibilityOf(&player, itr->ToPlayer(), i_data);
                         itr->ToPlayer()->UpdateVisibilityOf(itr, &player);
                         break;
                     case TYPEID_UNIT:
-                        player.UpdateVisibilityOf(&player, itr->ToCreature(), i_data, i_visibleNow);
+                        player.UpdateVisibilityOf(&player, itr->ToCreature(), i_data);
                         break;
                     case TYPEID_DYNAMICOBJECT:
-                        player.UpdateVisibilityOf(&player, (DynamicObject*)itr, i_data, i_visibleNow);
+                        player.UpdateVisibilityOf(&player, (DynamicObject*)itr, i_data);
                         break;
                     default:
                         break;
@@ -81,7 +81,7 @@ VisibleNotifier::Notify()
     // Update current map active objects, modifies i_clientGUIDs so we are not sending
     // out of range updates for an active obj
     if (player.GetMap())
-        player.GetMap()->UpdateActiveObjectVisibility(&player, i_clientGUIDs, i_data, i_visibleNow);
+        player.GetMap()->UpdateActiveObjectVisibility(&player, i_clientGUIDs, i_data);
 
 	for (auto iter = i_clientGUIDs.begin(); iter != i_clientGUIDs.end();)
 	{

@@ -2141,7 +2141,7 @@ class Player final: public Unit
         bool IsVisibleGloballyFor(Player* pl) const;
         void UpdateVisibilityOf(WorldObject const* viewPoint, WorldObject* target);
         template<class T>
-        void UpdateVisibilityOf(WorldObject const* viewPoint, T* target, UpdateData& data, std::set<WorldObject*>& visibleNow);
+        void UpdateVisibilityOf(WorldObject const* viewPoint, T* target, UpdateData& data);
 
         Camera& GetCamera() { return m_camera; }
         void ScheduleCameraUpdate(ObjectGuid guid);
