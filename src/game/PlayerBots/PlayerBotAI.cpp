@@ -558,10 +558,10 @@ void PlayerBotAI::AutoEquipForLevel()
         uint32 score = effectiveLevel * 1000 + proto.Quality * 10 + proto.ItemLevel;
 
         auto it = bestBySlot.find(dest);
-        if (it != bestBySlot.end() && it->second.score >= score)
-            continue;
-
-        bestBySlot[dest] = { &proto, score };
+        if (it == bestBySlot.end())
+            bestBySlot.emplace(dest, GearChoice{ &proto, score });
+        else if (it->second.score < score)
+            it->second = { &proto, score };
     }
 
     for (auto const& it : bestBySlot)
