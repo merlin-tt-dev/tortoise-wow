@@ -89,11 +89,10 @@ void WardenMgr::LoadWardenChecks()
 
             if (wardenCheck->Data.GetNumBytes() < len)
             {
-                uint8 temp[24];
-                memset(temp, 0, len);
-                memcpy(temp, wardenCheck->Data.AsByteArray().data(), wardenCheck->Data.GetNumBytes());
-                std::reverse(temp, temp + len);
-                wardenCheck->Data.SetBinary((uint8*)temp, len);
+                std::vector<uint8> temp(len, 0);
+                memcpy(temp.data(), wardenCheck->Data.AsByteArray().data(), wardenCheck->Data.GetNumBytes());
+                std::reverse(temp.begin(), temp.end());
+                wardenCheck->Data.SetBinary(temp.data(), len);
             }
         }
 
@@ -117,12 +116,10 @@ void WardenMgr::LoadWardenChecks()
             int len = checkResult.size() / 2;
             if (wr->Result.GetNumBytes() < len)
             {
-                uint8 *temp = new uint8[len];
-                memset(temp, 0, len);
-                memcpy(temp, wr->Result.AsByteArray().data(), wr->Result.GetNumBytes());
-                std::reverse(temp, temp + len);
-                wr->Result.SetBinary((uint8*)temp, len);
-                delete[] temp;
+                std::vector<uint8> temp(len, 0);
+                memcpy(temp.data(), wr->Result.AsByteArray().data(), wr->Result.GetNumBytes());
+                std::reverse(temp.begin(), temp.end());
+                wr->Result.SetBinary(temp.data(), len);
             }
 
             CheckResultStore.insert(std::pair<uint16, WardenCheckResult*>(build, wr));

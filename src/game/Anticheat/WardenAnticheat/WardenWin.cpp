@@ -413,13 +413,7 @@ void WardenWin::HandleData(ByteBuffer &buff)
                 buff >> luaStrLen;
 
                 if (luaStrLen != 0)
-                {
-                    char *str = new char[luaStrLen + 1];
-                    memcpy(str, buff.contents() + buff.rpos(), luaStrLen);
-                    str[luaStrLen] = '\0'; // Null terminator
-                    sLog.outWardenDebug("Lua string: %s", str);
-                    delete[] str;
-                }
+                    sLog.outWardenDebug("Lua string: %.*s", int(luaStrLen), reinterpret_cast<char const*>(buff.contents() + buff.rpos()));
                 buff.rpos(buff.rpos() + luaStrLen); // Skip string
                 sLog.outWardenDebug("RESULT LUA_STR_CHECK passed, CheckId %u account Id %u", *itr, m_session->GetAccountId());
                 break;
