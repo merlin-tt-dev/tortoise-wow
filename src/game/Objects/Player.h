@@ -972,9 +972,6 @@ struct BGData
                                                             ///  when player is teleported to BG - (it is battleground's GUID)
     BattleGroundTypeId bgTypeID = BATTLEGROUND_TYPE_NONE;
 
-    std::set<uint32>   bgAfkReporter;
-    uint8              bgAfkReportedCount = 0;
-    time_t             bgAfkReportedTimer = 0;
     uint32             bgQueueSlot = PLAYER_MAX_BATTLEGROUND_QUEUES;
 
     Team bgTeam = TEAM_NONE;                                ///< What side the player will be added to, saved
