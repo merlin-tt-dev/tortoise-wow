@@ -9940,10 +9940,10 @@ void Unit::UpdateModelData()
         SetFloatValue(UNIT_FIELD_BOUNDINGRADIUS, (GetObjectScale() / nativeScale) * displayAddon->bounding_radius);
         SetFloatValue(UNIT_FIELD_COMBATREACH, (GetObjectScale() / nativeScale) * displayAddon->combat_reach);
 
-        if (CreatureModelDataEntry const* modelData = sCreatureModelDataStore.LookupEntry(displayEntry->ModelId))
+        if (modelEntry)
         {
-            if (modelData->collisionHeight > 0.f && modelData->modelScale > 0.f)
-                m_modelCollisionHeight = modelData->collisionHeight / modelData->modelScale;
+            if (modelEntry->collisionHeight > 0.f && modelEntry->modelScale > 0.f)
+                m_modelCollisionHeight = modelEntry->collisionHeight / modelEntry->modelScale;
             else
                 m_modelCollisionHeight = 2.f;
         }

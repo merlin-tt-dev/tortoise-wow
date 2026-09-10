@@ -119,7 +119,7 @@ void VMapManager2::unloadMap(unsigned int pMapId)
         if (instanceTree->second->numLoadedTiles() == 0)
         {
             delete instanceTree->second;
-            iInstanceMapTrees.erase(pMapId);
+            iInstanceMapTrees.erase(instanceTree);
         }
     }
 }
@@ -135,7 +135,7 @@ void VMapManager2::unloadMap(unsigned int  pMapId, int x, int y)
         if (instanceTree->second->numLoadedTiles() == 0)
         {
             delete instanceTree->second;
-            iInstanceMapTrees.erase(pMapId);
+            iInstanceMapTrees.erase(instanceTree);
         }
     }
 }

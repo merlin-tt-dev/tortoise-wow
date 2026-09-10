@@ -9820,7 +9820,7 @@ void ObjectMgr::DeleteItemTransmogrifyTemplate(uint32 transmogrifyId)
     if (itr == m_itemTransmogs.end())
         return;
 
-    m_itemTransmogs.erase(transmogrifyId);
+    m_itemTransmogs.erase(itr);
     sWorld.SendSingleItemInvalidate(transmogrifyId);
     CharacterDatabase.PExecuteLog("DELETE FROM `item_transmogs` WHERE `ID`=%u", transmogrifyId);
 }
