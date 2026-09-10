@@ -1142,15 +1142,17 @@ WorldSession::PacketAllowResult WorldSession::AllowPacket(uint16 opcode, uint64 
         case CMSG_PET_NAME_QUERY:
         case CMSG_GUILD_QUERY:
         {
+            auto& requeueState = m_requeuePacketCount[opcode];
+
             //If last packet was 4 seconds ago then just let it go through anyway
-            if (time - m_requeuePacketCount[opcode].first > 3)
+            if (time - requeueState.first > 3)
             {
-                m_requeuePacketCount[opcode].first = time;
-                m_requeuePacketCount[opcode].second = 0;
+                requeueState.first = time;
+                requeueState.second = 0;
                 return PacketAllowResult::Allowed;
             }
 
-            uint32& count = m_requeuePacketCount[opcode].second;
+            uint32& count = requeueState.second;
             ++count;
             if (count > 1000)
             {

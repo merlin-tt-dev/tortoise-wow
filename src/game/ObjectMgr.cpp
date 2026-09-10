@@ -472,10 +472,11 @@ uint32 ObjectMgr::GetPlayerWorldMaskByGUID(const uint64 guid)
 }
 void ObjectMgr::SetPlayerWorldMask(const uint64 guid, uint32 newWorldMask)
 {
-    if (m_PlayerPhases[GUID_LOPART(guid)] == newWorldMask)
+    uint32& currentMask = m_PlayerPhases[GUID_LOPART(guid)];
+    if (currentMask == newWorldMask)
         return;
 
-    m_PlayerPhases[GUID_LOPART(guid)] = newWorldMask;
+    currentMask = newWorldMask;
 }
 
 uint32 ObjectMgr::GetSavedVariable(uint32 index, uint32 defaultValue, bool *exist)
