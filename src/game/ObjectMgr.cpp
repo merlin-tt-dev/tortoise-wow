@@ -503,8 +503,9 @@ SavedVariable& ObjectMgr::_InsertVariable(uint32 index, uint32 value, bool saved
     tmp.uiValue      = value;
     tmp.bSavedInDb   = saved;
 
-    m_SavedVariables[index] = tmp;
-    return m_SavedVariables[index];
+    SavedVariable& variable = m_SavedVariables[index];
+    variable = tmp;
+    return variable;
 }
 
 void ObjectMgr::_SaveVariable(const SavedVariable& toSave)

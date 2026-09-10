@@ -152,13 +152,6 @@ bool OPvPCapturePoint::SetCapturePointData(uint32 entry, uint32 mapId, float x, 
         return false;
     }
 
-    GameObjectInfo const* goInfo = sObjectMgr.GetGameObjectInfo(entry);
-    if (!goInfo)
-    {
-        sLog.outError("Invalid GameObject entry %u in OPvPCapturePoint::SetCapturePointData!", entry);
-        return false;
-    }
-
     Map* map = GetMap(); 
     if (map->GetId() != mapId)
         map = const_cast<Map*>(sMapMgr.FindMap(mapId, sMapMgr.GetContinentInstanceId(mapId, x, y)));
