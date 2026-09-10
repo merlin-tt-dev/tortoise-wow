@@ -5,6 +5,8 @@
 #include "Player.h"
 #include "World.h"
 
+#include <algorithm>
+
 LFTManager sLFTMgr;
 
 namespace
@@ -14,22 +16,22 @@ namespace
     std::vector<std::string> SplitPreserveEmpty(std::string const& value, char delimiter)
     {
         std::vector<std::string> parts;
-        std::string current;
+        parts.reserve(static_cast<size_t>(std::count(value.begin(), value.end(), delimiter)) + 1);
 
-        for (char c : value)
+        size_t start = 0;
+        while (true)
         {
-            if (c == delimiter)
+            size_t end = value.find(delimiter, start);
+            if (end == std::string::npos)
             {
-                parts.push_back(current);
-                current.clear();
+                parts.emplace_back(value, start, value.size() - start);
+                break;
             }
-            else
-            {
-                current += c;
-            }
+
+            parts.emplace_back(value, start, end - start);
+            start = end + 1;
         }
 
-        parts.push_back(current);
         return parts;
     }
 }
