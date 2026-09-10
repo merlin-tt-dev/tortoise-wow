@@ -65,10 +65,9 @@ class SqlOperation
 class SqlPlainRequest : public SqlOperation
 {
     private:
-        const char *m_sql;
+        std::string m_sql;
     public:
-        SqlPlainRequest(const char *sql) : m_sql(mangos_strdup(sql)){}
-        ~SqlPlainRequest() { char* tofree = const_cast<char*>(m_sql); delete [] tofree; }
+        SqlPlainRequest(const char *sql) : m_sql(sql) {}
         bool Execute(SqlConnection *conn);
 };
 
@@ -135,13 +134,12 @@ class SqlResultQueue : public LockedQueue<MaNGOS::IQueryCallback* , std::mutex>
 class SqlQuery : public SqlOperation
 {
     private:
-        const char *m_sql;
+        std::string m_sql;
         MaNGOS::IQueryCallback * m_callback;
         SqlResultQueue * m_queue;
     public:
         SqlQuery(const char *sql, MaNGOS::IQueryCallback * callback, SqlResultQueue * queue)
-            : m_sql(mangos_strdup(sql)), m_callback(callback), m_queue(queue) {}
-        ~SqlQuery() { char* tofree = const_cast<char*>(m_sql); delete [] tofree; }
+            : m_sql(sql), m_callback(callback), m_queue(queue) {}
         bool Execute(SqlConnection *conn);
 };
 
@@ -149,7 +147,7 @@ class SqlQueryHolder
 {
     friend class SqlQueryHolderEx;
     private:
-        typedef std::pair<const char*, QueryResult*> SqlResultPair;
+        typedef std::pair<std::optional<std::string>, QueryResult*> SqlResultPair;
         std::vector<SqlResultPair> m_queries;
 
         uint32 serialId;

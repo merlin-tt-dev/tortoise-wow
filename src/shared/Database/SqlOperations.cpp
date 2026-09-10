@@ -34,7 +34,7 @@ bool SqlPlainRequest::Execute(SqlConnection *conn)
 {
     /// just do it
     LOCK_DB_CONN(conn);
-    return conn->Execute(m_sql);
+    return conn->Execute(m_sql.c_str());
 }
 
 bool SqlMultilineRequest::Execute(SqlConnection* conn)
@@ -100,7 +100,7 @@ bool SqlQuery::Execute(SqlConnection *conn)
 
     LOCK_DB_CONN(conn);
     /// execute the query and store the result in the callback
-    m_callback->SetResult(conn->Query(m_sql));
+    m_callback->SetResult(conn->Query(m_sql.c_str()));
     /// add the callback to the sql result queue of the thread it originated from
     m_queue->add(m_callback);
 
@@ -197,15 +197,16 @@ bool SqlQueryHolder::SetQuery(size_t index, const char *sql)
         return false;
     }
 
-    if(m_queries[index].first != nullptr)
+    if (m_queries[index].first)
     {
         sLog.outError("Attempt assign query to holder index (" SIZEFMTD ") where other query stored (Old: [%s] New: [%s])",
-            index,m_queries[index].first,sql);
+            index, m_queries[index].first->c_str(), sql);
         return false;
     }
 
     /// not executed yet, just stored (it's not called a holder for nothing)
-    m_queries[index] = SqlResultPair(mangos_strdup(sql), (QueryResult*)nullptr);
+    m_queries[index].first.emplace(sql);
+    m_queries[index].second = nullptr;
     return true;
 }
 
@@ -236,12 +237,8 @@ QueryResult* SqlQueryHolder::GetResult(size_t index)
 {
     if(index < m_queries.size())
     {
-        /// the query strings are freed on the first GetResult or in the destructor
-        if(m_queries[index].first != nullptr)
-        {
-            delete [] (const_cast<char*>(m_queries[index].first));
-            m_queries[index].first = nullptr;
-        }
+        /// the query strings are released on the first GetResult or in the destructor
+        m_queries[index].first.reset();
         /// when you get a result aways remember to delete it!
         return m_queries[index].second;
     }
@@ -262,10 +259,9 @@ SqlQueryHolder::~SqlQueryHolder()
     {
         /// if the result was never used, free the resources
         /// results used already (getresult called) are expected to be deleted
-        if(m_queries[i].first != nullptr)
+        if (m_queries[i].first)
         {
-            delete [] (const_cast<char*>(m_queries[i].first));
-            if(m_queries[i].second)
+            if (m_queries[i].second)
             {
                 delete m_queries[i].second;
                 m_queries[i].second = nullptr;
@@ -305,9 +301,9 @@ bool SqlQueryHolderEx::Execute(SqlConnection *conn)
     for(size_t i = 0; i < queries.size(); i++)
     {
         /// execute all queries in the holder and pass the results
-        char const *sql = queries[i].first;
+        std::optional<std::string> const& sql = queries[i].first;
         if (sql)
-            m_holder->SetResult(i, conn->Query(sql));
+            m_holder->SetResult(i, conn->Query(sql->c_str()));
     }
 
     /// sync with the caller thread
