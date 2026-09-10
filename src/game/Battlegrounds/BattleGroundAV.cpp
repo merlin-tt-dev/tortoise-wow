@@ -441,7 +441,6 @@ void BattleGroundAV::UpgradeArmor(Object* questGiver, Player *player)
 {
     BattleGroundAVTeamIndex teamIdx = GetAVTeamIndexByTeamId(player->GetTeam());
     uint32 m_faction_id           = (player->GetTeam() == ALLIANCE) ? BG_TEAM_ALLIANCE : BG_TEAM_HORDE;
-    char sMessageRemaining[200]        = "";
     uint32 ressources = 0;
 
     if (m_Team_QuestStatus[teamIdx][0] >= 500 && getReinforcementLevelGroundUnit(m_faction_id) == AV_NPC_BASIC)
@@ -455,8 +454,7 @@ void BattleGroundAV::UpgradeArmor(Object* questGiver, Player *player)
 
     if(ressources%500 == 0 && m_Team_QuestStatus[teamIdx][0] != 0 && questGiver->GetTypeId() == TYPEID_UNIT)
     {
-        sprintf(sMessageRemaining,"Thanks for the supplies, %s",player->GetName());
-        ((Creature*)questGiver)->MonsterSay(sMessageRemaining, 0, 0);
+        ((Creature*)questGiver)->PMonsterSay("Thanks for the supplies, %s", player->GetName());
 
         if(ressources == 500)
         {
@@ -465,8 +463,7 @@ void BattleGroundAV::UpgradeArmor(Object* questGiver, Player *player)
             else
                 CastSpellOnTeam(28418, HORDE);
 
-            sprintf(sMessageRemaining,"Seasoned units are entering the battle!");
-            ((Creature*)questGiver)->MonsterYell(sMessageRemaining, 0, 0);
+            ((Creature*)questGiver)->MonsterYell("Seasoned units are entering the battle!", 0, 0);
         }
         else if(ressources == 1000)
         {
@@ -475,8 +472,7 @@ void BattleGroundAV::UpgradeArmor(Object* questGiver, Player *player)
             else
                 CastSpellOnTeam(28419, HORDE);
 
-            sprintf(sMessageRemaining,"Veteran units are entering the battle!");
-            ((Creature*)questGiver)->MonsterYell(sMessageRemaining, 0, 0);
+            ((Creature*)questGiver)->MonsterYell("Veteran units are entering the battle!", 0, 0);
         }
         else if(ressources == 1500)
         {
@@ -485,8 +481,7 @@ void BattleGroundAV::UpgradeArmor(Object* questGiver, Player *player)
             else
                 CastSpellOnTeam(28420, HORDE);
 
-            sprintf(sMessageRemaining,"Champion units are entering the battle!");
-            ((Creature*)questGiver)->MonsterYell(sMessageRemaining, 0, 0);
+            ((Creature*)questGiver)->MonsterYell("Champion units are entering the battle!", 0, 0);
         }
     }
 
@@ -501,8 +496,6 @@ void BattleGroundAV::UpgradeArmor(Object* questGiver, Player *player)
 
 void BattleGroundAV::HandleQuestComplete(Unit* questGiver, uint32 questid, Player *player)
 {
-    char sMessageRemaining[200] = "";
-
     if (GetStatus() != STATUS_IN_PROGRESS)
         return;
 
@@ -611,12 +604,9 @@ void BattleGroundAV::HandleQuestComplete(Unit* questGiver, uint32 questid, Playe
             reputation = 1;
             if (m_Team_QuestStatus[teamIdx][1] == 90)
             {
-                if (teamIdx == 0)
-                    sprintf(sMessageRemaining,"Soldiers of Stormpike, come to my aid! The beacon must be planted.");
-                else
-                    sprintf(sMessageRemaining,"Soldiers of the Horde, come to my aid! The beacon must be planted.");
-
-                questGiver->MonsterYell(sMessageRemaining, 0, 0);
+                questGiver->MonsterYell(teamIdx == 0
+                    ? "Soldiers of Stormpike, come to my aid! The beacon must be planted."
+                    : "Soldiers of the Horde, come to my aid! The beacon must be planted.", 0, 0);
             }
             break;
         case BG_AV_QUEST_A_COMMANDER2:
@@ -625,12 +615,9 @@ void BattleGroundAV::HandleQuestComplete(Unit* questGiver, uint32 questid, Playe
             reputation = 2;
             if (m_Team_QuestStatus[teamIdx][2] == 60)
             {
-                if (teamIdx == 0)
-                    sprintf(sMessageRemaining,"Soldiers of Stormpike, come to my aid! The beacon must be planted.");
-                else
-                    sprintf(sMessageRemaining,"Soldiers of the Horde, come to my aid! The beacon must be planted.");
-
-                questGiver->MonsterYell(sMessageRemaining, 0, 0);
+                questGiver->MonsterYell(teamIdx == 0
+                    ? "Soldiers of Stormpike, come to my aid! The beacon must be planted."
+                    : "Soldiers of the Horde, come to my aid! The beacon must be planted.", 0, 0);
             }
             break;
         case BG_AV_QUEST_A_COMMANDER3:
@@ -639,12 +626,9 @@ void BattleGroundAV::HandleQuestComplete(Unit* questGiver, uint32 questid, Playe
             reputation = 5;
             if (m_Team_QuestStatus[teamIdx][3] == 30)
             {
-                if (teamIdx == 0)
-                    sprintf(sMessageRemaining,"Soldiers of Stormpike, come to my aid! The beacon must be planted.");
-                else
-                    sprintf(sMessageRemaining,"Soldiers of the Horde, come to my aid! The beacon must be planted.");
-
-                questGiver->MonsterYell(sMessageRemaining, 0, 0);
+                questGiver->MonsterYell(teamIdx == 0
+                    ? "Soldiers of Stormpike, come to my aid! The beacon must be planted."
+                    : "Soldiers of the Horde, come to my aid! The beacon must be planted.", 0, 0);
             }
             break;
         case BG_AV_QUEST_A_BOSS1:
@@ -658,12 +642,9 @@ void BattleGroundAV::HandleQuestComplete(Unit* questGiver, uint32 questid, Playe
             reputation += 1;
             if (m_Team_QuestStatus[teamIdx][4] == 200)
             {
-                if (teamIdx == 0)
-                    sprintf(sMessageRemaining,"Soldiers of Stormpike, aid and protect us! The Forest Lord has granted us his protection. The portal must now be opened!");
-                else
-                    sprintf(sMessageRemaining,"Soldiers of Frostwolf, come to my aid! The Ice Lord has granted us his protection. He's accepted the offering! The time has come to unleash him upon the Stormpike Army!");
-
-                questGiver->MonsterYell(sMessageRemaining, 0, 0);
+                questGiver->MonsterYell(teamIdx == 0
+                    ? "Soldiers of Stormpike, aid and protect us! The Forest Lord has granted us his protection. The portal must now be opened!"
+                    : "Soldiers of Frostwolf, come to my aid! The Ice Lord has granted us his protection. He's accepted the offering! The time has come to unleash him upon the Stormpike Army!", 0, 0);
             }
             break;
         case BG_AV_QUEST_A_NEAR_MINE:
