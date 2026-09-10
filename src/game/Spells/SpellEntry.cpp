@@ -808,11 +808,12 @@ int32 SpellEntry::GetMaxDuration() const
 
 int32 SpellEntry::CalculateDuration(WorldObject const* caster, Unit const* target, AuraScript* auraScript) const
 {
-    int32 duration = GetDuration();
+    SpellDurationEntry const* durationEntry = sSpellDurationStore.LookupEntry(DurationIndex);
+    int32 duration = durationEntry ? ((durationEntry->Duration[0] == -1) ? -1 : abs(durationEntry->Duration[0])) : 0;
 
     if (duration != -1 && caster)
     {
-        int32 maxduration = GetMaxDuration();
+        int32 maxduration = durationEntry ? ((durationEntry->Duration[2] == -1) ? -1 : abs(durationEntry->Duration[2])) : 0;
 
         if (duration != maxduration)
             if (Player const* pPlayer = caster->ToPlayer())
