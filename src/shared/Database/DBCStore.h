@@ -24,10 +24,12 @@
 
 #include "DBCFileLoader.h"
 
+#include <vector>
+
 template<class T>
 class DBCStorage
 {
-    typedef std::list<char*> StringPoolList;
+    typedef std::vector<char*> StringPoolList;
     public:
         explicit DBCStorage(const char *f) : nCount(0), fieldCount(0), fmt(f), indexTable(nullptr), m_dataTable(nullptr) { }
         ~DBCStorage() { Clear(); }
@@ -85,11 +87,9 @@ class DBCStorage
             delete[] ((char*)m_dataTable);
             m_dataTable = nullptr;
 
-            while(!m_stringPoolList.empty())
-            {
-                delete[] m_stringPoolList.front();
-                m_stringPoolList.pop_front();
-            }
+            for (char* stringPool : m_stringPoolList)
+                delete[] stringPool;
+            m_stringPoolList.clear();
             nCount = 0;
         }
 

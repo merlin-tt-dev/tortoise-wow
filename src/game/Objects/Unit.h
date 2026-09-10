@@ -1032,7 +1032,7 @@ class Unit : public WorldObject
         virtual void ProhibitSpellSchool(SpellSchoolMask idSchoolMask, uint32 unTimeMs);
         bool IsSpellProhibited(SpellEntry const* pSpell) const;
     protected:
-        typedef std::list<ProhibitSpellInfo> ProhibitSpellList;
+        typedef std::vector<ProhibitSpellInfo> ProhibitSpellList;
         ProhibitSpellList m_prohibitSpell;
 
         /*********************************************************/
