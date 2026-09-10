@@ -218,9 +218,10 @@ char* DBCFileLoader::AutoProduceData(const char* format, uint32& records, char**
 
     for(uint32 y =0; y < recordCount; ++y)
     {
+        Record const record = getRecord(y);
         if (i >= 0)
         {
-            indexTable[getRecord(y).getUInt(i)]=&dataTable[offset];
+            indexTable[record.getUInt(i)]=&dataTable[offset];
         }
         else
             indexTable[y]=&dataTable[offset];
@@ -230,16 +231,16 @@ char* DBCFileLoader::AutoProduceData(const char* format, uint32& records, char**
             switch(format[x])
             {
                 case FT_FLOAT:
-                    *((float*)(&dataTable[offset]))=getRecord(y).getFloat(x);
+                    *((float*)(&dataTable[offset]))=record.getFloat(x);
                     offset += sizeof(float);
                     break;
                 case FT_IND:
                 case FT_INT:
-                    *((uint32*)(&dataTable[offset]))=getRecord(y).getUInt(x);
+                    *((uint32*)(&dataTable[offset]))=record.getUInt(x);
                     offset += sizeof(uint32);
                     break;
                 case FT_BYTE:
-                    *((uint8*)(&dataTable[offset]))=getRecord(y).getUInt8(x);
+                    *((uint8*)(&dataTable[offset]))=record.getUInt8(x);
                     offset += sizeof(uint8);
                     break;
                 case FT_STRING:
@@ -275,6 +276,7 @@ char* DBCFileLoader::AutoProduceStrings(const char* format, char* dataTable)
 
     for(uint32 y =0; y < recordCount; ++y)
     {
+        Record const record = getRecord(y);
         for(uint32 x = 0; x < fieldCount; ++x)
         {
             switch(format[x])
@@ -295,7 +297,7 @@ char* DBCFileLoader::AutoProduceStrings(const char* format, char* dataTable)
                     char** slot = (char**)(&dataTable[offset]);
                     if(!*slot || !**slot)
                     {
-                        const char * st = getRecord(y).getString(x);
+                        const char * st = record.getString(x);
                         *slot=stringPool+(st-(const char*)stringTable);
                     }
                     offset += sizeof(char*);
