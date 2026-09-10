@@ -11340,10 +11340,9 @@ bool Unit::HasMorePowerfulSpellActive(SpellEntry const* spell) const
     std::vector<uint32> morePowerfullSpells;
     if (!sSpellMgr.ListMorePowerfulSpells(spell->Id, morePowerfullSpells))
         return false;
-    for (const auto& i : m_spellAuraHolders)
-        for (const auto& it : morePowerfullSpells)
-            if (it == i.first)
-                return true;
+    for (uint32 spellId : morePowerfullSpells)
+        if (m_spellAuraHolders.find(spellId) != m_spellAuraHolders.end())
+            return true;
     return false;
 }
 
