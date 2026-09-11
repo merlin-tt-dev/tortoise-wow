@@ -28,6 +28,10 @@
 
 #include "Common.h"
 
+#include <array>
+#include <map>
+#include <optional>
+
 // Note: this include need for be sure have full definition of class WorldSession
 //       if this class definition not complite then VS for x64 release use different size for
 //       struct OpcodeHandler in this header and Opcode.cpp and get totally wrong data from
@@ -58,8 +62,6 @@ struct OpcodeHandler
     void (WorldSession::*handler)(WorldPacket& recvPacket);
 };
 
-typedef std::map< uint16, OpcodeHandler> OpcodeMap;
-
 class Opcodes
 {
     public:
@@ -69,35 +71,35 @@ class Opcodes
         void BuildOpcodeList();
         void StoreOpcode(uint16 Opcode,char const* name, SessionStatus status, PacketProcessing process, void (WorldSession::*handler)(WorldPacket& recvPacket))
         {
-            OpcodeHandler& ref = mOpcodeMap[Opcode];
-            ref.name = name;
-            ref.status = status;
-            ref.packetProcessing = process;
-            ref.handler = handler;
+            if (Opcode < NUM_MSG_TYPES)
+                mOpcodeTable[Opcode] = OpcodeHandler{name, status, process, handler};
+            else
+                mExtendedOpcodeMap[Opcode] = OpcodeHandler{name, status, process, handler};
         }
 
         /// Lookup opcode
         inline OpcodeHandler const* LookupOpcode(uint16 id) const
         {
-            OpcodeMap::const_iterator itr = mOpcodeMap.find(id);
-            if (itr != mOpcodeMap.end())
-                return &itr->second;
-            return nullptr;
+            if (id < NUM_MSG_TYPES)
+                return mOpcodeTable[id] ? &*mOpcodeTable[id] : nullptr;
+
+            auto itr = mExtendedOpcodeMap.find(id);
+            return itr != mExtendedOpcodeMap.end() ? &itr->second : nullptr;
         }
 
         /// compatible with other mangos branches access
 
         inline OpcodeHandler const& operator[] (uint16 id) const
         {
-            OpcodeMap::const_iterator itr = mOpcodeMap.find(id);
-            if (itr != mOpcodeMap.end())
-                return itr->second;
+            if (OpcodeHandler const* handler = LookupOpcode(id))
+                return *handler;
             return emptyHandler;
         }
 
         static OpcodeHandler const emptyHandler;
 
-        OpcodeMap mOpcodeMap;
+        std::array<std::optional<OpcodeHandler>, NUM_MSG_TYPES> mOpcodeTable{};
+        std::map<uint16, OpcodeHandler> mExtendedOpcodeMap;
 
 };
 

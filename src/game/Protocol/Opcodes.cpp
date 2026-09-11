@@ -43,11 +43,7 @@ Opcodes::Opcodes()
     BuildOpcodeList();
 }
 
-Opcodes::~Opcodes()
-{
-    /// Clear Opcodes
-    mOpcodeMap.clear();
-}
+Opcodes::~Opcodes() = default;
 
 
 void Opcodes::BuildOpcodeList()
