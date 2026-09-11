@@ -1,0 +1,31 @@
+diff --git a/src/shared/Config/Config.cpp b/src/shared/Config/Config.cpp
+index 158f66584ce882d10284d01039e143db35949b03..89c9e0a362c990f52701a7ee1677865c63d1612d 100644
+--- a/src/shared/Config/Config.cpp
++++ b/src/shared/Config/Config.cpp
+@@ -27,7 +27,7 @@
+ #include <cctype>
+ #include <filesystem>
+ #include <fstream>
+-#include <map>
++#include <unordered_map>
+ #include <unordered_set>
+ #include <vector>
+ 
+@@ -223,7 +223,7 @@ static bool ReadConfigFileMetadata(
+ 
+ static void WarnAndRegisterDuplicateKeys(
+     ConfigFileMetadata const& metadata,
+-    std::map<std::string, ConfigKeyDefinition>& knownKeys)
++    std::unordered_map<std::string, ConfigKeyDefinition>& knownKeys)
+ {
+     for (ConfigKeyDefinition const& definition : metadata.keys)
+     {
+@@ -280,7 +280,7 @@ bool Config::LoadIncludes()
+     if (!ReadConfigFileMetadata(mFilename, true, rootMetadata))
+         return false;
+ 
+-    std::map<std::string, ConfigKeyDefinition> knownKeys;
++    std::unordered_map<std::string, ConfigKeyDefinition> knownKeys;
+     WarnAndRegisterDuplicateKeys(rootMetadata, knownKeys);
+ 
+     std::filesystem::path const configDirectory(GetConfigDirectory());

@@ -1,0 +1,30 @@
+diff --git a/src/game/ObjectMgr.cpp b/src/game/ObjectMgr.cpp
+index e85ec15bbd197b1179fac44d2d8850601c47a192..fa3b1693352e548c6b2c469f94f5940764b53908 100644
+--- a/src/game/ObjectMgr.cpp
++++ b/src/game/ObjectMgr.cpp
+@@ -56,6 +56,7 @@
+ #include "Geometry.h"
+ 
+ #include <limits>
++#include <unordered_set>
+ 
+ ObjectMgr sObjectMgr;
+ 
+@@ -8051,7 +8052,7 @@ void ObjectMgr::LoadTrainers(char const* tableName, bool isTemplates)
+     }
+     trainerList.clear();
+ 
+-    std::set<uint32> skip_trainers;
++    std::unordered_set<uint32> skip_trainers;
+ 
+     std::unique_ptr<QueryResult> result(WorldDatabase.PQuery("SELECT `entry`, `spell`, `spellcost`, `reqskill`, `reqskillvalue`, `reqlevel` FROM %s", tableName));
+ 
+@@ -8060,7 +8061,7 @@ void ObjectMgr::LoadTrainers(char const* tableName, bool isTemplates)
+         return;
+     }
+ 
+-    std::set<uint32> talentIds;
++    std::unordered_set<uint32> talentIds;
+ 
+     do
+     {

@@ -1,0 +1,22 @@
+diff --git a/src/game/ScriptMgr.cpp b/src/game/ScriptMgr.cpp
+index 95eea9a153f3b4b64bb44512bac4d22de0c399b4..7e31a29621045132d4f159dbcc83338ea03318d7 100644
+--- a/src/game/ScriptMgr.cpp
++++ b/src/game/ScriptMgr.cpp
+@@ -1570,7 +1570,7 @@ void ScriptMgr::LoadCreatureEventAIScripts()
+     }
+ 
+     // Get all script Ids referenced in creature_ai_events table.
+-    std::set<uint32> actionIds;
++    std::unordered_set<uint32> actionIds;
+     for (uint8 i = 1; i <= 3; i++)
+     {
+         result = WorldDatabase.PQuery("SELECT action%u_script FROM creature_ai_events", i);
+@@ -1591,7 +1591,7 @@ void ScriptMgr::LoadCreatureEventAIScripts()
+     // Then check if all scripts are in above list of used script Ids.
+     for (const auto& itr : sCreatureAIScripts)
+     {
+-        std::set<uint32>::const_iterator itr2 = actionIds.find(itr.first);
++        auto const itr2 = actionIds.find(itr.first);
+         if (itr2 == actionIds.end())
+             sLog.outErrorDb("Table `creature_ai_scripts` has script (Id: %u) not used by any creature AI events.", itr.first);
+     }

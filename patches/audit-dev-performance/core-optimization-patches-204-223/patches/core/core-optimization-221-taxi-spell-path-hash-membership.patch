@@ -1,0 +1,21 @@
+diff --git a/src/game/Database/DBCStores.cpp b/src/game/Database/DBCStores.cpp
+index f0f485b43b6b4b18c89963f4fd106cfa3dd78fc3..eea16f3c4849a582eff2cda1c6cf4e6b3e88f5a1 100644
+--- a/src/game/Database/DBCStores.cpp
++++ b/src/game/Database/DBCStores.cpp
+@@ -31,6 +31,7 @@
+ #include <map>
+ #include <vector>
+ #include <regex>
++#include <unordered_set>
+ 
+ typedef std::tuple<int32, int32, int32> WMOAreaTableKey;
+ typedef std::map<WMOAreaTableKey, WMOAreaTableEntry const*> WMOAreaInfoByTripple;
+@@ -418,7 +419,7 @@ void LoadDBCStores(std::string const& dataPath)
+     // Initialize global taxinodes mask
+     // include existing nodes that have at least single not spell base (scripted) path
+     {
+-        std::set<uint32> spellPaths;
++        std::unordered_set<uint32> spellPaths;
+         for (uint32 i = 1; i < sSpellMgr.GetMaxSpellId(); ++i)
+             if (SpellEntry const* sInfo = sSpellMgr.GetSpellEntry(i))
+                 for (int j = 0; j < MAX_EFFECT_INDEX; ++j)

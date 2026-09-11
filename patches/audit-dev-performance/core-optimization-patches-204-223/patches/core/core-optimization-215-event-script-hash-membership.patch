@@ -1,0 +1,69 @@
+diff --git a/src/game/ScriptMgr.cpp b/src/game/ScriptMgr.cpp
+index 0ade4591d50182a12d4f09a90da04fe718f434b0..95eea9a153f3b4b64bb44512bac4d22de0c399b4 100644
+--- a/src/game/ScriptMgr.cpp
++++ b/src/game/ScriptMgr.cpp
+@@ -1509,14 +1509,14 @@ void ScriptMgr::LoadEventScripts()
+ {
+     LoadScripts(sEventScripts, "event_scripts");
+ 
+-    std::set<uint32> eventIds;                              // Store possible event ids
++    std::unordered_set<uint32> eventIds;                    // Store possible event ids
+ 
+     CollectPossibleEventIds(eventIds);
+ 
+     // Then check if all scripts are in above list of possible script entries
+     for (const auto& itr : sEventScripts)
+     {
+-        std::set<uint32>::const_iterator itr2 = eventIds.find(itr.first);
++        auto const itr2 = eventIds.find(itr.first);
+         if (itr2 == eventIds.end())
+             sLog.outErrorDb("Table `event_scripts` has script (Id: %u) not referring to any gameobject_template type 10 data2 field, type 3 data6 field, type 13 data 2 field, type 29 or any spell effect %u",
+                 itr.first, SPELL_EFFECT_SEND_EVENT);
+@@ -1670,7 +1670,7 @@ void ScriptMgr::LoadEventIdScripts()
+         return;
+     }
+ 
+-    std::set<uint32> eventIds;                              // Store possible event ids
++    std::unordered_set<uint32> eventIds;                    // Store possible event ids
+     CollectPossibleEventIds(eventIds);
+ 
+     do
+@@ -1680,7 +1680,7 @@ void ScriptMgr::LoadEventIdScripts()
+         uint32 eventId          = fields[0].GetUInt32();
+         const char *scriptName  = fields[1].GetString();
+ 
+-        std::set<uint32>::const_iterator itr = eventIds.find(eventId);
++        auto const itr = eventIds.find(eventId);
+         if (itr == eventIds.end())
+             sLog.outErrorDb("Table `scripted_event_id` has id %u not referring to any gameobject_template type 10 data2 field, type 3 data6 field, type 13 data 2 field, type 29 or any spell effect %u or path taxi node data",
+                             eventId, SPELL_EFFECT_SEND_EVENT);
+@@ -2651,7 +2651,7 @@ void ScriptMgr::CollectPossibleGenericIds(std::set<uint32>& genericIds)
+     }
+ }
+ 
+-void ScriptMgr::CollectPossibleEventIds(std::set<uint32>& eventIds)
++void ScriptMgr::CollectPossibleEventIds(std::unordered_set<uint32>& eventIds)
+ {
+ 
+     // Load all possible script entries from gameobjects.
+diff --git a/src/game/ScriptMgr.h b/src/game/ScriptMgr.h
+index ff68888271ea7ba9f7534b77934dbf93040e7db8..4015ca5292952a2e77c1aeaf0af5a26f8faee7cc 100644
+--- a/src/game/ScriptMgr.h
++++ b/src/game/ScriptMgr.h
+@@ -37,6 +37,7 @@
+ #include <memory>
+ #include <optional>
+ #include <set>
++#include <unordered_set>
+ 
+ struct AreaTriggerEntry;
+ struct CleanDamage;
+@@ -1636,7 +1637,7 @@ class ScriptMgr
+         bool OnQuestRewardedByScript(Player* pPlayer, Quest const* pQuest);
+         void RegisterQuestInstance(Script* pQuestScript, Player* pPlayer);
+         void CollectPossibleGenericIds(std::set<uint32>& eventIds);
+-        void CollectPossibleEventIds(std::set<uint32>& eventIds);
++        void CollectPossibleEventIds(std::unordered_set<uint32>& eventIds);
+         void LoadScripts(ScriptMapMap& scripts, const char* tablename);
+         void CheckScriptTexts(ScriptMapMap const& scripts);
+ 

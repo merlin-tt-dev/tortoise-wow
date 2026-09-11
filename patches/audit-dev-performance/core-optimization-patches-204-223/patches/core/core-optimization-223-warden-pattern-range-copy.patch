@@ -1,0 +1,15 @@
+diff --git a/src/game/Anticheat/Warden/WardenScanMgr.cpp b/src/game/Anticheat/Warden/WardenScanMgr.cpp
+index 9da5ba620ece6e6e89ee2e70bbe5be458aba86ee..dcbc3faaa031fb10881959b2763799c6c87584d3 100644
+--- a/src/game/Anticheat/Warden/WardenScanMgr.cpp
++++ b/src/game/Anticheat/Warden/WardenScanMgr.cpp
+@@ -139,9 +139,7 @@ void WardenScanMgr::loadFromDB()
+                     continue;
+                 }
+ 
+-                std::vector<uint8> simplePattern;
+-                simplePattern.resize(pattern.size());
+-                memcpy(simplePattern.data(), pattern.data(), pattern.size());
++                std::vector<uint8> simplePattern(pattern.begin(), pattern.end());
+ 
+                 scan = new WindowsCodeScan(offset, simplePattern, scanType == FIND_MEM_IMAGE_CODE_BY_HASH, wanted, comment, flags);
+                 break;

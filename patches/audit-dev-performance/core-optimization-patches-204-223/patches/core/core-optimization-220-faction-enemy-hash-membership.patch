@@ -1,0 +1,13 @@
+diff --git a/src/game/ObjectMgr.cpp b/src/game/ObjectMgr.cpp
+index e1213b4878e5574e01fe87031d965f9e1743233d..f222477b50fe0fbb817216f99cf4caaf59b95bd6 100644
+--- a/src/game/ObjectMgr.cpp
++++ b/src/game/ObjectMgr.cpp
+@@ -6340,7 +6340,7 @@ void ObjectMgr::LoadFactions()
+             return;
+         }
+ 
+-        std::set<uint32> factionsWithEnemies;
++        std::unordered_set<uint32> factionsWithEnemies;
+ 
+         do
+         {

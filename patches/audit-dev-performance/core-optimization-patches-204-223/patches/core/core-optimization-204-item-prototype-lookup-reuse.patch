@@ -1,0 +1,178 @@
+diff --git a/src/game/GuildBank/GuildBank.cpp b/src/game/GuildBank/GuildBank.cpp
+index aac2e0f618853ddb1de9b4992a90256384137b5b..18245a9c64a8fc34f36acc97e73edbdf053e5d77 100644
+--- a/src/game/GuildBank/GuildBank.cpp
++++ b/src/game/GuildBank/GuildBank.cpp
+@@ -2568,11 +2568,12 @@ void GuildBank::CloneItem(Item* item, BankItem* bItem)
+ // Clones a Item into a BankItem
+ void GuildBank::CloneItem(BankItem* bItem, Item* pItem)
+ {
+-	bItem->Name            = pItem->GetProto()->Name1;
+-	bItem->item_template   = pItem->GetProto()->ItemId;
++    ItemPrototype const* proto = pItem->GetProto();
++    bItem->Name            = proto->Name1;
++    bItem->item_template   = proto->ItemId;
+ 	bItem->creatorGuid     = pItem->GetGuidValue(ITEM_FIELD_CREATOR).GetCounter();
+ 	bItem->giftCreatorGuid = pItem->GetGuidValue(ITEM_FIELD_GIFTCREATOR).GetCounter();
+-	bItem->maxStackSize    = pItem->GetProto()->GetMaxStackSize();
++    bItem->maxStackSize    = proto->GetMaxStackSize();
+ 	bItem->duration        = pItem->GetInt32Value(ITEM_FIELD_DURATION);
+ 	bItem->is_inferno      = b_infernoBank;
+ 
+diff --git a/src/game/Handlers/TradeHandler.cpp b/src/game/Handlers/TradeHandler.cpp
+index 9e437cc3ec934d0d01d22d3abbfb734cfb0b9589..52b36393d690c04daa2fc6c8270be09d68d60134 100644
+--- a/src/game/Handlers/TradeHandler.cpp
++++ b/src/game/Handlers/TradeHandler.cpp
+@@ -96,8 +96,9 @@ void WorldSession::SendUpdateTrade(bool trader_state /*= true*/)
+ 
+         if (Item* item = view_trade->GetItem(TradeSlots(i)))
+         {
+-            data << uint32(item->GetProto()->ItemId);       // entry
+-            data << uint32(item->GetProto()->DisplayInfoID);// display id
++            ItemPrototype const* proto = item->GetProto();
++            data << uint32(proto->ItemId);                  // entry
++            data << uint32(proto->DisplayInfoID);           // display id
+             data << uint32(item->GetCount());               // stack count
+ 
+             // wrapped: hide stats but show giftcreator name
+@@ -109,7 +110,7 @@ void WorldSession::SendUpdateTrade(bool trader_state /*= true*/)
+             data << uint32(item->GetSpellCharges());        // charges
+             data << uint32(item->GetItemSuffixFactor());    // SuffixFactor
+             data << uint32(item->GetItemRandomPropertyId());// random properties id
+-            data << uint32(item->GetProto()->LockID);       // lock id
++            data << uint32(proto->LockID);                  // lock id
+             // max durability
+             data << uint32(item->GetUInt32Value(ITEM_FIELD_MAXDURABILITY));
+             // durability
+diff --git a/src/game/Objects/Player.cpp b/src/game/Objects/Player.cpp
+index 74cbbb6b83ca0bcfec1c36bd16464b6dea38aae3..2270f19880184e60b8978785d21d456ab6bb1ff3 100644
+--- a/src/game/Objects/Player.cpp
++++ b/src/game/Objects/Player.cpp
+@@ -6089,8 +6089,9 @@ Corpse* Player::CreateCorpse()
+     {
+         if (m_items[i])
+         {
+-            iDisplayID = m_items[i]->GetProto()->DisplayInfoID;
+-            iIventoryType = m_items[i]->GetProto()->InventoryType;
++            ItemPrototype const* proto = m_items[i]->GetProto();
++            iDisplayID = proto->DisplayInfoID;
++            iIventoryType = proto->InventoryType;
+ 
+             _cfi =  iDisplayID | (iIventoryType << 24);
+             corpse->SetUInt32Value(CORPSE_FIELD_ITEM + i, _cfi);
+@@ -6980,8 +6981,12 @@ void Player::UpdateCombatSkills(Unit* pVictim, WeaponAttackType& attType, const
+                 {
+                     if (!tmpitem)
+                         UpdateSkill(SKILL_UNARMED, weapon_skill_gain);
+-                    else if (tmpitem->GetProto()->SubClass != ITEM_SUBCLASS_WEAPON_FISHING_POLE)
+-                        UpdateSkill(tmpitem->GetProto()->GetProficiencySkill(), weapon_skill_gain);
++                    else
++                    {
++                        ItemPrototype const* proto = tmpitem->GetProto();
++                        if (proto->SubClass != ITEM_SUBCLASS_WEAPON_FISHING_POLE)
++                            UpdateSkill(proto->GetProficiencySkill(), weapon_skill_gain);
++                    }
+ 
+                     break;
+                 }
+@@ -6989,7 +6994,10 @@ void Player::UpdateCombatSkills(Unit* pVictim, WeaponAttackType& attType, const
+                 case RANGED_ATTACK:
+                 {
+                     if (tmpitem)
+-                        UpdateSkill(tmpitem->GetProto()->GetProficiencySkill(), weapon_skill_gain);
++                    {
++                        ItemPrototype const* proto = tmpitem->GetProto();
++                        UpdateSkill(proto->GetProficiencySkill(), weapon_skill_gain);
++                    }
+ 
+                     break;
+                 }
+@@ -9372,15 +9380,21 @@ void Player::SendLoot(ObjectGuid guid, LootType loot_type, Player* pVictim)
+                 switch (loot_type)
+                 {
+                     case LOOT_DISENCHANTING:
+-                        loot->FillLoot(item->GetProto()->DisenchantID, LootTemplates_Disenchant, this, true);
++                    {
++                        ItemPrototype const* proto = item->GetProto();
++                        loot->FillLoot(proto->DisenchantID, LootTemplates_Disenchant, this, true);
+                         item->SetLootState(ITEM_LOOT_TEMPORARY);
+                         break;
++                    }
+                     default:
+-                        loot->FillLoot(item->GetEntry(), LootTemplates_Item, this, true, item->GetProto()->MaxMoneyLoot == 0);
+-                        loot->GenerateMoneyLoot(item->GetProto()->MinMoneyLoot, item->GetProto()->MaxMoneyLoot);
++                    {
++                        ItemPrototype const* proto = item->GetProto();
++                        loot->FillLoot(item->GetEntry(), LootTemplates_Item, this, true, proto->MaxMoneyLoot == 0);
++                        loot->GenerateMoneyLoot(proto->MinMoneyLoot, proto->MaxMoneyLoot);
+                         item->SetLootState(ITEM_LOOT_CHANGED);
+                         item->SetGeneratedLoot(true);
+                         break;
++                    }
+                 }
+             }
+             break;
+@@ -13234,7 +13248,8 @@ void Player::SwapItem(uint16 src, uint16 dst)
+         // can be merge/fill
+         if (msg == EQUIP_ERR_OK)
+         {
+-            if (pSrcItem->GetCount() + pDstItem->GetCount() <= pSrcItem->GetProto()->GetMaxStackSize())
++            uint32 const maxStackSize = pSrcItem->GetProto()->GetMaxStackSize();
++            if (pSrcItem->GetCount() + pDstItem->GetCount() <= maxStackSize)
+             {
+                 RemoveItem(srcbag, srcslot, true);
+ 
+@@ -13250,8 +13265,8 @@ void Player::SwapItem(uint16 src, uint16 dst)
+             }
+             else
+             {
+-                pSrcItem->SetCount(pSrcItem->GetCount() + pDstItem->GetCount() - pSrcItem->GetProto()->GetMaxStackSize());
+-                pDstItem->SetCount(pSrcItem->GetProto()->GetMaxStackSize());
++                pSrcItem->SetCount(pSrcItem->GetCount() + pDstItem->GetCount() - maxStackSize);
++                pDstItem->SetCount(maxStackSize);
+                 pSrcItem->SetState(ITEM_CHANGED, this);
+                 pDstItem->SetState(ITEM_CHANGED, this);
+                 if (IsInWorld())
+diff --git a/src/game/StatSystem.cpp b/src/game/StatSystem.cpp
+index 4a514dafa68713e8bd9c30d89e516fe0d2b4962e..1571764e4e26e6449d8da0e27c1c55c6381e92eb 100644
+--- a/src/game/StatSystem.cpp
++++ b/src/game/StatSystem.cpp
+@@ -157,10 +157,14 @@ void Player::UpdateArmor()
+             if (auto findItr = armorLookup.find(aura->GetId()); findItr != armorLookup.end())
+             {
+                 auto shield = GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_OFFHAND);
+-                if (shield && shield->GetProto()->Class == ITEM_CLASS_ARMOR &&
+-                    (shield->GetProto()->SubClass == ITEM_SUBCLASS_ARMOR_SHIELD || shield->GetProto()->SubClass == ITEM_SUBCLASS_ARMOR_BUCKLER))
++                if (shield)
+                 {
+-                    dynamic += ceilf(shield->GetProto()->Armor / 100.0f * findItr->second);
++                    ItemPrototype const* proto = shield->GetProto();
++                    if (proto->Class == ITEM_CLASS_ARMOR &&
++                        (proto->SubClass == ITEM_SUBCLASS_ARMOR_SHIELD || proto->SubClass == ITEM_SUBCLASS_ARMOR_BUCKLER))
++                    {
++                        dynamic += ceilf(proto->Armor / 100.0f * findItr->second);
++                    }
+                 }
+             }
+         }
+diff --git a/src/game/TransmogMgr.cpp b/src/game/TransmogMgr.cpp
+index 827aa1b7846bf592d44314b492cc921aa73f4b88..47e6e2bb8ac180987b89fa124930052ac05a4c49 100644
+--- a/src/game/TransmogMgr.cpp
++++ b/src/game/TransmogMgr.cpp
+@@ -251,7 +251,7 @@ uint8 TransmogMgr::ApplyTransmog(uint8 slot, uint32 sourceItemID, uint32 slotId)
+ 
+ 	ItemPrototype const* destItemProto = destItem->GetProto();
+ 
+-	if (!destItem->GetProto() || !destItemProto)
++    if (!destItemProto)
+ 		return 1; // no dest item
+ 
+ 	uint32 newItemId = 0;
+@@ -276,7 +276,7 @@ uint8 TransmogMgr::ApplyTransmog(uint8 slot, uint32 sourceItemID, uint32 slotId)
+ 			return 5; // source not valid for destination
+ 
+ 		// create or get item replica
+-		newItemId = sObjectMgr.CreateItemTransmogrifyTemplate(destItem->GetProto()->ItemId, srcItemProto->DisplayInfoID, sourceItemID);
++        newItemId = sObjectMgr.CreateItemTransmogrifyTemplate(destItemProto->ItemId, srcItemProto->DisplayInfoID, sourceItemID);
+ 
+ 		_owner->DestroyItemCount(TRANSMOG_CURRENCY, 1, true);
+ 	}

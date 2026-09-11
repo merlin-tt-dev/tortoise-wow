@@ -1,0 +1,21 @@
+diff --git a/src/game/Commands/Commands.cpp b/src/game/Commands/Commands.cpp
+index 8933236af58402045cb3e998526f4047cb1dd11b..eee296785e5686d8d9b2ec9dbb35deb9a5ce7697 100644
+--- a/src/game/Commands/Commands.cpp
++++ b/src/game/Commands/Commands.cpp
+@@ -87,6 +87,7 @@
+ #include <regex>
+ #include <iomanip>
+ #include <sstream>
++#include <unordered_set>
+ #include <ctime>
+ #include "Anticheat/Anticheat.h"
+ #include "SuspiciousStatisticMgr.h"
+@@ -758,7 +759,7 @@ bool ChatHandler::HandleLearnAllTrainerCommand(char* args)
+     }
+     else
+     {
+-        std::set<uint32> checkedTrainerTemplates;
++        std::unordered_set<uint32> checkedTrainerTemplates;
+         for (auto const& itr : sObjectMgr.GetCreatureInfoMap())
+         {
+             CreatureInfo const* cInfo = itr.second.get();

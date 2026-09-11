@@ -1,0 +1,17 @@
+diff --git a/src/game/Analysis/AccountAnalyser.cpp b/src/game/Analysis/AccountAnalyser.cpp
+index eaa3cb439da637ce5e9e3f46bcd563ae0f314d71..849aef4c7ef769047d2ac87a141637d22b95d3b5 100644
+--- a/src/game/Analysis/AccountAnalyser.cpp
++++ b/src/game/Analysis/AccountAnalyser.cpp
+@@ -168,9 +168,10 @@ void AccountAnalyser::AddAutoBanExtendedPrint(uint64 extendedPrint)
+ 
+ void AccountAnalyser::CheckExtendedPrintMark()
+ {
+-    if (_markedExtendedPrints.find(_currentSample.GetHash()) != _markedExtendedPrints.end())
++    size_t currentSampleHash = _currentSample.GetHash();
++    if (_markedExtendedPrints.find(currentSampleHash) != _markedExtendedPrints.end())
+     {
+-        std::string message = string_format("Marked extended print logged in! {} on account {} (ID {}). IP {}.", _currentSample.GetHash(), _session->GetUsername(), _session->GetAccountId(),
++        std::string message = string_format("Marked extended print logged in! {} on account {} (ID {}). IP {}.", currentSampleHash, _session->GetUsername(), _session->GetAccountId(),
+             _session->GetRemoteAddress().c_str());
+ 
+         sWorld.SendGMText(message);

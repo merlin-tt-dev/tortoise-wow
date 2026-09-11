@@ -1,0 +1,22 @@
+diff --git a/src/shared/Config/Config.cpp b/src/shared/Config/Config.cpp
+index 0e3f26bda2002ac9b901503ade0717f3332af4bc..158f66584ce882d10284d01039e143db35949b03 100644
+--- a/src/shared/Config/Config.cpp
++++ b/src/shared/Config/Config.cpp
+@@ -28,7 +28,7 @@
+ #include <filesystem>
+ #include <fstream>
+ #include <map>
+-#include <set>
++#include <unordered_set>
+ #include <vector>
+ 
+ INSTANTIATE_SINGLETON_2(Config, Config::Lock);
+@@ -346,7 +346,7 @@ bool Config::LoadIncludes()
+         includeFiles.insert(includeFiles.end(), directoryFiles.begin(), directoryFiles.end());
+     }
+ 
+-    std::set<std::string> loadedIncludeFiles;
++    std::unordered_set<std::string> loadedIncludeFiles;
+ 
+     // Includes are intentionally single-level. IncludeDir/IncludeFile directives
+     // inside included files are ignored, which keeps ordering deterministic and

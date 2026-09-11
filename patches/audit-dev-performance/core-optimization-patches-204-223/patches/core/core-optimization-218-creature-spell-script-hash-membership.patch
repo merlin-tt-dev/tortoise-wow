@@ -1,0 +1,13 @@
+diff --git a/src/game/ObjectMgr.cpp b/src/game/ObjectMgr.cpp
+index fa3b1693352e548c6b2c469f94f5940764b53908..e1213b4878e5574e01fe87031d965f9e1743233d 100644
+--- a/src/game/ObjectMgr.cpp
++++ b/src/game/ObjectMgr.cpp
+@@ -1749,7 +1749,7 @@ void ObjectMgr::LoadCreatureSpells()
+         } while (result->NextRow());
+     }
+ 
+-    std::set<uint32> spellScriptSetFull = spellScriptSet;
++    std::unordered_set<uint32> spellScriptSetFull(spellScriptSet.begin(), spellScriptSet.end());
+ 
+     // Now we load creature_spells.
+     m_CreatureSpellsMap.clear(); // for reload case

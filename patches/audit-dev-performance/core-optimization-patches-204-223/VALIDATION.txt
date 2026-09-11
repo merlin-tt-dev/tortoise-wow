@@ -1,0 +1,68 @@
+# Validation — Core Optimization 204-223
+
+Result: PASS
+
+## Exact baseline
+
+Source archive SHA256:
+
+`12d97c57b551f0251cf5421ef072797068acbc0172db4fd2583b22d46565c891  tortoise-wow-audits-dev-performance-patch203.tar.xz`
+
+Fresh validation repository baseline Git tree:
+
+`a94d011979f4232ec00723e5125ce2d3a3c2f574`
+
+This matched the audited worktree's Patch-203 parent tree exactly before patch application.
+
+## Per-patch procedure
+
+All 20 patches were applied from a fresh extraction in `APPLY-ORDER.txt` order. For every patch:
+
+```text
+git -c core.whitespace=trailing-space,space-before-tab,tab-in-indent \
+    apply --check --whitespace=error-all PATCH
+
+git -c core.whitespace=trailing-space,space-before-tab,tab-in-indent \
+    apply --numstat --whitespace=error-all PATCH
+
+git apply PATCH
+git diff --check
+```
+
+Results: 20/20 PASS.
+
+Additional patch-text hygiene scan:
+
+- newly added lines containing tab characters: 0
+- added merge-conflict markers: 0
+- whole-series `git diff --check`: PASS
+
+## Final tree proof
+
+Fresh sequential-apply final Git tree:
+
+`f29d40a6c3fcfd88c1064c1f7b252780be93ca8d`
+
+Audited 204-223 worktree Git tree:
+
+`f29d40a6c3fcfd88c1064c1f7b252780be93ca8d`
+
+Result: `FINAL_TREE_MATCH_PASS`.
+
+## Freeze correction
+
+The first generated Patch 204 contained six newly introduced indentation tabs. Before release, those lines were rewritten to space indentation inside Patch 204 itself. `git diff -w` between the old and rewritten full 204-223 audited trees was empty, proving the rewrite was whitespace-only. The entire 20-patch validation was then restarted from the exact Patch-203 baseline and passed.
+
+## Targeted semantic/differential checks
+
+- Patch 207: old candidate-vector index selection versus new Nth-valid direct selection — RNG index mapping PASS.
+- Patch 208: old two-pass node-vector selection versus direct ascending scan across randomized ownership/missing-entry/equal-distance cases — tie/order mapping PASS.
+- Patch 212: extracted old/new Action tuples for Warrior, Paladin, Hunter, Rogue, Priest, Shaman, Mage, Warlock and Druid — values and ordering PASS for all nine classes.
+- Patches 214-222: full usage sweeps confirmed converted containers are membership/tracking-only and are not iterated for observable order.
+- Patch 205: `GetLastMovementInfo()` definition confirmed as direct reference to `_me->m_movementInfo`; caching does not create a snapshot.
+- Patch 209: `MasterPlayer::GetSocial()` confirmed as inline `m_social` pointer return.
+- Patch 223: source container and destination vector both hold `uint8`; existing `WindowsCodeScan` copy/ownership boundary retained.
+
+## Build status
+
+No full local build was run, per project/user policy. Authoritative platform builds remain external.

@@ -1,0 +1,54 @@
+diff --git a/src/game/PlayerBots/PlayerBotAI.cpp b/src/game/PlayerBots/PlayerBotAI.cpp
+index 843f458e04ddacb830eb3c0d2b5b6f99460515a7..43a9a9ea935b2e838f7a04c0265796187b40c273 100644
+--- a/src/game/PlayerBots/PlayerBotAI.cpp
++++ b/src/game/PlayerBots/PlayerBotAI.cpp
+@@ -17,7 +17,6 @@
+ #include <mutex>
+ #include <cmath>
+ #include <memory>
+-#include <functional>
+ 
+ bool PlayerBotAI::OnSessionLoaded(PlayerBotEntry* entry, WorldSession* sess)
+ {
+@@ -344,16 +343,16 @@ uint32 PlayerBotAI::GetHighestKnownSpell(uint32 spellId) const
+     uint32 best = 0;
+     SpellChainMapNext const& nextMap = sSpellMgr.GetSpellChainNext();
+ 
+-    std::function<void(uint32)> dfs = [&](uint32 id)
++    auto dfs = [&](auto&& self, uint32 id) -> void
+     {
+         if (me->HasSpell(id))
+             best = id;
+         auto range = nextMap.equal_range(id);
+         for (auto itr = range.first; itr != range.second; ++itr)
+-            dfs(itr->second);
++            self(self, itr->second);
+     };
+ 
+-    dfs(first);
++    dfs(dfs, first);
+     return best;
+ }
+ 
+@@ -365,18 +364,18 @@ bool PlayerBotAI::TargetHasAuraFromChain(Unit* target, uint32 spellId) const
+     uint32 first = sSpellMgr.GetFirstSpellInChain(spellId);
+     SpellChainMapNext const& nextMap = sSpellMgr.GetSpellChainNext();
+ 
+-    std::function<bool(uint32)> dfs = [&](uint32 id) -> bool
++    auto dfs = [&](auto&& self, uint32 id) -> bool
+     {
+         if (target->HasAura(id))
+             return true;
+         auto range = nextMap.equal_range(id);
+         for (auto itr = range.first; itr != range.second; ++itr)
+-            if (dfs(itr->second))
++            if (self(self, itr->second))
+                 return true;
+         return false;
+     };
+ 
+-    return dfs(first);
++    return dfs(dfs, first);
+ }
+ 
+ namespace
