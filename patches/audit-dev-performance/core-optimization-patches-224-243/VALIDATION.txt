@@ -1,0 +1,49 @@
+# Validation — corrected 224–243
+
+## Sequential freeze
+
+A fresh exact copy of the established Patch-223 parent was used. Every patch in `APPLY-ORDER.txt` was applied strictly in sequence with the project checks:
+
+- `git ... apply --check --whitespace=error-all`
+- `git ... apply --numstat --whitespace=error-all`
+- `git apply`
+- `git diff --check`
+- reverse applicability check after application
+
+Final corrected Patch-243 tree:
+
+`0008e24c9484620a5ad508fafbf5bd85fbd4a9ca`
+
+Audited working-tree Git tree:
+
+`0008e24c9484620a5ad508fafbf5bd85fbd4a9ca`
+
+Result: exact Git-tree equality.
+
+No newly introduced indentation tabs or conflict markers were found.
+
+## Differential tests
+
+The C++17 old-vs-new harness completed with:
+
+`PASS diff_224_243`
+
+Coverage included:
+
+- first-insertion/exact lookup semantics for local remaps/indices;
+- overwrite and mask behavior;
+- nested Taxi source/destination lookup plus the non-spell predicate;
+- WMO tuple keys;
+- all 65,536 uint16 opcode values, gaps, duplicate overwrite and extended fallback;
+- three-slot talent storage;
+- Guild index insert/erase/find behavior;
+- Scripted-event duplicate construction path;
+- `operator[]` insert-on-miss behavior;
+- 200,000 randomized MovementBroadcaster aggregation cases including ties, zero counts and `UINT32_MAX` wrap behavior;
+- fixed two-slot spell-pair identity.
+
+## Build policy
+
+No full local build was run. The user performs authoritative Linux/Windows/MinGW builds externally.
+
+See `VALIDATION-RAW.txt` for the sequential patch log.

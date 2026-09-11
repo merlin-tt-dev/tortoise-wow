@@ -1,0 +1,15 @@
+diff --git a/src/game/Database/DBCStructure.h b/src/game/Database/DBCStructure.h
+index 68727fe..4ad8dda 100644
+--- a/src/game/Database/DBCStructure.h
++++ b/src/game/Database/DBCStructure.h
+@@ -793,8 +793,8 @@ struct TaxiPathBySourceAndDestination
+     uint32    ID;
+     uint32    price;
+ };
+-typedef std::map<uint32,TaxiPathBySourceAndDestination> TaxiPathSetForSource;
+-typedef std::map<uint32,TaxiPathSetForSource> TaxiPathSetBySource;
++typedef std::unordered_map<uint32,TaxiPathBySourceAndDestination> TaxiPathSetForSource;
++typedef std::unordered_map<uint32,TaxiPathSetForSource> TaxiPathSetBySource;
+ 
+ struct TaxiPathNodePtr
+ {

@@ -1,0 +1,29 @@
+From 95ad8af6fc71146b58a81b9c76819073d9721b70 Mon Sep 17 00:00:00 2001
+From: Tortoise Audit <audit@local.invalid>
+Date: Fri, 11 Sep 2026 11:03:32 +0000
+Subject: [PATCH] core-optimization-253-arena-aura-spellproto-reuse
+
+---
+ src/game/Objects/Unit.cpp | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/game/Objects/Unit.cpp b/src/game/Objects/Unit.cpp
+index 3a57232..6392cfd 100644
+--- a/src/game/Objects/Unit.cpp
++++ b/src/game/Objects/Unit.cpp
+@@ -4507,9 +4507,10 @@ void Unit::RemoveArenaAuras(bool onleave, AuraRemoveMode mode /*= AURA_REMOVE_BY
+     // On join, remove positive buffs, on end, remove negative used to remove positive visible auras in arenas
+     for (SpellAuraHolderMap::iterator iter = m_spellAuraHolders.begin(); iter != m_spellAuraHolders.end();)
+     {
++        SpellEntry const* spellInfo = iter->second->GetSpellProto();
+         if (!iter->second->IsPassive() && // Don't remove passive auras
+-           (!iter->second->GetSpellProto()->HasAttribute(SPELL_ATTR_UNAFFECTED_BY_INVULNERABILITY) || !iter->second->GetSpellProto()->HasAttribute(SPELL_ATTR_HIDE_IN_COMBAT_LOG)) &&
+-           (!iter->second->GetSpellProto()->HasAreaAuraEffect()) && // Not unaffected by invulnerability auras or not having that unknown flag (that seemed the most probable)
++           (!spellInfo->HasAttribute(SPELL_ATTR_UNAFFECTED_BY_INVULNERABILITY) || !spellInfo->HasAttribute(SPELL_ATTR_HIDE_IN_COMBAT_LOG)) &&
++           (!spellInfo->HasAreaAuraEffect()) && // Not unaffected by invulnerability auras or not having that unknown flag (that seemed the most probable)
+            (iter->second->IsPositive() != onleave)) // Remove positive buffs on enter, negative buffs on leave
+         {
+             RemoveSpellAuraHolder(iter->second, mode);
+-- 
+2.47.3
+

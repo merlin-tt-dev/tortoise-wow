@@ -1,0 +1,25 @@
+From ecfdb6e76c17e19c69fed49ca37027f4bc67c977 Mon Sep 17 00:00:00 2001
+From: Tortoise Audit <audit@local.invalid>
+Date: Fri, 11 Sep 2026 11:00:43 +0000
+Subject: [PATCH] core-optimization-245-shaman-armor-aura-list-reference
+
+---
+ src/game/StatSystem.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/game/StatSystem.cpp b/src/game/StatSystem.cpp
+index 1571764..232e33a 100644
+--- a/src/game/StatSystem.cpp
++++ b/src/game/StatSystem.cpp
+@@ -143,7 +143,7 @@ void Player::UpdateArmor()
+     //CUSTOM spirit armor
+     if (GetClass() == CLASS_SHAMAN)
+     {
+-        auto auraList = GetAurasByType(SPELL_AURA_DUMMY);
++        AuraList const& auraList = GetAurasByType(SPELL_AURA_DUMMY);
+ 
+         static std::unordered_map<uint32, float> armorLookup =
+         {
+-- 
+2.47.3
+

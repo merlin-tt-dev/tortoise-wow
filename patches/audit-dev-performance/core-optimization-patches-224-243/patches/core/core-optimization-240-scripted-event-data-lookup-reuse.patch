@@ -1,0 +1,19 @@
+diff --git a/src/game/Maps/Map.h b/src/game/Maps/Map.h
+index a5bb146..f5768ec 100644
+--- a/src/game/Maps/Map.h
++++ b/src/game/Maps/Map.h
+@@ -313,10 +313,11 @@ struct ScriptedEvent
+ 
+     void DecrementData(uint32 uiIndex, uint32 uiValue)
+     {
+-        if (m_mData[uiIndex] < uiValue)
+-            m_mData[uiIndex] = 0;
++        uint32& value = m_mData[uiIndex];
++        if (value < uiValue)
++            value = 0;
+         else
+-            m_mData[uiIndex] -= uiValue;
++            value -= uiValue;
+     }
+ 
+     ScriptedEvent(const ScriptedEvent&) = delete;

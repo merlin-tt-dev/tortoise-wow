@@ -1,0 +1,25 @@
+From c05fe33752d316c9ede0336498e7dcf2e17f1195 Mon Sep 17 00:00:00 2001
+From: Tortoise Audit <audit@local.invalid>
+Date: Fri, 11 Sep 2026 11:14:17 +0000
+Subject: [PATCH] core-optimization-262-playerai-spell-map-reference
+
+---
+ src/game/AI/PlayerAI.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/game/AI/PlayerAI.cpp b/src/game/AI/PlayerAI.cpp
+index 462e7fe..8204fed 100644
+--- a/src/game/AI/PlayerAI.cpp
++++ b/src/game/AI/PlayerAI.cpp
+@@ -124,7 +124,7 @@ PlayerControlledAI::PlayerControlledAI(Player* pPlayer, Unit* caster) : PlayerAI
+             break;
+     }
+ 
+-    PlayerSpellMap spells = me->GetSpellMap();
++    PlayerSpellMap const& spells = me->GetSpellMap();
+     usableSpells.clear();
+     for (const auto& spell : spells)
+     {
+-- 
+2.47.3
+

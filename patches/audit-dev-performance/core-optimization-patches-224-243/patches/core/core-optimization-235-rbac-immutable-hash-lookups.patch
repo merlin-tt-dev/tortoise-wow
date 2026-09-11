@@ -1,0 +1,42 @@
+diff --git a/src/game/Chat/Chat.cpp b/src/game/Chat/Chat.cpp
+index a2cd4a3..6c6e78c 100644
+--- a/src/game/Chat/Chat.cpp
++++ b/src/game/Chat/Chat.cpp
+@@ -1039,9 +1039,9 @@ ChatCommand * ChatHandler::getCommandTable()
+     return scriptCommandTable.data();
+ }
+ 
+-std::map<uint32 /*Permission Id*/, std::string /*Permission Name*/> ChatHandler::m_rbacPermissionNames;
+-std::map<uint32 /*Account Id*/, uint32 /*Permission Mask*/> ChatHandler::m_rbacAccountGrantedPermissions;
+-std::map<uint32 /*Account Id*/, uint32 /*Permission Mask*/> ChatHandler::m_rbacAccountBannedPermissions;
++std::unordered_map<uint32 /*Permission Id*/, std::string /*Permission Name*/> ChatHandler::m_rbacPermissionNames;
++std::unordered_map<uint32 /*Account Id*/, uint32 /*Permission Mask*/> ChatHandler::m_rbacAccountGrantedPermissions;
++std::unordered_map<uint32 /*Account Id*/, uint32 /*Permission Mask*/> ChatHandler::m_rbacAccountBannedPermissions;
+ 
+ void ChatHandler::LoadRbacPermissions()
+ {
+diff --git a/src/game/Chat/Chat.h b/src/game/Chat/Chat.h
+index f2fe3e2..1f9df79 100644
+--- a/src/game/Chat/Chat.h
++++ b/src/game/Chat/Chat.h
+@@ -28,6 +28,7 @@
+ 
+ #include <any>
+ #include <string_view>
++#include <unordered_map>
+ 
+ struct AreaTriggerTeleport;
+ struct AreaTriggerEntry;
+@@ -924,9 +925,9 @@ class ChatHandler
+         WorldSession * m_session;                           // != nullptr for chat command call and nullptr for CLI command
+ 
+         // common global flag
+-        static std::map<uint32 /*Permission Id*/, std::string /*Permission Name*/> m_rbacPermissionNames;
+-        static std::map<uint32 /*Account Id*/, uint32 /*Permission Mask*/> m_rbacAccountGrantedPermissions;
+-        static std::map<uint32 /*Account Id*/, uint32 /*Permission Mask*/> m_rbacAccountBannedPermissions;
++        static std::unordered_map<uint32 /*Permission Id*/, std::string /*Permission Name*/> m_rbacPermissionNames;
++        static std::unordered_map<uint32 /*Account Id*/, uint32 /*Permission Mask*/> m_rbacAccountGrantedPermissions;
++        static std::unordered_map<uint32 /*Account Id*/, uint32 /*Permission Mask*/> m_rbacAccountBannedPermissions;
+         bool sentErrorMessage;
+ };
+ 

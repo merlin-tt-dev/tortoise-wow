@@ -1,0 +1,27 @@
+From 568d8a32e6331cf316cf900e2f640c5aebd05119 Mon Sep 17 00:00:00 2001
+From: Tortoise Audit <audit@local.invalid>
+Date: Fri, 11 Sep 2026 11:02:02 +0000
+Subject: [PATCH] core-optimization-250-first-attacker-accessor-reuse
+
+---
+ src/game/Objects/Player.cpp | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/game/Objects/Player.cpp b/src/game/Objects/Player.cpp
+index ee4ecdc..51e125d 100644
+--- a/src/game/Objects/Player.cpp
++++ b/src/game/Objects/Player.cpp
+@@ -2050,8 +2050,8 @@ void Player::CinematicEnd()
+ 
+ Unit* Player::GetFirstAttacker() const
+ {
+-    auto attacker = GetAttackers().size() > 0 ? (*GetAttackers().begin()) : nullptr;
+-    return attacker;
++    AttackerSet const& attackers = GetAttackers();
++    return attackers.empty() ? nullptr : *attackers.begin();
+ }
+ 
+ void Player::LogHCDeath()
+-- 
+2.47.3
+

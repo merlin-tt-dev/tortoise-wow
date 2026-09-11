@@ -1,0 +1,33 @@
+From 94a5036857e25f0b44a0b473aca31a220172c4be Mon Sep 17 00:00:00 2001
+From: Tortoise Audit <audit@local.invalid>
+Date: Fri, 11 Sep 2026 11:00:33 +0000
+Subject: [PATCH] core-optimization-244-nightmare-dragon-fixed-permutation
+
+---
+ src/game/HardcodedEvents.cpp | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/game/HardcodedEvents.cpp b/src/game/HardcodedEvents.cpp
+index 4150e01..fb6565c 100644
+--- a/src/game/HardcodedEvents.cpp
++++ b/src/game/HardcodedEvents.cpp
+@@ -4,6 +4,7 @@
+ #include "events/event_naxxramas.h"
+ #include "events/event_wareffort.h"
+ #include "GridSearchers.h"
++#include <array>
+ #include <chrono>
+ #include <random>
+ #include <limits>
+@@ -399,7 +400,7 @@ bool DragonsOfNightmare::LoadDragons(std::vector<ObjectGuid> &dragonGUIDs)
+ 
+ void DragonsOfNightmare::PermutateDragons()
+ {
+-    std::vector<uint32> permutation = { NPC_LETHON, NPC_EMERISS, NPC_YSONDRE, NPC_TAERAR };
++    std::array<uint32, 4> permutation = { NPC_LETHON, NPC_EMERISS, NPC_YSONDRE, NPC_TAERAR };
+     auto seed = std::chrono::system_clock::now().time_since_epoch().count();
+     std::shuffle(permutation.begin(), permutation.end(), std::default_random_engine(seed));
+ 
+-- 
+2.47.3
+

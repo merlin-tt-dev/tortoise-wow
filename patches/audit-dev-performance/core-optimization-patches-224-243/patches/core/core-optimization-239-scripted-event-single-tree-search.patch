@@ -1,0 +1,22 @@
+diff --git a/src/game/Maps/Map.cpp b/src/game/Maps/Map.cpp
+index 2ec427b..6ce8805 100644
+--- a/src/game/Maps/Map.cpp
++++ b/src/game/Maps/Map.cpp
+@@ -1015,12 +1015,13 @@ void Map::UpdateScriptedEvents()
+ 
+ ScriptedEvent* Map::StartScriptedEvent(uint32 id, WorldObject* source, WorldObject* target, uint32 timelimit, uint32 failureCondition, uint32 failureScript, uint32 successCondition, uint32 successScript)
+ {
+-    if (m_mScriptedEvents.find(id) != m_mScriptedEvents.end())
++    auto itr = m_mScriptedEvents.lower_bound(id);
++    if (itr != m_mScriptedEvents.end() && itr->first == id)
+         return nullptr;
+-    
+-    auto itr = m_mScriptedEvents.emplace(std::piecewise_construct, std::forward_as_tuple(id), std::forward_as_tuple(id, source ? source->GetObjectGuid() : ObjectGuid(), target ? target->GetObjectGuid() : ObjectGuid(), *this, time_t(sWorld.GetGameTime() + timelimit), failureCondition, failureScript, successCondition, successScript));
+ 
+-    return &itr.first->second;
++    itr = m_mScriptedEvents.emplace_hint(itr, std::piecewise_construct, std::forward_as_tuple(id), std::forward_as_tuple(id, source ? source->GetObjectGuid() : ObjectGuid(), target ? target->GetObjectGuid() : ObjectGuid(), *this, time_t(sWorld.GetGameTime() + timelimit), failureCondition, failureScript, successCondition, successScript));
++
++    return &itr->second;
+ }
+ 
+ bool ScriptedEvent::UpdateEvent()

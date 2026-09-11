@@ -1,0 +1,21 @@
+diff --git a/src/game/ObjectMgr.cpp b/src/game/ObjectMgr.cpp
+index f222477..155bfe7 100644
+--- a/src/game/ObjectMgr.cpp
++++ b/src/game/ObjectMgr.cpp
+@@ -57,6 +57,7 @@
+ 
+ #include <limits>
+ #include <unordered_set>
++#include <unordered_map>
+ 
+ ObjectMgr sObjectMgr;
+ 
+@@ -3744,7 +3745,7 @@ void ObjectMgr::LoadQuests()
+ 
+     // Post processing
+ 
+-    std::map<uint32, uint32> usedMailTemplates;
++    std::unordered_map<uint32, uint32> usedMailTemplates;
+ 
+     for (auto & iter : m_QuestTemplatesMap)
+     {

@@ -1,0 +1,13 @@
+diff --git a/src/game/Database/DBCStructure.h b/src/game/Database/DBCStructure.h
+index 6d81e55..68727fe 100644
+--- a/src/game/Database/DBCStructure.h
++++ b/src/game/Database/DBCStructure.h
+@@ -783,7 +783,7 @@ struct TalentSpellPos
+     uint8  rank;
+ };
+ 
+-typedef std::map<uint32,TalentSpellPos> TalentSpellPosMap;
++typedef std::unordered_map<uint32,TalentSpellPos> TalentSpellPosMap;
+ 
+ struct TaxiPathBySourceAndDestination
+ {

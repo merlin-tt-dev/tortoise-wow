@@ -1,0 +1,58 @@
+From 61e96945437588e2c18061014176386813251568 Mon Sep 17 00:00:00 2001
+From: Tortoise Audit <audit@local.invalid>
+Date: Fri, 11 Sep 2026 11:01:50 +0000
+Subject: [PATCH] core-optimization-249-hardcore-reward-direct-level-dispatch
+
+---
+ src/game/Objects/Player.cpp | 28 ++++++++++++----------------
+ 1 file changed, 12 insertions(+), 16 deletions(-)
+
+diff --git a/src/game/Objects/Player.cpp b/src/game/Objects/Player.cpp
+index 9bd8cdb..ee4ecdc 100644
+--- a/src/game/Objects/Player.cpp
++++ b/src/game/Objects/Player.cpp
+@@ -24425,21 +24425,17 @@ bool Player::InGurubashiArena(bool checkOutsideArea) const
+ 
+ void Player::MailHardcoreModeRewards(uint32 level)
+ {
+-    static std::unordered_map<uint32, uint32> levelRewards
+-    {
+-        {10, 50050},
+-        {20, 50051},
+-        {30, 50052},
+-        {40, 50053},
+-        {50, 50054},
+-        {60, 50055},
+-    };
+-
+-    auto itr = levelRewards.find(level);
+-
+-    if (itr == levelRewards.end())
+-        return;
+-
++    uint32 rewardEntry;
++    switch (level)
++    {
++        case 10: rewardEntry = 50050; break;
++        case 20: rewardEntry = 50051; break;
++        case 30: rewardEntry = 50052; break;
++        case 40: rewardEntry = 50053; break;
++        case 50: rewardEntry = 50054; break;
++        case 60: rewardEntry = 50055; break;
++        default: return;
++    }
+ 
+     std::ostringstream subject;
+     subject << "Congratulations on level " << level << "!";
+@@ -24450,7 +24446,7 @@ void Player::MailHardcoreModeRewards(uint32 level)
+         << "and enthusiasm of exploring Azeroth to its fullest, we bestow upon you this reward box filled with goodies!";
+ 
+     
+-    Item* ToMailItem = Item::CreateItem(itr->second, 1, this);
++    Item* ToMailItem = Item::CreateItem(rewardEntry, 1, this);
+     ToMailItem->SaveToDB();
+ 
+     MailDraft(subject.str(), sObjectMgr.CreateItemText(body.str()))
+-- 
+2.47.3
+

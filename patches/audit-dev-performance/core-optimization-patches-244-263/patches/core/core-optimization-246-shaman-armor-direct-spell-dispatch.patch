@@ -1,0 +1,58 @@
+From 39ef423c6560ac7fa0954b847b4ce6251b6dbfa2 Mon Sep 17 00:00:00 2001
+From: Tortoise Audit <audit@local.invalid>
+Date: Fri, 11 Sep 2026 11:00:55 +0000
+Subject: [PATCH] core-optimization-246-shaman-armor-direct-spell-dispatch
+
+---
+ src/game/StatSystem.cpp | 31 +++++++++++++++----------------
+ 1 file changed, 15 insertions(+), 16 deletions(-)
+
+diff --git a/src/game/StatSystem.cpp b/src/game/StatSystem.cpp
+index 232e33a..d00c286 100644
+--- a/src/game/StatSystem.cpp
++++ b/src/game/StatSystem.cpp
+@@ -145,26 +145,25 @@ void Player::UpdateArmor()
+     {
+         AuraList const& auraList = GetAurasByType(SPELL_AURA_DUMMY);
+ 
+-        static std::unordered_map<uint32, float> armorLookup =
+-        {
+-            {45951, 10.0f},
+-            {45952, 20.0f},
+-            {45953, 30.0f}
+-        };
+-
+         for (const auto& aura : auraList)
+         {
+-            if (auto findItr = armorLookup.find(aura->GetId()); findItr != armorLookup.end())
++            float armorPercent;
++            switch (aura->GetId())
+             {
+-                auto shield = GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_OFFHAND);
+-                if (shield)
++                case 45951: armorPercent = 10.0f; break;
++                case 45952: armorPercent = 20.0f; break;
++                case 45953: armorPercent = 30.0f; break;
++                default: continue;
++            }
++
++            auto shield = GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_OFFHAND);
++            if (shield)
++            {
++                ItemPrototype const* proto = shield->GetProto();
++                if (proto->Class == ITEM_CLASS_ARMOR &&
++                    (proto->SubClass == ITEM_SUBCLASS_ARMOR_SHIELD || proto->SubClass == ITEM_SUBCLASS_ARMOR_BUCKLER))
+                 {
+-                    ItemPrototype const* proto = shield->GetProto();
+-                    if (proto->Class == ITEM_CLASS_ARMOR &&
+-                        (proto->SubClass == ITEM_SUBCLASS_ARMOR_SHIELD || proto->SubClass == ITEM_SUBCLASS_ARMOR_BUCKLER))
+-                    {
+-                        dynamic += ceilf(proto->Armor / 100.0f * findItr->second);
+-                    }
++                    dynamic += ceilf(proto->Armor / 100.0f * armorPercent);
+                 }
+             }
+         }
+-- 
+2.47.3
+

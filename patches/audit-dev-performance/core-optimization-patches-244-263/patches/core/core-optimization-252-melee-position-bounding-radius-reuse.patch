@@ -1,0 +1,26 @@
+From 93d9be570e4b35948317a719e95cef8fae985fd6 Mon Sep 17 00:00:00 2001
+From: Tortoise Audit <audit@local.invalid>
+Date: Fri, 11 Sep 2026 11:03:21 +0000
+Subject: [PATCH] core-optimization-252-melee-position-bounding-radius-reuse
+
+---
+ src/game/Objects/Unit.cpp | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/game/Objects/Unit.cpp b/src/game/Objects/Unit.cpp
+index bc65060..3a57232 100644
+--- a/src/game/Objects/Unit.cpp
++++ b/src/game/Objects/Unit.cpp
+@@ -10994,7 +10994,8 @@ void Unit::GetRandomAttackPoint(Unit const* attacker, float &x, float &y, float
+         attacker_number = 0;
+     angle += (attacker_number ? ((float(M_PI / 2) - float(M_PI) * rand_norm_f()) * attacker_number / sizeFactor) * 0.3f : 0);
+ 
+-    float dist = attacker->GetObjectBoundingRadius() + GetObjectBoundingRadius() + rand_norm_f() * (attacker->GetMeleeReach() - attacker->GetObjectBoundingRadius());
++    float const attackerBoundingRadius = attacker->GetObjectBoundingRadius();
++    float dist = attackerBoundingRadius + GetObjectBoundingRadius() + rand_norm_f() * (attacker->GetMeleeReach() - attackerBoundingRadius);
+     float initialPosX, initialPosY, initialPosZ, o;
+     GetPosition(initialPosX, initialPosY, initialPosZ);
+ 
+-- 
+2.47.3
+

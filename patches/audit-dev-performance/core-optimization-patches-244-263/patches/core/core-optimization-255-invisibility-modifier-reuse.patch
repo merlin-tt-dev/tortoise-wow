@@ -1,0 +1,44 @@
+From c431bdb432cabbf5fb99a1ab2eea2716c57f80b3 Mon Sep 17 00:00:00 2001
+From: Tortoise Audit <audit@local.invalid>
+Date: Fri, 11 Sep 2026 11:03:55 +0000
+Subject: [PATCH] core-optimization-255-invisibility-modifier-reuse
+
+---
+ src/game/Objects/Unit.cpp | 14 ++++++++++----
+ 1 file changed, 10 insertions(+), 4 deletions(-)
+
+diff --git a/src/game/Objects/Unit.cpp b/src/game/Objects/Unit.cpp
+index 1330caf..63e6a50 100644
+--- a/src/game/Objects/Unit.cpp
++++ b/src/game/Objects/Unit.cpp
+@@ -7167,8 +7167,11 @@ bool Unit::CanDetectInvisibilityOf(Unit const* u) const
+             int32 invLevel = 0;
+             Unit::AuraList const& iAuras = u->GetAurasByType(SPELL_AURA_MOD_INVISIBILITY);
+             for (const auto& itr : iAuras)
+-                if (itr->GetModifier()->m_miscvalue == i && invLevel < itr->GetModifier()->m_amount)
+-                    invLevel = itr->GetModifier()->m_amount;
++            {
++                Modifier const* modifier = itr->GetModifier();
++                if (modifier->m_miscvalue == i && invLevel < modifier->m_amount)
++                    invLevel = modifier->m_amount;
++            }
+ 
+             // find invisibility detect level
+             int32 detectLevel = 0;
+@@ -7176,8 +7179,11 @@ bool Unit::CanDetectInvisibilityOf(Unit const* u) const
+             {
+                 Unit::AuraList const& dAuras = GetAurasByType(SPELL_AURA_MOD_INVISIBILITY_DETECTION);
+                 for (const auto& itr : dAuras)
+-                    if (itr->GetModifier()->m_miscvalue == i && detectLevel < itr->GetModifier()->m_amount)
+-                        detectLevel = itr->GetModifier()->m_amount;
++                {
++                    Modifier const* modifier = itr->GetModifier();
++                    if (modifier->m_miscvalue == i && detectLevel < modifier->m_amount)
++                        detectLevel = modifier->m_amount;
++                }
+             }
+ 
+             if (i == 6 && IsPlayer())     // special drunk detection case
+-- 
+2.47.3
+

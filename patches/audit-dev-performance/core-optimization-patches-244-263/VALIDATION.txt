@@ -1,0 +1,53 @@
+# Validation — 244–263
+
+## Sequential freeze
+
+A fresh exact copy of the corrected Patch-243 parent was used. Every patch in `APPLY-ORDER.txt` was applied strictly in sequence with:
+
+- strict whitespace `git apply --check --whitespace=error-all`;
+- `git apply --numstat --whitespace=error-all`;
+- apply;
+- `git diff --check`;
+- reverse applicability check after application.
+
+Parent corrected Patch-243 tree:
+
+`0008e24c9484620a5ad508fafbf5bd85fbd4a9ca`
+
+Fresh freeze Patch-263 tree:
+
+`41fa75a86d7438b756adf7f5960f14c722198cf1`
+
+Audited Patch-263 working-tree Git tree:
+
+`41fa75a86d7438b756adf7f5960f14c722198cf1`
+
+Result: exact Git-tree equality.
+
+The staged freeze diff and the audited 244–263 commit diff also have identical SHA256:
+
+`e54fdba2d335de0bc67898dfdbecaece3fadfb542af702d2c6465f8e0cf7b97d`
+
+No newly introduced indentation tabs or conflict markers were found.
+
+## Differential tests
+
+The C++17 old-vs-new harness completed with:
+
+`PASS diff_244_263: shuffle=250000, mapping=100000 ids, percent=1000000, first-set=10000, membership=20000`
+
+Coverage:
+
+- 250,000 exact vector-vs-array Nightmare Dragon shuffles;
+- old hash/map vs direct-switch mappings across 100,000 IDs/levels for Shaman armor, Challenge spells and Hardcore rewards;
+- 1,000,000 randomized EventAI percentage calculations preserving uint32 overflow behavior;
+- 10,000 randomized ordered-set first-element cases;
+- 20,000 fixed-vector vs fixed-array membership cases.
+
+Read-only/source-mutation behavior for patches 245 and 259–262 was established through full local call/body usage inspection rather than a synthetic container-only test; semantically mutating counterexamples were retained as snapshots.
+
+## Build policy
+
+No full local build was run. The user performs authoritative Linux/Windows/MinGW builds externally.
+
+See `VALIDATION-RAW.txt` for the sequential patch log.

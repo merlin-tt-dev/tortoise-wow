@@ -1,0 +1,25 @@
+From 7499b96e86fe9f7b461b02d313acd174965994b4 Mon Sep 17 00:00:00 2001
+From: Tortoise Audit <audit@local.invalid>
+Date: Fri, 11 Sep 2026 11:14:15 +0000
+Subject: [PATCH] core-optimization-259-escort-point-list-reference
+
+---
+ src/game/ScriptMgr.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/game/ScriptMgr.cpp b/src/game/ScriptMgr.cpp
+index 7e31a29..99a78fa 100644
+--- a/src/game/ScriptMgr.cpp
++++ b/src/game/ScriptMgr.cpp
+@@ -2523,7 +2523,7 @@ void ScriptMgr::LoadEscortData()
+                 sLog.outErrorDb("DB table script_escort_data has data for creature entry %u, but creature does not have script_name defined and then useless.", pTemp.uiCreatureEntry);
+ 
+             // Calcul de uiLastWaypointEntry, et mise en "cache"
+-            std::vector<ScriptPointMove> const points = GetPointMoveList(pTemp.uiCreatureEntry);
++            std::vector<ScriptPointMove> const& points = GetPointMoveList(pTemp.uiCreatureEntry);
+             if(points.empty())
+             {
+                 sLog.outErrorDb("Le PNJ %u de script_escort_data n'a pas de donnees de Waypoints !", pTemp.uiCreatureEntry);
+-- 
+2.47.3
+

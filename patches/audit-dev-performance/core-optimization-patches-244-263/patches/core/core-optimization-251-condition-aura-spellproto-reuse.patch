@@ -1,0 +1,29 @@
+From cdcd5d4f70f163664d461a144f070b38f5699d1b Mon Sep 17 00:00:00 2001
+From: Tortoise Audit <audit@local.invalid>
+Date: Fri, 11 Sep 2026 11:02:14 +0000
+Subject: [PATCH] core-optimization-251-condition-aura-spellproto-reuse
+
+---
+ src/game/Conditions.cpp | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/game/Conditions.cpp b/src/game/Conditions.cpp
+index 53686df..d2470a3 100644
+--- a/src/game/Conditions.cpp
++++ b/src/game/Conditions.cpp
+@@ -236,8 +236,11 @@ bool inline ConditionEntry::Evaluate(WorldObject const* target, Map const* map,
+         {
+             Unit::SpellAuraHolderMap const& auras = target->ToPlayer()->GetSpellAuraHolderMap();
+             for (const auto& aura : auras)
+-                if ((aura.second->GetSpellProto()->Attributes & SPELL_ATTR_CASTABLE_WHILE_MOUNTED || aura.second->GetSpellProto()->Attributes & SPELL_ATTR_IS_ABILITY) && aura.second->GetSpellProto()->SpellVisual == 3580)
++            {
++                SpellEntry const* spellInfo = aura.second->GetSpellProto();
++                if ((spellInfo->Attributes & SPELL_ATTR_CASTABLE_WHILE_MOUNTED || spellInfo->Attributes & SPELL_ATTR_IS_ABILITY) && spellInfo->SpellVisual == 3580)
+                     return true;
++            }
+             return false;
+         }
+         case CONDITION_WAR_EFFORT_STAGE:
+-- 
+2.47.3
+

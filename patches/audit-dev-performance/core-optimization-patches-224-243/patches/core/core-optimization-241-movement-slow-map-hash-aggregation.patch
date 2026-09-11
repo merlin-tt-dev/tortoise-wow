@@ -1,0 +1,32 @@
+diff --git a/src/game/PacketBroadcast/MovementBroadcaster.cpp b/src/game/PacketBroadcast/MovementBroadcaster.cpp
+index cfff76a..5c7eece 100644
+--- a/src/game/PacketBroadcast/MovementBroadcaster.cpp
++++ b/src/game/PacketBroadcast/MovementBroadcaster.cpp
+@@ -4,6 +4,8 @@
+ #include "World.h"
+ #include "Player.h"
+ 
++#include <unordered_map>
++
+ MovementBroadcaster::MovementBroadcaster(std::size_t threads, std::chrono::milliseconds frequency) : m_num_threads(threads), m_sleep_timer(frequency)
+ {
+     if (threads)
+@@ -105,7 +107,7 @@ void MovementBroadcaster::Work(std::size_t thread_id)
+ 
+ uint32 MovementBroadcaster::IdentifySlowMap(std::size_t thread_id)
+ {
+-    std::map<uint32 /* instanceId */, uint32 /* numPackets */> map_packets;
++    std::unordered_map<uint32 /* instanceId */, uint32 /* numPackets */> map_packets;
+ 
+     std::shared_lock<std::shared_mutex> guard(m_thread_locks[thread_id]);
+ 
+@@ -116,7 +118,8 @@ uint32 MovementBroadcaster::IdentifySlowMap(std::size_t thread_id)
+     uint32 max_instance_id = 0;
+     for (const auto& itr : map_packets)
+     {
+-        if (itr.second > max_number_packets)
++        if (itr.second > max_number_packets ||
++            (itr.second != 0 && itr.second == max_number_packets && itr.first < max_instance_id))
+         {
+             max_instance_id = itr.first;
+             max_number_packets = itr.second;

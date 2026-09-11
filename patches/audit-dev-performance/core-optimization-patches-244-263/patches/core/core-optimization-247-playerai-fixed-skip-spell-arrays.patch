@@ -1,0 +1,35 @@
+From ae0c54f4a9a867553e606cf35433407543992799 Mon Sep 17 00:00:00 2001
+From: Tortoise Audit <audit@local.invalid>
+Date: Fri, 11 Sep 2026 11:01:26 +0000
+Subject: [PATCH] core-optimization-247-playerai-fixed-skip-spell-arrays
+
+---
+ src/game/AI/PlayerAI.cpp | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/game/AI/PlayerAI.cpp b/src/game/AI/PlayerAI.cpp
+index de19d40..462e7fe 100644
+--- a/src/game/AI/PlayerAI.cpp
++++ b/src/game/AI/PlayerAI.cpp
+@@ -25,15 +25,16 @@
+ #include "MotionMaster.h"
+ #include "MoveSpline.h"
+ #include "Spell.h"
++#include <array>
+ 
+ // Misc spells we dont want players to cast
+-static std::vector<uint32> priestSkipSpells =
++static constexpr std::array<uint32, 17> priestSkipSpells =
+ {
+     453,8123,8192,8193,10953,10954,  // mind soothe
+     1150,2096,2097,10909,10910,      // mind vision
+     1265,9580,9581,9593,10943,10944, // fade
+ };
+-static std::vector<uint32> hunterSkipSpells =
++static constexpr std::array<uint32, 1> hunterSkipSpells =
+ {
+     75, // auto shot
+ };
+-- 
+2.47.3
+

@@ -1,0 +1,13 @@
+diff --git a/src/game/Spells/SpellEffects.cpp b/src/game/Spells/SpellEffects.cpp
+index 808a4e5..e82a653 100644
+--- a/src/game/Spells/SpellEffects.cpp
++++ b/src/game/Spells/SpellEffects.cpp
+@@ -3833,7 +3833,7 @@ void Spell::EffectScriptEffect(SpellEffectIndex eff_idx)
+                         return;
+ 
+                     // Civilian spellIds map [Gift of Friendship , Gift of Adoration]
+-                    static const std::map<uint32, std::vector<uint32>> loveAirSpellsMapForFaction = {
++                    static const std::map<uint32, std::array<uint32, 2>> loveAirSpellsMapForFaction = {
+                             {12, {27525, 27509}},   // Stormwind
+                             {29, {27523, 27505}},   // Orgrimmar orcs
+                             {55, {27520, 27503}},   // Ironforge dwarves

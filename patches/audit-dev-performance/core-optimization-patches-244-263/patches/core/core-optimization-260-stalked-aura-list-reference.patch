@@ -1,0 +1,25 @@
+From 0e645197f11cc34dd15ec040b728f52c5462de30 Mon Sep 17 00:00:00 2001
+From: Tortoise Audit <audit@local.invalid>
+Date: Fri, 11 Sep 2026 11:14:16 +0000
+Subject: [PATCH] core-optimization-260-stalked-aura-list-reference
+
+---
+ src/game/Objects/Object.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/game/Objects/Object.cpp b/src/game/Objects/Object.cpp
+index 8c18b7e..391e6e5 100644
+--- a/src/game/Objects/Object.cpp
++++ b/src/game/Objects/Object.cpp
+@@ -667,7 +667,7 @@ void Object::BuildValuesUpdate(uint8 updatetype, ByteBuffer * data, UpdateMask *
+                     if (HasFlag(UNIT_DYNAMIC_FLAGS, UNIT_DYNFLAG_TRACK_UNIT))
+                         if (Unit const * unit = ToUnit())
+                         {
+-                            Unit::AuraList auras = unit->GetAurasByType(SPELL_AURA_MOD_STALKED);
++                            Unit::AuraList const& auras = unit->GetAurasByType(SPELL_AURA_MOD_STALKED);
+                             if (std::find_if(auras.begin(), auras.end(),[target](Aura *a){
+                                 return target->GetObjectGuid() == a->GetCasterGuid();
+                             }) == auras.end())
+-- 
+2.47.3
+

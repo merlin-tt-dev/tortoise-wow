@@ -1,0 +1,22 @@
+diff --git a/src/game/ObjectMgr.cpp b/src/game/ObjectMgr.cpp
+index 155bfe7..45f7c53 100644
+--- a/src/game/ObjectMgr.cpp
++++ b/src/game/ObjectMgr.cpp
+@@ -4530,7 +4530,7 @@ void ObjectMgr::LoadPetCreateSpells()
+     while (result->NextRow());
+ 
+     // cache spell->learn spell map for use in next loop
+-    std::map<uint32, uint32> learnCache;
++    std::unordered_map<uint32, uint32> learnCache;
+     for (uint32 spell_id = 1; spell_id < sSpellMgr.GetMaxSpellId(); ++spell_id)
+     {
+         SpellEntry const *spellproto = sSpellMgr.GetSpellEntry(spell_id);
+@@ -4564,7 +4564,7 @@ void ObjectMgr::LoadPetCreateSpells()
+             if (petspell_id)
+             {
+                 // in dbc stored spell for pet use, but for teaching work we need learn spell ids
+-                std::map<uint32, uint32>::const_iterator cache_itr = learnCache.find(petspell_id);
++                std::unordered_map<uint32, uint32>::const_iterator cache_itr = learnCache.find(petspell_id);
+                 if (cache_itr != learnCache.end())
+                     petspell_id = cache_itr->second;
+             }

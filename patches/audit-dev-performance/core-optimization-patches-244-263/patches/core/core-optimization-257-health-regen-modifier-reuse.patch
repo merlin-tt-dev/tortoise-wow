@@ -1,0 +1,28 @@
+From acd05fd01fb1092fb44069951f595af5b95609ba Mon Sep 17 00:00:00 2001
+From: Tortoise Audit <audit@local.invalid>
+Date: Fri, 11 Sep 2026 11:04:19 +0000
+Subject: [PATCH] core-optimization-257-health-regen-modifier-reuse
+
+---
+ src/game/Objects/Player.cpp | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/game/Objects/Player.cpp b/src/game/Objects/Player.cpp
+index c209eb0..62f89b3 100644
+--- a/src/game/Objects/Player.cpp
++++ b/src/game/Objects/Player.cpp
+@@ -3163,7 +3163,10 @@ void Player::RegenerateHealth()
+         {
+             AuraList const& lModHealthRegen = GetAurasByType(SPELL_AURA_MOD_REGEN);
+             for (const auto i : lModHealthRegen)
+-                addvalue += i->GetModifier()->m_amount * (float(REGEN_TIME_FULL) / float(i->GetModifier()->periodictime));
++            {
++                Modifier const* modifier = i->GetModifier();
++                addvalue += modifier->m_amount * (float(REGEN_TIME_FULL) / float(modifier->periodictime));
++            }
+         }
+     }
+ 
+-- 
+2.47.3
+

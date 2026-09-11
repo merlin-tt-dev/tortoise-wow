@@ -1,0 +1,87 @@
+=== core-optimization-244-nightmare-dragon-fixed-permutation.patch ===
+2	1	src/game/HardcodedEvents.cpp
+reverse-check:
+OK
+=== core-optimization-245-shaman-armor-aura-list-reference.patch ===
+1	1	src/game/StatSystem.cpp
+reverse-check:
+OK
+=== core-optimization-246-shaman-armor-direct-spell-dispatch.patch ===
+15	16	src/game/StatSystem.cpp
+reverse-check:
+OK
+=== core-optimization-247-playerai-fixed-skip-spell-arrays.patch ===
+3	2	src/game/AI/PlayerAI.cpp
+reverse-check:
+OK
+=== core-optimization-248-player-challenge-direct-spell-dispatch.patch ===
+13	19	src/game/Objects/Player.h
+reverse-check:
+OK
+=== core-optimization-249-hardcore-reward-direct-level-dispatch.patch ===
+12	16	src/game/Objects/Player.cpp
+reverse-check:
+OK
+=== core-optimization-250-first-attacker-accessor-reuse.patch ===
+2	2	src/game/Objects/Player.cpp
+reverse-check:
+OK
+=== core-optimization-251-condition-aura-spellproto-reuse.patch ===
+4	1	src/game/Conditions.cpp
+reverse-check:
+OK
+=== core-optimization-252-melee-position-bounding-radius-reuse.patch ===
+2	1	src/game/Objects/Unit.cpp
+reverse-check:
+OK
+=== core-optimization-253-arena-aura-spellproto-reuse.patch ===
+3	2	src/game/Objects/Unit.cpp
+reverse-check:
+OK
+=== core-optimization-254-paladin-healing-aura-spellproto-reuse.patch ===
+2	1	src/game/Objects/Unit.cpp
+reverse-check:
+OK
+=== core-optimization-255-invisibility-modifier-reuse.patch ===
+10	4	src/game/Objects/Unit.cpp
+reverse-check:
+OK
+=== core-optimization-256-food-emote-spellproto-reuse.patch ===
+4	2	src/game/Objects/Player.cpp
+reverse-check:
+OK
+=== core-optimization-257-health-regen-modifier-reuse.patch ===
+4	1	src/game/Objects/Player.cpp
+reverse-check:
+OK
+=== core-optimization-258-weapon-aura-cast-guid-reuse.patch ===
+4	2	src/game/Objects/Player.cpp
+reverse-check:
+OK
+=== core-optimization-259-escort-point-list-reference.patch ===
+1	1	src/game/ScriptMgr.cpp
+reverse-check:
+OK
+=== core-optimization-260-stalked-aura-list-reference.patch ===
+1	1	src/game/Objects/Object.cpp
+reverse-check:
+OK
+=== core-optimization-261-pet-owner-attacker-set-reference.patch ===
+1	1	src/game/AI/PetEventAI.cpp
+reverse-check:
+OK
+=== core-optimization-262-playerai-spell-map-reference.patch ===
+1	1	src/game/AI/PlayerAI.cpp
+reverse-check:
+OK
+=== core-optimization-263-eventai-victim-value-reuse.patch ===
+20	4	src/game/AI/CreatureEventAI.cpp
+reverse-check:
+OK
+PARENT_HEAD 4f530542dd4e71a627ff99858346419fe6454f07
+PARENT_TREE 0008e24c9484620a5ad508fafbf5bd85fbd4a9ca
+FREEZE_TREE 41fa75a86d7438b756adf7f5960f14c722198cf1
+AUDIT_TREE 41fa75a86d7438b756adf7f5960f14c722198cf1
+TREE_DIFF_LINES 231
+NEW_INDENTATION_TABS 0
+ADDED_CONFLICT_MARKERS 0
