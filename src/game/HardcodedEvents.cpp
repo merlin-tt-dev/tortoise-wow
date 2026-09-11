@@ -4,6 +4,7 @@
 #include "events/event_naxxramas.h"
 #include "events/event_wareffort.h"
 #include "GridSearchers.h"
+#include <array>
 #include <chrono>
 #include <random>
 #include <limits>
@@ -399,7 +400,7 @@ bool DragonsOfNightmare::LoadDragons(std::vector<ObjectGuid> &dragonGUIDs)
 
 void DragonsOfNightmare::PermutateDragons()
 {
-    std::vector<uint32> permutation = { NPC_LETHON, NPC_EMERISS, NPC_YSONDRE, NPC_TAERAR };
+    std::array<uint32, 4> permutation = { NPC_LETHON, NPC_EMERISS, NPC_YSONDRE, NPC_TAERAR };
     auto seed = std::chrono::system_clock::now().time_since_epoch().count();
     std::shuffle(permutation.begin(), permutation.end(), std::default_random_engine(seed));
 
