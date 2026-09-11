@@ -313,10 +313,11 @@ struct ScriptedEvent
 
     void DecrementData(uint32 uiIndex, uint32 uiValue)
     {
-        if (m_mData[uiIndex] < uiValue)
-            m_mData[uiIndex] = 0;
+        uint32& value = m_mData[uiIndex];
+        if (value < uiValue)
+            value = 0;
         else
-            m_mData[uiIndex] -= uiValue;
+            value -= uiValue;
     }
 
     ScriptedEvent(const ScriptedEvent&) = delete;
