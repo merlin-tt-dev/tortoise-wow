@@ -1048,20 +1048,27 @@ ScourgeInvasionEvent::InvasionZone* ScourgeInvasionEvent::GetZone(uint32 zoneId)
 
 uint32 ScourgeInvasionEvent::GetNewRandomZone(uint32 curr1, uint32 curr2)
 {
-    std::vector<uint32> validZones;
+    uint32 validZoneCount = 0;
     for (const auto& invasionPoint : invasionPoints)
-    {
         if (invasionPoint.zoneId != curr1 && invasionPoint.zoneId != curr2)
-            validZones.push_back(invasionPoint.zoneId);
-    }
+            ++validZoneCount;
 
-    if (validZones.empty())
+    if (!validZoneCount)
     {
         sLog.outError("ScourgeInvasionEvent::GetNewRandomZone no valid zones");
         return 0;
     }
-    
-    return validZones[urand(0, validZones.size() - 1)];
+
+    uint32 selected = urand(0, validZoneCount - 1);
+    for (const auto& invasionPoint : invasionPoints)
+    {
+        if (invasionPoint.zoneId == curr1 || invasionPoint.zoneId == curr2)
+            continue;
+        if (!selected--)
+            return invasionPoint.zoneId;
+    }
+
+    return 0;
 }
 
 void ScourgeInvasionEvent::UpdateWorldState()
