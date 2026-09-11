@@ -4235,6 +4235,7 @@ void World::SendUpdateCreatureStats(const CreatureInfo& crInfo, WorldSession* se
     }
     else
     {
+        CreatureLocale const* cl = sObjectMgr.GetCreatureLocale(crInfo.entry);
         SessionMap::const_iterator itr;
         for (itr = m_sessions.begin(); itr != m_sessions.end(); ++itr)
         {
@@ -4243,7 +4244,6 @@ void World::SendUpdateCreatureStats(const CreatureInfo& crInfo, WorldSession* se
                 int loc_idx = itr->second->GetSessionDbLocaleIndex();
                 if (loc_idx >= 0)
                 {
-                    CreatureLocale const* cl = sObjectMgr.GetCreatureLocale(crInfo.entry);
                     if (cl)
                     {
                         if (cl->Name.size() > size_t(loc_idx) && !cl->Name[loc_idx].empty())
@@ -4400,6 +4400,7 @@ void World::SendUpdateSingleItem(uint32 entry, WorldSession* self)
         }
         else
         {
+            ItemLocale const* il = sObjectMgr.GetItemLocale(pProto->DestItemId);
             SessionMap::const_iterator itr;
             for (itr = m_sessions.begin(); itr != m_sessions.end(); ++itr)
             {
@@ -4408,7 +4409,6 @@ void World::SendUpdateSingleItem(uint32 entry, WorldSession* self)
                     int loc_idx = itr->second->GetSessionDbLocaleIndex();
                     if (loc_idx >= 0)
                     {
-                        ItemLocale const* il = sObjectMgr.GetItemLocale(pProto->DestItemId);
                         if (il)
                         {
                             if (il->Name.size() > size_t(loc_idx) && !il->Name[loc_idx].empty())
