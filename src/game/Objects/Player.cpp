@@ -4772,7 +4772,7 @@ void Player::_LoadPlayerSavedSpecs(QueryResult* result)
 
     for (size_t i = 0; i < m_savedSpecSpells.size(); ++i)
     {
-        std::vector<uint32> vTreeTalents = { 0, 0, 0 };
+        std::array<uint32, 3> vTreeTalents{};
         CountTalentsSpentInSavedSpec(i, vTreeTalents);
 
         uint32 talentsSpent = 0;
@@ -25158,7 +25158,7 @@ bool Player::HasSavedTalentSpec(const std::uint8_t uiPrimaryOrSecondary)
     return static_cast<bool>(talents);
 }
 
-void Player::CountTalentsSpentInSavedSpec(uint32 specIndex, std::vector<uint32>& vTreeTalents)
+void Player::CountTalentsSpentInSavedSpec(uint32 specIndex, std::array<uint32, 3>& vTreeTalents)
 {
     for (uint32 spellId : m_savedSpecSpells[specIndex])
     {
@@ -25198,7 +25198,7 @@ std::string Player::SpecTalentPoints(const std::uint8_t uiPrimaryOrSecondary)
     if (m_savedSpecSpells[specIndex].empty())
         return "";
 
-    std::vector<uint32> vTreeTalents = { 0, 0, 0 };
+    std::array<uint32, 3> vTreeTalents{};
     CountTalentsSpentInSavedSpec(specIndex, vTreeTalents);
 
     return "(" + std::to_string(vTreeTalents[0]) + "/" + std::to_string(vTreeTalents[1]) + "/" + std::to_string(vTreeTalents[2]) + ")";
