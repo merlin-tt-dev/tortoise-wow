@@ -24425,21 +24425,17 @@ bool Player::InGurubashiArena(bool checkOutsideArea) const
 
 void Player::MailHardcoreModeRewards(uint32 level)
 {
-    static std::unordered_map<uint32, uint32> levelRewards
+    uint32 rewardEntry;
+    switch (level)
     {
-        {10, 50050},
-        {20, 50051},
-        {30, 50052},
-        {40, 50053},
-        {50, 50054},
-        {60, 50055},
-    };
-
-    auto itr = levelRewards.find(level);
-
-    if (itr == levelRewards.end())
-        return;
-
+        case 10: rewardEntry = 50050; break;
+        case 20: rewardEntry = 50051; break;
+        case 30: rewardEntry = 50052; break;
+        case 40: rewardEntry = 50053; break;
+        case 50: rewardEntry = 50054; break;
+        case 60: rewardEntry = 50055; break;
+        default: return;
+    }
 
     std::ostringstream subject;
     subject << "Congratulations on level " << level << "!";
@@ -24450,7 +24446,7 @@ void Player::MailHardcoreModeRewards(uint32 level)
         << "and enthusiasm of exploring Azeroth to its fullest, we bestow upon you this reward box filled with goodies!";
 
     
-    Item* ToMailItem = Item::CreateItem(itr->second, 1, this);
+    Item* ToMailItem = Item::CreateItem(rewardEntry, 1, this);
     ToMailItem->SaveToDB();
 
     MailDraft(subject.str(), sObjectMgr.CreateItemText(body.str()))

@@ -2592,26 +2592,20 @@ public:
     
     bool HasChallenge(Challenges challenge) const
     {
-        static std::unordered_map<uint32, uint32> challenge_spells
+        switch (challenge)
         {
-            {CHALLENGE_SLOW_AND_STEADY, SPELL_SLOW_AND_STEADY},
-            {CHALLENGE_EXHAUSTION_MODE, SPELL_EXHAUSTION_MODE},
-            {CHALLENGE_WAR_MODE,        SPELL_WAR_MODE},
-            {CHALLENGE_HARDCORE,        SPELL_HARDCORE},
-            {CHALLENGE_VAGRANT_MODE,    SPELL_VARGANT_MODE},
-            {CHALLENGE_BOARING_MODE,    SPELL_BOARING_MODE},
-            {CHALLENGE_CRAFTMASTER,     SPELL_CRAFTMASTER},
-            {CHALLENGE_LUNATIC,         SPELL_LUNATIC},
-            {CHALLENGE_BREWMASTER,      SPELL_BREWMASTER},
-            {CHALLENGE_HEROIC,          SPELL_HEROIC},
-        };
-
-        auto itr = challenge_spells.find(challenge);
-
-        if (itr == challenge_spells.end())
-            return false;
-
-        return HasSpell(itr->second);
+            case CHALLENGE_SLOW_AND_STEADY: return HasSpell(SPELL_SLOW_AND_STEADY);
+            case CHALLENGE_EXHAUSTION_MODE: return HasSpell(SPELL_EXHAUSTION_MODE);
+            case CHALLENGE_WAR_MODE:        return HasSpell(SPELL_WAR_MODE);
+            case CHALLENGE_HARDCORE:        return HasSpell(SPELL_HARDCORE);
+            case CHALLENGE_VAGRANT_MODE:    return HasSpell(SPELL_VARGANT_MODE);
+            case CHALLENGE_BOARING_MODE:    return HasSpell(SPELL_BOARING_MODE);
+            case CHALLENGE_CRAFTMASTER:     return HasSpell(SPELL_CRAFTMASTER);
+            case CHALLENGE_LUNATIC:         return HasSpell(SPELL_LUNATIC);
+            case CHALLENGE_BREWMASTER:      return HasSpell(SPELL_BREWMASTER);
+            case CHALLENGE_HEROIC:          return HasSpell(SPELL_HEROIC);
+            default:                        return false;
+        }
     };
 
     ObjectGuid GetChampionGUID() const
