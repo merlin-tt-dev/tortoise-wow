@@ -1509,14 +1509,14 @@ void ScriptMgr::LoadEventScripts()
 {
     LoadScripts(sEventScripts, "event_scripts");
 
-    std::set<uint32> eventIds;                              // Store possible event ids
+    std::unordered_set<uint32> eventIds;                    // Store possible event ids
 
     CollectPossibleEventIds(eventIds);
 
     // Then check if all scripts are in above list of possible script entries
     for (const auto& itr : sEventScripts)
     {
-        std::set<uint32>::const_iterator itr2 = eventIds.find(itr.first);
+        auto const itr2 = eventIds.find(itr.first);
         if (itr2 == eventIds.end())
             sLog.outErrorDb("Table `event_scripts` has script (Id: %u) not referring to any gameobject_template type 10 data2 field, type 3 data6 field, type 13 data 2 field, type 29 or any spell effect %u",
                 itr.first, SPELL_EFFECT_SEND_EVENT);
@@ -1570,7 +1570,7 @@ void ScriptMgr::LoadCreatureEventAIScripts()
     }
 
     // Get all script Ids referenced in creature_ai_events table.
-    std::set<uint32> actionIds;
+    std::unordered_set<uint32> actionIds;
     for (uint8 i = 1; i <= 3; i++)
     {
         result = WorldDatabase.PQuery("SELECT action%u_script FROM creature_ai_events", i);
@@ -1591,7 +1591,7 @@ void ScriptMgr::LoadCreatureEventAIScripts()
     // Then check if all scripts are in above list of used script Ids.
     for (const auto& itr : sCreatureAIScripts)
     {
-        std::set<uint32>::const_iterator itr2 = actionIds.find(itr.first);
+        auto const itr2 = actionIds.find(itr.first);
         if (itr2 == actionIds.end())
             sLog.outErrorDb("Table `creature_ai_scripts` has script (Id: %u) not used by any creature AI events.", itr.first);
     }
@@ -1670,7 +1670,7 @@ void ScriptMgr::LoadEventIdScripts()
         return;
     }
 
-    std::set<uint32> eventIds;                              // Store possible event ids
+    std::unordered_set<uint32> eventIds;                    // Store possible event ids
     CollectPossibleEventIds(eventIds);
 
     do
@@ -1680,7 +1680,7 @@ void ScriptMgr::LoadEventIdScripts()
         uint32 eventId          = fields[0].GetUInt32();
         const char *scriptName  = fields[1].GetString();
 
-        std::set<uint32>::const_iterator itr = eventIds.find(eventId);
+        auto const itr = eventIds.find(eventId);
         if (itr == eventIds.end())
             sLog.outErrorDb("Table `scripted_event_id` has id %u not referring to any gameobject_template type 10 data2 field, type 3 data6 field, type 13 data 2 field, type 29 or any spell effect %u or path taxi node data",
                             eventId, SPELL_EFFECT_SEND_EVENT);
@@ -2651,7 +2651,7 @@ void ScriptMgr::CollectPossibleGenericIds(std::set<uint32>& genericIds)
     }
 }
 
-void ScriptMgr::CollectPossibleEventIds(std::set<uint32>& eventIds)
+void ScriptMgr::CollectPossibleEventIds(std::unordered_set<uint32>& eventIds)
 {
 
     // Load all possible script entries from gameobjects.

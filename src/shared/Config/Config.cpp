@@ -28,7 +28,7 @@
 #include <filesystem>
 #include <fstream>
 #include <map>
-#include <set>
+#include <unordered_set>
 #include <vector>
 
 INSTANTIATE_SINGLETON_2(Config, Config::Lock);
@@ -346,7 +346,7 @@ bool Config::LoadIncludes()
         includeFiles.insert(includeFiles.end(), directoryFiles.begin(), directoryFiles.end());
     }
 
-    std::set<std::string> loadedIncludeFiles;
+    std::unordered_set<std::string> loadedIncludeFiles;
 
     // Includes are intentionally single-level. IncludeDir/IncludeFile directives
     // inside included files are ignored, which keeps ordering deterministic and

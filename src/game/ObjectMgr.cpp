@@ -56,6 +56,7 @@
 #include "Geometry.h"
 
 #include <limits>
+#include <unordered_set>
 
 ObjectMgr sObjectMgr;
 
@@ -1748,7 +1749,7 @@ void ObjectMgr::LoadCreatureSpells()
         } while (result->NextRow());
     }
 
-    std::set<uint32> spellScriptSetFull = spellScriptSet;
+    std::unordered_set<uint32> spellScriptSetFull(spellScriptSet.begin(), spellScriptSet.end());
 
     // Now we load creature_spells.
     m_CreatureSpellsMap.clear(); // for reload case
@@ -8051,7 +8052,7 @@ void ObjectMgr::LoadTrainers(char const* tableName, bool isTemplates)
     }
     trainerList.clear();
 
-    std::set<uint32> skip_trainers;
+    std::unordered_set<uint32> skip_trainers;
 
     std::unique_ptr<QueryResult> result(WorldDatabase.PQuery("SELECT `entry`, `spell`, `spellcost`, `reqskill`, `reqskillvalue`, `reqlevel` FROM %s", tableName));
 
@@ -8060,7 +8061,7 @@ void ObjectMgr::LoadTrainers(char const* tableName, bool isTemplates)
         return;
     }
 
-    std::set<uint32> talentIds;
+    std::unordered_set<uint32> talentIds;
 
     do
     {

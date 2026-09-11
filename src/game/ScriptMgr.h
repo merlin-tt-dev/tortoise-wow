@@ -37,6 +37,7 @@
 #include <memory>
 #include <optional>
 #include <set>
+#include <unordered_set>
 
 struct AreaTriggerEntry;
 struct CleanDamage;
@@ -1636,7 +1637,7 @@ class ScriptMgr
         bool OnQuestRewardedByScript(Player* pPlayer, Quest const* pQuest);
         void RegisterQuestInstance(Script* pQuestScript, Player* pPlayer);
         void CollectPossibleGenericIds(std::set<uint32>& eventIds);
-        void CollectPossibleEventIds(std::set<uint32>& eventIds);
+        void CollectPossibleEventIds(std::unordered_set<uint32>& eventIds);
         void LoadScripts(ScriptMapMap& scripts, const char* tablename);
         void CheckScriptTexts(ScriptMapMap const& scripts);
 
