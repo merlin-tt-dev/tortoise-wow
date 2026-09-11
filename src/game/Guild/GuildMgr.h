@@ -34,6 +34,7 @@ class PetitionSignature;
 typedef robin_hood::unordered_map<uint32, Petition*> PetitionMap;
 typedef std::list<PetitionSignature*> PetitionSignatureList;
 typedef robin_hood::unordered_map<uint32, Guild*> GuildMap;
+typedef robin_hood::unordered_map<uint32, uint32> GuildMemberMap;
 class GuildMgr
 {
     public:
@@ -63,7 +64,7 @@ class GuildMgr
         Guild* GetPlayerGuild(uint32 lowguid)
         {
             std::shared_lock<std::shared_mutex> guard(m_guid2GuildMutex);
-            std::map<uint32, uint32>::iterator it = m_guid2guild.find(lowguid);
+            GuildMemberMap::iterator it = m_guid2guild.find(lowguid);
             if (it != m_guid2guild.end())
                 return GetGuildById(it->second);
             return nullptr;
@@ -86,7 +87,7 @@ class GuildMgr
         mutable std::shared_mutex m_guildMutex;
         GuildMap m_GuildMap;
         std::shared_mutex m_guid2GuildMutex;
-        std::map<uint32, uint32> m_guid2guild;
+        GuildMemberMap m_guid2guild;
 
         std::shared_mutex m_petitionsMutex;
         PetitionMap m_petitionMap;
