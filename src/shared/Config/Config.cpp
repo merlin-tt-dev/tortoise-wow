@@ -27,7 +27,7 @@
 #include <cctype>
 #include <filesystem>
 #include <fstream>
-#include <map>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -223,7 +223,7 @@ static bool ReadConfigFileMetadata(
 
 static void WarnAndRegisterDuplicateKeys(
     ConfigFileMetadata const& metadata,
-    std::map<std::string, ConfigKeyDefinition>& knownKeys)
+    std::unordered_map<std::string, ConfigKeyDefinition>& knownKeys)
 {
     for (ConfigKeyDefinition const& definition : metadata.keys)
     {
@@ -280,7 +280,7 @@ bool Config::LoadIncludes()
     if (!ReadConfigFileMetadata(mFilename, true, rootMetadata))
         return false;
 
-    std::map<std::string, ConfigKeyDefinition> knownKeys;
+    std::unordered_map<std::string, ConfigKeyDefinition> knownKeys;
     WarnAndRegisterDuplicateKeys(rootMetadata, knownKeys);
 
     std::filesystem::path const configDirectory(GetConfigDirectory());
