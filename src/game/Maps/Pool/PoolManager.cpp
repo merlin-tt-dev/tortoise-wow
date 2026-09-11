@@ -129,23 +129,23 @@ void SpawnedPoolData::RemoveSpawn<Pool>(uint32 sub_pool_id, uint32 pool_id)
 ////////////////////////////////////////////////////////////
 // Methods of class PoolObject
 template<>
-void PoolObject::CheckEventLinkAndReport<Creature>(uint32 poolId, int16 event_id, std::map<uint32, int16> const& creature2event, std::map<uint32, int16> const& /*go2event*/) const
+void PoolObject::CheckEventLinkAndReport<Creature>(uint32 poolId, int16 event_id, PoolEventGuidMap const& creature2event, PoolEventGuidMap const& /*go2event*/) const
 {
-    std::map<uint32, int16>::const_iterator itr = creature2event.find(guid);
+    PoolEventGuidMap::const_iterator itr = creature2event.find(guid);
     if (itr == creature2event.end() || itr->second != event_id)
         sLog.outErrorDb("Creature (GUID: %u) expected to be listed in `game_event_creature` for event %u as part pool %u", guid, event_id, poolId);
 }
 
 template<>
-void PoolObject::CheckEventLinkAndReport<GameObject>(uint32 poolId, int16 event_id, std::map<uint32, int16> const& /*creature2event*/, std::map<uint32, int16> const& go2event) const
+void PoolObject::CheckEventLinkAndReport<GameObject>(uint32 poolId, int16 event_id, PoolEventGuidMap const& /*creature2event*/, PoolEventGuidMap const& go2event) const
 {
-    std::map<uint32, int16>::const_iterator itr = go2event.find(guid);
+    PoolEventGuidMap::const_iterator itr = go2event.find(guid);
     if (itr == go2event.end() || itr->second != event_id)
         sLog.outErrorDb("Gameobject (GUID: %u) expected to be listed in `game_event_gameobject` for event %u as part pool %u", guid, event_id, poolId);
 }
 
 template<>
-void PoolObject::CheckEventLinkAndReport<Pool>(uint32 /*poolId*/, int16 event_id, std::map<uint32, int16> const& creature2event, std::map<uint32, int16> const& go2event) const
+void PoolObject::CheckEventLinkAndReport<Pool>(uint32 /*poolId*/, int16 event_id, PoolEventGuidMap const& creature2event, PoolEventGuidMap const& go2event) const
 {
     sPoolMgr.CheckEventLinkAndReport(guid, event_id, creature2event, go2event);
 }
@@ -180,7 +180,7 @@ bool PoolGroup<T>::CheckPool() const
 
 // Method to check event linking
 template <class T>
-void PoolGroup<T>::CheckEventLinkAndReport(int16 event_id, std::map<uint32, int16> const& creature2event, std::map<uint32, int16> const& go2event) const
+void PoolGroup<T>::CheckEventLinkAndReport(int16 event_id, PoolEventGuidMap const& creature2event, PoolEventGuidMap const& go2event) const
 {
     for (uint32 i = 0; i < EqualChanced.size(); ++i)
         EqualChanced[i].template CheckEventLinkAndReport<T>(poolId, event_id, creature2event, go2event);
@@ -995,7 +995,7 @@ bool PoolManager::CheckPool(uint16 pool_id) const
 }
 
 // Method that check linking all elements to event
-void PoolManager::CheckEventLinkAndReport(uint16 pool_id, int16 event_id, std::map<uint32, int16> const& creature2event, std::map<uint32, int16> const& go2event) const
+void PoolManager::CheckEventLinkAndReport(uint16 pool_id, int16 event_id, PoolEventGuidMap const& creature2event, PoolEventGuidMap const& go2event) const
 {
     mPoolGameobjectGroups[pool_id].CheckEventLinkAndReport(event_id, creature2event, go2event);
     mPoolCreatureGroups[pool_id].CheckEventLinkAndReport(event_id, creature2event, go2event);

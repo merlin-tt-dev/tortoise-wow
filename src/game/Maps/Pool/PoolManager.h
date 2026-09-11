@@ -27,6 +27,7 @@
 #include "Policies/Singleton.h"
 #include "Creature.h"
 #include "GameObject.h"
+#include <unordered_map>
 
 class MapPersistentState;
 struct MapEntry;
@@ -60,6 +61,8 @@ struct PoolTemplateData
     uint32 GetSpawnCount() const;
 };
 
+typedef std::unordered_map<uint32, int16> PoolEventGuidMap;
+
 struct PoolObject
 {
     enum ObjectFlags
@@ -75,7 +78,7 @@ struct PoolObject
     bool CanBeSpawned() const;
 
     template<typename T>
-    void CheckEventLinkAndReport(uint32 poolId, int16 event_id, std::map<uint32, int16> const& creature2event, std::map<uint32, int16> const& go2event) const;
+    void CheckEventLinkAndReport(uint32 poolId, int16 event_id, PoolEventGuidMap const& creature2event, PoolEventGuidMap const& go2event) const;
 };
 
 class Pool                                                  // for Pool of Pool case
@@ -126,7 +129,7 @@ class PoolGroup
         bool isEmpty() const { return ExplicitlyChanced.empty() && EqualChanced.empty(); }
         void AddEntry(PoolObject& poolitem, uint32 maxentries);
         bool CheckPool() const;
-        void CheckEventLinkAndReport(int16 event_id, std::map<uint32, int16> const& creature2event, std::map<uint32, int16> const& go2event) const;
+        void CheckEventLinkAndReport(int16 event_id, PoolEventGuidMap const& creature2event, PoolEventGuidMap const& go2event) const;
         PoolObject* RollOne(SpawnedPoolData& spawns, uint32 triggerFrom);
         void DespawnObject(MapPersistentState& mapState, uint32 guid=0);
         void Despawn1Object(MapPersistentState& mapState, uint32 guid);
@@ -182,7 +185,7 @@ class PoolManager
         void SetExcludeObject(uint16 pool_id, uint32 db_guid_or_pool_id, bool state);
 
         bool CheckPool(uint16 pool_id) const;
-        void CheckEventLinkAndReport(uint16 pool_id, int16 event_id, std::map<uint32, int16> const& creature2event, std::map<uint32, int16> const& go2event) const;
+        void CheckEventLinkAndReport(uint16 pool_id, int16 event_id, PoolEventGuidMap const& creature2event, PoolEventGuidMap const& go2event) const;
 
         void SpawnPool(MapPersistentState& mapState, uint16 pool_id, bool instantly);
         void DespawnPool(MapPersistentState& mapState, uint16 pool_id);

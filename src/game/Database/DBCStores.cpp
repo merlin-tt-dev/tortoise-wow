@@ -32,6 +32,7 @@
 #include <vector>
 #include <regex>
 #include <unordered_set>
+#include <unordered_map>
 
 typedef std::tuple<int32, int32, int32> WMOAreaTableKey;
 typedef std::map<WMOAreaTableKey, WMOAreaTableEntry const*> WMOAreaInfoByTripple;
@@ -97,7 +98,7 @@ TalentSpellPosMap sTalentSpellPosMap;
 DBCStorage <TalentTabEntry> sTalentTabStore(TalentTabEntryfmt);
 
 // store absolute bit position for first rank for talent inspect
-typedef std::map<uint32, uint32> TalentInspectMap;
+typedef std::unordered_map<uint32, uint32> TalentInspectMap;
 static TalentInspectMap sTalentPosInInspect;
 static TalentInspectMap sTalentTabSizeInInspect;
 static uint32 sTalentTabPages[12/*MAX_CLASSES*/][3];

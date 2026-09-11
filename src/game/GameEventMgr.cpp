@@ -252,8 +252,8 @@ void GameEventMgr::LoadFromDB()
     LoadHardcodedEvents(mGameEventHardcodedList);
 
     std::map<uint16, int16> pool2event;                     // for check unique spawn event associated with pool
-    std::map<uint32, int16> creature2event;                 // for check unique spawn event associated with creature
-    std::map<uint32, int16> go2event;                       // for check unique spawn event associated with gameobject
+    PoolEventGuidMap creature2event;                 // for check unique spawn event associated with creature
+    PoolEventGuidMap go2event;                       // for check unique spawn event associated with gameobject
 
     // list only positive event top pools, filled at creature/gameobject loading
     mGameEventSpawnPoolIds.resize(mGameEvent.size());

@@ -32,6 +32,7 @@
 #include <set>
 #include <vector>
 #include <array>
+#include <unordered_map>
 
 // Structures using to access raw DBC data and required packing to portability
 
@@ -768,7 +769,7 @@ struct WorldSafeLocsEntry
 #endif
 
 typedef std::set<uint32> SpellCategorySet;
-typedef std::map<uint32,SpellCategorySet > SpellCategoriesStore;
+typedef std::unordered_map<uint32,SpellCategorySet > SpellCategoriesStore;
 typedef std::set<uint32> PetFamilySpellsSet;
 typedef std::map<uint32,PetFamilySpellsSet > PetFamilySpellsStore;
 
