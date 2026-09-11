@@ -17,7 +17,6 @@
 #include <mutex>
 #include <cmath>
 #include <memory>
-#include <functional>
 
 bool PlayerBotAI::OnSessionLoaded(PlayerBotEntry* entry, WorldSession* sess)
 {
@@ -224,88 +223,109 @@ uint32 PlayerBotAI::SelectOffensiveSpell(Unit* target) const
         return true;
     };
 
-    std::vector<Action> actions;
+    static constexpr Action warriorActions[] = {
+        {100, 8.0f, 25.0f, false, false},   // Charge
+        {7372, 0.f, 5.0f, true, true},      // Hamstring
+        {772, 0.f, 5.0f, true, true},       // Rend
+        {78, 0.f, 5.0f, true, false},       // Heroic Strike
+    };
+    static constexpr Action paladinActions[] = {
+        {20271, 0.f, 10.0f, false, false},  // Judgement
+        {879, 0.f, 10.0f, false, false},    // Exorcism
+        {35395, 0.f, 5.0f, true, false},    // Crusader Strike (if present)
+        {20467, 0.f, 10.0f, false, false},  // Judgement of Righteousness
+    };
+    static constexpr Action hunterActions[] = {
+        {75, 5.0f, 35.0f, false, false},    // Auto Shot trigger
+        {142, 5.0f, 35.0f, false, false},   // Arcane Shot
+        {1978, 5.0f, 35.0f, false, true},   // Serpent Sting
+        {2973, 0.f, 5.0f, true, false},     // Raptor Strike
+    };
+    static constexpr Action rogueActions[] = {
+        {2098, 0.f, 5.0f, true, false},     // Eviscerate
+        {1752, 0.f, 5.0f, true, false},     // Sinister Strike
+        {703, 0.f, 5.0f, true, true},       // Garrote
+    };
+    static constexpr Action priestActions[] = {
+        {589, 0.f, 30.0f, false, true},     // Shadow Word: Pain
+        {8092, 0.f, 30.0f, false, false},   // Mind Blast
+        {585, 0.f, 30.0f, false, false},    // Smite
+    };
+    static constexpr Action shamanActions[] = {
+        {8050, 0.f, 20.0f, false, true},    // Flame Shock
+        {403, 0.f, 30.0f, false, false},    // Lightning Bolt
+        {8042, 0.f, 20.0f, false, false},   // Earth Shock
+        {421, 0.f, 20.0f, false, false},    // Chain Lightning
+    };
+    static constexpr Action mageActions[] = {
+        {116, 0.f, 30.0f, false, false},    // Frostbolt
+        {133, 0.f, 30.0f, false, false},    // Fireball
+        {2136, 0.f, 20.0f, false, false},   // Fire Blast
+        {122, 0.f, 10.0f, false, true},     // Frost Nova
+        {1449, 0.f, 10.0f, false, false},   // Arcane Explosion
+    };
+    static constexpr Action warlockActions[] = {
+        {172, 0.f, 30.0f, false, true},     // Corruption
+        {348, 0.f, 30.0f, false, true},     // Immolate
+        {980, 0.f, 30.0f, false, true},     // Curse of Agony
+        {689, 0.f, 20.0f, false, false},    // Drain Life
+        {686, 0.f, 30.0f, false, false},    // Shadow Bolt
+    };
+    static constexpr Action druidActions[] = {
+        {8921, 0.f, 30.0f, false, true},    // Moonfire
+        {5176, 0.f, 30.0f, false, false},   // Wrath
+        {339, 0.f, 30.0f, false, true},     // Entangling Roots
+        {1822, 0.f, 5.0f, true, true},      // Rake
+        {5221, 0.f, 5.0f, true, false},     // Shred
+    };
+
+    Action const* actions = nullptr;
+    size_t actionCount = 0;
     switch (me->GetClass())
     {
         case CLASS_WARRIOR:
-            actions = {
-                {100, 8.0f, 25.0f, false, false},   // Charge
-                {7372, 0.f, 5.0f, true, true},      // Hamstring
-                {772, 0.f, 5.0f, true, true},       // Rend
-                {78, 0.f, 5.0f, true, false},       // Heroic Strike
-            };
+            actions = warriorActions;
+            actionCount = sizeof(warriorActions) / sizeof(*warriorActions);
             break;
         case CLASS_PALADIN:
-            actions = {
-                {20271, 0.f, 10.0f, false, false},  // Judgement
-                {879, 0.f, 10.0f, false, false},    // Exorcism
-                {35395, 0.f, 5.0f, true, false},    // Crusader Strike (if present)
-                {20467, 0.f, 10.0f, false, false},  // Judgement of Righteousness
-            };
+            actions = paladinActions;
+            actionCount = sizeof(paladinActions) / sizeof(*paladinActions);
             break;
         case CLASS_HUNTER:
-            actions = {
-                {75, 5.0f, 35.0f, false, false},    // Auto Shot trigger
-                {142, 5.0f, 35.0f, false, false},   // Arcane Shot
-                {1978, 5.0f, 35.0f, false, true},   // Serpent Sting
-                {2973, 0.f, 5.0f, true, false},     // Raptor Strike
-            };
+            actions = hunterActions;
+            actionCount = sizeof(hunterActions) / sizeof(*hunterActions);
             break;
         case CLASS_ROGUE:
-            actions = {
-                {2098, 0.f, 5.0f, true, false},     // Eviscerate
-                {1752, 0.f, 5.0f, true, false},     // Sinister Strike
-                {703, 0.f, 5.0f, true, true},       // Garrote
-            };
+            actions = rogueActions;
+            actionCount = sizeof(rogueActions) / sizeof(*rogueActions);
             break;
         case CLASS_PRIEST:
-            actions = {
-                {589, 0.f, 30.0f, false, true},     // Shadow Word: Pain
-                {8092, 0.f, 30.0f, false, false},   // Mind Blast
-                {585, 0.f, 30.0f, false, false},    // Smite
-            };
+            actions = priestActions;
+            actionCount = sizeof(priestActions) / sizeof(*priestActions);
             break;
         case CLASS_SHAMAN:
-            actions = {
-                {8050, 0.f, 20.0f, false, true},    // Flame Shock
-                {403, 0.f, 30.0f, false, false},    // Lightning Bolt
-                {8042, 0.f, 20.0f, false, false},   // Earth Shock
-                {421, 0.f, 20.0f, false, false},    // Chain Lightning
-            };
+            actions = shamanActions;
+            actionCount = sizeof(shamanActions) / sizeof(*shamanActions);
             break;
         case CLASS_MAGE:
-            actions = {
-                {116, 0.f, 30.0f, false, false},    // Frostbolt
-                {133, 0.f, 30.0f, false, false},    // Fireball
-                {2136, 0.f, 20.0f, false, false},   // Fire Blast
-                {122, 0.f, 10.0f, false, true},     // Frost Nova
-                {1449, 0.f, 10.0f, false, false},   // Arcane Explosion
-            };
+            actions = mageActions;
+            actionCount = sizeof(mageActions) / sizeof(*mageActions);
             break;
         case CLASS_WARLOCK:
-            actions = {
-                {172, 0.f, 30.0f, false, true},     // Corruption
-                {348, 0.f, 30.0f, false, true},     // Immolate
-                {980, 0.f, 30.0f, false, true},     // Curse of Agony
-                {689, 0.f, 20.0f, false, false},    // Drain Life
-                {686, 0.f, 30.0f, false, false},    // Shadow Bolt
-            };
+            actions = warlockActions;
+            actionCount = sizeof(warlockActions) / sizeof(*warlockActions);
             break;
         case CLASS_DRUID:
-            actions = {
-                {8921, 0.f, 30.0f, false, true},    // Moonfire
-                {5176, 0.f, 30.0f, false, false},   // Wrath
-                {339, 0.f, 30.0f, false, true},     // Entangling Roots
-                {1822, 0.f, 5.0f, true, true},      // Rake
-                {5221, 0.f, 5.0f, true, false},     // Shred
-            };
+            actions = druidActions;
+            actionCount = sizeof(druidActions) / sizeof(*druidActions);
             break;
         default:
             break;
     }
 
-    for (auto const& act : actions)
+    for (size_t i = 0; i < actionCount; ++i)
     {
+        Action const& act = actions[i];
         if (!distOk(act))
             continue;
         uint32 spellId = GetHighestKnownSpell(act.baseSpell);
@@ -323,16 +343,16 @@ uint32 PlayerBotAI::GetHighestKnownSpell(uint32 spellId) const
     uint32 best = 0;
     SpellChainMapNext const& nextMap = sSpellMgr.GetSpellChainNext();
 
-    std::function<void(uint32)> dfs = [&](uint32 id)
+    auto dfs = [&](auto&& self, uint32 id) -> void
     {
         if (me->HasSpell(id))
             best = id;
         auto range = nextMap.equal_range(id);
         for (auto itr = range.first; itr != range.second; ++itr)
-            dfs(itr->second);
+            self(self, itr->second);
     };
 
-    dfs(first);
+    dfs(dfs, first);
     return best;
 }
 
@@ -344,18 +364,18 @@ bool PlayerBotAI::TargetHasAuraFromChain(Unit* target, uint32 spellId) const
     uint32 first = sSpellMgr.GetFirstSpellInChain(spellId);
     SpellChainMapNext const& nextMap = sSpellMgr.GetSpellChainNext();
 
-    std::function<bool(uint32)> dfs = [&](uint32 id) -> bool
+    auto dfs = [&](auto&& self, uint32 id) -> bool
     {
         if (target->HasAura(id))
             return true;
         auto range = nextMap.equal_range(id);
         for (auto itr = range.first; itr != range.second; ++itr)
-            if (dfs(itr->second))
+            if (self(self, itr->second))
                 return true;
         return false;
     };
 
-    return dfs(first);
+    return dfs(dfs, first);
 }
 
 namespace
