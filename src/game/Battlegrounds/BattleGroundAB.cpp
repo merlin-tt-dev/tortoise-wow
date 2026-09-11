@@ -541,35 +541,35 @@ WorldSafeLocsEntry const* BattleGroundAB::GetClosestGraveYard(Player* player)
 
     BattleGroundTeamIndex teamIndex = GetTeamIndexByTeamId(player->GetTeam());
 
-    // Is there any occupied node for this team?
-    std::vector<uint8> nodes;
-    for (uint8 i = 0; i < BG_AB_NODES_MAX; ++i)
-        if (m_Nodes[i] == teamIndex + 3)
-            nodes.push_back(i);
-
     WorldSafeLocsEntry const* good_entry = nullptr;
-    // If so, select the closest node to place ghost on
-    if (!nodes.empty())
+    float plr_x = 0.0f;
+    float plr_y = 0.0f;
+    float mindist = 999999.0f;
+    bool hasOccupiedNode = false;
+
+    // Select the closest occupied node for this team without building a temporary list.
+    for (uint8 node = 0; node < BG_AB_NODES_MAX; ++node)
     {
-        float plr_x = player->GetPositionX();
-        float plr_y = player->GetPositionY();
+        if (m_Nodes[node] != teamIndex + 3)
+            continue;
 
-        float mindist = 999999.0f;
-        for (uint8 node : nodes)
+        if (!hasOccupiedNode)
         {
-            WorldSafeLocsEntry const*entry = sWorldSafeLocsStore.LookupEntry(BG_AB_GraveyardIds[node]);
-            if (!entry)
-                continue;
-
-            float dist = (entry->x - plr_x) * (entry->x - plr_x) + (entry->y - plr_y) * (entry->y - plr_y);
-            if (mindist > dist)
-            {
-                mindist = dist;
-                good_entry = entry;
-            }
+            plr_x = player->GetPositionX();
+            plr_y = player->GetPositionY();
+            hasOccupiedNode = true;
         }
 
-        nodes.clear();
+        WorldSafeLocsEntry const* entry = sWorldSafeLocsStore.LookupEntry(BG_AB_GraveyardIds[node]);
+        if (!entry)
+            continue;
+
+        float dist = (entry->x - plr_x) * (entry->x - plr_x) + (entry->y - plr_y) * (entry->y - plr_y);
+        if (mindist > dist)
+        {
+            mindist = dist;
+            good_entry = entry;
+        }
     }
     // If not, place ghost on starting location
     if (!good_entry)
