@@ -70,6 +70,7 @@
 #include "ScriptMgr.h"
 
 #include <cmath>
+#include <array>
 
 using namespace Spells;
 
@@ -3771,7 +3772,7 @@ void Spell::EffectScriptEffect(SpellEffectIndex eff_idx)
                         return;
 
                     // Guard spellIds map [Pledge of Friendship , Pledge of Adoration]
-                    static const std::map<uint32, std::vector<uint32>> loveAirSpellsMapForFaction = {
+                    static const std::map<uint32, std::array<uint32, 2>> loveAirSpellsMapForFaction = {
                             {11, {27242, 27510}},   // Stormwind
                             {85, {27247, 27507}},   // Orgrimmar
                             {57, {27244, 27506}},   // Ironforge
@@ -3832,7 +3833,7 @@ void Spell::EffectScriptEffect(SpellEffectIndex eff_idx)
                         return;
 
                     // Civilian spellIds map [Gift of Friendship , Gift of Adoration]
-                    static const std::map<uint32, std::vector<uint32>> loveAirSpellsMapForFaction = {
+                    static const std::map<uint32, std::array<uint32, 2>> loveAirSpellsMapForFaction = {
                             {12, {27525, 27509}},   // Stormwind
                             {29, {27523, 27505}},   // Orgrimmar orcs
                             {55, {27520, 27503}},   // Ironforge dwarves
