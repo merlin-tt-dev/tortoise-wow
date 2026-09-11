@@ -139,9 +139,7 @@ void WardenScanMgr::loadFromDB()
                     continue;
                 }
 
-                std::vector<uint8> simplePattern;
-                simplePattern.resize(pattern.size());
-                memcpy(simplePattern.data(), pattern.data(), pattern.size());
+                std::vector<uint8> simplePattern(pattern.begin(), pattern.end());
 
                 scan = new WindowsCodeScan(offset, simplePattern, scanType == FIND_MEM_IMAGE_CODE_BY_HASH, wanted, comment, flags);
                 break;
