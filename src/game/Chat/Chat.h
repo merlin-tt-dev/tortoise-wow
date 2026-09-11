@@ -28,6 +28,7 @@
 
 #include <any>
 #include <string_view>
+#include <unordered_map>
 
 struct AreaTriggerTeleport;
 struct AreaTriggerEntry;
@@ -924,9 +925,9 @@ class ChatHandler
         WorldSession * m_session;                           // != nullptr for chat command call and nullptr for CLI command
 
         // common global flag
-        static std::map<uint32 /*Permission Id*/, std::string /*Permission Name*/> m_rbacPermissionNames;
-        static std::map<uint32 /*Account Id*/, uint32 /*Permission Mask*/> m_rbacAccountGrantedPermissions;
-        static std::map<uint32 /*Account Id*/, uint32 /*Permission Mask*/> m_rbacAccountBannedPermissions;
+        static std::unordered_map<uint32 /*Permission Id*/, std::string /*Permission Name*/> m_rbacPermissionNames;
+        static std::unordered_map<uint32 /*Account Id*/, uint32 /*Permission Mask*/> m_rbacAccountGrantedPermissions;
+        static std::unordered_map<uint32 /*Account Id*/, uint32 /*Permission Mask*/> m_rbacAccountBannedPermissions;
         bool sentErrorMessage;
 };
 
