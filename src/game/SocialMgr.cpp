@@ -173,8 +173,9 @@ void SocialMgr::GetFriendInfo(MasterPlayer* player, ObjectGuid const& friendGuid
     bool allowTwoSideWhoList = sWorld.getConfig(CONFIG_BOOL_ALLOW_TWO_SIDE_WHO_LIST);
     AccountTypes gmLevelInWhoList = AccountTypes(sWorld.getConfig(CONFIG_UINT32_GM_LEVEL_IN_WHO_LIST));
 
-    auto const itr = player->GetSocial()->m_playerSocialMap.find(friendGuid);
-    if (itr != player->GetSocial()->m_playerSocialMap.end())
+    PlayerSocial* social = player->GetSocial();
+    auto const itr = social->m_playerSocialMap.find(friendGuid);
+    if (itr != social->m_playerSocialMap.end())
     {
         // PLAYER see his team only and PLAYER can't see MODERATOR, GAME MASTER, ADMINISTRATOR characters
         // MODERATOR, GAME MASTER, ADMINISTRATOR can see all

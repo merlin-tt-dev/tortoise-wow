@@ -163,16 +163,17 @@ bool BigNumber::isZero() const
 
 std::vector<uint8> BigNumber::AsByteArray(int minSize, bool reverse) const
 {
-    int length = (minSize >= GetNumBytes()) ? minSize : GetNumBytes();
+    int numBytes = GetNumBytes();
+    int length = (minSize >= numBytes) ? minSize : numBytes;
 
     std::vector<uint8> byteArray(length);
     
     // If we need more bytes than length of BigNumber set the rest to 0
-    if (length > GetNumBytes())
+    if (length > numBytes)
         memset((void*)byteArray.data(), 0, length);
 
     // Padding should add leading zeroes, not trailing
-    int paddingOffset = length - GetNumBytes();
+    int paddingOffset = length - numBytes;
 
     BN_bn2bin(_bn, (unsigned char *)byteArray.data() + paddingOffset);
 

@@ -168,9 +168,10 @@ void AccountAnalyser::AddAutoBanExtendedPrint(uint64 extendedPrint)
 
 void AccountAnalyser::CheckExtendedPrintMark()
 {
-    if (_markedExtendedPrints.find(_currentSample.GetHash()) != _markedExtendedPrints.end())
+    size_t currentSampleHash = _currentSample.GetHash();
+    if (_markedExtendedPrints.find(currentSampleHash) != _markedExtendedPrints.end())
     {
-        std::string message = string_format("Marked extended print logged in! {} on account {} (ID {}). IP {}.", _currentSample.GetHash(), _session->GetUsername(), _session->GetAccountId(),
+        std::string message = string_format("Marked extended print logged in! {} on account {} (ID {}). IP {}.", currentSampleHash, _session->GetUsername(), _session->GetAccountId(),
             _session->GetRemoteAddress().c_str());
 
         sWorld.SendGMText(message);
