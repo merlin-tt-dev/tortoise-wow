@@ -25,15 +25,16 @@
 #include "MotionMaster.h"
 #include "MoveSpline.h"
 #include "Spell.h"
+#include <array>
 
 // Misc spells we dont want players to cast
-static std::vector<uint32> priestSkipSpells =
+static constexpr std::array<uint32, 17> priestSkipSpells =
 {
     453,8123,8192,8193,10953,10954,  // mind soothe
     1150,2096,2097,10909,10910,      // mind vision
     1265,9580,9581,9593,10943,10944, // fade
 };
-static std::vector<uint32> hunterSkipSpells =
+static constexpr std::array<uint32, 1> hunterSkipSpells =
 {
     75, // auto shot
 };
