@@ -87,6 +87,7 @@
 #include <regex>
 #include <iomanip>
 #include <sstream>
+#include <unordered_set>
 #include <ctime>
 #include "Anticheat/Anticheat.h"
 #include "SuspiciousStatisticMgr.h"
@@ -758,7 +759,7 @@ bool ChatHandler::HandleLearnAllTrainerCommand(char* args)
     }
     else
     {
-        std::set<uint32> checkedTrainerTemplates;
+        std::unordered_set<uint32> checkedTrainerTemplates;
         for (auto const& itr : sObjectMgr.GetCreatureInfoMap())
         {
             CreatureInfo const* cInfo = itr.second.get();

@@ -31,6 +31,7 @@
 #include <map>
 #include <vector>
 #include <regex>
+#include <unordered_set>
 
 typedef std::tuple<int32, int32, int32> WMOAreaTableKey;
 typedef std::map<WMOAreaTableKey, WMOAreaTableEntry const*> WMOAreaInfoByTripple;
@@ -418,7 +419,7 @@ void LoadDBCStores(std::string const& dataPath)
     // Initialize global taxinodes mask
     // include existing nodes that have at least single not spell base (scripted) path
     {
-        std::set<uint32> spellPaths;
+        std::unordered_set<uint32> spellPaths;
         for (uint32 i = 1; i < sSpellMgr.GetMaxSpellId(); ++i)
             if (SpellEntry const* sInfo = sSpellMgr.GetSpellEntry(i))
                 for (int j = 0; j < MAX_EFFECT_INDEX; ++j)

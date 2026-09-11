@@ -6340,7 +6340,7 @@ void ObjectMgr::LoadFactions()
             return;
         }
 
-        std::set<uint32> factionsWithEnemies;
+        std::unordered_set<uint32> factionsWithEnemies;
 
         do
         {
