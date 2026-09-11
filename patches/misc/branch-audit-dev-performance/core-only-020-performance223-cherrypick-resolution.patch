@@ -1,0 +1,312 @@
+--- a/src/game/Maps/MoveMap.h
++++ b/src/game/Maps/MoveMap.h
+@@ -28,6 +28,7 @@
+ #include "Detour/Include/DetourNavMeshQuery.h"
+ 
+ #include <atomic>
++#include <mutex>
+ #include <thread>
+ #include <shared_mutex>
+ #include <utility>
+@@ -134,15 +135,8 @@
+             std::shared_mutex loadedMMaps_lock;
+             MMapDataSet loadedModels;
+ 
+-<<<<<<< HEAD
+-            uint32 loadedTiles;
+-||||||| parent of 72a10e1 (Applied the Navmesh query Lifetime patch, this will hopefulkl fix the pathfinding crash dokumented in https://github.com/tortoise-wow/tortoise-wow/issues/373)
+-            uint32 loadedTiles;
+-            std::mutex lockForModels;
+-=======
++            std::shared_mutex loadedModels_lock;
+             std::atomic<uint32> loadedTiles;
+-            std::mutex lockForModels;
+->>>>>>> 72a10e1 (Applied the Navmesh query Lifetime patch, this will hopefulkl fix the pathfinding crash dokumented in https://github.com/tortoise-wow/tortoise-wow/issues/373)
+     };
+ 
+     // static class
+--- a/src/game/Maps/MoveMap.cpp
++++ b/src/game/Maps/MoveMap.cpp
+@@ -209,15 +209,8 @@
+ 
+ bool MMapManager::unloadMap(uint32 mapId, int32 x, int32 y)
+ {
+-<<<<<<< HEAD
+-    // check if we have this map loaded
+-||||||| parent of 72a10e1 (Applied the Navmesh query Lifetime patch, this will hopefulkl fix the pathfinding crash dokumented in https://github.com/tortoise-wow/tortoise-wow/issues/373)
+-    // check if we have this map loaded
+-    if (loadedMMaps.find(mapId) == loadedMMaps.end())
+-=======
+     // Stabilize MMapData while the tile is removed.
+     std::shared_lock<std::shared_mutex> mapLock(loadedMMaps_lock);
+->>>>>>> 72a10e1 (Applied the Navmesh query Lifetime patch, this will hopefulkl fix the pathfinding crash dokumented in https://github.com/tortoise-wow/tortoise-wow/issues/373)
+     auto const mapIt = loadedMMaps.find(mapId);
+     if (mapIt == loadedMMaps.end())
+     {
+@@ -256,14 +249,7 @@
+     else
+     {
+         mmap->mmapLoadedTiles.erase(tileIt);
+-<<<<<<< HEAD
+-        --loadedTiles;
+-||||||| parent of 72a10e1 (Applied the Navmesh query Lifetime patch, this will hopefulkl fix the pathfinding crash dokumented in https://github.com/tortoise-wow/tortoise-wow/issues/373)
+-        mmap->mmapLoadedTiles.erase(packedGridPos);
+-        --loadedTiles;
+-=======
+         loadedTiles.fetch_sub(1, std::memory_order_relaxed);
+->>>>>>> 72a10e1 (Applied the Navmesh query Lifetime patch, this will hopefulkl fix the pathfinding crash dokumented in https://github.com/tortoise-wow/tortoise-wow/issues/373)
+         return true;
+     }
+ 
+@@ -272,15 +258,10 @@
+ 
+ bool MMapManager::unloadMap(uint32 mapId)
+ {
+-<<<<<<< HEAD
+-||||||| parent of 72a10e1 (Applied the Navmesh query Lifetime patch, this will hopefulkl fix the pathfinding crash dokumented in https://github.com/tortoise-wow/tortoise-wow/issues/373)
+-    if (loadedMMaps.find(mapId) == loadedMMaps.end())
+-=======
+     // Block new lookups first, then drain active navmesh readers. This order
+     // guarantees that MMapData (including navMesh_lock itself) remains alive
+     // until every query handle has released it.
+     std::unique_lock<std::shared_mutex> mapLock(loadedMMaps_lock);
+->>>>>>> 72a10e1 (Applied the Navmesh query Lifetime patch, this will hopefulkl fix the pathfinding crash dokumented in https://github.com/tortoise-wow/tortoise-wow/issues/373)
+     auto const mapIt = loadedMMaps.find(mapId);
+     if (mapIt == loadedMMaps.end())
+     {
+@@ -293,12 +274,6 @@
+     std::unique_lock<std::shared_mutex> navLock(mmap->navMesh_lock);
+ 
+     // unload all tiles from given map
+-<<<<<<< HEAD
+-    MMapData* mmap = mapIt->second;
+-||||||| parent of 72a10e1 (Applied the Navmesh query Lifetime patch, this will hopefulkl fix the pathfinding crash dokumented in https://github.com/tortoise-wow/tortoise-wow/issues/373)
+-    MMapData* mmap = loadedMMaps[mapId];
+-=======
+->>>>>>> 72a10e1 (Applied the Navmesh query Lifetime patch, this will hopefulkl fix the pathfinding crash dokumented in https://github.com/tortoise-wow/tortoise-wow/issues/373)
+     for (MMapTileSet::iterator i = mmap->mmapLoadedTiles.begin(); i != mmap->mmapLoadedTiles.end(); ++i)
+     {
+         uint32 x = (i->first >> 16);
+@@ -315,12 +290,6 @@
+     loadedMMaps.erase(mapIt);
+     navLock.unlock();
+     delete mmap;
+-<<<<<<< HEAD
+-    loadedMMaps.erase(mapIt);
+-||||||| parent of 72a10e1 (Applied the Navmesh query Lifetime patch, this will hopefulkl fix the pathfinding crash dokumented in https://github.com/tortoise-wow/tortoise-wow/issues/373)
+-    loadedMMaps.erase(mapId);
+-=======
+->>>>>>> 72a10e1 (Applied the Navmesh query Lifetime patch, this will hopefulkl fix the pathfinding crash dokumented in https://github.com/tortoise-wow/tortoise-wow/issues/373)
+     DETAIL_LOG("MMAP:unloadMap: Unloaded %03i.mmap", mapId);
+ 
+     return true;
+@@ -328,14 +297,7 @@
+ 
+ bool MMapManager::unloadMapInstance(uint32 mapId, std::thread::id instanceId)
+ {
+-<<<<<<< HEAD
+-    // check if we have this map loaded
+-||||||| parent of 72a10e1 (Applied the Navmesh query Lifetime patch, this will hopefulkl fix the pathfinding crash dokumented in https://github.com/tortoise-wow/tortoise-wow/issues/373)
+-    // check if we have this map loaded
+-    if (loadedMMaps.find(mapId) == loadedMMaps.end())
+-=======
+     std::shared_lock<std::shared_mutex> mapLock(loadedMMaps_lock);
+->>>>>>> 72a10e1 (Applied the Navmesh query Lifetime patch, this will hopefulkl fix the pathfinding crash dokumented in https://github.com/tortoise-wow/tortoise-wow/issues/373)
+     auto const mapIt = loadedMMaps.find(mapId);
+     if (mapIt == loadedMMaps.end())
+     {
+@@ -344,17 +306,11 @@
+     }
+ 
+     MMapData* mmap = mapIt->second;
+-<<<<<<< HEAD
+-||||||| parent of 72a10e1 (Applied the Navmesh query Lifetime patch, this will hopefulkl fix the pathfinding crash dokumented in https://github.com/tortoise-wow/tortoise-wow/issues/373)
+-    MMapData* mmap = loadedMMaps[mapId];
+-    if (mmap->navMeshQueries.find(instanceId) == mmap->navMeshQueries.end())
+-=======
+ 
+     // A query object must not be freed while a query handle can use it. The
+     // exclusive navmesh gate drains all such users before touching the set.
+     std::unique_lock<std::shared_mutex> navLock(mmap->navMesh_lock);
+     std::unique_lock<std::shared_mutex> queryLock(mmap->navMeshQueries_lock);
+->>>>>>> 72a10e1 (Applied the Navmesh query Lifetime patch, this will hopefulkl fix the pathfinding crash dokumented in https://github.com/tortoise-wow/tortoise-wow/issues/373)
+     auto const queryIt = mmap->navMeshQueries.find(instanceId);
+     if (queryIt == mmap->navMeshQueries.end())
+     {
+@@ -362,18 +318,7 @@
+         return false;
+     }
+ 
+-<<<<<<< HEAD
+-    dtNavMeshQuery* query = queryIt->second;
+-
+-    dtFreeNavMeshQuery(query);
+-||||||| parent of 72a10e1 (Applied the Navmesh query Lifetime patch, this will hopefulkl fix the pathfinding crash dokumented in https://github.com/tortoise-wow/tortoise-wow/issues/373)
+-    dtNavMeshQuery* query = mmap->navMeshQueries[instanceId];
+-
+-    dtFreeNavMeshQuery(query);
+-    mmap->navMeshQueries.erase(instanceId);
+-=======
+     dtFreeNavMeshQuery(queryIt->second);
+->>>>>>> 72a10e1 (Applied the Navmesh query Lifetime patch, this will hopefulkl fix the pathfinding crash dokumented in https://github.com/tortoise-wow/tortoise-wow/issues/373)
+     mmap->navMeshQueries.erase(queryIt);
+     DETAIL_LOG("MMAP:unloadMapInstance: Unloaded mapId %03u instanceId %u", mapId, instanceId);
+ 
+@@ -382,41 +327,13 @@
+ 
+ bool MMapManager::IsNavMeshLoaded(uint32 mapId)
+ {
+-<<<<<<< HEAD
+-    auto const mapIt = loadedMMaps.find(mapId);
+-    if (mapIt == loadedMMaps.end())
+-        return nullptr;
+-
+-    return mapIt->second->navMesh;
+-||||||| parent of 72a10e1 (Applied the Navmesh query Lifetime patch, this will hopefulkl fix the pathfinding crash dokumented in https://github.com/tortoise-wow/tortoise-wow/issues/373)
+-    if (loadedMMaps.find(mapId) == loadedMMaps.end())
+-        return nullptr;
+-
+-    return loadedMMaps[mapId]->navMesh;
+-=======
+     std::shared_lock<std::shared_mutex> mapLock(loadedMMaps_lock);
+     return loadedMMaps.find(mapId) != loadedMMaps.end();
+->>>>>>> 72a10e1 (Applied the Navmesh query Lifetime patch, this will hopefulkl fix the pathfinding crash dokumented in https://github.com/tortoise-wow/tortoise-wow/issues/373)
+ }
+ 
+ dtNavMeshQuery const* MMapManager::GetOrCreateNavMeshQuery(MMapData* mmap, uint32 identifier, bool model)
+ {
+-<<<<<<< HEAD
+-    auto const mapIt = loadedMMaps.find(mapId);
+-    if (mapIt == loadedMMaps.end())
+-        return nullptr;
+-
+-    std::thread::id tid= std::this_thread::get_id();
+-    MMapData* mmap = mapIt->second;
+-||||||| parent of 72a10e1 (Applied the Navmesh query Lifetime patch, this will hopefulkl fix the pathfinding crash dokumented in https://github.com/tortoise-wow/tortoise-wow/issues/373)
+-    if (loadedMMaps.find(mapId) == loadedMMaps.end())
+-        return nullptr;
+-
+-    std::thread::id tid= std::this_thread::get_id();
+-    MMapData* mmap = loadedMMaps[mapId];
+-=======
+     std::thread::id tid = std::this_thread::get_id();
+->>>>>>> 72a10e1 (Applied the Navmesh query Lifetime patch, this will hopefulkl fix the pathfinding crash dokumented in https://github.com/tortoise-wow/tortoise-wow/issues/373)
+     std::shared_lock<std::shared_mutex> lock(mmap->navMeshQueries_lock);
+     auto it = mmap->navMeshQueries.find(tid);
+     if (it != mmap->navMeshQueries.end())
+@@ -449,7 +366,7 @@
+     else
+         DETAIL_LOG("MMAP:GetNavMeshQuery: created dtNavMeshQuery for mapId %03u thread %u", identifier, tid);
+ 
+-    mmap->navMeshQueries.insert(std::pair<std::thread::id, dtNavMeshQuery*>(tid, navMeshQuery));
++    mmap->navMeshQueries.emplace(tid, navMeshQuery);
+     return navMeshQuery;
+ }
+ 
+@@ -477,7 +394,7 @@
+ {
+     // we already have this model loaded?
+     {
+-        std::unique_lock<std::mutex> modelLock(lockForModels);
++        std::shared_lock<std::shared_mutex> modelLock(loadedModels_lock);
+         if (loadedModels.find(displayId) != loadedModels.end())
+             return true;
+     }
+@@ -539,94 +456,28 @@
+     DETAIL_LOG("MMAP:loadGameObject: Loaded file %s [size=%u]", fileName.c_str(), fileHeader.size);
+ 
+     MMapData* mmap_data = new MMapData(mesh);
+-    std::unique_lock<std::mutex> modelLock(lockForModels);
+-    if (!loadedModels.insert(std::pair<uint32, MMapData*>(displayId, mmap_data)).second)
++    std::unique_lock<std::shared_mutex> modelLock(loadedModels_lock);
++    if (!loadedModels.emplace(displayId, mmap_data).second)
+         delete mmap_data;
+     return true;
+ }
+ 
+ NavMeshQueryHandle MMapManager::AcquireModelNavMeshQuery(uint32 displayId)
+ {
+-<<<<<<< HEAD
+-    auto const modelIt = loadedModels.find(displayId);
+-    if (modelIt == loadedModels.end())
+-        return nullptr;
+-||||||| parent of 72a10e1 (Applied the Navmesh query Lifetime patch, this will hopefulkl fix the pathfinding crash dokumented in https://github.com/tortoise-wow/tortoise-wow/issues/373)
+-    if (loadedModels.find(displayId) == loadedModels.end())
+-        return nullptr;
+-=======
+-    std::unique_lock<std::mutex> modelLock(lockForModels);
++    std::shared_lock<std::shared_mutex> modelLock(loadedModels_lock);
+     auto const modelIt = loadedModels.find(displayId);
+     if (modelIt == loadedModels.end())
+         return NavMeshQueryHandle();
+->>>>>>> 72a10e1 (Applied the Navmesh query Lifetime patch, this will hopefulkl fix the pathfinding crash dokumented in https://github.com/tortoise-wow/tortoise-wow/issues/373)
+ 
+-<<<<<<< HEAD
+-    std::thread::id tid = std::this_thread::get_id();
+-    MMapData* mmap = modelIt->second;
+-    std::shared_lock<std::shared_mutex> lock(mmap->navMeshQueries_lock);
+-||||||| parent of 72a10e1 (Applied the Navmesh query Lifetime patch, this will hopefulkl fix the pathfinding crash dokumented in https://github.com/tortoise-wow/tortoise-wow/issues/373)
+-    std::thread::id tid = std::this_thread::get_id();
+-    MMapData* mmap = loadedModels[displayId];
+-    if (mmap->navMeshQueries.find(tid) == mmap->navMeshQueries.end())
+-    {
+-        std::unique_lock<std::mutex> g(lockForModels);
+-        if (mmap->navMeshQueries.find(tid) == mmap->navMeshQueries.end())
+-        {
+-            // allocate mesh query
+-            dtNavMeshQuery* query = dtAllocNavMeshQuery();
+-            MANGOS_ASSERT(query);
+-            if (dtStatusFailed(query->init(mmap->navMesh, 2048)))
+-            {
+-                dtFreeNavMeshQuery(query);
+-                sLog.outError("MMAP:GetNavMeshQuery: Failed to initialize dtNavMeshQuery for displayid %03u tid %u", displayId, tid);
+-                return nullptr;
+-            }
+-=======
+     MMapData* mmap = modelIt->second;
+     std::shared_lock<std::shared_mutex> navLock(mmap->navMesh_lock);
+     modelLock.unlock();
+->>>>>>> 72a10e1 (Applied the Navmesh query Lifetime patch, this will hopefulkl fix the pathfinding crash dokumented in https://github.com/tortoise-wow/tortoise-wow/issues/373)
+ 
+-<<<<<<< HEAD
+-    NavMeshQuerySet::const_iterator it = mmap->navMeshQueries.find(tid);
+-    if (it != mmap->navMeshQueries.end())
+-        return it->second;
+-
+-    lock.unlock();
+-    std::unique_lock<std::shared_mutex> ulock(mmap->navMeshQueries_lock);
+-    it = mmap->navMeshQueries.find(tid);
+-    if (it != mmap->navMeshQueries.end())
+-        return it->second;
+-
+-    dtNavMeshQuery* query = dtAllocNavMeshQuery();
+-    MANGOS_ASSERT(query);
+-    if (dtStatusFailed(query->init(mmap->navMesh, 2048)))
+-    {
+-        dtFreeNavMeshQuery(query);
+-        sLog.outError("MMAP:GetNavMeshQuery: Failed to initialize dtNavMeshQuery for displayid %03u tid %u", displayId, tid);
+-        return nullptr;
+-    }
+-||||||| parent of 72a10e1 (Applied the Navmesh query Lifetime patch, this will hopefulkl fix the pathfinding crash dokumented in https://github.com/tortoise-wow/tortoise-wow/issues/373)
+-            DETAIL_LOG("MMAP:GetNavMeshQuery: created dtNavMeshQuery for displayid %03u tid %u", displayId, tid);
+-            mmap->navMeshQueries.insert(std::pair<std::thread::id, dtNavMeshQuery*>(tid, query));
+-        }
+-    }
+-=======
+     dtNavMeshQuery const* query = GetOrCreateNavMeshQuery(mmap, displayId, true);
+     if (!query)
+         return NavMeshQueryHandle();
+->>>>>>> 72a10e1 (Applied the Navmesh query Lifetime patch, this will hopefulkl fix the pathfinding crash dokumented in https://github.com/tortoise-wow/tortoise-wow/issues/373)
+ 
+-<<<<<<< HEAD
+-    DETAIL_LOG("MMAP:GetNavMeshQuery: created dtNavMeshQuery for displayid %03u tid %u", displayId, tid);
+-    mmap->navMeshQueries.emplace(tid, query);
+-    return query;
+-||||||| parent of 72a10e1 (Applied the Navmesh query Lifetime patch, this will hopefulkl fix the pathfinding crash dokumented in https://github.com/tortoise-wow/tortoise-wow/issues/373)
+-    return mmap->navMeshQueries[tid];
+-=======
+     return NavMeshQueryHandle(query, std::move(navLock));
+->>>>>>> 72a10e1 (Applied the Navmesh query Lifetime patch, this will hopefulkl fix the pathfinding crash dokumented in https://github.com/tortoise-wow/tortoise-wow/issues/373)
+ }
+ 
+ }

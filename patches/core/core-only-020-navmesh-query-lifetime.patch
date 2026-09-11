@@ -1,0 +1,608 @@
+--- a/src/game/Maps/MoveMap.h
++++ b/src/game/Maps/MoveMap.h
+@@ -27,8 +27,10 @@
+ #include "Detour/Include/DetourNavMesh.h"
+ #include "Detour/Include/DetourNavMeshQuery.h"
+ 
++#include <atomic>
+ #include <thread>
+ #include <shared_mutex>
++#include <utility>
+ 
+ //  memory management
+ inline void* dtCustomAlloc(size_t size, dtAllocHint /*hint*/)
+@@ -67,6 +69,34 @@
+         std::shared_mutex navMeshQueries_lock;
+         MMapTileSet mmapLoadedTiles; // maps [map grid coords] to [dtTile]
+         std::mutex tilesLoading_lock;
++
++        // dtNavMeshQuery objects are per-thread, but all of them read the same
++        // dtNavMesh. Tile insertion/removal mutates that shared mesh and must
++        // not overlap a query that can retain tile/poly pointers.
++        std::shared_mutex navMesh_lock;
++    };
++
++    class NavMeshQueryHandle
++    {
++        public:
++            NavMeshQueryHandle() = default;
++            NavMeshQueryHandle(NavMeshQueryHandle&&) noexcept = default;
++            NavMeshQueryHandle& operator=(NavMeshQueryHandle&&) noexcept = default;
++            NavMeshQueryHandle(const NavMeshQueryHandle&) = delete;
++            NavMeshQueryHandle& operator=(const NavMeshQueryHandle&) = delete;
++
++            dtNavMeshQuery const* get() const { return m_query; }
++            dtNavMeshQuery const* operator->() const { return m_query; }
++            explicit operator bool() const { return m_query != nullptr; }
++
++        private:
++            friend class MMapManager;
++
++            NavMeshQueryHandle(dtNavMeshQuery const* query, std::shared_lock<std::shared_mutex>&& lock)
++                : m_query(query), m_lock(std::move(lock)) {}
++
++            dtNavMeshQuery const* m_query = nullptr;
++            std::shared_lock<std::shared_mutex> m_lock;
+     };
+ 
+     typedef std::unordered_map<uint32, MMapData*> MMapDataSet;
+@@ -85,23 +115,26 @@
+             bool unloadMap(uint32 mapId);
+             bool unloadMapInstance(uint32 mapId, std::thread::id instanceId);
+ 
+-            // The returned [dtNavMeshQuery const*] is NOT threadsafe
+-            // Returns a NavMeshQuery valid for current thread only.
+-            dtNavMeshQuery const* GetNavMeshQuery(uint32 mapId);
+-            dtNavMeshQuery const* GetModelNavMeshQuery(uint32 displayId);
+-            dtNavMesh const* GetNavMesh(uint32 mapId);
++            // A handle pins the shared dtNavMesh against tile mutation for the
++            // lifetime of a complete logical query operation. Keep the handle
++            // alive while using the returned dtNavMeshQuery or dtPolyRef values.
++            NavMeshQueryHandle AcquireNavMeshQuery(uint32 mapId);
++            NavMeshQueryHandle AcquireModelNavMeshQuery(uint32 displayId);
++
++            bool IsNavMeshLoaded(uint32 mapId);
+ 
+-            uint32 getLoadedTilesCount() const { return loadedTiles; }
++            uint32 getLoadedTilesCount() const { return loadedTiles.load(std::memory_order_relaxed); }
+             uint32 getLoadedMapsCount() const { return loadedMMaps.size(); }
+         private:
+             bool loadMapData(uint32 mapId);
++            dtNavMeshQuery const* GetOrCreateNavMeshQuery(MMapData* mmap, uint32 identifier, bool model);
+             static uint32 packTileID(int32 x, int32 y);
+ 
+             MMapDataSet loadedMMaps;
+             std::shared_mutex loadedMMaps_lock;
+             MMapDataSet loadedModels;
+ 
+-            uint32 loadedTiles;
++            std::atomic<uint32> loadedTiles;
+             std::mutex lockForModels;
+     };
+ 
+--- a/src/game/Maps/MoveMap.cpp
++++ b/src/game/Maps/MoveMap.cpp
+@@ -124,10 +124,14 @@
+     if (!loadMapData(mapId))
+         return false;
+ 
+-    // get this mmap data
++    // Keep the registry entry alive until the tile load is complete. Full-map
++    // unload takes the exclusive side of loadedMMaps_lock before deleting it.
+     std::shared_lock<std::shared_mutex> rlock(loadedMMaps_lock);
+-    MMapData* mmap = loadedMMaps[mapId];
+-    rlock.unlock();
++    auto const mapIt = loadedMMaps.find(mapId);
++    if (mapIt == loadedMMaps.end())
++        return false;
++
++    MMapData* mmap = mapIt->second;
+     MANGOS_ASSERT(mmap->navMesh);
+ 
+     // check if we already have this tile loaded
+@@ -188,11 +192,14 @@
+     dtTileRef tileRef = 0;
+ 
+     // memory allocated for data is now managed by detour, and will be deallocated when the tile is removed
++    // addTile rewires the shared dtNavMesh (tile lookup and neighbour links), so
++    // exclude all readers for the complete mutation.
++    std::unique_lock<std::shared_mutex> navLock(mmap->navMesh_lock);
+     dtStatus dResult = mmap->navMesh->addTile(data, fileHeader.size, DT_TILE_FREE_DATA, 0, &tileRef);
+     if (dtStatusSucceed(dResult))
+     {
+         mmap->mmapLoadedTiles.insert(std::pair<uint32, dtTileRef>(packedGridPos, tileRef));
+-        ++loadedTiles;
++        loadedTiles.fetch_add(1, std::memory_order_relaxed);
+         return true;
+     }
+     else
+@@ -207,28 +214,34 @@
+ 
+ bool MMapManager::unloadMap(uint32 mapId, int32 x, int32 y)
+ {
+-    // check if we have this map loaded
+-    if (loadedMMaps.find(mapId) == loadedMMaps.end())
++    // Stabilize MMapData while the tile is removed.
++    std::shared_lock<std::shared_mutex> mapLock(loadedMMaps_lock);
++    auto const mapIt = loadedMMaps.find(mapId);
++    if (mapIt == loadedMMaps.end())
+     {
+         // file may not exist, therefore not loaded
+         DEBUG_LOG("MMAP:unloadMap: Asked to unload not loaded navmesh map. %03u%02i%02i.mmtile", mapId, x, y);
+         return false;
+     }
+ 
+-    MMapData* mmap = loadedMMaps[mapId];
++    MMapData* mmap = mapIt->second;
+ 
+-    // check if we have this tile loaded
++    // Serialize the loaded-tile registry with loadMap().
++    std::unique_lock<std::mutex> tileLock(mmap->tilesLoading_lock);
+     uint32 packedGridPos = packTileID(x, y);
+-    if (mmap->mmapLoadedTiles.find(packedGridPos) == mmap->mmapLoadedTiles.end())
++    auto const tileIt = mmap->mmapLoadedTiles.find(packedGridPos);
++    if (tileIt == mmap->mmapLoadedTiles.end())
+     {
+         // file may not exist, therefore not loaded
+         DEBUG_LOG("MMAP:unloadMap: Asked to unload not loaded navmesh tile. %03u%02i%02i.mmtile", mapId, x, y);
+         return false;
+     }
+ 
+-    dtTileRef tileRef = mmap->mmapLoadedTiles[packedGridPos];
++    dtTileRef tileRef = tileIt->second;
+ 
+-    // unload, and mark as non loaded
++    // A Detour query can retain raw tile/poly pointers for the duration of a
++    // logical operation. Wait for those readers before rewiring/freeing tiles.
++    std::unique_lock<std::shared_mutex> navLock(mmap->navMesh_lock);
+     dtStatus dtResult = mmap->navMesh->removeTile(tileRef, nullptr, nullptr);
+     if (dtStatusFailed(dtResult))
+     {
+@@ -240,8 +253,8 @@
+     }
+     else
+     {
+-        mmap->mmapLoadedTiles.erase(packedGridPos);
+-        --loadedTiles;
++        mmap->mmapLoadedTiles.erase(tileIt);
++        loadedTiles.fetch_sub(1, std::memory_order_relaxed);
+         return true;
+     }
+ 
+@@ -250,15 +263,22 @@
+ 
+ bool MMapManager::unloadMap(uint32 mapId)
+ {
+-    if (loadedMMaps.find(mapId) == loadedMMaps.end())
++    // Block new lookups first, then drain active navmesh readers. This order
++    // guarantees that MMapData (including navMesh_lock itself) remains alive
++    // until every query handle has released it.
++    std::unique_lock<std::shared_mutex> mapLock(loadedMMaps_lock);
++    auto const mapIt = loadedMMaps.find(mapId);
++    if (mapIt == loadedMMaps.end())
+     {
+         // file may not exist, therefore not loaded
+         DEBUG_LOG("MMAP:unloadMap: Asked to unload not loaded navmesh map %03u", mapId);
+         return false;
+     }
+ 
++    MMapData* mmap = mapIt->second;
++    std::unique_lock<std::shared_mutex> navLock(mmap->navMesh_lock);
++
+     // unload all tiles from given map
+-    MMapData* mmap = loadedMMaps[mapId];
+     for (MMapTileSet::iterator i = mmap->mmapLoadedTiles.begin(); i != mmap->mmapLoadedTiles.end(); ++i)
+     {
+         uint32 x = (i->first >> 16);
+@@ -267,11 +287,14 @@
+         if (dtStatusFailed(dtResult))
+             sLog.outError("MMAP:unloadMap: Could not unload %03u%02i%02i.mmtile from navmesh", mapId, x, y);
+         else
+-            --loadedTiles;
++            loadedTiles.fetch_sub(1, std::memory_order_relaxed);
+     }
+ 
++    // Remove the registry entry while it is still globally exclusive so no new
++    // handle can discover mmap. Release its own mutex before deleting mmap.
++    loadedMMaps.erase(mapIt);
++    navLock.unlock();
+     delete mmap;
+-    loadedMMaps.erase(mapId);
+     DETAIL_LOG("MMAP:unloadMap: Unloaded %03i.mmap", mapId);
+ 
+     return true;
+@@ -279,80 +302,107 @@
+ 
+ bool MMapManager::unloadMapInstance(uint32 mapId, std::thread::id instanceId)
+ {
+-    // check if we have this map loaded
+-    if (loadedMMaps.find(mapId) == loadedMMaps.end())
++    std::shared_lock<std::shared_mutex> mapLock(loadedMMaps_lock);
++    auto const mapIt = loadedMMaps.find(mapId);
++    if (mapIt == loadedMMaps.end())
+     {
+-        // file may not exist, therefore not loaded
+         DEBUG_LOG("MMAP:unloadMapInstance: Asked to unload not loaded navmesh map %03u", mapId);
+         return false;
+     }
+ 
+-    MMapData* mmap = loadedMMaps[mapId];
+-    if (mmap->navMeshQueries.find(instanceId) == mmap->navMeshQueries.end())
++    MMapData* mmap = mapIt->second;
++
++    // A query object must not be freed while a query handle can use it. The
++    // exclusive navmesh gate drains all such users before touching the set.
++    std::unique_lock<std::shared_mutex> navLock(mmap->navMesh_lock);
++    std::unique_lock<std::shared_mutex> queryLock(mmap->navMeshQueries_lock);
++    auto const queryIt = mmap->navMeshQueries.find(instanceId);
++    if (queryIt == mmap->navMeshQueries.end())
+     {
+         DEBUG_LOG("MMAP:unloadMapInstance: Asked to unload not loaded dtNavMeshQuery mapId %03u instanceId %u", mapId, instanceId);
+         return false;
+     }
+ 
+-    dtNavMeshQuery* query = mmap->navMeshQueries[instanceId];
+-
+-    dtFreeNavMeshQuery(query);
+-    mmap->navMeshQueries.erase(instanceId);
++    dtFreeNavMeshQuery(queryIt->second);
++    mmap->navMeshQueries.erase(queryIt);
+     DETAIL_LOG("MMAP:unloadMapInstance: Unloaded mapId %03u instanceId %u", mapId, instanceId);
+ 
+     return true;
+ }
+ 
+-dtNavMesh const* MMapManager::GetNavMesh(uint32 mapId)
++bool MMapManager::IsNavMeshLoaded(uint32 mapId)
+ {
+-    if (loadedMMaps.find(mapId) == loadedMMaps.end())
+-        return nullptr;
+-
+-    return loadedMMaps[mapId]->navMesh;
++    std::shared_lock<std::shared_mutex> mapLock(loadedMMaps_lock);
++    return loadedMMaps.find(mapId) != loadedMMaps.end();
+ }
+ 
+-dtNavMeshQuery const* MMapManager::GetNavMeshQuery(uint32 mapId)
++dtNavMeshQuery const* MMapManager::GetOrCreateNavMeshQuery(MMapData* mmap, uint32 identifier, bool model)
+ {
+-    if (loadedMMaps.find(mapId) == loadedMMaps.end())
+-        return nullptr;
+-
+-    std::thread::id tid= std::this_thread::get_id();
+-    MMapData* mmap = loadedMMaps[mapId];
++    std::thread::id tid = std::this_thread::get_id();
+     std::shared_lock<std::shared_mutex> lock(mmap->navMeshQueries_lock);
+-
+-    NavMeshQuerySet::iterator it = mmap->navMeshQueries.find(tid);
+-    dtNavMeshQuery* navMeshQuery = nullptr;
+-    if (it == mmap->navMeshQueries.end())
+-    {
+-        lock.unlock();
+-        std::unique_lock<std::shared_mutex> ulock(mmap->navMeshQueries_lock);
+-
+-        // allocate mesh query
+-        navMeshQuery = dtAllocNavMeshQuery();
+-        MANGOS_ASSERT(navMeshQuery);
+-        dtStatus dtResult = navMeshQuery->init(mmap->navMesh, 2048);
+-        if (dtStatusFailed(dtResult))
+-        {
+-            ulock.unlock();
+-            dtFreeNavMeshQuery(navMeshQuery);
+-            sLog.outError("MMAP:GetNavMeshQuery: Failed to initialize dtNavMeshQuery for mapId %03u thread %u", mapId, tid);
+-            return nullptr;
+-        }
+-
+-        DETAIL_LOG("MMAP:GetNavMeshQuery: created dtNavMeshQuery for mapId %03u thread %u", mapId, tid);
+-        mmap->navMeshQueries.insert(std::pair<std::thread::id, dtNavMeshQuery*>(tid, navMeshQuery));
++    auto it = mmap->navMeshQueries.find(tid);
++    if (it != mmap->navMeshQueries.end())
++        return it->second;
++
++    lock.unlock();
++    std::unique_lock<std::shared_mutex> ulock(mmap->navMeshQueries_lock);
++
++    // Recheck after upgrading: another caller may have populated the entry
++    // while the shared lock was released.
++    it = mmap->navMeshQueries.find(tid);
++    if (it != mmap->navMeshQueries.end())
++        return it->second;
++
++    dtNavMeshQuery* navMeshQuery = dtAllocNavMeshQuery();
++    MANGOS_ASSERT(navMeshQuery);
++    dtStatus dtResult = navMeshQuery->init(mmap->navMesh, 2048);
++    if (dtStatusFailed(dtResult))
++    {
++        dtFreeNavMeshQuery(navMeshQuery);
++        if (model)
++            sLog.outError("MMAP:GetNavMeshQuery: Failed to initialize dtNavMeshQuery for displayid %03u thread %u", identifier, tid);
++        else
++            sLog.outError("MMAP:GetNavMeshQuery: Failed to initialize dtNavMeshQuery for mapId %03u thread %u", identifier, tid);
++        return nullptr;
+     }
++
++    if (model)
++        DETAIL_LOG("MMAP:GetNavMeshQuery: created dtNavMeshQuery for displayid %03u thread %u", identifier, tid);
+     else
+-        navMeshQuery = it->second;
++        DETAIL_LOG("MMAP:GetNavMeshQuery: created dtNavMeshQuery for mapId %03u thread %u", identifier, tid);
+ 
++    mmap->navMeshQueries.insert(std::pair<std::thread::id, dtNavMeshQuery*>(tid, navMeshQuery));
+     return navMeshQuery;
+ }
+ 
++NavMeshQueryHandle MMapManager::AcquireNavMeshQuery(uint32 mapId)
++{
++    // Acquire the mesh reader while the registry itself is pinned. Full-map
++    // unload takes these in the opposite modes but the same order.
++    std::shared_lock<std::shared_mutex> mapLock(loadedMMaps_lock);
++    auto const mapIt = loadedMMaps.find(mapId);
++    if (mapIt == loadedMMaps.end())
++        return NavMeshQueryHandle();
++
++    MMapData* mmap = mapIt->second;
++    std::shared_lock<std::shared_mutex> navLock(mmap->navMesh_lock);
++    mapLock.unlock();
++
++    dtNavMeshQuery const* query = GetOrCreateNavMeshQuery(mmap, mapId, false);
++    if (!query)
++        return NavMeshQueryHandle();
++
++    return NavMeshQueryHandle(query, std::move(navLock));
++}
++
+ bool MMapManager::loadGameObject(uint32 displayId)
+ {
+-    // we already have this map loaded?
+-    if (loadedModels.find(displayId) != loadedModels.end())
+-        return true;
++    // we already have this model loaded?
++    {
++        std::unique_lock<std::mutex> modelLock(lockForModels);
++        if (loadedModels.find(displayId) != loadedModels.end())
++            return true;
++    }
+ 
+     // load and init dtNavMesh - read parameters from file
+     uint32 pathLen = sWorld.GetDataPath().length() + strlen("mmaps/go%04i.mmap") + 1;
+@@ -411,37 +461,28 @@
+     delete [] fileName;
+ 
+     MMapData* mmap_data = new MMapData(mesh);
+-    loadedModels.insert(std::pair<uint32, MMapData*>(displayId, mmap_data));
++    std::unique_lock<std::mutex> modelLock(lockForModels);
++    if (!loadedModels.insert(std::pair<uint32, MMapData*>(displayId, mmap_data)).second)
++        delete mmap_data;
+     return true;
+ }
+ 
+-dtNavMeshQuery const* MMapManager::GetModelNavMeshQuery(uint32 displayId)
++NavMeshQueryHandle MMapManager::AcquireModelNavMeshQuery(uint32 displayId)
+ {
+-    if (loadedModels.find(displayId) == loadedModels.end())
+-        return nullptr;
+-
+-    std::thread::id tid = std::this_thread::get_id();
+-    MMapData* mmap = loadedModels[displayId];
+-    if (mmap->navMeshQueries.find(tid) == mmap->navMeshQueries.end())
+-    {
+-        std::unique_lock<std::mutex> g(lockForModels);
+-        if (mmap->navMeshQueries.find(tid) == mmap->navMeshQueries.end())
+-        {
+-            // allocate mesh query
+-            dtNavMeshQuery* query = dtAllocNavMeshQuery();
+-            MANGOS_ASSERT(query);
+-            if (dtStatusFailed(query->init(mmap->navMesh, 2048)))
+-            {
+-                dtFreeNavMeshQuery(query);
+-                sLog.outError("MMAP:GetNavMeshQuery: Failed to initialize dtNavMeshQuery for displayid %03u tid %u", displayId, tid);
+-                return nullptr;
+-            }
++    std::unique_lock<std::mutex> modelLock(lockForModels);
++    auto const modelIt = loadedModels.find(displayId);
++    if (modelIt == loadedModels.end())
++        return NavMeshQueryHandle();
++
++    MMapData* mmap = modelIt->second;
++    std::shared_lock<std::shared_mutex> navLock(mmap->navMesh_lock);
++    modelLock.unlock();
++
++    dtNavMeshQuery const* query = GetOrCreateNavMeshQuery(mmap, displayId, true);
++    if (!query)
++        return NavMeshQueryHandle();
+ 
+-            DETAIL_LOG("MMAP:GetNavMeshQuery: created dtNavMeshQuery for displayid %03u tid %u", displayId, tid);
+-            mmap->navMeshQueries.insert(std::pair<std::thread::id, dtNavMeshQuery*>(tid, query));
+-        }
+-    }
+-
+-    return mmap->navMeshQueries[tid];
++    return NavMeshQueryHandle(query, std::move(navLock));
+ }
++
+ }
+--- a/src/game/Maps/GridMap.cpp
++++ b/src/game/Maps/GridMap.cpp
+@@ -676,12 +676,15 @@
+ 
+ TerrainInfo::~TerrainInfo()
+ {
++    // Drain navmesh readers before destroying terrain/VMap data they may query
++    // while building a path. Full mmap unload also prevents new query handles.
++    MMAP::MMapFactory::createOrGetMMapManager()->unloadMap(m_mapId);
++
+     for (int k = 0; k < MAX_NUMBER_OF_GRIDS; ++k)
+         for (const auto& itr : m_GridMaps)
+             delete itr[k];
+ 
+     VMAP::VMapFactory::createOrGetVMapManager()->unloadMap(m_mapId);
+-    MMAP::MMapFactory::createOrGetMMapManager()->unloadMap(m_mapId);
+ }
+ 
+ GridMap* TerrainInfo::Load(const uint32 x, const uint32 y)
+@@ -733,6 +736,12 @@
+             // delete those GridMap objects which have refcount = 0
+             if (pMap && iRef == 0)
+             {
++                // A path query can use both the navmesh and the corresponding
++                // GridMap/VMap while its Detour refs are live. Remove the mmap
++                // tile first: its writer gate waits for those readers before we
++                // detach any backing terrain data.
++                MMAP::MMapFactory::createOrGetMMapManager()->unloadMap(m_mapId, x, y);
++
+                 m_GridMaps[x][y] = nullptr;
+                 // delete grid data if reference count == 0
+                 pMap->unloadData();
+@@ -740,9 +749,6 @@
+ 
+                 // unload VMAPS...
+                 VMAP::VMapFactory::createOrGetVMapManager()->unloadMap(m_mapId, x, y);
+-
+-                // unload mmap...
+-                MMAP::MMapFactory::createOrGetMMapManager()->unloadMap(m_mapId, x, y);
+             }
+         }
+     }
+--- a/src/game/Maps/PathFinder.cpp
++++ b/src/game/Maps/PathFinder.cpp
+@@ -77,18 +77,19 @@
+     // A m_navMeshQuery object is not thread safe, but a same PathInfo can be shared between threads.
+     // So need to get a new one.
+     MMAP::MMapManager* mmap = MMAP::MMapFactory::createOrGetMMapManager();
++    MMAP::NavMeshQueryHandle navMeshQueryHandle;
+     if (m_transport)
+     {
+         if (!offsets)
+             m_transport->CalculatePassengerOffset(dest.x, dest.y, dest.z);
+ 
+-        m_navMeshQuery = mmap->GetModelNavMeshQuery(m_transport->GetDisplayId());
++        navMeshQueryHandle = mmap->AcquireModelNavMeshQuery(m_transport->GetDisplayId());
+     }
+     else
+-        m_navMeshQuery = mmap->GetNavMeshQuery(m_sourceUnit->GetMapId());
++        navMeshQueryHandle = mmap->AcquireNavMeshQuery(m_sourceUnit->GetMapId());
+ 
+-    if (m_navMeshQuery)
+-        m_navMesh = m_navMeshQuery->getAttachedNavMesh();
++    m_navMeshQuery = navMeshQueryHandle.get();
++    m_navMesh = m_navMeshQuery ? m_navMeshQuery->getAttachedNavMesh() : nullptr;
+ 
+     m_pathPoints.clear();
+ 
+@@ -126,9 +127,14 @@
+     }
+     else
+     {
+-        // target moved, so we need to update the poly path
++        // target moved, so we need to update the poly path. The handle keeps
++        // every Detour tile/poly reference stable through the complete build.
+         BuildPolyPath(start, dest);
+ 
++        // Everything below uses copied path/terrain state only. Release the
++        // navmesh reader before calls that are allowed to lazy-load a grid.
++        navMeshQueryHandle = MMAP::NavMeshQueryHandle();
++
+         if (m_type & PATHFIND_NOPATH)
+         {
+             const Unit* owner = m_sourceUnit; // to pull into lambda without pulling in the full member.
+--- a/src/game/Maps/Map.cpp
++++ b/src/game/Maps/Map.cpp
+@@ -3096,7 +3096,8 @@
+     }
+ 
+     MMAP::MMapManager* mmap = MMAP::MMapFactory::createOrGetMMapManager();
+-    const dtNavMeshQuery* m_navMeshQuery = transport ? mmap->GetModelNavMeshQuery(transport->GetDisplayId()) : mmap->GetNavMeshQuery(GetId());
++    MMAP::NavMeshQueryHandle navMeshQueryHandle = transport ? mmap->AcquireModelNavMeshQuery(transport->GetDisplayId()) : mmap->AcquireNavMeshQuery(GetId());
++    const dtNavMeshQuery* m_navMeshQuery = navMeshQueryHandle.get();
+     if (!m_navMeshQuery)
+     {
+         DETAIL_LOG("WalkHitPos: No nav mesh loaded !");
+@@ -3160,6 +3161,11 @@
+         DT_STRAIGHTPATH_ALL_CROSSINGS);
+     if (dtStatusFailed(result))
+         return false;
++
++    // All Detour refs have been converted to copied path points. Do not keep
++    // the reader gate across dynamic collision/VMap/terrain operations.
++    navMeshQueryHandle = MMAP::NavMeshQueryHandle();
++
+     // Add 1y height, because navmesh height is not very precise.
+     Vector3 dstPos = Vector3(srcX, srcY, srcZ + 1.0f);
+     for (int i = 0; i < pointCount; ++i)
+@@ -3228,7 +3234,8 @@
+ 
+     // Find the navMeshQuery.
+     MMAP::MMapManager* mmap = MMAP::MMapFactory::createOrGetMMapManager();
+-    dtNavMeshQuery const* m_navMeshQuery = transport ? mmap->GetModelNavMeshQuery(transport->GetDisplayId()) : mmap->GetNavMeshQuery(GetId());
++    MMAP::NavMeshQueryHandle navMeshQueryHandle = transport ? mmap->AcquireModelNavMeshQuery(transport->GetDisplayId()) : mmap->AcquireNavMeshQuery(GetId());
++    dtNavMeshQuery const* m_navMeshQuery = navMeshQueryHandle.get();
+     float radius = maxRadius * rand_norm_f();
+ 
+     // Find a valid position nearby.
+@@ -3290,6 +3297,10 @@
+         } while (false);
+     }
+ 
++    // The fallback below may choose an unloaded terrain grid and GetHeight()
++    // is allowed to lazy-load it. Release the navmesh reader before that path.
++    navMeshQueryHandle = MMAP::NavMeshQueryHandle();
++
+     if (!mmapsCorrect)
+     {
+         Geometry::GetNearPoint2DAroundPosition(point[2], point[0], endPosition[2], endPosition[0], radius, frand(0, M_PI_F * 2));
+--- a/src/game/Commands/Commands.cpp
++++ b/src/game/Commands/Commands.cpp
+@@ -13788,7 +13788,9 @@
+ 
+ bool ChatHandler::HandleMmapsNearCommand(char* args)
+ {
+-    if (!MMAP::MMapFactory::createOrGetMMapManager()->GetNavMesh(GetSession()->GetPlayer()->GetMapId()))
++    MMAP::MMapManager* mmap = MMAP::MMapFactory::createOrGetMMapManager();
++    MMAP::NavMeshQueryHandle queryHandle = mmap->AcquireNavMeshQuery(GetSession()->GetPlayer()->GetMapId());
++    if (!queryHandle)
+     {
+         PSendSysMessage("NavMesh not loaded for current map.");
+         return true;
+@@ -13807,23 +13809,30 @@
+     filter.setExcludeFlags(NAV_STEEP_SLOPES);
+     std::vector<dtPolyRef> refs;
+     refs.resize(4000);
+-    auto query = MMAP::MMapFactory::createOrGetMMapManager()->GetNavMeshQuery(GetSession()->GetPlayer()->GetMapId());
++    dtNavMeshQuery const* query = queryHandle.get();
+     int polyCount = 0;
+     if (dtStatusFailed(query->queryPolygons(point, extents, &filter, refs.data(), &polyCount, refs.size())))
+         SendSysMessage("Error querying polygons.");
+ 
+     refs.resize(polyCount);
+ 
++    std::vector<G3D::Vector3> visualPoints;
++    visualPoints.reserve(refs.size());
+     for (const auto& poly : refs)
+     {
+         float pointRes[3] = {};
+         bool res = false;
+         if (dtStatusFailed(query->closestPointOnPoly(poly, point, pointRes, &res)))
+             continue;
+-        else
+-            GetSession()->GetPlayer()->SummonCreature(VISUAL_WAYPOINT, pointRes[2], pointRes[0], pointRes[1], 0, TEMPSUMMON_TIMED_DESPAWN, 30000, false, 0, nullptr, false);
++
++        visualPoints.emplace_back(pointRes[2], pointRes[0], pointRes[1]);
+     }
+ 
++    // Summoning can enter map/grid code; no Detour refs are needed anymore.
++    queryHandle = MMAP::NavMeshQueryHandle();
++    for (G3D::Vector3 const& visualPoint : visualPoints)
++        GetSession()->GetPlayer()->SummonCreature(VISUAL_WAYPOINT, visualPoint.x, visualPoint.y, visualPoint.z, 0, TEMPSUMMON_TIMED_DESPAWN, 30000, false, 0, nullptr, false);
++
+     return true;
+ }
+ 
+@@ -13860,7 +13869,7 @@
+ 
+ bool ChatHandler::HandleMmapsPathCommand(char* args)
+ {
+-    if (!MMAP::MMapFactory::createOrGetMMapManager()->GetNavMesh(GetSession()->GetPlayer()->GetMapId()))
++    if (!MMAP::MMapFactory::createOrGetMMapManager()->IsNavMeshLoaded(GetSession()->GetPlayer()->GetMapId()))
+     {
+         PSendSysMessage("NavMesh not loaded for current map.");
+         return true;
