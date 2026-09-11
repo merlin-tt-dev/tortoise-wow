@@ -33,9 +33,24 @@
 #include <regex>
 #include <unordered_set>
 #include <unordered_map>
+#include <functional>
+#include <tuple>
+#include <cstddef>
 
 typedef std::tuple<int32, int32, int32> WMOAreaTableKey;
-typedef std::map<WMOAreaTableKey, WMOAreaTableEntry const*> WMOAreaInfoByTripple;
+
+struct WMOAreaTableKeyHash
+{
+    std::size_t operator()(WMOAreaTableKey const& key) const noexcept
+    {
+        std::size_t hash = std::hash<int32>{}(std::get<0>(key));
+        hash ^= std::hash<int32>{}(std::get<1>(key)) + 0x9e3779b9u + (hash << 6) + (hash >> 2);
+        hash ^= std::hash<int32>{}(std::get<2>(key)) + 0x9e3779b9u + (hash << 6) + (hash >> 2);
+        return hash;
+    }
+};
+
+typedef std::unordered_map<WMOAreaTableKey, WMOAreaTableEntry const*, WMOAreaTableKeyHash> WMOAreaInfoByTripple;
 
 static WMOAreaInfoByTripple sWMOAreaInfoByTripple;
 

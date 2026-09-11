@@ -771,7 +771,7 @@ struct WorldSafeLocsEntry
 typedef std::set<uint32> SpellCategorySet;
 typedef std::unordered_map<uint32,SpellCategorySet > SpellCategoriesStore;
 typedef std::set<uint32> PetFamilySpellsSet;
-typedef std::map<uint32,PetFamilySpellsSet > PetFamilySpellsStore;
+typedef std::unordered_map<uint32,PetFamilySpellsSet > PetFamilySpellsStore;
 
 // Structures not used for casting to loaded DBC data and not required then packing
 struct TalentSpellPos
@@ -783,7 +783,7 @@ struct TalentSpellPos
     uint8  rank;
 };
 
-typedef std::map<uint32,TalentSpellPos> TalentSpellPosMap;
+typedef std::unordered_map<uint32,TalentSpellPos> TalentSpellPosMap;
 
 struct TaxiPathBySourceAndDestination
 {
@@ -793,8 +793,8 @@ struct TaxiPathBySourceAndDestination
     uint32    ID;
     uint32    price;
 };
-typedef std::map<uint32,TaxiPathBySourceAndDestination> TaxiPathSetForSource;
-typedef std::map<uint32,TaxiPathSetForSource> TaxiPathSetBySource;
+typedef std::unordered_map<uint32,TaxiPathBySourceAndDestination> TaxiPathSetForSource;
+typedef std::unordered_map<uint32,TaxiPathSetForSource> TaxiPathSetBySource;
 
 struct TaxiPathNodePtr
 {
