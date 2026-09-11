@@ -6089,8 +6089,9 @@ Corpse* Player::CreateCorpse()
     {
         if (m_items[i])
         {
-            iDisplayID = m_items[i]->GetProto()->DisplayInfoID;
-            iIventoryType = m_items[i]->GetProto()->InventoryType;
+            ItemPrototype const* proto = m_items[i]->GetProto();
+            iDisplayID = proto->DisplayInfoID;
+            iIventoryType = proto->InventoryType;
 
             _cfi =  iDisplayID | (iIventoryType << 24);
             corpse->SetUInt32Value(CORPSE_FIELD_ITEM + i, _cfi);
@@ -6980,8 +6981,12 @@ void Player::UpdateCombatSkills(Unit* pVictim, WeaponAttackType& attType, const 
                 {
                     if (!tmpitem)
                         UpdateSkill(SKILL_UNARMED, weapon_skill_gain);
-                    else if (tmpitem->GetProto()->SubClass != ITEM_SUBCLASS_WEAPON_FISHING_POLE)
-                        UpdateSkill(tmpitem->GetProto()->GetProficiencySkill(), weapon_skill_gain);
+                    else
+                    {
+                        ItemPrototype const* proto = tmpitem->GetProto();
+                        if (proto->SubClass != ITEM_SUBCLASS_WEAPON_FISHING_POLE)
+                            UpdateSkill(proto->GetProficiencySkill(), weapon_skill_gain);
+                    }
 
                     break;
                 }
@@ -6989,7 +6994,10 @@ void Player::UpdateCombatSkills(Unit* pVictim, WeaponAttackType& attType, const 
                 case RANGED_ATTACK:
                 {
                     if (tmpitem)
-                        UpdateSkill(tmpitem->GetProto()->GetProficiencySkill(), weapon_skill_gain);
+                    {
+                        ItemPrototype const* proto = tmpitem->GetProto();
+                        UpdateSkill(proto->GetProficiencySkill(), weapon_skill_gain);
+                    }
 
                     break;
                 }
@@ -9372,15 +9380,21 @@ void Player::SendLoot(ObjectGuid guid, LootType loot_type, Player* pVictim)
                 switch (loot_type)
                 {
                     case LOOT_DISENCHANTING:
-                        loot->FillLoot(item->GetProto()->DisenchantID, LootTemplates_Disenchant, this, true);
+                    {
+                        ItemPrototype const* proto = item->GetProto();
+                        loot->FillLoot(proto->DisenchantID, LootTemplates_Disenchant, this, true);
                         item->SetLootState(ITEM_LOOT_TEMPORARY);
                         break;
+                    }
                     default:
-                        loot->FillLoot(item->GetEntry(), LootTemplates_Item, this, true, item->GetProto()->MaxMoneyLoot == 0);
-                        loot->GenerateMoneyLoot(item->GetProto()->MinMoneyLoot, item->GetProto()->MaxMoneyLoot);
+                    {
+                        ItemPrototype const* proto = item->GetProto();
+                        loot->FillLoot(item->GetEntry(), LootTemplates_Item, this, true, proto->MaxMoneyLoot == 0);
+                        loot->GenerateMoneyLoot(proto->MinMoneyLoot, proto->MaxMoneyLoot);
                         item->SetLootState(ITEM_LOOT_CHANGED);
                         item->SetGeneratedLoot(true);
                         break;
+                    }
                 }
             }
             break;
@@ -13234,7 +13248,8 @@ void Player::SwapItem(uint16 src, uint16 dst)
         // can be merge/fill
         if (msg == EQUIP_ERR_OK)
         {
-            if (pSrcItem->GetCount() + pDstItem->GetCount() <= pSrcItem->GetProto()->GetMaxStackSize())
+            uint32 const maxStackSize = pSrcItem->GetProto()->GetMaxStackSize();
+            if (pSrcItem->GetCount() + pDstItem->GetCount() <= maxStackSize)
             {
                 RemoveItem(srcbag, srcslot, true);
 
@@ -13250,8 +13265,8 @@ void Player::SwapItem(uint16 src, uint16 dst)
             }
             else
             {
-                pSrcItem->SetCount(pSrcItem->GetCount() + pDstItem->GetCount() - pSrcItem->GetProto()->GetMaxStackSize());
-                pDstItem->SetCount(pSrcItem->GetProto()->GetMaxStackSize());
+                pSrcItem->SetCount(pSrcItem->GetCount() + pDstItem->GetCount() - maxStackSize);
+                pDstItem->SetCount(maxStackSize);
                 pSrcItem->SetState(ITEM_CHANGED, this);
                 pDstItem->SetState(ITEM_CHANGED, this);
                 if (IsInWorld())

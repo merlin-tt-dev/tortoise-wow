@@ -96,8 +96,9 @@ void WorldSession::SendUpdateTrade(bool trader_state /*= true*/)
 
         if (Item* item = view_trade->GetItem(TradeSlots(i)))
         {
-            data << uint32(item->GetProto()->ItemId);       // entry
-            data << uint32(item->GetProto()->DisplayInfoID);// display id
+            ItemPrototype const* proto = item->GetProto();
+            data << uint32(proto->ItemId);                  // entry
+            data << uint32(proto->DisplayInfoID);           // display id
             data << uint32(item->GetCount());               // stack count
 
             // wrapped: hide stats but show giftcreator name
@@ -109,7 +110,7 @@ void WorldSession::SendUpdateTrade(bool trader_state /*= true*/)
             data << uint32(item->GetSpellCharges());        // charges
             data << uint32(item->GetItemSuffixFactor());    // SuffixFactor
             data << uint32(item->GetItemRandomPropertyId());// random properties id
-            data << uint32(item->GetProto()->LockID);       // lock id
+            data << uint32(proto->LockID);                  // lock id
             // max durability
             data << uint32(item->GetUInt32Value(ITEM_FIELD_MAXDURABILITY));
             // durability

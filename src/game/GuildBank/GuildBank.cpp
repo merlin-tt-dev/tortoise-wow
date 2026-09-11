@@ -2568,11 +2568,12 @@ void GuildBank::CloneItem(Item* item, BankItem* bItem)
 // Clones a Item into a BankItem
 void GuildBank::CloneItem(BankItem* bItem, Item* pItem)
 {
-	bItem->Name            = pItem->GetProto()->Name1;
-	bItem->item_template   = pItem->GetProto()->ItemId;
+    ItemPrototype const* proto = pItem->GetProto();
+    bItem->Name            = proto->Name1;
+    bItem->item_template   = proto->ItemId;
 	bItem->creatorGuid     = pItem->GetGuidValue(ITEM_FIELD_CREATOR).GetCounter();
 	bItem->giftCreatorGuid = pItem->GetGuidValue(ITEM_FIELD_GIFTCREATOR).GetCounter();
-	bItem->maxStackSize    = pItem->GetProto()->GetMaxStackSize();
+    bItem->maxStackSize    = proto->GetMaxStackSize();
 	bItem->duration        = pItem->GetInt32Value(ITEM_FIELD_DURATION);
 	bItem->is_inferno      = b_infernoBank;
 

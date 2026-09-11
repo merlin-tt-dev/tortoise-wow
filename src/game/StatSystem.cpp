@@ -157,10 +157,14 @@ void Player::UpdateArmor()
             if (auto findItr = armorLookup.find(aura->GetId()); findItr != armorLookup.end())
             {
                 auto shield = GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_OFFHAND);
-                if (shield && shield->GetProto()->Class == ITEM_CLASS_ARMOR &&
-                    (shield->GetProto()->SubClass == ITEM_SUBCLASS_ARMOR_SHIELD || shield->GetProto()->SubClass == ITEM_SUBCLASS_ARMOR_BUCKLER))
+                if (shield)
                 {
-                    dynamic += ceilf(shield->GetProto()->Armor / 100.0f * findItr->second);
+                    ItemPrototype const* proto = shield->GetProto();
+                    if (proto->Class == ITEM_CLASS_ARMOR &&
+                        (proto->SubClass == ITEM_SUBCLASS_ARMOR_SHIELD || proto->SubClass == ITEM_SUBCLASS_ARMOR_BUCKLER))
+                    {
+                        dynamic += ceilf(proto->Armor / 100.0f * findItr->second);
+                    }
                 }
             }
         }

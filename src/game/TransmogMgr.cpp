@@ -251,7 +251,7 @@ uint8 TransmogMgr::ApplyTransmog(uint8 slot, uint32 sourceItemID, uint32 slotId)
 
 	ItemPrototype const* destItemProto = destItem->GetProto();
 
-	if (!destItem->GetProto() || !destItemProto)
+    if (!destItemProto)
 		return 1; // no dest item
 
 	uint32 newItemId = 0;
@@ -276,7 +276,7 @@ uint8 TransmogMgr::ApplyTransmog(uint8 slot, uint32 sourceItemID, uint32 slotId)
 			return 5; // source not valid for destination
 
 		// create or get item replica
-		newItemId = sObjectMgr.CreateItemTransmogrifyTemplate(destItem->GetProto()->ItemId, srcItemProto->DisplayInfoID, sourceItemID);
+        newItemId = sObjectMgr.CreateItemTransmogrifyTemplate(destItemProto->ItemId, srcItemProto->DisplayInfoID, sourceItemID);
 
 		_owner->DestroyItemCount(TRANSMOG_CURRENCY, 1, true);
 	}
