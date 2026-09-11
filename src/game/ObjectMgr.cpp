@@ -57,6 +57,7 @@
 
 #include <limits>
 #include <unordered_set>
+#include <unordered_map>
 
 ObjectMgr sObjectMgr;
 
@@ -3744,7 +3745,7 @@ void ObjectMgr::LoadQuests()
 
     // Post processing
 
-    std::map<uint32, uint32> usedMailTemplates;
+    std::unordered_map<uint32, uint32> usedMailTemplates;
 
     for (auto & iter : m_QuestTemplatesMap)
     {
@@ -4529,7 +4530,7 @@ void ObjectMgr::LoadPetCreateSpells()
     while (result->NextRow());
 
     // cache spell->learn spell map for use in next loop
-    std::map<uint32, uint32> learnCache;
+    std::unordered_map<uint32, uint32> learnCache;
     for (uint32 spell_id = 1; spell_id < sSpellMgr.GetMaxSpellId(); ++spell_id)
     {
         SpellEntry const *spellproto = sSpellMgr.GetSpellEntry(spell_id);
@@ -4563,7 +4564,7 @@ void ObjectMgr::LoadPetCreateSpells()
             if (petspell_id)
             {
                 // in dbc stored spell for pet use, but for teaching work we need learn spell ids
-                std::map<uint32, uint32>::const_iterator cache_itr = learnCache.find(petspell_id);
+                std::unordered_map<uint32, uint32>::const_iterator cache_itr = learnCache.find(petspell_id);
                 if (cache_itr != learnCache.end())
                     petspell_id = cache_itr->second;
             }

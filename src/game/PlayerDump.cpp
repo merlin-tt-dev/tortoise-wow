@@ -25,6 +25,7 @@
 #include "UpdateFields.h"
 #include "ObjectMgr.h"
 #include "AccountMgr.h"
+#include <unordered_map>
 
 // Character Dump tables
 struct DumpTable
@@ -169,13 +170,13 @@ bool changetoknth(std::string &str, int n, char const* with, bool insert = false
     return true;
 }
 
-uint32 registerNewGuid(uint32 oldGuid, std::map<uint32, uint32>& guidMap, uint32 newguid)
+uint32 registerNewGuid(uint32 oldGuid, std::unordered_map<uint32, uint32>& guidMap, uint32 newguid)
 {
     auto guidInsert = guidMap.emplace(oldGuid, newguid);
     return guidInsert.first->second;
 }
 
-bool changeGuid(std::string &str, int n, std::map<uint32, uint32>& guidMap, uint32 newGuid, bool nonzero = false)
+bool changeGuid(std::string &str, int n, std::unordered_map<uint32, uint32>& guidMap, uint32 newGuid, bool nonzero = false)
 {
     char chritem[20];
     std::string guidStr = getnth(str, n);
@@ -486,11 +487,11 @@ DumpReturn PlayerDumpReader::LoadStringDump(std::string const& data, uint32 acco
     snprintf(newpetid, 20, "%u", sObjectMgr.GeneratePetNumber());
     snprintf(lastpetid, 20, "%s", "");
 
-    std::map<uint32, uint32> items;
-    std::map<uint32, uint32> mails;
-    std::map<uint32, uint32> itemTexts;
+    std::unordered_map<uint32, uint32> items;
+    std::unordered_map<uint32, uint32> mails;
+    std::unordered_map<uint32, uint32> itemTexts;
 
-    typedef std::map<uint32, uint32> PetIds;                // old->new petid relation
+    typedef std::unordered_map<uint32, uint32> PetIds;                // old->new petid relation
     typedef PetIds::value_type PetIdsPair;
     PetIds petids;
 
@@ -641,7 +642,7 @@ DumpReturn PlayerDumpReader::LoadStringDump(std::string const& data, uint32 acco
                 snprintf(lastpetid, 20, "%s", currpetid);
             }
 
-            std::map<uint32, uint32> ::const_iterator petids_iter = petids.find(strtoul(currpetid, nullptr, 10));
+            PetIds::const_iterator petids_iter = petids.find(strtoul(currpetid, nullptr, 10));
 
             if (petids_iter == petids.end())
                 petids.insert(PetIdsPair(strtoul(currpetid, nullptr, 10), strtoul(newpetid, nullptr, 10)));
@@ -658,7 +659,7 @@ DumpReturn PlayerDumpReader::LoadStringDump(std::string const& data, uint32 acco
             snprintf(currpetid, 20, "%s", getnth(line, 1).c_str());
 
             // lookup currpetid and match to new inserted pet id
-            std::map<uint32, uint32> ::const_iterator petids_iter = petids.find(strtoul(currpetid, nullptr, 10));
+            PetIds::const_iterator petids_iter = petids.find(strtoul(currpetid, nullptr, 10));
             if (petids_iter == petids.end())            // couldn't find new inserted id
                 ROLLBACK_STR(DUMP_FILE_BROKEN);
 
@@ -768,12 +769,12 @@ DumpReturn PlayerDumpReader::LoadDump(std::string const& file, uint32 account, s
     snprintf(newpetid, 20, "%u", sObjectMgr.GeneratePetNumber());
     snprintf(lastpetid, 20, "%s", "");
 
-    std::map<uint32, uint32> items;
-    std::map<uint32, uint32> mails;
-    std::map<uint32, uint32> itemTexts;
+    std::unordered_map<uint32, uint32> items;
+    std::unordered_map<uint32, uint32> mails;
+    std::unordered_map<uint32, uint32> itemTexts;
     char buf[32000] = "";
 
-    typedef std::map<uint32, uint32> PetIds;                // old->new petid relation
+    typedef std::unordered_map<uint32, uint32> PetIds;                // old->new petid relation
     typedef PetIds::value_type PetIdsPair;
     PetIds petids;
 
@@ -931,7 +932,7 @@ DumpReturn PlayerDumpReader::LoadDump(std::string const& file, uint32 account, s
                     snprintf(lastpetid, 20, "%s", currpetid);
                 }
 
-                std::map<uint32, uint32> :: const_iterator petids_iter = petids.find(strtoul(currpetid, nullptr, 10));
+                PetIds::const_iterator petids_iter = petids.find(strtoul(currpetid, nullptr, 10));
 
                 if (petids_iter == petids.end())
                     petids.insert(PetIdsPair(strtoul(currpetid, nullptr, 10), strtoul(newpetid, nullptr, 10)));
@@ -948,7 +949,7 @@ DumpReturn PlayerDumpReader::LoadDump(std::string const& file, uint32 account, s
                 snprintf(currpetid, 20, "%s", getnth(line, 1).c_str());
 
                 // lookup currpetid and match to new inserted pet id
-                std::map<uint32, uint32> :: const_iterator petids_iter = petids.find(strtoul(currpetid, nullptr, 10));
+                PetIds::const_iterator petids_iter = petids.find(strtoul(currpetid, nullptr, 10));
                 if (petids_iter == petids.end())            // couldn't find new inserted id
                     ROLLBACK(DUMP_FILE_BROKEN);
 

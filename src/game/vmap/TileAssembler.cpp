@@ -22,6 +22,7 @@
 #include "VMapDefinitions.h"
 
 #include <set>
+#include <unordered_map>
 #include <memory>
 #include <iomanip>
 #include <sstream>
@@ -102,7 +103,7 @@ bool TileAssembler::convertWorld2()
         pTree.build(mapSpawns, BoundsTrait<ModelSpawn*>::getBounds);
 
         // ===> possibly move this code to StaticMapTree class
-        std::map<uint32, uint32> modelNodeIdx;
+        std::unordered_map<uint32, uint32> modelNodeIdx;
         for (uint32 i = 0; i < mapSpawns.size(); ++i)
             modelNodeIdx.insert(pair<uint32, uint32>(mapSpawns[i]->ID, i));
 
@@ -176,7 +177,7 @@ bool TileAssembler::convertWorld2()
                 const ModelSpawn& spawn2 = map_iter->second->UniqueEntries[tile->second];
                 success = success && ModelSpawn::writeToFile(tilefile, spawn2);
                 // MapTree nodes to update when loading tile:
-                std::map<uint32, uint32>::iterator nIdx = modelNodeIdx.find(spawn2.ID);
+                std::unordered_map<uint32, uint32>::iterator nIdx = modelNodeIdx.find(spawn2.ID);
                 if (success && fwrite(&nIdx->second, sizeof(uint32), 1, tilefile) != 1) success = false;
             }
 
