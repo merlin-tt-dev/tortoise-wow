@@ -143,28 +143,27 @@ void Player::UpdateArmor()
     //CUSTOM spirit armor
     if (GetClass() == CLASS_SHAMAN)
     {
-        auto auraList = GetAurasByType(SPELL_AURA_DUMMY);
-
-        static std::unordered_map<uint32, float> armorLookup =
-        {
-            {45951, 10.0f},
-            {45952, 20.0f},
-            {45953, 30.0f}
-        };
+        AuraList const& auraList = GetAurasByType(SPELL_AURA_DUMMY);
 
         for (const auto& aura : auraList)
         {
-            if (auto findItr = armorLookup.find(aura->GetId()); findItr != armorLookup.end())
+            float armorPercent;
+            switch (aura->GetId())
             {
-                auto shield = GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_OFFHAND);
-                if (shield)
+                case 45951: armorPercent = 10.0f; break;
+                case 45952: armorPercent = 20.0f; break;
+                case 45953: armorPercent = 30.0f; break;
+                default: continue;
+            }
+
+            auto shield = GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_OFFHAND);
+            if (shield)
+            {
+                ItemPrototype const* proto = shield->GetProto();
+                if (proto->Class == ITEM_CLASS_ARMOR &&
+                    (proto->SubClass == ITEM_SUBCLASS_ARMOR_SHIELD || proto->SubClass == ITEM_SUBCLASS_ARMOR_BUCKLER))
                 {
-                    ItemPrototype const* proto = shield->GetProto();
-                    if (proto->Class == ITEM_CLASS_ARMOR &&
-                        (proto->SubClass == ITEM_SUBCLASS_ARMOR_SHIELD || proto->SubClass == ITEM_SUBCLASS_ARMOR_BUCKLER))
-                    {
-                        dynamic += ceilf(proto->Armor / 100.0f * findItr->second);
-                    }
+                    dynamic += ceilf(proto->Armor / 100.0f * armorPercent);
                 }
             }
         }
