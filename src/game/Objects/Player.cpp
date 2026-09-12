@@ -3012,7 +3012,8 @@ void Player::HandleFoodEmotes(uint32 diff)
 
         for (const auto pAura : lModRegenAuras)
         {
-            if (pAura->GetSpellProto()->HasAura(SPELL_AURA_MOD_REGEN) && pAura->GetSpellProto()->AuraInterruptFlags & AURA_INTERRUPT_FLAG_NOT_SEATED)
+            SpellEntry const* spellInfo = pAura->GetSpellProto();
+            if (spellInfo->HasAura(SPELL_AURA_MOD_REGEN) && spellInfo->AuraInterruptFlags & AURA_INTERRUPT_FLAG_NOT_SEATED)
             {
                 SendPlaySpellVisual(SPELL_VISUAL_KIT_FOOD);
                 break;
@@ -3021,7 +3022,8 @@ void Player::HandleFoodEmotes(uint32 diff)
 
         for (const auto pAura : lModPowerRegenAuras)
         {
-            if (pAura->GetSpellProto()->HasAura(SPELL_AURA_MOD_POWER_REGEN) && pAura->GetSpellProto()->AuraInterruptFlags & AURA_INTERRUPT_FLAG_NOT_SEATED)
+            SpellEntry const* spellInfo = pAura->GetSpellProto();
+            if (spellInfo->HasAura(SPELL_AURA_MOD_POWER_REGEN) && spellInfo->AuraInterruptFlags & AURA_INTERRUPT_FLAG_NOT_SEATED)
             {
                 SendPlaySpellVisual(SPELL_VISUAL_KIT_DRINK);
                 break;
@@ -3161,7 +3163,10 @@ void Player::RegenerateHealth()
         {
             AuraList const& lModHealthRegen = GetAurasByType(SPELL_AURA_MOD_REGEN);
             for (const auto i : lModHealthRegen)
-                addvalue += i->GetModifier()->m_amount * (float(REGEN_TIME_FULL) / float(i->GetModifier()->periodictime));
+            {
+                Modifier const* modifier = i->GetModifier();
+                addvalue += modifier->m_amount * (float(REGEN_TIME_FULL) / float(modifier->periodictime));
+            }
         }
     }
 
@@ -8601,12 +8606,14 @@ void Player::_ApplyWeaponDependentAuraCritMod(Item *item, WeaponAttackType attac
     if (aura->GetSpellProto()->EquippedItemClass == -1)
         return;
 
+    ObjectGuid const& castItemGuid = aura->GetCastItemGuid();
+
     // handled only auras applied by this item (enchants) or all auras without itemCaster (talents)
-    if (aura->GetCastItemGuid() && aura->GetCastItemGuid() != item->GetObjectGuid())
+    if (castItemGuid && castItemGuid != item->GetObjectGuid())
         return;
 
     // auras without itemCaster not applied in offhand crit and not removing mods if has eligible weapon
-    if (!aura->GetCastItemGuid() && attackType == OFF_ATTACK)
+    if (!castItemGuid && attackType == OFF_ATTACK)
         return;
 
     // dont apply or unapply twice

@@ -5948,7 +5948,8 @@ uint32 Unit::SpellHealingBonusTaken(WorldObject* pCaster, SpellEntry const* spel
         AuraList const& mDummyAuras = GetAurasByType(SPELL_AURA_DUMMY);
         for (const auto& i : mDummyAuras)
         {
-            if (i->GetSpellProto()->IsFitToFamilyMask<CF_PALADIN_BLESSINGS>() && i->GetSpellProto()->SpellVisual == 300)
+            SpellEntry const* auraSpellInfo = i->GetSpellProto();
+            if (auraSpellInfo->IsFitToFamilyMask<CF_PALADIN_BLESSINGS>() && auraSpellInfo->SpellVisual == 300)
             {
                 // Holy Light
                 if (spellProto->IsFitToFamilyMask<CF_PALADIN_HOLY_LIGHT2>() && i->GetEffIndex() == EFFECT_INDEX_0)
@@ -7166,8 +7167,11 @@ bool Unit::CanDetectInvisibilityOf(Unit const* u) const
             int32 invLevel = 0;
             Unit::AuraList const& iAuras = u->GetAurasByType(SPELL_AURA_MOD_INVISIBILITY);
             for (const auto& itr : iAuras)
-                if (itr->GetModifier()->m_miscvalue == i && invLevel < itr->GetModifier()->m_amount)
-                    invLevel = itr->GetModifier()->m_amount;
+            {
+                Modifier const* modifier = itr->GetModifier();
+                if (modifier->m_miscvalue == i && invLevel < modifier->m_amount)
+                    invLevel = modifier->m_amount;
+            }
 
             // find invisibility detect level
             int32 detectLevel = 0;
@@ -7175,8 +7179,11 @@ bool Unit::CanDetectInvisibilityOf(Unit const* u) const
             {
                 Unit::AuraList const& dAuras = GetAurasByType(SPELL_AURA_MOD_INVISIBILITY_DETECTION);
                 for (const auto& itr : dAuras)
-                    if (itr->GetModifier()->m_miscvalue == i && detectLevel < itr->GetModifier()->m_amount)
-                        detectLevel = itr->GetModifier()->m_amount;
+                {
+                    Modifier const* modifier = itr->GetModifier();
+                    if (modifier->m_miscvalue == i && detectLevel < modifier->m_amount)
+                        detectLevel = modifier->m_amount;
+                }
             }
 
             if (i == 6 && IsPlayer())     // special drunk detection case
