@@ -4507,9 +4507,10 @@ void Unit::RemoveArenaAuras(bool onleave, AuraRemoveMode mode /*= AURA_REMOVE_BY
     // On join, remove positive buffs, on end, remove negative used to remove positive visible auras in arenas
     for (SpellAuraHolderMap::iterator iter = m_spellAuraHolders.begin(); iter != m_spellAuraHolders.end();)
     {
+        SpellEntry const* spellInfo = iter->second->GetSpellProto();
         if (!iter->second->IsPassive() && // Don't remove passive auras
-           (!iter->second->GetSpellProto()->HasAttribute(SPELL_ATTR_UNAFFECTED_BY_INVULNERABILITY) || !iter->second->GetSpellProto()->HasAttribute(SPELL_ATTR_HIDE_IN_COMBAT_LOG)) &&
-           (!iter->second->GetSpellProto()->HasAreaAuraEffect()) && // Not unaffected by invulnerability auras or not having that unknown flag (that seemed the most probable)
+           (!spellInfo->HasAttribute(SPELL_ATTR_UNAFFECTED_BY_INVULNERABILITY) || !spellInfo->HasAttribute(SPELL_ATTR_HIDE_IN_COMBAT_LOG)) &&
+           (!spellInfo->HasAreaAuraEffect()) && // Not unaffected by invulnerability auras or not having that unknown flag (that seemed the most probable)
            (iter->second->IsPositive() != onleave)) // Remove positive buffs on enter, negative buffs on leave
         {
             RemoveSpellAuraHolder(iter->second, mode);
@@ -10994,7 +10995,8 @@ void Unit::GetRandomAttackPoint(Unit const* attacker, float &x, float &y, float 
         attacker_number = 0;
     angle += (attacker_number ? ((float(M_PI / 2) - float(M_PI) * rand_norm_f()) * attacker_number / sizeFactor) * 0.3f : 0);
 
-    float dist = attacker->GetObjectBoundingRadius() + GetObjectBoundingRadius() + rand_norm_f() * (attacker->GetMeleeReach() - attacker->GetObjectBoundingRadius());
+    float const attackerBoundingRadius = attacker->GetObjectBoundingRadius();
+    float dist = attackerBoundingRadius + GetObjectBoundingRadius() + rand_norm_f() * (attacker->GetMeleeReach() - attackerBoundingRadius);
     float initialPosX, initialPosY, initialPosZ, o;
     GetPosition(initialPosX, initialPosY, initialPosZ);
 

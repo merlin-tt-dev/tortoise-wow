@@ -2050,8 +2050,8 @@ void Player::CinematicEnd()
 
 Unit* Player::GetFirstAttacker() const
 {
-    auto attacker = GetAttackers().size() > 0 ? (*GetAttackers().begin()) : nullptr;
-    return attacker;
+    AttackerSet const& attackers = GetAttackers();
+    return attackers.empty() ? nullptr : *attackers.begin();
 }
 
 void Player::LogHCDeath()
