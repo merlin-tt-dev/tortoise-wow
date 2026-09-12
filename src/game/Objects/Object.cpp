@@ -667,7 +667,7 @@ void Object::BuildValuesUpdate(uint8 updatetype, ByteBuffer * data, UpdateMask *
                     if (HasFlag(UNIT_DYNAMIC_FLAGS, UNIT_DYNFLAG_TRACK_UNIT))
                         if (Unit const * unit = ToUnit())
                         {
-                            Unit::AuraList auras = unit->GetAurasByType(SPELL_AURA_MOD_STALKED);
+                            Unit::AuraList const& auras = unit->GetAurasByType(SPELL_AURA_MOD_STALKED);
                             if (std::find_if(auras.begin(), auras.end(),[target](Aura *a){
                                 return target->GetObjectGuid() == a->GetCasterGuid();
                             }) == auras.end())

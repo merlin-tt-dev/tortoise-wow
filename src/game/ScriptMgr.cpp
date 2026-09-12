@@ -2523,7 +2523,7 @@ void ScriptMgr::LoadEscortData()
                 sLog.outErrorDb("DB table script_escort_data has data for creature entry %u, but creature does not have script_name defined and then useless.", pTemp.uiCreatureEntry);
 
             // Calcul de uiLastWaypointEntry, et mise en "cache"
-            std::vector<ScriptPointMove> const points = GetPointMoveList(pTemp.uiCreatureEntry);
+            std::vector<ScriptPointMove> const& points = GetPointMoveList(pTemp.uiCreatureEntry);
             if(points.empty())
             {
                 sLog.outErrorDb("Le PNJ %u de script_escort_data n'a pas de donnees de Waypoints !", pTemp.uiCreatureEntry);
