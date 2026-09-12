@@ -166,7 +166,7 @@ Unit* PetEventAI::FindTargetForAttack() const
         else
         {
             // Main target is CC-ed, so pick another attacker.
-            Unit::AttackerSet owner_attackers = pOwner->GetAttackers();
+            Unit::AttackerSet const& owner_attackers = pOwner->GetAttackers();
             for (const auto& itr : owner_attackers)
             {
                 if (itr->IsInMap(m_creature) && m_creature->IsValidAttackTarget(itr) && !itr->HasAuraPetShouldAvoidBreaking())

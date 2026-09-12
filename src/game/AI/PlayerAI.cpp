@@ -124,7 +124,7 @@ PlayerControlledAI::PlayerControlledAI(Player* pPlayer, Unit* caster) : PlayerAI
             break;
     }
 
-    PlayerSpellMap spells = me->GetSpellMap();
+    PlayerSpellMap const& spells = me->GetSpellMap();
     usableSpells.clear();
     for (const auto& spell : spells)
     {

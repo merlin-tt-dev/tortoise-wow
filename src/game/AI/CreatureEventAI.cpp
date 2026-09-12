@@ -217,10 +217,18 @@ bool CreatureEventAI::ProcessEvent(CreatureEventAIHolder& pHolder, WorldObject* 
         }
         case EVENT_T_TARGET_HP:
         {
-            if (!m_creature->IsInCombat() || !m_creature->GetVictim() || !m_creature->GetVictim()->GetMaxHealth())
+            if (!m_creature->IsInCombat())
                 return false;
 
-            uint32 perc = (m_creature->GetVictim()->GetHealth() * 100) / m_creature->GetVictim()->GetMaxHealth();
+            Unit* victim = m_creature->GetVictim();
+            if (!victim)
+                return false;
+
+            uint32 maxHealth = victim->GetMaxHealth();
+            if (!maxHealth)
+                return false;
+
+            uint32 perc = (victim->GetHealth() * 100) / maxHealth;
 
             if (perc > event.percent_range.percentMax || perc < event.percent_range.percentMin)
                 return false;
@@ -301,10 +309,18 @@ bool CreatureEventAI::ProcessEvent(CreatureEventAIHolder& pHolder, WorldObject* 
         }
         case EVENT_T_TARGET_MANA:
         {
-            if (!m_creature->IsInCombat() || !m_creature->GetVictim() || !m_creature->GetVictim()->GetMaxPower(POWER_MANA))
+            if (!m_creature->IsInCombat())
                 return false;
 
-            uint32 perc = (m_creature->GetVictim()->GetPower(POWER_MANA) * 100) / m_creature->GetVictim()->GetMaxPower(POWER_MANA);
+            Unit* victim = m_creature->GetVictim();
+            if (!victim)
+                return false;
+
+            uint32 maxMana = victim->GetMaxPower(POWER_MANA);
+            if (!maxMana)
+                return false;
+
+            uint32 perc = (victim->GetPower(POWER_MANA) * 100) / maxMana;
 
             if (perc > event.percent_range.percentMax || perc < event.percent_range.percentMin)
                 return false;
